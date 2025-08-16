@@ -1,0 +1,212 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{parskip}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1em}
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{1em}{}
+\title{Automation Pipeline: Events, Actions, and Coach Setup}
+\author{Your Project Name}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section*{Introduction}
+This document provides a comprehensive overview of the automation pipeline implemented in the system. It covers all automation events, actions, how coaches can set up their own automations, and details any default automations. The document is formatted for readability, with proper text wrapping and spacing for easy printing or PDF export.
+
+\section{Automation Pipeline Overview}
+The automation pipeline allows for the automatic execution of actions in response to specific events within the platform. Coaches and administrators can define rules that trigger actions such as sending messages, updating lead information, or managing appointments, all without manual intervention.
+
+\section{Automation Events}
+Automation events are system occurrences that can trigger one or more automation actions. Below is a categorized list of all supported events:
+
+\subsection*{Lead \\& Customer Lifecycle}
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{lead\_created} -- A new lead is created in the system.
+    \item \textbf{lead\_status\_changed} -- The status of a lead is updated.
+    \item \textbf{lead\_temperature\_changed} -- The temperature (quality) of a lead changes.
+    \item \textbf{lead\_converted\_to\_client} -- A lead is converted to a client.
+\end{itemize}
+
+\subsection*{Funnel \\& Conversion}
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{form\_submitted} -- A funnel form is submitted.
+    \item \textbf{funnel\_stage\_entered} -- A lead enters a new funnel stage.
+    \item \textbf{funnel\_stage\_exited} -- A lead exits a funnel stage.
+    \item \textbf{funnel\_completed} -- A lead completes the funnel.
+\end{itemize}
+
+\subsection*{Appointment \\& Calendar}
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{appointment\_booked} -- An appointment is booked.
+    \item \textbf{appointment\_rescheduled} -- An appointment is rescheduled.
+    \item \textbf{appointment\_cancelled} -- An appointment is cancelled.
+    \item \textbf{appointment\_reminder\_time} -- Time for an appointment reminder.
+    \item \textbf{appointment\_finished} -- An appointment is completed.
+\end{itemize}
+
+\subsection*{Communication}
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{whatsapp\_message\_received} -- A WhatsApp message is received.
+    \item \textbf{content\_consumed} -- Content is consumed by a user.
+\end{itemize}
+
+\subsection*{Task \\& System}
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{task\_created} -- A new task is created.
+    \item \textbf{task\_completed} -- A task is completed.
+    \item \textbf{task\_overdue} -- A task becomes overdue.
+\end{itemize}
+
+\subsection*{Payment \\& Subscription}
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{payment\_successful} -- A payment is successful.
+    \item \textbf{payment\_failed} -- A payment fails.
+    \item \textbf{payment\_link\_clicked} -- A payment link is clicked.
+    \item \textbf{payment\_abandoned} -- A payment is abandoned.
+    \item \textbf{invoice\_paid} -- An invoice is paid.
+    \item \textbf{subscription\_created} -- A subscription is created.
+    \item \textbf{subscription\_cancelled} -- A subscription is cancelled.
+    \item \textbf{card\_expired} -- A payment card expires.
+\end{itemize}
+
+\section{Automation Actions}
+When an event is triggered, one or more actions can be executed. Below is a list of all supported actions:
+
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{update\_lead\_score} -- Update the score of a lead.
+    \item \textbf{add\_lead\_tag} -- Add a tag to a lead.
+    \item \textbf{remove\_lead\_tag} -- Remove a tag from a lead.
+    \item \textbf{add\_to\_funnel} -- Add a lead to a funnel.
+    \item \textbf{move\_to\_funnel\_stage} -- Move a lead to a specific funnel stage.
+    \item \textbf{remove\_from\_funnel} -- Remove a lead from a funnel.
+    \item \textbf{update\_lead\_field} -- Update a specific field on a lead.
+    \item \textbf{create\_deal} -- Create a deal for a lead.
+    \item \textbf{send\_whatsapp\_message} -- Send a WhatsApp message.
+    \item \textbf{create\_email\_message} -- Send an email message.
+    \item \textbf{create\_sms\_message} -- Send an SMS message.
+    \item \textbf{send\_internal\_notification} -- Send an internal notification.
+    \item \textbf{send\_push\_notification} -- Send a push notification.
+    \item \textbf{schedule\_drip\_sequence} -- Schedule a drip sequence.
+    \item \textbf{create\_task} -- Create a new task.
+    \item \textbf{create\_calendar\_event} -- Create a calendar event.
+    \item \textbf{add\_note\_to\_lead} -- Add a note to a lead.
+    \item \textbf{add\_followup\_date} -- Add a follow-up date to a lead.
+    \item \textbf{create\_invoice} -- Create an invoice.
+    \item \textbf{issue\_refund} -- Issue a refund.
+    \item \textbf{call\_webhook} -- Call an external webhook.
+    \item \textbf{trigger\_another\_automation} -- Trigger another automation rule.
+\end{itemize}
+
+\section{How Coaches Can Set Up Automation}
+Coaches can set up and manage their own automation rules through the platform’s user interface or API. The process typically involves the following steps:
+
+\begin{enumerate}[leftmargin=2em]
+    \item \textbf{Access the Automation Rules Section:} Navigate to the automation rules management area in the dashboard.
+    \item \textbf{Create a New Rule:} Click on 'Create Rule' and fill in the required details:
+    \begin{itemize}
+        \item Rule Name
+        \item Trigger Event (choose from the list above)
+        \item Actions (choose one or more actions to execute)
+        \item Action Configuration (e.g., message templates, delay, recipients)
+    \end{itemize}
+    \item \textbf{Save and Activate:} Save the rule and ensure it is marked as active.
+    \item \textbf{Edit or Delete:} Rules can be edited or deleted at any time to adapt to changing workflows.
+\end{enumerate}
+
+\subsection*{API Endpoints for Automation Rules}
+\begin{itemize}[leftmargin=2em]
+    \item \texttt{POST /api/automation-rules} -- Create a new rule
+    \item \texttt{GET /api/automation-rules} -- List all rules
+    \item \texttt{GET /api/automation-rules/:id} -- Get a rule by ID
+    \item \texttt{PUT /api/automation-rules/:id} -- Update a rule
+    \item \texttt{DELETE /api/automation-rules/:id} -- Delete a rule
+\end{itemize}
+
+\section{Default Automation Rules}
+The system may provide default automation rules to help coaches get started. These can be customized or disabled as needed. Example defaults include:
+
+\begin{itemize}[leftmargin=2em]
+    \item Automatically send a welcome WhatsApp message when a new lead is created.
+    \item Notify the coach when a payment is successful.
+    \item Move a lead to a 'Contacted' stage after form submission.
+    \item Send an appointment reminder before a scheduled meeting.
+\end{itemize}
+
+\section{Fully Implemented Automation Flows}
+This section lists the automation events and actions that are fully implemented in the current system. These flows are ready for use and can be leveraged by coaches and administrators.
+
+\subsection*{Implemented Automation Events}
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{lead\_created} -- Triggered when a new lead is created.
+    \item \textbf{lead\_status\_changed} -- Triggered when a lead's status is updated.
+    \item \textbf{lead\_temperature\_changed} -- Triggered when a lead's temperature changes.
+    \item \textbf{lead\_converted\_to\_client} -- Triggered when a lead is converted to a client.
+    \item \textbf{form\_submitted} -- Triggered after a successful form submission.
+    \item \textbf{funnel\_stage\_entered} -- Triggered when a lead enters a funnel stage.
+    \item \textbf{funnel\_stage\_exited} -- Triggered when a lead exits a funnel stage.
+    \item \textbf{funnel\_completed} -- Triggered when a lead completes a funnel.
+    \item \textbf{appointment\_booked} -- Triggered when an appointment is booked.
+    \item \textbf{appointment\_rescheduled} -- Triggered when an appointment is rescheduled.
+    \item \textbf{appointment\_cancelled} -- Triggered when an appointment is cancelled.
+    \item \textbf{appointment\_reminder\_time} -- Triggered for appointment reminders.
+    \item \textbf{appointment\_finished} -- Triggered when an appointment is finished.
+    \item \textbf{payment\_successful} -- Triggered when a payment is successful.
+    \item \textbf{payment\_failed} -- Triggered when a payment fails.
+    \item \textbf{payment\_link\_clicked} -- Triggered when a payment link is clicked.
+    \item \textbf{payment\_abandoned} -- Triggered when a payment is abandoned.
+    \item \textbf{invoice\_paid} -- Triggered when an invoice is paid.
+    \item \textbf{subscription\_created} -- Triggered when a subscription is created.
+    \item \textbf{subscription\_cancelled} -- Triggered when a subscription is cancelled.
+    \item \textbf{card\_expired} -- Triggered when a payment card expires.
+    \item \textbf{booking\_abandoned} -- Triggered when a booking session is abandoned.
+\end{itemize}
+
+\subsection*{Implemented Automation Actions}
+\begin{itemize}[leftmargin=2em]
+    \item \textbf{send\_whatsapp\_message} -- Send a WhatsApp message to a lead.
+    \item \textbf{send\_email} -- Send an email message.
+    \item \textbf{send\_sms} -- Send an SMS message.
+    \item \textbf{update\_lead\_score} -- Update the score of a lead.
+    \item \textbf{ai\_rescore\_lead} -- Use AI to rescore a lead.
+    \item \textbf{create\_new\_task} -- Create a new task for a lead or coach.
+    \item \textbf{send\_internal\_notification} -- Send an internal notification.
+    \item \textbf{create\_calendar\_event} -- Create a calendar event.
+    \item \textbf{update\_lead\_field} -- Update a specific field on a lead.
+    \item \textbf{handle\_payment\_actions} -- Handle payment-related actions (update status, send confirmation, alert coach).
+    \item \textbf{add\_lead\_tag} -- Add a tag to a lead.
+    \item \textbf{remove\_lead\_tag} -- Remove a tag from a lead.
+    \item \textbf{add\_to\_funnel} -- Add a lead to a funnel.
+    \item \textbf{move\_to\_funnel\_stage} -- Move a lead to a specific funnel stage.
+    \item \textbf{remove\_from\_funnel} -- Remove a lead from a funnel.
+    \item \textbf{create\_deal} -- Create a deal for a lead.
+    \item \textbf{send\_push\_notification} -- Send a push notification.
+    \item \textbf{schedule\_drip\_sequence} -- Schedule a drip sequence.
+    \item \textbf{add\_note\_to\_lead} -- Add a note to a lead.
+    \item \textbf{add\_followup\_date} -- Add a follow-up date to a lead.
+    \item \textbf{create\_invoice} -- Create an invoice.
+    \item \textbf{issue\_refund} -- Issue a refund.
+    \item \textbf{call\_webhook} -- Call an external webhook.
+    \item \textbf{trigger\_another\_automation} -- Trigger another automation rule.
+\end{itemize}
+
+\section{Best Practices}
+\begin{itemize}[leftmargin=2em]
+    \item Review automation rules regularly to ensure they align with your workflow.
+    \item Use descriptive names for rules and actions.
+    \item Test new automations with sample data before deploying to all leads.
+    \item Leverage delays and conditions for advanced workflows.
+    \item Monitor automation logs for errors or unexpected behavior.
+\end{itemize}
+
+\section{Extending the Automation Pipeline}
+The automation system is designed to be extensible. Developers can add new events, actions, or conditions by updating the schema and implementing the corresponding logic in the backend services.
+
+\section*{Conclusion}
+The automation pipeline empowers coaches and administrators to automate repetitive tasks, improve lead management, and enhance client engagement. By leveraging events and actions, users can create powerful workflows tailored to their unique business needs.
+
+\end{document}

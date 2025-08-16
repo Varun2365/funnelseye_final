@@ -1,0 +1,1022 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage{forloop}
+\usepackage{pgffor}
+
+% Page setup
+\geometry{
+    left=2.5cm,
+    right=2.5cm,
+    top=2.5cm,
+    bottom=2.5cm
+}
+
+% Hyperlink colors
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Coach Dashboard - Full Project Documentation},
+    pdfpagemode=FullScreen,
+}
+
+% Header and footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textbf{Coach Dashboard - Full Project Documentation}}
+\fancyhead[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Title formatting
+\titleformat{\section}{\Large\bfseries\color{blue}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\color{darkgray}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{1em}{}
+
+% Code listing style
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    breakatwhitespace=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    backgroundcolor=\color{gray!10},
+    showspaces=false,
+    showstringspaces=false,
+    tabsize=2
+}
+
+% Custom colors
+\definecolor{darkgray}{rgb}{0.3,0.3,0.3}
+\definecolor{lightblue}{rgb}{0.8,0.9,1.0}
+\definecolor{lightgreen}{rgb}{0.9,1.0,0.9}
+\definecolor{lightyellow}{rgb}{1.0,1.0,0.9}
+
+% Custom commands
+\newcommand{\apiendpoint}[2]{\textbf{#1} \\ \texttt{#2}}
+\newcommand{\samplecode}[1]{\begin{lstlisting}[language=JSON]#1\end{lstlisting}}
+\newcommand{\note}[1]{\textbf{Note:} #1}
+\newcommand{\warning}[1]{\textbf{Warning:} #1}
+\newcommand{\tip}[1]{\textbf{Tip:} #1}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    
+    {\Huge\bfseries\color{blue} Coach Dashboard}\\[0.5cm]
+    {\Large\bfseries Full Project Documentation}\\[1cm]
+    
+    \vspace{1cm}
+    
+    {\large\textbf{Comprehensive SaaS Platform for Fitness Coaches}}\\[0.5cm]
+    {\large\textbf{Automation Powerhouse with AI-Driven Features}}\\[1cm]
+    
+    \vspace{2cm}
+    
+    {\large\textbf{Document Version:} 1.0}\\[0.5cm]
+    {\large\textbf{Last Updated:} \today}\\[0.5cm]
+    {\large\textbf{Project Status:} Production Ready}\\[1cm]
+    
+    \vspace{2cm}
+    
+    {\large\textbf{Table of Contents:}}\\[0.5cm]
+    \begin{itemize}[leftmargin=2cm]
+        \item System Overview
+        \item Core Modules
+        \item API Documentation
+        \item Database Schema
+        \item Integration Details
+        \item Deployment Guide
+        \item Troubleshooting
+    \end{itemize}
+    
+    \vfill
+    
+    {\large\textbf{For Internal Team Use Only}}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{System Overview}
+
+\subsection{What is the Coach Dashboard?}
+
+The Coach Dashboard is a comprehensive SaaS platform designed specifically for fitness coaches to manage their entire business operations through a single, AI-powered interface. It's an "Automation Powerhouse" that handles everything from lead generation to client management, marketing automation, and business analytics.
+
+\subsection{Key Features at a Glance}
+
+\begin{itemize}
+    \item \textbf{AI-Powered Lead Generation} - Automated lead capture and qualification
+    \item \textbf{Marketing \& Advertising Automation} - AI-driven ad campaigns and optimization
+    \item \textbf{Workflow \& Task Management} - Kanban-style project management with AI SOP generation
+    \item \textbf{Staff Management \& Leaderboards} - Performance tracking and team motivation
+    \item \textbf{Lead Magnets System} - AI-powered health tools for lead generation
+    \item \textbf{Comprehensive Analytics} - Real-time business insights and performance metrics
+    \item \textbf{Document Management} - Secure file storage and e-signature integration
+    \item \textbf{E-commerce \& Revenue Management} - Payment processing and subscription management
+\end{itemize}
+
+\subsection{Technology Stack}
+
+\begin{itemize}
+    \item \textbf{Backend:} Node.js with Express.js framework
+    \item \textbf{Database:} MongoDB with Mongoose ODM
+    \item \textbf{Message Queue:} RabbitMQ for asynchronous processing
+    \item \textbf{AI Integration:} OpenAI GPT-4 for intelligent automation
+    \item \textbf{External APIs:} Meta Ads API, WhatsApp Business API (Baileys)
+    \item \textbf{Authentication:} JWT-based secure authentication
+    \item \textbf{File Storage:} Local file system with deduplication
+\end{itemize}
+
+\section{Core Modules}
+
+\section{1. Lead Generation \& Funnel Management}
+
+\subsection{Overview}
+This module handles the complete lead lifecycle from initial capture to conversion. It includes AI-powered landing page generation, lead qualification, and automated nurturing sequences.
+
+\subsection{Key Components}
+
+\subsubsection{AI Copy Agent}
+\textbf{Purpose:} Automatically generates compelling headlines, CTAs, and content for landing pages and marketing materials.
+
+\textbf{How it Works:}
+\begin{enumerate}
+    \item Analyzes target audience and campaign goals
+    \item Generates multiple headline variations using GPT-4
+    \item A/B tests different copy versions
+    \item Optimizes based on performance metrics
+\end{enumerate}
+
+\textbf{API Endpoints:}
+\begin{itemize}
+    \item \apiendpoint{Generate Copy}{POST /api/ai-ads/generate-copy}
+    \item \apiendpoint{Optimize Copy}{POST /api/ai-ads/optimize-copy}
+    \item \apiendpoint{Get Copy Performance}{GET /api/ai-ads/copy-performance}
+\end{itemize}
+
+\textbf{Sample Request:}
+\samplecode{
+{
+  "targetAudience": "fitness enthusiasts",
+  "campaignGoal": "lead generation",
+  "productType": "personal training",
+  "tone": "motivational",
+  "platform": "facebook"
+}
+}
+
+\textbf{Sample Response:}
+\samplecode{
+{
+  "success": true,
+  "data": {
+    "headlines": [
+      "Transform Your Body in 30 Days - Expert Guidance",
+      "Stop Struggling Alone - Get Your Personal Fitness Coach",
+      "Join 1000+ Success Stories - Start Your Journey Today"
+    ],
+    "ctas": [
+      "Get Free Consultation",
+      "Start My Transformation",
+      "Claim My Spot"
+    ],
+    "content": "Ready to finally achieve your fitness goals? Our proven system has helped over 1000 clients transform their lives. Get personalized guidance from certified experts who understand your journey..."
+  }
+}
+}
+
+\subsubsection{CRM with AI Intelligence}
+\textbf{Purpose:} Intelligent lead management with behavioral scoring and automated qualification.
+
+\textbf{Features:}
+\begin{itemize}
+    \item \textbf{Behavioral Scoring} - Tracks lead interactions and assigns scores
+    \item \textbf{AI Qualification} - Automatically qualifies leads based on behavior patterns
+    \item \textbf{Lead Temperature} - Hot/Warm/Cold classification
+    \item \textbf{Automated Follow-ups} - Scheduled follow-up sequences
+\end{itemize}
+
+\textbf{API Endpoints:}
+\begin{itemize}
+    \item \apiendpoint{Create Lead}{POST /api/leads}
+    \item \apiendpoint{Get Leads}{GET /api/leads}
+    \item \apiendpoint{Update Lead}{PUT /api/leads/:id}
+    \item \apiendpoint{AI Rescore}{GET /api/leads/:id/ai-rescore}
+    \item \apiendpoint{Convert Lead}{POST /api/leads/:id/convert}
+\end{itemize}
+
+\textbf{Lead Scoring Algorithm:}
+\begin{itemize}
+    \item \textbf{Basic Information:} +5 points for email/phone, +15 for both
+    \item \textbf{Lead Temperature:} Hot (+30), Warm (+15), Cold (+5)
+    \item \textbf{Lead Magnet Interactions:} +8 points per interaction
+    \item \textbf{Conversions:} +15 points per conversion
+    \item \textbf{Multiple Interactions:} +20 bonus for 3+ interactions
+    \item \textbf{Recent Activity:} +10 points for activity in last 7 days
+    \item \textbf{Progress Tracking:} +5 points per entry (max 25)
+\end{itemize}
+
+\section{2. Marketing \& Advertising}
+
+\subsection{AI Ads Agent}
+\textbf{Purpose:} Fully automated advertising campaign management with AI-driven optimization.
+
+\subsubsection{Core Features}
+\begin{itemize}
+    \item \textbf{Creative Generation} - AI creates ad copy, images, and videos
+    \item \textbf{Budget Optimization} - Intelligent budget allocation across campaigns
+    \item \textbf{Performance Monitoring} - Real-time anomaly detection
+    \item \textbf{A/B Testing} - Automated testing of different ad variations
+    \item \textbf{ROI Tracking} - Comprehensive return on investment analytics
+\end{itemize}
+
+\subsubsection{API Endpoints}
+\begin{itemize}
+    \item \apiendpoint{Create Campaign}{POST /api/ads/campaigns}
+    \item \apiendpoint{Generate Creative}{POST /api/ai-ads/generate-creative}
+    \item \apiendpoint{Optimize Budget}{POST /api/ai-ads/optimize-budget}
+    \item \apiendpoint{Get Analytics}{GET /api/ads/analytics}
+    \item \apiendpoint{Detect Anomalies}{GET /api/ai-ads/anomalies}
+\end{itemize}
+
+\subsubsection{Sample Campaign Creation}
+\samplecode{
+{
+  "campaignName": "Summer Fitness Challenge",
+  "objective": "LEAD_GENERATION",
+  "targetAudience": {
+    "ageRange": [25, 45],
+    "interests": ["fitness", "health", "weight loss"],
+    "location": "New York"
+  },
+  "budget": {
+    "dailyBudget": 50,
+    "totalBudget": 1000
+  },
+  "creativeSettings": {
+    "tone": "motivational",
+    "style": "modern",
+    "callToAction": "Get Started"
+  }
+}
+}
+
+\subsubsection{Performance Metrics}
+\begin{itemize}
+    \item \textbf{CTR (Click-Through Rate):} Target > 2\%
+    \item \textbf{CPC (Cost Per Click):} Target < \$2.00
+    \item \textbf{ROAS (Return on Ad Spend):} Target > 3.0
+    \item \textbf{Conversion Rate:} Target > 5\%
+\end{itemize}
+
+\section{3. Workflow \& Task Management}
+
+\subsection{Kanban-Style Workflow Board}
+\textbf{Purpose:} Visual task management system with AI-powered automation.
+
+\subsubsection{Features}
+\begin{itemize}
+    \item \textbf{Drag-and-Drop Interface} - Intuitive task organization
+    \item \textbf{AI SOP Generation} - Automatic standard operating procedures
+    \item \textbf{Smart Task Assignment} - Intelligent workload distribution
+    \item \textbf{Pipeline Management} - Deal progression tracking
+    \item \textbf{Automated Reminders} - Follow-up notifications
+\end{itemize}
+
+\subsubsection{API Endpoints}
+\begin{itemize}
+    \item \apiendpoint{Create Task}{POST /api/workflow/tasks}
+    \item \apiendpoint{Get Tasks}{GET /api/workflow/tasks}
+    \item \apiendpoint{Update Task}{PUT /api/workflow/tasks/:id}
+    \item \apiendpoint{Generate SOP}{POST /api/workflow/generate-sop}
+    \item \apiendpoint{Assign Tasks}{POST /api/workflow/auto-assign}
+\end{itemize}
+
+\subsubsection{Task States}
+\begin{itemize}
+    \item \textbf{Backlog} - New tasks awaiting assignment
+    \item \textbf{To Do} - Assigned tasks ready to start
+    \item \textbf{In Progress} - Currently being worked on
+    \item \textbf{Review} - Completed tasks awaiting approval
+    \item \textbf{Done} - Successfully completed tasks
+\end{itemize}
+
+\subsubsection{Sample Task Creation}
+\samplecode{
+{
+  "title": "Follow up with hot lead - John Smith",
+  "description": "John showed high interest in personal training. Schedule consultation call.",
+  "priority": "high",
+  "assignedTo": "staff_id_123",
+  "dueDate": "2024-01-15T10:00:00Z",
+  "category": "lead_followup",
+  "estimatedHours": 1,
+  "dependencies": ["task_id_456"]
+}
+}
+
+\section{4. Staff Management \& Leaderboards}
+
+\subsection{Staff Performance Scoring}
+\textbf{Purpose:} Gamified performance tracking with achievements and leaderboards.
+
+\subsubsection{Scoring Weights}
+\begin{itemize}
+    \item \textbf{Task Completion:} 35\% - Tasks completed on time
+    \item \textbf{Quality Rating:} 25\% - Client satisfaction scores
+    \item \textbf{Efficiency:} 20\% - Time taken vs estimated
+    \item \textbf{Leadership:} 15\% - Helping other team members
+    \item \textbf{Innovation:} 5\% - Process improvements suggested
+\end{itemize}
+
+\subsubsection{Achievements System}
+\begin{itemize}
+    \item \textbf{Task Master} - Complete 100 tasks successfully
+    \item \textbf{Speed Demon} - Complete tasks 20\% faster than average
+    \item \textbf{Quality Champion} - Maintain 95\%+ satisfaction rating
+    \item \textbf{Lead Closer} - Convert 80\%+ of qualified leads
+    \item \textbf{Team Player} - Help 10+ team members with tasks
+    \item \textbf{Process Innovator} - Suggest 5+ process improvements
+    \item \textbf{Consistency King} - Maintain top performance for 3 months
+    \item \textbf{Fast Learner} - Improve performance by 50\% in 30 days
+\end{itemize}
+
+\subsubsection{API Endpoints}
+\begin{itemize}
+    \item \apiendpoint{Get Leaderboard}{GET /api/staff-leaderboard}
+    \item \apiendpoint{Get Staff Score}{GET /api/staff-leaderboard/:staffId}
+    \item \apiendpoint{Get Achievements}{GET /api/staff-leaderboard/achievements}
+    \item \apiendpoint{Update Weights}{PUT /api/staff-leaderboard/weights}
+    \item \apiendpoint{Get Comparison}{GET /api/staff-leaderboard/compare}
+\end{itemize}
+
+\subsubsection{Sample Leaderboard Response}
+\samplecode{
+{
+  "success": true,
+  "data": {
+    "leaderboard": [
+      {
+        "rank": 1,
+        "staffId": "staff_123",
+        "staffName": "Sarah Johnson",
+        "totalScore": 94.5,
+        "scores": {
+          "taskCompletion": 95,
+          "qualityRating": 98,
+          "efficiency": 92,
+          "leadership": 88,
+          "innovation": 85
+        },
+        "achievements": ["Task Master", "Quality Champion"],
+        "metrics": {
+          "tasksCompleted": 156,
+          "averageRating": 4.8,
+          "leadsConverted": 45
+        }
+      }
+    ],
+    "timeRange": 30,
+    "lastUpdated": "2024-01-10T15:30:00Z"
+  }
+}
+}
+
+\section{5. Lead Magnets System}
+
+\subsection{AI-Powered Health Tools}
+\textbf{Purpose:} Collection of valuable health and fitness tools that coaches can offer to potential clients for free, helping capture leads while providing real value.
+
+\subsubsection{Available Lead Magnets}
+\begin{itemize}
+    \item \textbf{AI Health Diet Planner} - Personalized meal plans via WhatsApp
+    \item \textbf{BMI Calculator} - Calculate BMI with health recommendations
+    \item \textbf{Fitness E-Book Collection} - Downloadable fitness guides
+    \item \textbf{Weekly Meal Planner} - Customized meal plans with recipes
+    \item \textbf{Workout Calculator} - 1RM, heart rate, and calorie calculations
+    \item \textbf{Progress Tracker} - Track weight, measurements, and workouts
+    \item \textbf{Sleep Quality Analyzer} - Analyze sleep patterns and get tips
+    \item \textbf{Stress Assessment Tool} - Evaluate stress levels and get recommendations
+\end{itemize}
+
+\subsubsection{Lead Scoring Integration}
+\textbf{Automatic Score Increases:}
+\begin{itemize}
+    \item \textbf{Each Interaction:} +8 points (shows engagement)
+    \item \textbf{Conversions:} +15 points (shows high intent)
+    \item \textbf{Multiple Interactions (3+):} +20 bonus points (sustained interest)
+    \item \textbf{Recent Activity (7 days):} +10 bonus points (current engagement)
+    \item \textbf{Progress Tracking:} +5 points per entry (max 25 points)
+\end{itemize}
+
+\subsubsection{API Endpoints}
+\begin{itemize}
+    \item \apiendpoint{Get Coach Settings}{GET /api/lead-magnets/coach}
+    \item \apiendpoint{Update Settings}{PUT /api/lead-magnets/coach}
+    \item \apiendpoint{Generate Diet Plan}{POST /api/lead-magnets/ai-diet-plan}
+    \item \apiendpoint{Calculate BMI}{POST /api/lead-magnets/bmi-calculator}
+    \item \apiendpoint{Generate E-book}{POST /api/lead-magnets/ebook-generator}
+    \item \apiendpoint{Track Progress}{POST /api/lead-magnets/progress-tracker}
+    \item \apiendpoint{Mark Conversion}{POST /api/lead-magnets/mark-conversion}
+    \item \apiendpoint{Get Analytics}{GET /api/lead-magnets/interaction-analytics}
+\end{itemize}
+
+\subsubsection{Sample AI Diet Plan Request}
+\samplecode{
+{
+  "coachId": "coach_123",
+  "leadId": "lead_456",
+  "userPreferences": {
+    "age": 28,
+    "gender": "female",
+    "weight": 65,
+    "height": 165,
+    "activityLevel": "moderate",
+    "goals": "weight_loss",
+    "dietaryRestrictions": ["vegetarian", "gluten_free"]
+  }
+}
+}
+
+\subsubsection{Sample Diet Plan Response}
+\samplecode{
+{
+  "success": true,
+  "dietPlan": "7-Day Vegetarian Weight Loss Meal Plan\n\nDay 1:\nBreakfast: Oatmeal with berries and nuts (350 cal)\nLunch: Quinoa salad with vegetables (400 cal)\nDinner: Lentil soup with whole grain bread (450 cal)\nSnacks: Greek yogurt with honey (150 cal)\n\nTotal Daily Calories: 1350\nMacros: Protein 65g, Carbs 180g, Fat 45g\n\nShopping List:\n- Oats, berries, mixed nuts\n- Quinoa, mixed vegetables\n- Lentils, whole grain bread\n- Greek yogurt, honey\n\nPreparation Tips:\n- Cook quinoa in advance for the week\n- Prepare overnight oats for quick breakfasts\n- Batch cook lentil soup for multiple meals",
+  "dailyCalories": 1350,
+  "bmr": 1450,
+  "message": "AI diet plan generated successfully"
+}
+}
+
+\section{6. Coach Dashboard - Main Analytics Hub}
+
+\subsection{Comprehensive Business Intelligence}
+\textbf{Purpose:} Centralized dashboard providing real-time insights from all modules with AI-powered recommendations.
+
+\subsubsection{Dashboard Sections}
+
+\paragraph{Lead Analytics}
+\begin{itemize}
+    \item \textbf{Lead Generation Metrics} - New leads, conversion rates, sources
+    \item \textbf{Lead Scoring Distribution} - Hot/Warm/Cold lead breakdown
+    \item \textbf{Lead Magnet Performance} - Which tools drive most engagement
+    \item \textbf{Conversion Funnel} - Lead progression through stages
+\end{itemize}
+
+\paragraph{Marketing Analytics}
+\begin{itemize}
+    \item \textbf{Campaign Performance} - ROI, CTR, CPC metrics
+    \item \textbf{Ad Spend Analysis} - Budget allocation and optimization
+    \item \textbf{Creative Performance} - Best performing ad variations
+    \item \textbf{Channel Effectiveness} - Facebook, Instagram, Google performance
+\end{itemize}
+
+\paragraph{Task \& Workflow Analytics}
+\begin{itemize}
+    \item \textbf{Task Completion Rates} - Team productivity metrics
+    \item \textbf{Workflow Efficiency} - Time to completion analysis
+    \item \textbf{Staff Performance} - Individual and team productivity
+    \item \textbf{Bottleneck Identification} - Process optimization opportunities
+\end{itemize}
+
+\paragraph{Financial Analytics}
+\begin{itemize}
+    \item \textbf{Revenue Tracking} - Monthly, quarterly, yearly revenue
+    \item \textbf{Payment Status} - Successful, pending, failed payments
+    \item \textbf{Revenue Projections} - AI-powered forecasting
+    \item \textbf{Profit Margins} - Cost analysis and profitability
+\end{itemize}
+
+\paragraph{Team Performance}
+\begin{itemize}
+    \item \textbf{Staff Leaderboards} - Performance rankings and achievements
+    \item \textbf{Team Productivity} - Collective performance metrics
+    \item \textbf{Skill Gaps} - Training and development needs
+    \item \textbf{Retention Metrics} - Staff satisfaction and turnover
+\end{itemize}
+
+\subsubsection{Daily Priority Feed}
+\textbf{Purpose:} AI-powered recommendations for daily actions and priorities.
+
+\textbf{Feed Categories:}
+\begin{itemize}
+    \item \textbf{High-Priority Leads} - Hot leads requiring immediate attention
+    \item \textbf{Campaign Alerts} - Underperforming ads needing optimization
+    \item \textbf{Task Deadlines} - Upcoming task due dates
+    \item \textbf{Revenue Opportunities} - Potential upsells and conversions
+    \item \textbf{Team Notifications} - Staff achievements and milestones
+\end{itemize}
+
+\subsubsection{API Endpoints}
+\begin{itemize}
+    \item \apiendpoint{Get Dashboard Overview}{GET /api/coach-dashboard/overview}
+    \item \apiendpoint{Get Lead Analytics}{GET /api/coach-dashboard/leads}
+    \item \apiendpoint{Get Marketing Analytics}{GET /api/coach-dashboard/marketing}
+    \item \apiendpoint{Get Task Analytics}{GET /api/coach-dashboard/tasks}
+    \item \apiendpoint{Get Financial Data}{GET /api/coach-dashboard/financial}
+    \item \apiendpoint{Get Team Performance}{GET /api/coach-dashboard/team}
+    \item \apiendpoint{Get Daily Feed}{GET /api/coach-dashboard/daily-feed}
+    \item \apiendpoint{Get Custom Analytics}{GET /api/coach-dashboard/custom}
+\end{itemize}
+
+\subsubsection{Sample Dashboard Overview Response}
+\samplecode{
+{
+  "success": true,
+  "data": {
+    "overview": {
+      "totalLeads": 1247,
+      "activeLeads": 89,
+      "conversionRate": 12.5,
+      "monthlyRevenue": 45600,
+      "teamProductivity": 87.3,
+      "campaignROI": 3.2
+    },
+    "recentActivity": [
+      {
+        "type": "lead_conversion",
+        "message": "John Smith converted to client",
+        "timestamp": "2024-01-10T14:30:00Z",
+        "value": 2500
+      },
+      {
+        "type": "campaign_alert",
+        "message": "Summer Fitness campaign CTR dropped 15\%",
+        "timestamp": "2024-01-10T13:15:00Z",
+        "priority": "high"
+      }
+    ],
+    "dailyPriorities": [
+      {
+        "priority": "high",
+        "action": "Follow up with 5 hot leads",
+        "estimatedTime": "2 hours",
+        "potentialValue": 12500
+      },
+      {
+        "priority": "medium",
+        "action": "Review underperforming ad campaigns",
+        "estimatedTime": "1 hour",
+        "potentialValue": 3000
+      }
+    ]
+  }
+}
+}
+
+\section{7. Document \& Content Management}
+
+\subsection{Document Locker}
+\textbf{Purpose:} Secure file storage with deduplication and validation for coaches to store and manage important documents.
+
+\subsubsection{Features}
+\begin{itemize}
+    \item \textbf{Secure Storage} - Encrypted file storage with access controls
+    \item \textbf{Deduplication} - Prevents duplicate file uploads using SHA256 hashing
+    \item \textbf{File Validation} - MIME type and size validation
+    \item \textbf{Metadata Tracking} - File information and upload history
+    \item \textbf{Entity Association} - Link files to leads, funnels, or coach profiles
+\end{itemize}
+
+\subsubsection{Supported File Types}
+\begin{itemize}
+    \item \textbf{Documents:} PDF, DOC, DOCX, TXT
+    \item \textbf{Images:} JPG, PNG, GIF, SVG
+    \item \textbf{Videos:} MP4, AVI, MOV
+    \item \textbf{Audio:} MP3, WAV, AAC
+    \item \textbf{Archives:} ZIP, RAR
+\end{itemize}
+
+\subsubsection{API Endpoints}
+\begin{itemize}
+    \item \apiendpoint{Upload File}{POST /api/files/upload}
+    \item \apiendpoint{Get Files}{GET /api/files}
+    \item \apiendpoint{Download File}{GET /api/files/:id/download}
+    \item \apiendpoint{Delete File}{DELETE /api/files/:id}
+    \item \apiendpoint{Get File Info}{GET /api/files/:id}
+\end{itemize}
+
+\subsubsection{Sample File Upload Response}
+\samplecode{
+{
+  "success": true,
+  "data": {
+    "fileId": "file_123",
+    "originalName": "client_contract.pdf",
+    "storedFileName": "20240110_143022_client_contract.pdf",
+    "fileUrl": "/uploads/20240110_143022_client_contract.pdf",
+    "mimeType": "application/pdf",
+    "size": 245760,
+    "fileHash": "a1b2c3d4e5f6...",
+    "uploadedBy": "coach_123",
+    "uploadDate": "2024-01-10T14:30:22Z",
+    "associatedEntity": {
+      "id": "lead_456",
+      "type": "Lead"
+    }
+  }
+}
+}
+
+\section{8. E-commerce \& Revenue Management}
+
+\subsection{Payment Processing System}
+\textbf{Purpose:} Handle payment processing, subscription management, and revenue tracking.
+
+\subsubsection{Features}
+\begin{itemize}
+    \item \textbf{Multi-Currency Support} - USD, INR, EUR, GBP
+    \item \textbf{Payment Gateway Integration} - Stripe, PayPal, Razorpay
+    \item \textbf{Subscription Management} - Recurring billing and plan management
+    \item \textbf{Cart Recovery} - Abandoned cart automation
+    \item \textbf{Revenue Analytics} - Financial performance tracking
+\end{itemize}
+
+\subsubsection{Payment Statuses}
+\begin{itemize}
+    \item \textbf{Pending} - Payment initiated but not confirmed
+    \item \textbf{Successful} - Payment completed successfully
+    \item \textbf{Failed} - Payment failed or declined
+    \item \textbf{Refunded} - Payment refunded to customer
+    \item \textbf{Abandoned} - Payment session abandoned
+\end{itemize}
+
+\subsubsection{API Endpoints}
+\begin{itemize}
+    \item \apiendpoint{Process Payment}{POST /api/payments/process}
+    \item \apiendpoint{Receive Webhook}{POST /api/payments/receive}
+    \item \apiendpoint{Get Payment History}{GET /api/payments/history}
+    \item \apiendpoint{Create Subscription}{POST /api/payments/subscriptions}
+    \item \apiendpoint{Cancel Subscription}{DELETE /api/payments/subscriptions/:id}
+\end{itemize}
+
+\subsubsection{Sample Payment Webhook}
+\samplecode{
+{
+  "paymentId": "pay_123456789",
+  "leadId": "lead_456",
+  "coachId": "coach_123",
+  "amount": 2500,
+  "currency": "USD",
+  "status": "successful",
+  "paymentMethod": "credit_card",
+  "gatewayResponse": {
+    "transactionId": "txn_987654321",
+    "gateway": "stripe",
+    "fee": 75
+  },
+  "description": "Personal Training Package - 12 Sessions"
+}
+}
+
+\section{Database Schema}
+
+\subsection{Core Collections}
+
+\subsubsection{Lead Schema}
+\textbf{Purpose:} Store lead information with comprehensive tracking and scoring.
+
+\textbf{Key Fields:}
+\begin{itemize}
+    \item \textbf{Basic Info:} name, email, phone, country, city
+    \item \textbf{Qualification:} status, leadTemperature, source, targetAudience
+    \item \textbf{Scoring:} score (0-100), leadMagnetInteractions, progressTracking
+    \item \textbf{Automation:} nurturingSequence, nurturingStepIndex, followUpHistory
+    \item \textbf{Appointments:} appointment status, scheduledTime, zoomLink
+\end{itemize}
+
+\subsubsection{Coach Schema}
+\textbf{Purpose:} Store coach profile and configuration settings.
+
+\textbf{Key Fields:}
+\begin{itemize}
+    \item \textbf{Profile:} name, email, phone, specialization, experience
+    \item \textbf{Settings:} leadMagnets configuration, automation preferences
+    \item \textbf{Integrations:} API keys, webhook URLs, external service configs
+    \item \textbf{Analytics:} performance metrics, historical data
+\end{itemize}
+
+\subsubsection{Task Schema}
+\textbf{Purpose:} Store workflow tasks with assignment and tracking.
+
+\textbf{Key Fields:}
+\begin{itemize}
+    \item \textbf{Basic Info:} title, description, priority, category
+    \item \textbf{Assignment:} assignedTo, coachId, dueDate, estimatedHours
+    \item \textbf{Status:} status, progress, completedAt, actualHours
+    \item \textbf{Dependencies:} dependencies, subtasks, parentTask
+\end{itemize}
+
+\subsubsection{Payment Schema}
+\textbf{Purpose:} Track payment transactions and revenue.
+
+\textbf{Key Fields:}
+\begin{itemize}
+    \item \textbf{Transaction:} paymentId, amount, currency, status
+    \item \textbf{References:} lead, coach, paymentMethod
+    \item \textbf{Gateway:} gatewayResponse, transactionId, fee
+    \item \textbf{Metadata:} description, createdAt, updatedAt
+\end{itemize}
+
+\section{Integration Details}
+
+\subsection{External API Integrations}
+
+\subsubsection{OpenAI GPT-4 Integration}
+\textbf{Purpose:} Power AI features across the platform.
+
+\textbf{Usage:}
+\begin{itemize}
+    \item \textbf{Ad Copy Generation} - Create compelling marketing content
+    \item \textbf{SOP Generation} - Automate standard operating procedures
+    \item \textbf{Lead Scoring} - Intelligent lead qualification
+    \item \textbf{Diet Planning} - Personalized meal plan generation
+    \item \textbf{Content Creation} - E-book and educational content
+\end{itemize}
+
+\textbf{Configuration:}
+\samplecode{
+{
+  "apiKey": "sk-...",
+  "model": "gpt-4",
+  "maxTokens": 2000,
+  "temperature": 0.7,
+  "rateLimit": {
+    "requestsPerMinute": 60,
+    "tokensPerMinute": 40000
+  }
+}
+}
+
+\subsubsection{Meta Ads API Integration}
+\textbf{Purpose:} Manage Facebook and Instagram advertising campaigns.
+
+\textbf{Features:}
+\begin{itemize}
+    \item \textbf{Campaign Management} - Create, update, and monitor campaigns
+    \item \textbf{Creative Generation} - Automated ad creative creation
+    \item \textbf{Budget Optimization} - Intelligent budget allocation
+    \item \textbf{Performance Tracking} - Real-time metrics and analytics
+\end{itemize}
+
+\subsubsection{WhatsApp Business API (Baileys)}
+\textbf{Purpose:} Automated messaging and communication.
+
+\textbf{Features:}
+\begin{itemize}
+    \item \textbf{Dual Channels} - Separate messaging for clients and leads
+    \item \textbf{Context-Aware Replies} - Intelligent response generation
+    \item \textbf{Message Sequencing} - Automated conversation flows
+    \item \textbf{Sentiment Detection} - Emotional intelligence monitoring
+\end{itemize}
+
+\subsection{RabbitMQ Message Queue}
+\textbf{Purpose:} Handle asynchronous processing and event-driven architecture.
+
+\textbf{Event Types:}
+\begin{itemize}
+    \item \textbf{lead.created} - New lead captured
+    \item \textbf{lead.converted} - Lead converted to client
+    \item \textbf{payment.received} - Payment processed
+    \item \textbf{task.completed} - Task finished
+    \item \textbf{campaign.performance} - Ad campaign metrics
+\end{itemize}
+
+\section{Deployment Guide}
+
+\subsection{Environment Setup}
+
+\subsubsection{Prerequisites}
+\begin{itemize}
+    \item Node.js 18+ and npm
+    \item MongoDB 6.0+
+    \item RabbitMQ 3.8+
+    \item Redis (optional, for caching)
+\end{itemize}
+
+\subsubsection{Environment Variables}
+\samplecode{
+# Database
+MONGODB_URI=mongodb://localhost:27017/coach_dashboard
+
+# Authentication
+JWT_SECRET=your_jwt_secret_here
+JWT_EXPIRE=30d
+
+# OpenAI
+OPENAI_API_KEY=sk-your_openai_key_here
+
+# Meta Ads
+META_ACCESS_TOKEN=your_meta_token_here
+META_APP_ID=your_app_id_here
+
+# WhatsApp
+WHATSAPP_SESSION_PATH=./sessions
+
+# RabbitMQ
+RABBITMQ_URL=amqp://localhost:5672
+
+# File Storage
+UPLOAD_PATH=./uploads
+MAX_FILE_SIZE=10485760
+
+# Payment Gateways
+STRIPE_SECRET_KEY=sk_test_...
+PAYPAL_CLIENT_ID=your_paypal_client_id
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_secret
+}
+
+\subsubsection{Installation Steps}
+\begin{enumerate}
+    \item \textbf{Clone Repository}
+    \begin{lstlisting}[language=bash]
+git clone <repository-url>
+cd coach-dashboard
+    \end{lstlisting}
+    
+    \item \textbf{Install Dependencies}
+    \begin{lstlisting}[language=bash]
+npm install
+    \end{lstlisting}
+    
+    \item \textbf{Setup Environment}
+    \begin{lstlisting}[language=bash]
+cp .env.example .env
+# Edit .env with your configuration
+    \end{lstlisting}
+    
+    \item \textbf{Start Services}
+    \begin{lstlisting}[language=bash]
+# Start MongoDB
+mongod
+
+# Start RabbitMQ
+rabbitmq-server
+
+# Start the application
+npm start
+    \end{lstlisting}
+\end{enumerate}
+
+\subsection{Production Deployment}
+
+\subsubsection{Docker Deployment}
+\samplecode{
+# Dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+EXPOSE 3000
+CMD ["npm", "start"]
+}
+
+\subsubsection{Environment Configuration}
+\begin{itemize}
+    \item \textbf{Load Balancing} - Use nginx or AWS ALB
+    \item \textbf{SSL/TLS} - Configure HTTPS certificates
+    \item \textbf{Monitoring} - Set up logging and monitoring
+    \item \textbf{Backup} - Regular database backups
+    \item \textbf{Scaling} - Horizontal scaling with multiple instances
+\end{itemize}
+
+\section{Troubleshooting}
+
+\subsection{Common Issues}
+
+\subsubsection{Database Connection Issues}
+\textbf{Symptoms:} Application fails to start, database errors in logs.
+
+\textbf{Solutions:}
+\begin{itemize}
+    \item Check MongoDB service is running
+    \item Verify connection string in .env
+    \item Ensure network connectivity
+    \item Check firewall settings
+\end{itemize}
+
+\subsubsection{API Rate Limiting}
+\textbf{Symptoms:} OpenAI API errors, Meta API failures.
+
+\textbf{Solutions:}
+\begin{itemize}
+    \item Implement exponential backoff
+    \item Add request queuing
+    \item Monitor API usage limits
+    \item Upgrade API plans if needed
+\end{itemize}
+
+\subsubsection{File Upload Issues}
+\textbf{Symptoms:} File uploads fail, storage errors.
+
+\textbf{Solutions:}
+\begin{itemize}
+    \item Check upload directory permissions
+    \item Verify file size limits
+    \item Ensure sufficient disk space
+    \item Validate file types
+\end{itemize}
+
+\subsection{Performance Optimization}
+
+\subsubsection{Database Optimization}
+\begin{itemize}
+    \item \textbf{Indexing} - Add indexes on frequently queried fields
+    \item \textbf{Query Optimization} - Use aggregation pipelines efficiently
+    \item \textbf{Connection Pooling} - Configure MongoDB connection pool
+    \item \textbf{Caching} - Implement Redis for frequently accessed data
+\end{itemize}
+
+\subsubsection{API Performance}
+\begin{itemize}
+    \item \textbf{Response Caching} - Cache static responses
+    \item \textbf{Request Batching} - Batch multiple API calls
+    \item \textbf{Async Processing} - Use background jobs for heavy operations
+    \item \textbf{Load Balancing} - Distribute traffic across instances
+\end{itemize}
+
+\section{API Reference Summary}
+
+\subsection{Authentication}
+All API endpoints require authentication using JWT tokens in the Authorization header:
+\samplecode{
+Authorization: Bearer <jwt_token>
+}
+
+\subsection{Response Format}
+All API responses follow a consistent format:
+\samplecode{
+{
+  "success": true|false,
+  "message": "Response message",
+  "data": { ... },
+  "error": "Error details (if any)"
+}
+}
+
+\subsection{Error Codes}
+\begin{itemize}
+    \item \textbf{400} - Bad Request (invalid parameters)
+    \item \textbf{401} - Unauthorized (invalid/missing token)
+    \item \textbf{403} - Forbidden (insufficient permissions)
+    \item \textbf{404} - Not Found (resource doesn't exist)
+    \item \textbf{429} - Too Many Requests (rate limited)
+    \item \textbf{500} - Internal Server Error
+\end{itemize}
+
+\section{Conclusion}
+
+The Coach Dashboard is a comprehensive, AI-powered SaaS platform that revolutionizes how fitness coaches manage their businesses. With its modular architecture, automated workflows, and intelligent features, it provides everything a coach needs to scale their business efficiently.
+
+\textbf{Key Benefits:}
+\begin{itemize}
+    \item \textbf{Automation} - Reduces manual work by 80\%
+    \item \textbf{Intelligence} - AI-driven insights and recommendations
+    \item \textbf{Scalability} - Handles growth from 1 to 1000+ clients
+    \item \textbf{Integration} - Seamless connection with existing tools
+    \item \textbf{Analytics} - Comprehensive business intelligence
+\end{itemize}
+
+\textbf{Next Steps:}
+\begin{enumerate}
+    \item Deploy the platform in staging environment
+    \item Conduct thorough testing with real data
+    \item Train team members on system usage
+    \item Monitor performance and gather feedback
+    \item Plan feature enhancements based on usage patterns
+\end{enumerate}
+
+For technical support or questions, please refer to the troubleshooting section or contact the development team.
+
+\end{document}
