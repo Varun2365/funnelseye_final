@@ -4,6 +4,7 @@ const Funnel = require('../schema/Funnel'); // Corrected path to the Funnel mode
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const FunnelEvent = require('../schema/FunnelEvent'); // Still needed for event tracking
+const CustomDomain = require('../schema/CustomDomain');
 
 // No longer need to import separate stage content schemas
 // No longer need `stageModels` object
@@ -41,6 +42,17 @@ const createFunnel = asyncHandler(async (req, res, next) => {
     if (req.coachId.toString() !== req.params.coachId.toString()) {
         return next(new ErrorResponse('Forbidden: You can only create funnels for yourself.', 403));
     }
+    // Validate customDomain if provided
+    if (req.body.customDomain) {
+        const customDomain = await CustomDomain.findOne({
+            domain: req.body.customDomain.toLowerCase(),
+            coachId: req.coachId,
+            status: 'active'
+        });
+        if (!customDomain) {
+            return next(new ErrorResponse('Custom domain is not valid, not active, or not owned by you.', 400));
+        }
+    }
     const funnel = await Funnel.create(req.body); // `stages` array comes directly in `req.body`
     res.status(201).json({
         success: true,
@@ -57,6 +69,17 @@ const updateFunnel = asyncHandler(async (req, res, next) => {
 
     // If `stages` array is sent in `req.body`, it will entirely replace the existing one.
     // Ensure frontend sends the complete updated `stages` array if modifying stages.
+    // Validate customDomain if provided
+    if (req.body.customDomain) {
+        const customDomain = await CustomDomain.findOne({
+            domain: req.body.customDomain.toLowerCase(),
+            coachId: req.coachId,
+            status: 'active'
+        });
+        if (!customDomain) {
+            return next(new ErrorResponse('Custom domain is not valid, not active, or not owned by you.', 400));
+        }
+    }
     funnel = await Funnel.findByIdAndUpdate(req.params.funnelId, req.body, {
         new: true,
         runValidators: true
@@ -222,5 +245,5 @@ module.exports = {
     addStageToFunnel,
     editFunnelStage,
     getFunnelStagesByType,
-    trackFunnelEvent
+    trackFunnelEvent,
 };

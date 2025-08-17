@@ -16,6 +16,7 @@ const { connectDB } = require('./config/db');
 const whatsappManager = require('./services/whatsappManager');
 const checkInactiveCoaches = require('./tasks/checkInactiveCoaches');
 const { init } = require('./services/rabbitmqProducer');
+const sslService = require('./services/sslService');
 
 // 🛡️ Middleware Imports
 const cors = require('cors');
@@ -23,6 +24,8 @@ const cors = require('cors');
 // 🛣️ Route Imports
 const authRoutes = require('./routes/authRoutes.js');
 const funnelRoutes = require('./routes/funnelRoutes');
+const customUrlRoutes = require('./routes/customUrlRoutes');
+const customDomainRoutes = require('./routes/customDomainRoutes');
 const leadRoutes = require('./routes/leadRoutes.js');
 const automationRuleRoutes = require('./routes/automationRuleRoutes.js');
 const uploadRoutes = require('./routes/uploadRoutes');
@@ -39,6 +42,12 @@ const workflowRoutes = require('./routes/workflowRoutes');
 const staffLeaderboardRoutes = require('./routes/staffLeaderboardRoutes');
 const coachDashboardRoutes = require('./routes/coachDashboardRoutes');
 const leadMagnetsRoutes = require('./routes/leadMagnetsRoutes');
+const adminAuthRoutes = require('./routes/adminAuthRoutes');
+const adminAuth = require('./middleware/adminAuth');
+const adminSettingsRoutes = require('./routes/adminSettingsRoutes');
+const adminUserRoutes = require('./routes/adminUserRoutes');
+const adminLogsRoutes = require('./routes/adminLogsRoutes');
+const adminAnalyticsRoutes = require('./routes/adminAnalyticsRoutes');
 
 // --- Import the worker initialization functions ---
 const initRulesEngineWorker = require('./workers/worker_rules_engine');
@@ -65,6 +74,27 @@ const allApiRoutes = {
         { method: 'PUT', path: '/api/funnels/:funnelId/stages/:stageSettingsId', desc: 'Update Stage Settings', sample: { name: 'New name', isEnabled: true } },
         { method: 'POST', path: '/api/funnels/track', desc: 'Track Funnel Event', sample: { funnelId: '...', stageId: '...', eventType: 'PageView', sessionId: 'sess-123', metadata: { ref: 'ad' } } },
         { method: 'GET', path: '/api/funnels/:funnelId/analytics', desc: 'Get Funnel Analytics Data' },
+        // Custom URL Management
+        { method: 'POST', path: '/api/funnels/:funnelId/custom-urls', desc: 'Add Custom URL to Funnel', sample: { customSlug: 'my-brand', displayName: 'My Branded URL', description: 'Custom URL for marketing' } },
+        { method: 'GET', path: '/api/funnels/:funnelId/custom-urls', desc: 'Get All Custom URLs for Funnel' },
+        { method: 'PUT', path: '/api/funnels/:funnelId/custom-urls/:customSlug', desc: 'Update Custom URL', sample: { displayName: 'Updated Name', isActive: true } },
+        { method: 'DELETE', path: '/api/funnels/:funnelId/custom-urls/:customSlug', desc: 'Delete Custom URL' },
+        { method: 'GET', path: '/api/funnels/:funnelId/custom-urls/:customSlug/analytics', desc: 'Get Custom URL Analytics' },
+    ],
+    '🔗 Custom URL Access (Public)': [
+        { method: 'GET', path: '/api/custom-urls/:customSlug', desc: 'Get Funnel by Custom URL (Public)' },
+        { method: 'POST', path: '/api/custom-urls/:customSlug/visit', desc: 'Track Custom URL Visit (Public)', sample: { converted: true } },
+    ],
+    '🌐 Custom Domain Management': [
+        { method: 'POST', path: '/api/custom-domains', desc: 'Add Custom Domain', sample: { domain: 'coachvarun.in' } },
+        { method: 'GET', path: '/api/custom-domains', desc: 'Get All Custom Domains for Coach' },
+        { method: 'GET', path: '/api/custom-domains/:id', desc: 'Get Single Custom Domain Details' },
+        { method: 'PUT', path: '/api/custom-domains/:id', desc: 'Update Custom Domain Settings' },
+        { method: 'DELETE', path: '/api/custom-domains/:id', desc: 'Delete Custom Domain' },
+        { method: 'POST', path: '/api/custom-domains/:id/verify-dns', desc: 'Verify DNS Records' },
+        { method: 'POST', path: '/api/custom-domains/:id/generate-ssl', desc: 'Generate SSL Certificate' },
+        { method: 'GET', path: '/api/custom-domains/:id/dns-instructions', desc: 'Get DNS Setup Instructions' },
+        { method: 'GET', path: '/api/custom-domains/resolve/:hostname', desc: 'Resolve Domain by Hostname (Public)' },
     ],
     '🎯 Lead Management (CRM)': [
         { method: 'POST', path: '/api/leads', desc: 'Create New Lead (PUBLIC)', sample: { coachId: '...', funnelId: '...', name: 'Jane', email: 'jane@ex.com', phone: '+11234567890', source: 'Web Form' } },
@@ -256,10 +286,39 @@ app.use(cors({
 }));
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
+// 🌐 Custom Domain Routing Middleware
+app.use(async (req, res, next) => {
+    const hostname = req.hostname;
+    
+    // Skip if it's the main domain or localhost
+    if (hostname === 'api.funnelseye.com' || hostname === 'localhost' || hostname === '127.0.0.1') {
+        return next();
+    }
+    
+    try {
+        const CustomDomain = require('./schema/CustomDomain');
+        const customDomain = await CustomDomain.findByHostname(hostname);
+        
+        if (customDomain) {
+            // Add domain info to request for use in other middleware/routes
+            req.customDomain = customDomain;
+            req.coachId = customDomain.coachId; // Set coach context for the request
+            
+            // Log domain access
+            console.log(`Custom domain access: ${hostname} -> Coach: ${customDomain.coachId}`);
+        }
+    } catch (error) {
+        console.error('Error resolving custom domain:', error);
+    }
+    
+    next();
+});
 
 // 🔗 Mount API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/funnels', funnelRoutes);
+app.use('/api/custom-urls', customUrlRoutes);
+app.use('/api/custom-domains', customDomainRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/automation-rules', automationRuleRoutes);
 app.use('/api/files', uploadRoutes);
@@ -276,6 +335,24 @@ app.use('/api/workflow', workflowRoutes);
 app.use('/api/staff-leaderboard', staffLeaderboardRoutes);
 app.use('/api/coach-dashboard', coachDashboardRoutes);
 app.use('/api/lead-magnets', leadMagnetsRoutes);
+app.use('/api/admin', adminAuthRoutes);
+
+// Protect admin APIs
+app.use('/api/admin/settings', adminAuth, adminSettingsRoutes);
+app.use('/api/admin/users', adminAuth, adminUserRoutes);
+app.use('/api/admin/domains', customDomainRoutes); // Already imported
+app.use('/api/admin/logs', adminAuth, adminLogsRoutes);
+app.use('/api/admin/analytics', adminAuth, adminAnalyticsRoutes);
+
+// Serve admin dashboard UI
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+app.get('/.well-known/acme-challenge/:token', (req, res) => {
+    const keyAuth = sslService.getChallenge(req.params.token);
+    if (!keyAuth) return res.status(404).end();
+    res.type('text/plain').send(keyAuth);
+});
 
 
 // 🏠 Dynamic Homepage Route with new UI

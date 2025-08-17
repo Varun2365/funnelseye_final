@@ -134,6 +134,15 @@ const funnelSchema = new mongoose.Schema({
         trim: true,
         match: [/^[\w\-\/]+$/, 'Please use a valid URL path segment (letters, numbers, hyphens, slashes).'],
     },
+    // Optionally, reference to a custom domain (if you want to link a funnel to a specific custom domain)
+    customDomain: {
+        type: String, // e.g., 'coachvarun.in'
+        trim: true,
+        lowercase: true,
+        match: [/^[a-z0-9\-\.]+$/, 'Domain can only contain lowercase letters, numbers, hyphens, and dots'],
+        maxlength: 100,
+        default: null
+    },
     targetAudience: {
         type: String,
         enum: ['customer', 'coach'], // <-- Changed to enum

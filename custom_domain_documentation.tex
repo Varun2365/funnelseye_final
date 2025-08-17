@@ -1,0 +1,346 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+
+\geometry{margin=1in}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Custom Domain Feature}
+\lhead{FunnelsEye Platform}
+\rfoot{Page \thepage}
+
+\title{\textbf{Custom Domain Management System}}
+\author{FunnelsEye Platform}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Overview}
+
+The Custom Domain Management System allows coaches to use their own domain names (e.g., \texttt{coachvarun.in}) instead of the default FunnelsEye domain (\texttt{api.funnelseye.com}). This provides a professional, branded experience for coaches and their clients.
+
+\section{Key Features}
+
+\begin{itemize}
+    \item \textbf{Domain Registration}: Add and manage custom domains
+    \item \textbf{DNS Verification}: Automatic verification of DNS records
+    \item \textbf{SSL Certificate Management}: Automatic SSL certificate generation
+    \item \textbf{Analytics Tracking}: Track domain usage and performance
+    \item \textbf{Multi-Domain Support}: Support for multiple domains per coach
+\end{itemize}
+
+\section{How It Works}
+
+\subsection{Current vs Custom Domain}
+
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Current System} & \textbf{Custom Domain} \\
+\hline
+\texttt{api.funnelseye.com/funnels/283871/welcome-page} & \texttt{coachvarun.in/welcome-page} \\
+\hline
+\texttt{api.funnelseye.com/c/my-brand} & \texttt{coachvarun.in/my-brand} \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Technical Architecture}
+
+\begin{enumerate}
+    \item \textbf{Domain Registration}: Coach adds their domain to the system
+    \item \textbf{DNS Configuration}: Coach configures DNS records pointing to FunnelsEye servers
+    \item \textbf{DNS Verification}: System verifies DNS records are correctly configured
+    \item \textbf{SSL Generation}: Automatic SSL certificate generation for HTTPS
+    \item \textbf{Routing}: All traffic to custom domain is routed to appropriate coach's funnels
+\end{enumerate}
+
+\section{API Endpoints}
+
+\subsection{Domain Management}
+
+\subsubsection{Add Custom Domain}
+\begin{lstlisting}[language=bash,frame=single]
+POST /api/custom-domains
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+    "domain": "coachvarun.in"
+}
+\end{lstlisting}
+
+\subsubsection{Get All Domains}
+\begin{lstlisting}[language=bash,frame=single]
+GET /api/custom-domains
+Authorization: Bearer <token>
+\end{lstlisting}
+
+\subsubsection{Get Domain Details}
+\begin{lstlisting}[language=bash,frame=single]
+GET /api/custom-domains/:id
+Authorization: Bearer <token>
+\end{lstlisting}
+
+\subsection{DNS Management}
+
+\subsubsection{Get DNS Instructions}
+\begin{lstlisting}[language=bash,frame=single]
+GET /api/custom-domains/:id/dns-instructions
+Authorization: Bearer <token>
+\end{lstlisting}
+
+\subsubsection{Verify DNS Records}
+\begin{lstlisting}[language=bash,frame=single]
+POST /api/custom-domains/:id/verify-dns
+Authorization: Bearer <token>
+\end{lstlisting}
+
+\subsection{SSL Management}
+
+\subsubsection{Generate SSL Certificate}
+\begin{lstlisting}[language=bash,frame=single]
+POST /api/custom-domains/:id/generate-ssl
+Authorization: Bearer <token>
+\end{lstlisting}
+
+\section{DNS Configuration}
+
+\subsection{Required DNS Records}
+
+For a domain like \texttt{coachvarun.in}, the following DNS records are required:
+
+\begin{lstlisting}[frame=single]
+Type: CNAME
+Name: coachvarun.in
+Value: api.funnelseye.com
+TTL: 3600 (or default)
+\end{lstlisting}
+
+\subsection{DNS Setup Instructions}
+
+\begin{enumerate}
+    \item Log in to your domain registrar (GoDaddy, Namecheap, etc.)
+    \item Navigate to DNS management
+    \item Add a CNAME record:
+        \begin{itemize}
+            \item Type: CNAME
+            \item Name: @ (or leave blank for root domain)
+            \item Value: api.funnelseye.com
+            \item TTL: 3600 seconds (1 hour)
+        \end{itemize}
+    \item Save the record
+    \item Wait for DNS propagation (up to 48 hours)
+    \item Use the verify DNS endpoint to check status
+\end{enumerate}
+
+\section{SSL Certificate Management}
+
+\subsection{Automatic SSL Generation}
+
+The system automatically generates SSL certificates using Let's Encrypt:
+
+\begin{itemize}
+    \item \textbf{Provider}: Let's Encrypt (free)
+    \item \textbf{Validity}: 90 days
+    \item \textbf{Auto-renewal}: Automatic renewal before expiration
+    \item \textbf{HTTPS Redirect}: Automatic redirect from HTTP to HTTPS
+\end{itemize}
+
+\subsection{SSL Status Check}
+
+\begin{lstlisting}[language=bash,frame=single]
+GET /api/custom-domains/:id
+Authorization: Bearer <token>
+
+Response:
+{
+    "success": true,
+    "data": {
+        "domain": "coachvarun.in",
+        "status": "active",
+        "sslCertificate": {
+            "isActive": true,
+            "expiresAt": "2024-04-15T10:30:00Z",
+            "lastRenewed": "2024-01-15T10:30:00Z"
+        }
+    }
+}
+\end{lstlisting}
+
+\section{Usage Examples}
+
+\subsection{Complete Setup Process}
+
+\begin{enumerate}
+    \item \textbf{Add Domain}:
+    \begin{lstlisting}[language=javascript]
+    const response = await fetch('/api/custom-domains', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            domain: 'coachvarun.in'
+        })
+    });
+    \end{lstlisting}
+    
+    \item \textbf{Get DNS Instructions}:
+    \begin{lstlisting}[language=javascript]
+    const instructions = await fetch('/api/custom-domains/' + domainId + '/dns-instructions', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    \end{lstlisting}
+    
+    \item \textbf{Verify DNS} (after configuring DNS):
+    \begin{lstlisting}[language=javascript]
+    const verification = await fetch('/api/custom-domains/' + domainId + '/verify-dns', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    \end{lstlisting}
+    
+    \item \textbf{Generate SSL}:
+    \begin{lstlisting}[language=javascript]
+    const ssl = await fetch('/api/custom-domains/' + domainId + '/generate-ssl', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    \end{lstlisting}
+\end{enumerate}
+
+\subsection{Using Custom Domains with Funnels}
+
+Once a custom domain is active, coaches can:
+
+\begin{itemize}
+    \item Access funnels via custom domain: \texttt{coachvarun.in/funnels/283871/welcome-page}
+    \item Use custom URLs: \texttt{coachvarun.in/c/my-brand}
+    \item All existing funnel functionality works with the custom domain
+\end{itemize}
+
+\section{Database Schema}
+
+\subsection{CustomDomain Schema}
+
+\begin{lstlisting}[language=javascript]
+{
+    coachId: ObjectId,           // Coach who owns the domain
+    domain: String,              // Domain name (e.g., "coachvarun.in")
+    status: String,              // pending, verified, active, error, expired
+    dnsVerification: {
+        isVerified: Boolean,
+        requiredRecords: [{
+            type: String,        // CNAME, A, TXT
+            name: String,
+            value: String,
+            isVerified: Boolean
+        }]
+    },
+    sslCertificate: {
+        isActive: Boolean,
+        provider: String,        // letsencrypt, manual, cloudflare
+        expiresAt: Date,
+        lastRenewed: Date
+    },
+    analytics: {
+        totalVisits: Number,
+        lastVisited: Date
+    }
+}
+\end{lstlisting}
+
+\section{Security Considerations}
+
+\subsection{Domain Ownership}
+
+\begin{itemize}
+    \item Only verified DNS configuration allows domain activation
+    \item SSL certificates are only generated for verified domains
+    \item Domain access is restricted to the owning coach
+\end{itemize}
+
+\subsection{HTTPS Enforcement}
+
+\begin{itemize}
+    \item Automatic redirect from HTTP to HTTPS
+    \item HSTS headers for additional security
+    \item Secure cookie settings
+\end{itemize}
+
+\section{Troubleshooting}
+
+\subsection{Common Issues}
+
+\begin{enumerate}
+    \item \textbf{DNS Verification Fails}:
+        \begin{itemize}
+            \item Check DNS record configuration
+            \item Wait for DNS propagation (up to 48 hours)
+            \item Verify domain registrar settings
+        \end{itemize}
+    
+    \item \textbf{SSL Certificate Issues}:
+        \begin{itemize}
+            \item Ensure DNS is verified before generating SSL
+            \item Check domain accessibility from internet
+            \item Verify no conflicting SSL certificates
+        \end{itemize}
+    
+    \item \textbf{Domain Not Loading}:
+        \begin{itemize}
+            \item Check domain status in dashboard
+            \item Verify DNS propagation
+            \item Check SSL certificate status
+        \end{itemize}
+\end{enumerate}
+
+\subsection{Support}
+
+For technical support:
+\begin{itemize}
+    \item Check domain status in the dashboard
+    \item Review DNS configuration instructions
+    \item Contact support with domain and error details
+\end{itemize}
+
+\section{Best Practices}
+
+\begin{enumerate}
+    \item \textbf{Domain Selection}: Choose a professional, memorable domain name
+    \item \textbf{DNS Configuration}: Follow DNS setup instructions carefully
+    \item \textbf{SSL Management}: Monitor SSL certificate expiration
+    \item \textbf{Analytics}: Track domain performance and usage
+    \item \textbf{Backup Domains}: Consider multiple domains for redundancy
+\end{enumerate}
+
+\section{Future Enhancements}
+
+\begin{itemize}
+    \item \textbf{Subdomain Support}: Support for subdomains (e.g., \texttt{app.coachvarun.in})
+    \item \textbf{Advanced SSL}: Support for wildcard certificates
+    \item \textbf{DNS Management}: Automated DNS record management
+    \item \textbf{CDN Integration}: Global content delivery network
+    \item \textbf{Email Integration}: Custom domain email support
+\end{itemize}
+
+\end{document}
