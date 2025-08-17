@@ -41,7 +41,7 @@ class CoachDashboardService {
                 this.getLeadsData(coachId, startDate),
                 this.getTasksData(coachId, startDate),
                 this.getMarketingData(coachId, startDate),
-                this.getFinancialData(coachId, startDate),
+                this.getFinancialData(coachId, startDate, timeRange),
                 this.getTeamData(coachId, startDate),
                 this.getPerformanceData(coachId, startDate),
                 dailyPriorityFeedService.generateDailyPriorityFeed(coachId)
@@ -249,7 +249,7 @@ class CoachDashboardService {
         };
     }
 
-    async getFinancialData(coachId, startDate) {
+    async getFinancialData(coachId, startDate, timeRange) {
         const payments = await Payment.find({ coachId, createdAt: { $gte: startDate } });
 
         // Revenue by month

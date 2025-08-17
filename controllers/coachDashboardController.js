@@ -89,7 +89,7 @@ exports.getFinancialData = asyncHandler(async (req, res, next) => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - parseInt(timeRange));
 
-    const financialData = await coachDashboardService.getFinancialData(coachId, startDate);
+    const financialData = await coachDashboardService.getFinancialData(coachId, startDate, parseInt(timeRange));
 
     res.json({
         success: true,
