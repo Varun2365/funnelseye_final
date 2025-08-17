@@ -44,7 +44,7 @@ class CoachDashboardService {
                 this.getFinancialData(coachId, startDate),
                 this.getTeamData(coachId, startDate),
                 this.getPerformanceData(coachId, startDate),
-                dailyPriorityFeedService.getDailyPriorityFeed(coachId)
+                dailyPriorityFeedService.generateDailyPriorityFeed(coachId)
             ]);
 
             return {
