@@ -5,23 +5,32 @@ const mongoURI = 'mongodb://localhost:27017/FunnelsEye';
 const connectDB = async () => {
   try {
     await mongoose.connect(mongoURI, {
-      // Connection pool settings
-      maxPoolSize: 10,          // adjust as needed
-      socketTimeoutMS: 0,       // never time out sockets
-      connectTimeoutMS: 30000,  // 30s connection timeout
+      maxPoolSize: 10,             // max concurrent sockets
+      socketTimeoutMS: 0,          // no socket timeout
+      connectTimeoutMS: 30000,     // 30s connection timeout
       serverSelectionTimeoutMS: 30000,
+      autoIndex: true,             // optional, build indexes
     });
 
     console.log('✅ MongoDB Connected Successfully!');
   } catch (err) {
-    console.error('❌ MongoDB Connection Failed:', err.message);
+    console.error('❌ MongoDB Initial Connection Failed:', err.message);
     process.exit(1);
   }
-
-  mongoose.connection.on('disconnected', () => {
-    console.error('⚠️ Mongoose disconnected, retrying...');
-    connectDB(); // auto-reconnect
-  });
 };
+
+// Log errors & reconnects
+mongoose.connection.on('error', (err) => {
+  console.error('⚠️ MongoDB Error:', err.message);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️ MongoDB Disconnected');
+});
+
+// Not strictly needed but nice for debugging
+mongoose.connection.on('connected', () => {
+  console.log('🔌 Mongoose connected to DB');
+});
 
 module.exports = { connectDB };
