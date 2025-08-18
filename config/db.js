@@ -8,10 +8,10 @@ const connectDB = async () => {
       useNewUrlParser: true,
       useUnifiedTopology: true,
 
-      // ✅ modern options
-      serverSelectionTimeoutMS: 5000,   // retry in 5s if server is down
-      socketTimeoutMS: 45000,           // socket closes after 45s inactivity
-      heartbeatFrequencyMS: 10000       // check connection every 10s
+      // 👇 prevents 10min idle disconnects
+      socketTimeoutMS: 0,             // never timeout due to inactivity
+      maxIdleTimeMS: 0,               // disable idle timeout
+      heartbeatFrequencyMS: 10000     // ping server every 10s
     });
 
     console.log('✅ MongoDB Connected Successfully!');
@@ -20,17 +20,9 @@ const connectDB = async () => {
   }
 };
 
-// Event listeners for debugging
-mongoose.connection.on("connected", () => {
-  console.log("✅ Mongoose connected");
-});
-
-mongoose.connection.on("error", (err) => {
-  console.error("❌ Mongoose error:", err);
-});
-
-mongoose.connection.on("disconnected", () => {
-  console.warn("⚠️ Mongoose disconnected, retrying...");
-});
+// Debug listeners
+mongoose.connection.on("connected", () => console.log("✅ Connected"));
+mongoose.connection.on("error", err => console.error("❌ Error:", err));
+mongoose.connection.on("disconnected", () => console.warn("⚠️ Disconnected"));
 
 module.exports = { connectDB };
