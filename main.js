@@ -165,6 +165,14 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/ai-ads/dashboard', desc: 'Get AI ads dashboard data' },
         { method: 'POST', path: '/api/ai-ads/bulk-optimize', desc: 'Bulk optimize multiple campaigns', sample: { campaignIds: ['campaign1', 'campaign2'] } },
         { method: 'POST', path: '/api/ai-ads/generate-variations', desc: 'Generate ad variations', sample: { originalAdCopy: 'Lose weight fast', targetAudience: 'Fitness', variationCount: 5 } },
+        // Social Media Integration
+        { method: 'POST', path: '/api/ai-ads/generate-poster', desc: 'Generate simple background image with AI text content and positioning instructions', sample: { coachName: 'John Doe', niche: 'Weight Loss & Nutrition', offer: '12-Week Transformation Program', targetAudience: 'weight_loss' } },
+        { method: 'POST', path: '/api/ai-ads/generate-poster-variations', desc: 'Generate multiple background variations with text content for better selection', sample: { coachName: 'John Doe', niche: 'Weight Loss & Nutrition', offer: '12-Week Transformation Program', targetAudience: 'weight_loss', variationCount: 3 } },
+        { method: 'POST', path: '/api/ai-ads/generate-headlines', desc: 'Generate AI-powered marketing headlines', sample: { coachName: 'John Doe', niche: 'Weight Loss & Nutrition', offer: '12-Week Transformation Program', targetAudience: 'weight_loss', headlineCount: 5 } },
+        { method: 'POST', path: '/api/ai-ads/generate-social-post', desc: 'Generate complete social media post content', sample: { coachName: 'John Doe', niche: 'Weight Loss & Nutrition', offer: '12-Week Transformation Program', targetAudience: 'weight_loss' } },
+        { method: 'POST', path: '/api/ai-ads/upload-to-instagram', desc: 'Upload generated content to Instagram via Meta Ads', sample: { imageUrl: 'https://example.com/poster.jpg', caption: 'Transform your body!', coachMetaAccountId: 'act_123456789' } },
+        { method: 'POST', path: '/api/ai-ads/generate-campaign', desc: 'Generate complete social media campaign package', sample: { coachName: 'John Doe', niche: 'Weight Loss & Nutrition', offer: '12-Week Transformation Program', targetAudience: 'weight_loss', campaignDuration: 7, dailyBudget: 50 } },
+        { method: 'GET', path: '/api/ai-ads/social-media-history', desc: 'Get social media content generation history' },
     ],
     '📋 Workflow & Task Management': [
         { method: 'GET', path: '/api/workflow/kanban-board', desc: 'Get Kanban board data' },
@@ -872,6 +880,18 @@ const startServer = async () => {
         await initScheduledExecutorWorker();
         await initPaymentProcessorWorker();
 
+        // 🔄 Keep MongoDB connection alive with periodic dummy queries
+        const mongoose = require('mongoose');
+        setInterval(async () => {
+            try {
+                // Simple ping to keep connection active - no collection needed
+                const result = await mongoose.connection.db.admin().ping();
+                console.log(`🔄 MongoDB keep-alive ping: ${result.ok === 1 ? 'success' : 'failed'}`);
+            } catch (error) {
+                console.log('⚠️ MongoDB keep-alive ping failed:', error.message);
+            }
+        }, 5 * 60 * 1000); // Run every 5 minutes (300,000 ms)
+
         server.listen(PORT, () => {
             console.log(`\n\n✨ Server is soaring on port ${PORT}! ✨`);
             console.log(`Local Development Base URL: http://localhost:${PORT}`);
@@ -927,6 +947,9 @@ if (!process.env.TWILIO_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TW
 }
 if (!process.env.OPENAI_API_KEY) {
     console.warn('⚠️ OPENAI_API_KEY not set. AI features will not work.');
+}
+if (!process.env.META_ADS_ACCESS_TOKEN) {
+    console.warn('⚠️ META_ADS_ACCESS_TOKEN not set. Instagram upload features will not work.');
 }
 if (!process.env.EMAIL_SERVICE) {
     console.warn('⚠️ EMAIL_SERVICE not set. Nodemailer may not work as expected.');

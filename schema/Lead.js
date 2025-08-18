@@ -68,9 +68,103 @@ const LeadSchema = new mongoose.Schema({
     },
     targetAudience: {
         type: String,
-        enum: ['customer', 'coach'],
-        default: 'customer',
+        enum: ['client', 'coach'],
+        required: false
     },
+    // --- Booking Form Questions (Integrated) ---
+    // Client-specific questions
+    clientQuestions: {
+        fullName: String,
+        email: String,
+        whatsappNumber: String,
+        cityCountry: String,
+        instagramUsername: String,
+        watchedVideo: {
+            type: String,
+            enum: ['Yes', 'No', 'I plan to watch it soon']
+        },
+        profession: String,
+        healthGoal: {
+            type: String,
+            enum: ['Weight Loss', 'Weight Gain', 'Muscle Building', 'Increase Energy', 'Better Nutrition Habits', 'Other']
+        },
+        medicalConditions: String,
+        age: Number,
+        activityLevel: {
+            type: String,
+            enum: ['Very active', 'Moderately active', 'Not active']
+        },
+        supplements: String,
+        readyToStart: {
+            type: String,
+            enum: ['Yes', 'No', 'Not sure']
+        },
+        willingToInvest: {
+            type: String,
+            enum: ['Yes', 'Need a flexible option', 'No']
+        },
+        biggestObstacle: String,
+        seriousnessScale: {
+            type: Number,
+            min: 1,
+            max: 10
+        },
+        motivation: String
+    },
+    // Coach-specific questions
+    coachQuestions: {
+        fullName: String,
+        email: String,
+        whatsappNumber: String,
+        instagramUsername: String,
+        description: {
+            type: String,
+            enum: ['Full-time job', 'Student', 'Housewife', 'Business owner', 'Unemployed', 'Other']
+        },
+        watchedVideo: {
+            type: String,
+            enum: ['Yes, 100%', 'Partially', 'Not yet']
+        },
+        reasonForBooking: String,
+        supplements: String,
+        mlmExperience: String,
+        readiness: {
+            type: String,
+            enum: ['100% ready', 'Curious but exploring', 'Not sure yet']
+        },
+        commitment: {
+            type: String,
+            enum: ['Yes, fully committed', 'Maybe, depends on the plan', 'No, not ready']
+        },
+        timeCommitment: {
+            type: String,
+            enum: ['1-2 hours/day', '3-4 hours/day', 'Weekends only', 'Not sure']
+        },
+        canAttendZoom: {
+            type: String,
+            enum: ['Yes', 'No']
+        },
+        understandsOpportunity: {
+            type: String,
+            enum: ['Yes', 'No']
+        },
+        additionalInfo: String
+    },
+    // --- Lead Qualification Fields (Auto-populated) ---
+    score: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: 0
+    },
+    maxScore: {
+        type: Number,
+        default: 100
+    },
+    qualificationInsights: [String],
+    recommendations: [String],
+    // --- END LEAD QUALIFICATION FIELDS ---
+
     notes: {
         type: String,
         maxlength: [2000, 'Notes can not be more than 2000 characters']
@@ -212,7 +306,7 @@ const LeadSchema = new mongoose.Schema({
         preferredWorkoutTypes: [String],
         healthConditions: [String],
         timeAvailability: String
-    }
+    },
 
 }, {
     timestamps: true

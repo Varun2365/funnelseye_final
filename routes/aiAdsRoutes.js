@@ -12,7 +12,14 @@ const {
     createOptimizedCampaign,
     getAIDashboard,
     bulkOptimizeCampaigns,
-    generateAdVariations
+    generateAdVariations,
+    generatePosterImage,
+    generatePosterVariations,
+    generateMarketingHeadlines,
+    generateSocialMediaPost,
+    uploadToInstagram,
+    generateSocialMediaCampaign,
+    getSocialMediaHistory
 } = require('../controllers/aiAdsController');
 
 // Protect all routes
@@ -44,5 +51,14 @@ router.get('/dashboard', getAIDashboard);
 
 // Ad Variations
 router.post('/generate-variations', generateAdVariations);
+
+// Social Media Integration Routes
+router.post('/generate-poster', generatePosterImage);
+router.post('/generate-poster-variations', generatePosterVariations);
+router.post('/generate-headlines', generateMarketingHeadlines);
+router.post('/generate-social-post', generateSocialMediaPost);
+router.post('/upload-to-instagram', uploadToInstagram);
+router.post('/generate-campaign', generateSocialMediaCampaign);
+router.get('/social-media-history', getSocialMediaHistory);
 
 module.exports = router;

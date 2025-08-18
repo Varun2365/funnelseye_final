@@ -7,12 +7,153 @@ const LeadModel = require('../schema/Lead');
 const NurturingSequence = require('../schema/NurturingSequence');
 const { scheduleFutureEvent } = require('../services/automationSchedulerService');
 
-// @desc    Create a new Lead
-// @route   POST /api/leads
-// @access  Public - Triggered by a public form submission
+// Lead qualification logic (integrated)
+const qualifyClientLead = (clientQuestions) => {
+    let score = 0;
+    const maxScore = 100;
+    const insights = [];
+    
+    // Basic engagement (20 points)
+    if (clientQuestions.watchedVideo === 'Yes') {
+        score += 20;
+        insights.push('Watched full video - high engagement');
+    } else if (clientQuestions.watchedVideo === 'I plan to watch it soon') {
+        score += 10;
+        insights.push('Plans to watch video - moderate engagement');
+    }
+    
+    // Readiness to start (25 points)
+    if (clientQuestions.readyToStart === 'Yes') {
+        score += 25;
+        insights.push('Ready to start within 7 days - high urgency');
+    } else if (clientQuestions.readyToStart === 'Not sure') {
+        score += 10;
+        insights.push('Uncertain about timeline - needs nurturing');
+    }
+    
+    // Investment willingness (25 points)
+    if (clientQuestions.willingToInvest === 'Yes') {
+        score += 25;
+        insights.push('Willing to invest - high conversion potential');
+    } else if (clientQuestions.willingToInvest === 'Need a flexible option') {
+        score += 15;
+        insights.push('Open to investment with flexibility - moderate potential');
+    }
+    
+    // Seriousness scale (20 points)
+    if (clientQuestions.seriousnessScale >= 8) {
+        score += 20;
+        insights.push('High seriousness level (8-10) - strong commitment');
+    } else if (clientQuestions.seriousnessScale >= 6) {
+        score += 15;
+        insights.push('Moderate seriousness level (6-7) - good potential');
+    } else if (clientQuestions.seriousnessScale >= 4) {
+        score += 10;
+        insights.push('Lower seriousness level (4-5) - needs motivation');
+    }
+    
+    // Activity level bonus (10 points)
+    if (clientQuestions.activityLevel === 'Very active') {
+        score += 10;
+        insights.push('Very active lifestyle - likely to follow through');
+    } else if (clientQuestions.activityLevel === 'Moderately active') {
+        score += 5;
+        insights.push('Moderately active - good foundation');
+    }
+    
+    return { score, maxScore, insights };
+};
+
+const qualifyCoachLead = (coachQuestions) => {
+    let score = 0;
+    const maxScore = 100;
+    const insights = [];
+    
+    // Video engagement (20 points)
+    if (coachQuestions.watchedVideo === 'Yes, 100%') {
+        score += 20;
+        insights.push('Watched full video - high engagement');
+    } else if (coachQuestions.watchedVideo === 'Partially') {
+        score += 10;
+        insights.push('Watched partially - moderate engagement');
+    }
+    
+    // Business readiness (30 points)
+    if (coachQuestions.readiness === '100% ready') {
+        score += 30;
+        insights.push('100% ready to start business - high conversion');
+    } else if (coachQuestions.readiness === 'Curious but exploring') {
+        score += 20;
+        insights.push('Curious and exploring - good potential');
+    }
+    
+    // Commitment level (25 points)
+    if (coachQuestions.commitment === 'Yes, fully committed') {
+        score += 25;
+        insights.push('Fully committed - high success probability');
+    } else if (coachQuestions.commitment === 'Maybe, depends on the plan') {
+        score += 15;
+        insights.push('Conditional commitment - needs convincing');
+    }
+    
+    // Time availability (15 points)
+    if (coachQuestions.timeCommitment === '3-4 hours/day') {
+        score += 15;
+        insights.push('High time commitment - serious about business');
+    } else if (coachQuestions.timeCommitment === '1-2 hours/day') {
+        score += 10;
+        insights.push('Moderate time commitment - realistic approach');
+    }
+    
+    // Understanding (10 points)
+    if (coachQuestions.understandsOpportunity === 'Yes') {
+        score += 10;
+        insights.push('Understands business opportunity - informed decision');
+    }
+    
+    return { score, maxScore, insights };
+};
+
+const getQualificationSummary = (qualification) => {
+    const { score, maxScore, insights } = qualification;
+    const percentage = Math.round((score / maxScore) * 100);
+    
+    let temperature = 'Cold';
+    if (percentage >= 80) temperature = 'Hot';
+    else if (percentage >= 50) temperature = 'Warm';
+    
+    const recommendations = [];
+    
+    if (temperature === 'Hot') {
+        recommendations.push('High priority follow-up within 24 hours');
+        recommendations.push('Send detailed program information');
+        recommendations.push('Schedule discovery call immediately');
+    } else if (temperature === 'Warm') {
+        recommendations.push('Follow up within 48-72 hours');
+        recommendations.push('Send nurturing content and testimonials');
+        recommendations.push('Offer free consultation to build trust');
+    } else {
+        recommendations.push('Add to nurturing sequence');
+        recommendations.push('Send educational content regularly');
+        recommendations.push('Re-engage after 1-2 weeks');
+    }
+    
+    return { temperature, percentage, recommendations };
+};
+
+// @desc    Create a new Lead
+// @route   POST /api/leads
+// @access  Public - Triggered by a public form submission
 const createLead = async (req, res) => {
     try {
-        const { coachId, funnelId } = req.body;
+        const { 
+            coachId, 
+            funnelId, 
+            targetAudience,
+            clientQuestions,
+            coachQuestions,
+            ...otherLeadData 
+        } = req.body;
 
         if (!coachId || !funnelId) {
             return res.status(400).json({
@@ -30,7 +171,48 @@ const createLead = async (req, res) => {
             });
         }
 
-        const lead = await Lead.create(req.body);
+        // Prepare lead data
+        const leadData = {
+            ...otherLeadData,
+            coachId,
+            funnelId,
+            targetAudience: targetAudience || 'client'
+        };
+
+        // Add booking form questions based on target audience
+        if (targetAudience === 'client' && clientQuestions) {
+            leadData.clientQuestions = clientQuestions;
+        } else if (targetAudience === 'coach' && coachQuestions) {
+            leadData.coachQuestions = coachQuestions;
+        }
+
+        // Automatically qualify the lead if booking form questions are provided
+        if (clientQuestions || coachQuestions) {
+            let qualification;
+            
+            if (targetAudience === 'client' && clientQuestions) {
+                qualification = qualifyClientLead(clientQuestions);
+            } else if (targetAudience === 'coach' && coachQuestions) {
+                qualification = qualifyCoachLead(coachQuestions);
+            }
+            
+            if (qualification) {
+                const summary = getQualificationSummary(qualification);
+                
+                // Update lead data with qualification results
+                leadData.score = qualification.score;
+                leadData.maxScore = qualification.maxScore;
+                leadData.leadTemperature = summary.temperature;
+                leadData.qualificationInsights = qualification.insights;
+                leadData.recommendations = summary.recommendations;
+                
+                // Add qualification note
+                const qualificationNote = `\n\n--- AUTOMATIC QUALIFICATION ---\nScore: ${qualification.score}/${qualification.maxScore} (${summary.percentage}%)\nTemperature: ${summary.temperature}\nInsights: ${qualification.insights.join(', ')}\nRecommendations: ${summary.recommendations.join(', ')}`;
+                leadData.notes = leadData.notes ? leadData.notes + qualificationNote : `Lead qualified via booking form${qualificationNote}`;
+            }
+        }
+
+        const lead = await Lead.create(leadData);
 
         // --- Publish event to RabbitMQ ---
         const eventName = 'lead_created';
@@ -55,16 +237,10 @@ const createLead = async (req, res) => {
         });
     } catch (error) {
         console.error("Error creating lead:", error);
-        if (error.name === 'ValidationError') {
-            const messages = Object.values(error.errors).map(val => val.message);
-            return res.status(400).json({
-                success: false,
-                message: messages.join(', ')
-            });
-        }
         res.status(500).json({
             success: false,
-            message: 'Server Error. Could not create lead.'
+            message: "Error creating lead",
+            error: error.message
         });
     }
 };
@@ -155,7 +331,7 @@ const getLead = async (req, res) => {
         const lead = await Lead.findOne({ _id: req.params.id, coachId: req.coachId })
             .populate('funnelId', 'name')
             .populate('assignedTo', 'name')
-            .populate('followUpHistory.createdBy', 'name');
+            .populate('followUpHistory.createdBy', 'name')
 
         if (!lead) {
             return res.status(404).json({

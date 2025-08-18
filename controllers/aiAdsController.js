@@ -342,3 +342,312 @@ exports.generateAdVariations = asyncHandler(async (req, res, next) => {
         }
     });
 });
+
+// @desc    Generate AI-powered marketing poster background with text content
+// @route   POST /api/ai-ads/generate-poster
+// @access  Private (Coaches)
+exports.generatePosterImage = asyncHandler(async (req, res, next) => {
+    const {
+        heroImage,
+        coachName,
+        niche,
+        offer,
+        targetAudience,
+        style,
+        colorScheme,
+        additionalElements
+    } = req.body;
+    const coachId = req.user.id;
+
+    if (!coachName || !niche || !offer || !targetAudience) {
+        return res.status(400).json({
+            success: false,
+            message: 'coachName, niche, offer, and targetAudience are required'
+        });
+    }
+
+    try {
+        const result = await aiAdsAgentService.generateSimpleBackground(coachId, {
+            heroImage,
+            coachName,
+            niche,
+            offer,
+            targetAudience,
+            style,
+            colorScheme,
+            additionalElements
+        });
+
+        res.status(200).json({
+            success: true,
+            data: result
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// @desc    Generate multiple background variations with text content for better selection
+// @route   POST /api/ai-ads/generate-poster-variations
+// @access  Private (Coaches)
+exports.generatePosterVariations = asyncHandler(async (req, res, next) => {
+    const {
+        heroImage,
+        coachName,
+        niche,
+        offer,
+        targetAudience,
+        style,
+        colorScheme,
+        additionalElements,
+        variationCount = 3
+    } = req.body;
+    const coachId = req.user.id;
+
+    if (!coachName || !niche || !offer || !targetAudience) {
+        return res.status(400).json({
+            success: false,
+            message: 'coachName, niche, offer, and targetAudience are required'
+        });
+    }
+
+    try {
+        const variationsResult = await aiAdsAgentService.generateBackgroundVariations(coachId, {
+            heroImage,
+            coachName,
+            niche,
+            offer,
+            targetAudience,
+            style,
+            colorScheme,
+            additionalElements
+        }, variationCount);
+
+        res.status(200).json({
+            success: true,
+            data: variationsResult
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// @desc    Generate AI-powered marketing headlines
+// @route   POST /api/ai-ads/generate-headlines
+// @access  Private (Coaches)
+exports.generateMarketingHeadlines = asyncHandler(async (req, res, next) => {
+    const {
+        coachName,
+        niche,
+        offer,
+        targetAudience,
+        tone,
+        headlineCount = 5,
+        includeHashtags = true
+    } = req.body;
+    const coachId = req.user.id;
+
+    if (!coachName || !niche || !offer || !targetAudience) {
+        return res.status(400).json({
+            success: false,
+            message: 'coachName, niche, offer, and targetAudience are required'
+        });
+    }
+
+    try {
+        const headlinesResult = await aiAdsAgentService.generateMarketingHeadlines(coachId, {
+            coachName,
+            niche,
+            offer,
+            targetAudience,
+            tone,
+            headlineCount,
+            includeHashtags
+        });
+
+        res.status(200).json({
+            success: true,
+            data: headlinesResult
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// @desc    Generate complete social media post content
+// @route   POST /api/ai-ads/generate-social-post
+// @access  Private (Coaches)
+exports.generateSocialMediaPost = asyncHandler(async (req, res, next) => {
+    const {
+        coachName,
+        niche,
+        offer,
+        targetAudience,
+        postType = 'motivational',
+        includeCallToAction = true,
+        tone = 'professional'
+    } = req.body;
+    const coachId = req.user.id;
+
+    if (!coachName || !niche || !offer || !targetAudience) {
+        return res.status(400).json({
+            success: false,
+            message: 'coachName, niche, offer, and targetAudience are required'
+        });
+    }
+
+    try {
+        const postResult = await aiAdsAgentService.generateSocialMediaPost(coachId, {
+            coachName,
+            niche,
+            offer,
+            targetAudience,
+            postType,
+            includeCallToAction,
+            tone
+        });
+
+        res.status(200).json({
+            success: true,
+            data: postResult
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// @desc    Upload generated content to Instagram via Meta Ads
+// @route   POST /api/ai-ads/upload-to-instagram
+// @access  Private (Coaches)
+exports.uploadToInstagram = asyncHandler(async (req, res, next) => {
+    const {
+        imageUrl,
+        caption,
+        hashtags,
+        callToAction,
+        targetAudience,
+        budget = 50,
+        duration = 7,
+        coachMetaAccountId
+    } = req.body;
+    const coachId = req.user.id;
+
+    if (!imageUrl || !caption || !coachMetaAccountId) {
+        return res.status(400).json({
+            success: false,
+            message: 'imageUrl, caption, and coachMetaAccountId are required'
+        });
+    }
+
+    try {
+        const uploadResult = await aiAdsAgentService.uploadToInstagram(coachId, coachMetaAccountId, {
+            imageUrl,
+            caption,
+            hashtags: hashtags || [],
+            callToAction: callToAction || '',
+            targetAudience: targetAudience || 'general_health',
+            budget,
+            duration
+        });
+
+        res.status(200).json({
+            success: true,
+            data: uploadResult
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// @desc    Generate complete social media campaign package
+// @route   POST /api/ai-ads/generate-campaign
+// @access  Private (Coaches)
+exports.generateSocialMediaCampaign = asyncHandler(async (req, res, next) => {
+    const {
+        coachName,
+        niche,
+        offer,
+        targetAudience,
+        campaignDuration = 7,
+        dailyBudget = 50,
+        postFrequency = 1,
+        coachMetaAccountId
+    } = req.body;
+    const coachId = req.user.id;
+
+    if (!coachName || !niche || !offer || !targetAudience) {
+        return res.status(400).json({
+            success: false,
+            message: 'coachName, niche, offer, and targetAudience are required'
+        });
+    }
+
+    try {
+        const campaignResult = await aiAdsAgentService.generateSocialMediaCampaign(coachId, {
+            coachName,
+            niche,
+            offer,
+            targetAudience,
+            campaignDuration,
+            dailyBudget,
+            postFrequency,
+            coachMetaAccountId
+        });
+
+        res.status(200).json({
+            success: true,
+            data: campaignResult
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// @desc    Get social media content generation history
+// @route   GET /api/ai-ads/social-media-history
+// @access  Private (Coaches)
+exports.getSocialMediaHistory = asyncHandler(async (req, res, next) => {
+    const coachId = req.user.id;
+    const { page = 1, limit = 10, type } = req.query;
+
+    try {
+        // This would typically query a database for generated content history
+        // For now, returning a placeholder response
+        const history = {
+            coachId,
+            totalItems: 0,
+            currentPage: parseInt(page),
+            itemsPerPage: parseInt(limit),
+            items: [],
+            message: 'Social media generation history feature coming soon'
+        };
+
+        res.status(200).json({
+            success: true,
+            data: history
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
