@@ -84,7 +84,7 @@ async function processNurturingSequences() {
             }
         }
     }
-    await mongoose.disconnect();
+
 }
 
 setInterval(processNurturingSequences, CHECK_INTERVAL_MINUTES * 60 * 1000);
