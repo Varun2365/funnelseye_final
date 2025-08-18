@@ -1,26 +1,36 @@
 const mongoose = require('mongoose');
 
-// Define the MongoDB connection URI.
-const mongoURI = 'mongodb://localhost:27017/FunnelsEye'; 
+const mongoURI = 'mongodb://localhost:27017/FunnelsEye';
 
-/**
- * Connects to the MongoDB database using Mongoose.
- * This function handles the connection logic, including success and error logging.
- */
 const connectDB = async () => {
-    try {
+  try {
+    await mongoose.connect(mongoURI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
 
-        await mongoose.connect(mongoURI);
+      // ✅ modern options
+      serverSelectionTimeoutMS: 5000,   // retry in 5s if server is down
+      socketTimeoutMS: 45000,           // socket closes after 45s inactivity
+      heartbeatFrequencyMS: 10000       // check connection every 10s
+    });
 
-        console.log('MongoDB Connected Successfully!');
-    } catch (err) {
-        // Log any connection errors.
-        console.error('MongoDB Connection Failed:', err.message);
-        // Exit process with failure (optional, but common in backend apps)
-        process.exit(1);
-    }
+    console.log('✅ MongoDB Connected Successfully!');
+  } catch (err) {
+    console.error('❌ MongoDB Connection Failed:', err.message);
+  }
 };
 
+// Event listeners for debugging
+mongoose.connection.on("connected", () => {
+  console.log("✅ Mongoose connected");
+});
 
+mongoose.connection.on("error", (err) => {
+  console.error("❌ Mongoose error:", err);
+});
 
-module.exports = {connectDB};
+mongoose.connection.on("disconnected", () => {
+  console.warn("⚠️ Mongoose disconnected, retrying...");
+});
+
+module.exports = { connectDB };
