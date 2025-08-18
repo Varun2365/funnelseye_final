@@ -884,13 +884,15 @@ const startServer = async () => {
         const mongoose = require('mongoose');
         setInterval(async () => {
             try {
-                // Simple ping to keep connection active - no collection needed
-                const result = await mongoose.connection.db.admin().ping();
-                console.log(`🔄 MongoDB keep-alive ping: ${result.ok === 1 ? 'success' : 'failed'}`);
+                // Search for a random ID in OTP model to keep connection active
+                const Otp = require('./schema/Otp');
+                // Generate a random but valid MongoDB ObjectId format (24 hex chars)
+                const result = await Otp.findOne({ _id: "937b7473809470ee6117adb3" }).select('_id').lean();
+                console.log(`🔄 MongoDB keep-alive query: ${result ? 'found' : 'not found'} (connection active)`);
             } catch (error) {
-                console.log('⚠️ MongoDB keep-alive ping failed:', error.message);
+                console.log('⚠️ MongoDB keep-alive query failed:', error.message);
             }
-        }, 5 * 60 * 1000); // Run every 5 minutes (300,000 ms)
+        },3*60* 1000); // Run every 5 minutes (300,000 ms)
 
         server.listen(PORT, () => {
             console.log(`\n\n✨ Server is soaring on port ${PORT}! ✨`);

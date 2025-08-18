@@ -145,7 +145,6 @@ const customDomainSchema = new mongoose.Schema({
 });
 
 // Indexes
-customDomainSchema.index({ domain: 1 }, { unique: true });
 customDomainSchema.index({ coachId: 1, status: 1 });
 customDomainSchema.index({ 'dnsVerification.isVerified': 1 });
 customDomainSchema.index({ 'sslCertificate.isActive': 1 });
