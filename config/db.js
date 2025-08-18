@@ -10,7 +10,7 @@ const connectDB = async () => {
       socketTimeoutMS: 0,          // no socket timeout
       connectTimeoutMS: 30000,     // 30s connection timeout
       serverSelectionTimeoutMS: 30000,
-      autoIndex: true,             // optional, build indexes
+      heartbeatFrequencyMS : 10000
     });
 
     console.log('✅ MongoDB Connected Successfully!');
