@@ -170,15 +170,20 @@ customDomainSchema.pre('save', function(next) {
 
 // Method to check DNS verification
 customDomainSchema.methods.checkDnsVerification = async function() {
-    // This would implement actual DNS checking logic
-    // For now, we'll simulate it
-    const dns = require('dns').promises;
-    
     try {
         for (let record of this.dnsVerification.requiredRecords) {
             if (record.type === 'CNAME') {
                 const cnameRecords = await dns.resolveCname(record.name);
                 record.isVerified = cnameRecords.includes(record.value);
+                console.log(`${record.value}   ${record.name}`);
+            } else if (record.type === 'A') {
+                // Check for A records and compare the resolved IP address
+                const aRecords = await dns.resolve4(record.name);
+                record.isVerified = aRecords.includes(record.value);
+                console.log(`${record.value}   ${record.name}`);
+            } else {
+                // Handle other record types if needed, or default to false
+                record.isVerified = false;
             }
         }
         
