@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-
+const dns = require('dns').promises;
 const customDomainSchema = new mongoose.Schema({
     // Coach who owns this domain
     coachId: {
