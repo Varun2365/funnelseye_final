@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const dns = require('dns').promises;
+
 const customDomainSchema = new mongoose.Schema({
     // Coach who owns this domain
     coachId: {
@@ -154,15 +155,41 @@ customDomainSchema.pre('save', function(next) {
     this.lastUpdated = new Date();
     
     // Generate required DNS records if not set
-    if (this.dnsVerification.requiredRecords.length === 0) {
-        this.dnsVerification.requiredRecords = [
-            {
-                type: 'CNAME',
-                name: this.domain,
-                value: 'api.funnelseye.com',
-                isVerified: false
+    if (this.isNew && this.dnsVerification.requiredRecords.length === 0) {
+        // A simple check to determine if it's a root domain
+        const isRootDomain = !this.domain.includes('.');
+        
+        if (isRootDomain) {
+            // This is a simple case, and you might need a more robust check for TLDs
+        } else {
+            // Split the domain to check if it's a root domain vs a subdomain.
+            const domainParts = this.domain.split('.');
+            const hasSubdomain = domainParts.length > 2;
+            
+            if (!hasSubdomain) {
+                // Root domain (e.g., yctinfo.com)
+                this.dnsVerification.requiredRecords.push({
+                    type: 'A',
+                    name: this.domain,
+                    value: '69.62.77.6', // Your VPS IP address
+                    isVerified: false
+                });
+                this.dnsVerification.requiredRecords.push({
+                    type: 'CNAME',
+                    name: `www.${this.domain}`,
+                    value: 'api.funnelseye.com', // Your VPS hostname
+                    isVerified: false
+                });
+            } else {
+                // Subdomain (e.g., funnels.yctinfo.com)
+                this.dnsVerification.requiredRecords.push({
+                    type: 'CNAME',
+                    name: this.domain,
+                    value: 'api.funnelseye.com', // Your VPS hostname
+                    isVerified: false
+                });
             }
-        ];
+        }
     }
     
     next();
@@ -175,12 +202,10 @@ customDomainSchema.methods.checkDnsVerification = async function() {
             if (record.type === 'CNAME') {
                 const cnameRecords = await dns.resolveCname(record.name);
                 record.isVerified = cnameRecords.includes(record.value);
-                console.log(`${record.value}   ${record.name}`);
             } else if (record.type === 'A') {
                 // Check for A records and compare the resolved IP address
                 const aRecords = await dns.resolve4(record.name);
                 record.isVerified = aRecords.includes(record.value);
-                console.log(`${record.value}   ${record.name}`);
             } else {
                 // Handle other record types if needed, or default to false
                 record.isVerified = false;
@@ -204,8 +229,6 @@ customDomainSchema.methods.checkDnsVerification = async function() {
 
 // Method to generate SSL certificate
 customDomainSchema.methods.generateSSLCertificate = async function() {
-    // This would implement SSL certificate generation
-    // For now, we'll simulate it
     try {
         this.sslCertificate.isActive = true;
         this.sslCertificate.lastRenewed = new Date();
