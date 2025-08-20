@@ -978,19 +978,7 @@ const startServer = async () => {
         await initScheduledExecutorWorker();
         await initPaymentProcessorWorker();
 
-        // 🔄 Keep MongoDB connection alive with periodic dummy queries
-        const mongoose = require('mongoose');
-        setInterval(async () => {
-            try {
-                // Search for a random ID in OTP model to keep connection active
-                const Otp = require('./schema/Otp');
-                // Generate a random but valid MongoDB ObjectId format (24 hex chars)
-                const result = await Otp.findOne({ _id: "937b7473809470ee6117adb3" }).select('_id').lean();
-                console.log(`🔄 MongoDB keep-alive query: ${result ? 'found' : 'not found'} (connection active)`);
-            } catch (error) {
-                console.log('⚠️ MongoDB keep-alive query failed:', error.message);
-            }
-        }, 3 * 60 * 1000); // Run every 5 minutes (300,000 ms)
+
 
         server.listen(PORT, () => {
             console.log(`\n\n✨ Server is soaring on port ${PORT}! ✨`);
