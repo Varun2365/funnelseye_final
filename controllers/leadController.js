@@ -3,9 +3,10 @@
 const Lead = require('../schema/Lead');
 const Funnel = require('../schema/Funnel');
 const { publishEvent } = require('../services/rabbitmqProducer');
-const LeadModel = require('../schema/Lead');
 const NurturingSequence = require('../schema/NurturingSequence');
 const { scheduleFutureEvent } = require('../services/automationSchedulerService');
+const leadScoringService = require('../services/leadScoringService');
+const aiService = require('../services/aiService');
 
 // Lead qualification logic (integrated)
 const qualifyClientLead = (clientQuestions) => {
@@ -230,6 +231,8 @@ const createLead = async (req, res) => {
             .then(() => console.log(`[Controller] Published event: ${eventName}`))
             .catch(err => console.error(`[Controller] Failed to publish event: ${eventName}`, err));
         // --- End of event publishing ---
+
+        await leadScoringService.updateLeadScore(lead._id, 'form_submitted');
 
         res.status(201).json({
             success: true,
@@ -502,6 +505,8 @@ const addFollowUpNote = async (req, res) => {
         }
 
         await lead.save();
+
+        await leadScoringService.updateLeadScore(lead._id, 'followup_added');
 
         lead = await Lead.findOne({ _id: req.params.id, coachId: req.coachId })
             .populate('funnelId', 'name')
@@ -820,9 +825,179 @@ const convertLeadToClient = async (req, res) => {
             }
         };
         publishEvent(eventName, eventPayload).catch(err => console.error(`[Controller] Failed to publish event: ${eventName}`, err));
+        await leadScoringService.updateLeadScore(leadId, 'lead_magnet_converted');
         res.status(200).json({ success: true, data: lead });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server error during lead conversion.' });
+    }
+};
+
+// AI-powered lead qualification
+const aiQualifyLead = async (req, res) => {
+    try {
+        const { leadId } = req.params;
+        const lead = await Lead.findById(leadId).populate('coachId');
+        
+        if (!lead) {
+            return res.status(404).json({ success: false, message: 'Lead not found' });
+        }
+
+        // Generate AI insights for the lead
+        const leadInsights = await aiService.generateLeadInsights({
+            name: lead.name,
+            email: lead.email,
+            phone: lead.phone,
+            source: lead.source,
+            score: lead.score,
+            status: lead.status,
+            notes: lead.notes,
+            followUpHistory: lead.followUpHistory,
+            appointment: lead.appointment
+        });
+
+        // Generate personalized follow-up message
+        const followUpMessage = await aiService.generateContextualResponse(
+            `Lead ${lead.name} from ${lead.source} with score ${lead.score}`,
+            'interested',
+            {
+                leadStage: lead.status,
+                coachName: lead.coachId?.name || 'Coach',
+                niche: lead.coachId?.niche || 'Fitness',
+                offer: lead.coachId?.offer || 'Transformation Program'
+            }
+        );
+
+        // Generate marketing copy for this lead
+        const marketingCopy = await aiService.generateMarketingCopy(
+            `Create compelling follow-up message for ${lead.name}, a ${lead.source} lead with ${lead.score}/100 score. 
+            Coach: ${lead.coachId?.name || 'Coach'}, Niche: ${lead.coachId?.niche || 'Fitness'}, 
+            Offer: ${lead.coachId?.offer || 'Transformation Program'}. 
+            Lead status: ${lead.status}, Previous follow-ups: ${lead.followUpHistory?.length || 0}`
+        );
+
+        res.json({
+            success: true,
+            data: {
+                leadInsights: leadInsights.content,
+                followUpMessage: followUpMessage.content,
+                marketingCopy: marketingCopy.content,
+                aiRecommendations: {
+                    nextAction: leadInsights.content.includes('hot') ? 'Immediate follow-up' : 'Scheduled follow-up',
+                    priority: lead.score > 70 ? 'High' : lead.score > 40 ? 'Medium' : 'Low',
+                    bestApproach: leadInsights.content.includes('objection') ? 'Address concerns first' : 'Direct offer'
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('AI lead qualification error:', error);
+        res.status(500).json({ success: false, message: 'Error in AI qualification' });
+    }
+};
+
+// AI-powered lead nurturing sequence generation
+const generateNurturingSequence = async (req, res) => {
+    try {
+        const { leadId, sequenceType } = req.body;
+        const lead = await Lead.findById(leadId).populate('coachId');
+        
+        if (!lead) {
+            return res.status(404).json({ success: false, message: 'Lead not found' });
+        }
+
+        let sequencePrompt = '';
+        switch (sequenceType) {
+            case 'warm_lead':
+                sequencePrompt = `Create a 5-step nurturing sequence for ${lead.name}, a warm lead (score: ${lead.score}) 
+                interested in ${lead.coachId?.offer || 'fitness transformation'}. 
+                Target audience: ${lead.source} leads, Goal: Convert to client`;
+                break;
+            case 'cold_lead':
+                sequencePrompt = `Create a 7-step nurturing sequence for ${lead.name}, a cold lead (score: ${lead.score}) 
+                from ${lead.source}. Goal: Warm up and engage before offering ${lead.coachId?.offer || 'fitness program'}`;
+                break;
+            case 'objection_handling':
+                sequencePrompt = `Create a 4-step nurturing sequence to handle objections for ${lead.name}. 
+                Lead concerns: ${lead.notes || 'General hesitation'}. 
+                Goal: Address concerns and convert to ${lead.coachId?.offer || 'client'}`;
+                break;
+            default:
+                sequencePrompt = `Create a nurturing sequence for ${lead.name} (score: ${lead.score}) 
+                from ${lead.source}. Goal: Convert to client for ${lead.coachId?.offer || 'fitness program'}`;
+        }
+
+        const nurturingSequence = await aiService.generateMarketingCopy(sequencePrompt, {
+            temperature: 0.7,
+            maxTokens: 800
+        });
+
+        res.json({
+            success: true,
+            data: {
+                sequence: nurturingSequence.content,
+                type: sequenceType,
+                leadId: lead._id,
+                recommendedSteps: 5
+            }
+        });
+
+    } catch (error) {
+        console.error('AI nurturing sequence generation error:', error);
+        res.status(500).json({ success: false, message: 'Error generating nurturing sequence' });
+    }
+};
+
+// AI-powered follow-up message generation
+const generateFollowUpMessage = async (req, res) => {
+    try {
+        const { leadId, followUpType, context } = req.body;
+        const lead = await Lead.findById(leadId).populate('coachId');
+        
+        if (!lead) {
+            return res.status(404).json({ success: false, message: 'Lead not found' });
+        }
+
+        let prompt = '';
+        switch (followUpType) {
+            case 'first_followup':
+                prompt = `Generate a first follow-up message for ${lead.name} who signed up from ${lead.source}. 
+                Coach: ${lead.coachId?.name || 'Coach'}, Offer: ${lead.coachId?.offer || 'Fitness Program'}. 
+                Make it personal, engaging, and include a clear next step.`;
+                break;
+            case 'reminder':
+                prompt = `Generate a reminder follow-up for ${lead.name} who hasn't responded to previous messages. 
+                Lead score: ${lead.score}, Previous follow-ups: ${lead.followUpHistory?.length || 0}. 
+                Be persistent but not pushy, offer value, and create urgency.`;
+                break;
+            case 'offer':
+                prompt = `Generate an offer presentation message for ${lead.name} (score: ${lead.score}). 
+                Coach: ${lead.coachId?.name || 'Coach'}, Offer: ${lead.coachId?.offer || 'Fitness Program'}. 
+                Include social proof, benefits, and a compelling call-to-action.`;
+                break;
+            default:
+                prompt = `Generate a follow-up message for ${lead.name} (${followUpType}). 
+                Context: ${context || 'General follow-up'}. 
+                Make it relevant to their situation and lead score (${lead.score}).`;
+        }
+
+        const followUpMessage = await aiService.generateMarketingCopy(prompt, {
+            temperature: 0.8,
+            maxTokens: 300
+        });
+
+        res.json({
+            success: true,
+            data: {
+                message: followUpMessage.content,
+                type: followUpType,
+                leadId: lead._id,
+                recommendedTiming: followUpType === 'first_followup' ? '24 hours' : '3-5 days'
+            }
+        });
+
+    } catch (error) {
+        console.error('AI follow-up generation error:', error);
+        res.status(500).json({ success: false, message: 'Error generating follow-up message' });
     }
 };
 
@@ -838,7 +1013,7 @@ module.exports = {
     // simple AI rescore endpoint handler
     aiRescore: async (req, res) => {
         try {
-            const lead = await LeadModel.findOne({ _id: req.params.id, coachId: req.coachId });
+            const lead = await Lead.findOne({ _id: req.params.id, coachId: req.coachId });
             if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
             const { score, explanation } = calculateLeadScore(lead);
             lead.score = score;
@@ -853,4 +1028,7 @@ module.exports = {
     advanceNurturingStep,
     getNurturingProgress,
     convertLeadToClient,
+    aiQualifyLead,
+    generateNurturingSequence,
+    generateFollowUpMessage,
 };

@@ -14,6 +14,7 @@ const fs = require('fs').promises; // For file system operations (session deleti
 const path = require('path'); // For path manipulation
 const { Boom } = require('@hapi/boom'); // For handling disconnect reasons gracefully
 const mimeTypes = require('mime-types'); // For determining MIME types of local files
+const aiService = require('./aiService');
 
 // --- 2. Global Variables ---
 // Global map to store active Baileys socket instances
@@ -29,6 +30,8 @@ const logger = pino({ level: 'silent' });
 // --- 3. Database Models (Corrected paths and names) ---
 const Lead = require('../schema/Lead'); // Corrected path
 const Message = require('../schema/Message'); // Corrected path and name (was LeadMessage)
+const Task = require('../schema/Task'); // Added Task model
+const leadScoringService = require('./leadScoringService'); // Added leadScoringService
 
 // --- 4. Helper Functions ---
 
@@ -67,6 +70,116 @@ function cleanJidForDb(jid) {
         cleaned += '@s.whatsapp.net';
     }
     return cleaned;
+}
+
+/**
+ * Helper Function to Save a Message to the Database
+ */
+async function saveMessage(messageData) {
+    try {
+        const message = new Message({
+            lead: messageData.leadId, // Assuming messageData contains leadId
+            coach: messageData.coachId, // Assuming messageData contains coachId
+            messageId: messageData.messageId,
+            timestamp: messageData.timestamp,
+            direction: messageData.direction,
+            type: messageData.type,
+            content: messageData.content,
+            sender: messageData.sender,
+            mediaUrl: messageData.mediaUrl,
+            aiSentiment: messageData.aiSentiment,
+            aiConfidence: messageData.aiConfidence,
+            aiEmotions: messageData.aiEmotions,
+            aiIntent: messageData.aiIntent,
+        });
+        await message.save();
+        console.log(`[DB] Saved message: ${messageData.messageId} for lead ${messageData.leadId}`);
+    } catch (error) {
+        console.error(`[DB ERROR] Error saving message:`, error);
+    }
+}
+
+/**
+ * Helper Function to Get Recent Messages for Lead
+ */
+async function getRecentMessages(jid, count) {
+    try {
+        const messages = await Message.find({
+            sender: cleanJidForDb(jid),
+            direction: 'inbound' // Assuming inbound messages are from the lead
+        }).sort({ timestamp: -1 }).limit(count);
+        return messages;
+    } catch (error) {
+        console.error(`[DB ERROR] Error fetching recent messages for ${jid}:`, error);
+        return [];
+    }
+}
+
+/**
+ * Helper Function to Trigger Automation Rules
+ */
+async function triggerAutomationRules(phoneNumber, messageData, aiInsights) {
+    try {
+        // Find lead by phone number
+        const lead = await Lead.findOne({ phone: phoneNumber });
+        if (!lead) return;
+
+        // Update lead score based on AI insights
+        let scoreEvent = 'whatsapp_message';
+        if (aiInsights.sentiment === 'positive') {
+            scoreEvent = 'whatsapp_positive';
+        } else if (aiInsights.sentiment === 'negative') {
+            scoreEvent = 'whatsapp_negative';
+        }
+
+        // Update lead score
+        await leadScoringService.updateLeadScore(lead._id, scoreEvent, lead.coachId);
+
+        // AI-powered lead qualification insights
+        if (aiInsights.confidence > 0.8) {
+            const leadInsights = await aiService.generateLeadInsights({
+                name: lead.name,
+                email: lead.email,
+                phone: lead.phone,
+                source: lead.source,
+                engagement: aiInsights.sentiment,
+                intent: aiInsights.intent,
+                emotions: aiInsights.emotions,
+                messageContent: messageData.body
+            });
+
+            if (leadInsights.success) {
+                // Create AI insight task for coach
+                await createAIInsightTask(lead._id, leadInsights.content, lead.coachId);
+            }
+        }
+
+    } catch (error) {
+        console.error('Error in AI-enhanced automation:', error);
+    }
+}
+
+/**
+ * Helper Function to Create AI Insight Task
+ */
+async function createAIInsightTask(leadId, aiInsights, coachId) {
+    try {
+        const task = await Task.create({
+            title: 'AI Lead Insight Generated',
+            description: `AI Analysis: ${aiInsights}`,
+            type: 'ai_insight',
+            priority: 'medium',
+            assignedTo: coachId,
+            leadId: leadId,
+            dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+            status: 'pending'
+        });
+
+        console.log(`AI insight task created for lead ${leadId}`);
+        return task;
+    } catch (error) {
+        console.error('Error creating AI insight task:', error);
+    }
 }
 
 
@@ -174,6 +287,63 @@ async function handleIncomingMessage(coachId, msg) {
                 }
             });
         }
+
+        // Enhanced message handler with AI integration
+        try {
+            // AI-powered sentiment analysis
+            const sentimentAnalysis = await aiService.analyzeSentiment(content);
+            
+            // Log the message with AI insights
+            const messageData = {
+                leadId: lead._id, // Assuming lead._id is available
+                coachId: coachId,
+                messageId: messageId,
+                direction: 'inbound',
+                type: messageType,
+                content: content,
+                sender: cleanJidForDb(senderRawJid),
+                timestamp: timestamp,
+                // AI-enhanced fields
+                aiSentiment: sentimentAnalysis.sentiment,
+                aiConfidence: sentimentAnalysis.confidence,
+                aiEmotions: sentimentAnalysis.emotions,
+                aiIntent: sentimentAnalysis.intent,
+            };
+
+            // Save message to database
+            await saveMessage(messageData);
+
+            // AI-powered contextual response generation
+            if (sentimentAnalysis.sentiment === 'negative' || sentimentAnalysis.confidence > 0.7) {
+                const contextualResponse = await aiService.generateContextualResponse(
+                    content,
+                    sentimentAnalysis.sentiment,
+                    {
+                        leadStage: 'engaged',
+                        platform: 'whatsapp',
+                        previousMessages: await getRecentMessages(senderRawJid, 5)
+                    }
+                );
+
+                if (contextualResponse.success) {
+                    // Send AI-generated empathetic response
+                    await sendCoachMessage(coachId, phoneNumber, contextualResponse.content); // Assuming sendCoachMessage is available
+                    
+                    console.log(`AI generated contextual response for ${phoneNumber}: ${contextualResponse.content}`);
+                }
+            }
+
+            // Trigger automation rules based on AI insights
+            await triggerAutomationRules(phoneNumber, messageData, sentimentAnalysis);
+
+        } catch (error) {
+            console.error('Error handling incoming message with AI:', error);
+            // Fallback to basic message handling
+            // This part needs to be adapted to the existing handleIncomingMessageBasic if it exists
+            // For now, we'll just log the error and continue with basic handling
+            console.log(`[MESSAGE IN] Basic handling for AI error for coach ${coachId} message from ${from}: ${content}`);
+        }
+
     } catch (error) {
         console.error(`[DB ERROR] Error processing incoming message for coach ${coachId}:`, error);
     }

@@ -3,7 +3,7 @@
 const express = require('express');
 const router = express.Router();
 // --- CORRECTED: The import name must match the controller's export ---
-const { createRule } = require('../controllers/automationRuleController'); 
+const { createRule, getRules,getRuleById, updateRule, deleteRule } = require('../controllers/automationRuleController'); 
 
 // Assuming you have an authentication middleware to protect routes
 const {protect} = require('../middleware/auth'); // Adjust path as per your project structure
@@ -19,9 +19,9 @@ router.use(protect, updateLastActive);
 router.post('/', createRule); // <--- CORRECTED: Use the correct function name
 
 // You would add more routes here for GET, PUT, DELETE operations later:
-// router.get('/', getAutomationRules);
-// router.get('/:id', getAutomationRule);
-// router.put('/:id', updateAutomationRule);
-// router.delete('/:id', deleteAutomationRule);
+router.get('/', getRules);
+router.get('/:id', getRuleById);
+router.put('/:id', updateRule);
+router.delete('/:id', deleteRule);
 
 module.exports = router;

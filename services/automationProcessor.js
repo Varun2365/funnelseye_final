@@ -32,6 +32,8 @@ const executeAutomationAction = async (action, eventData) => {
             console.log('Rule conditions not met. Skipping rule.');
             return;
         }
+
+        // AI-enhanced action execution
         switch (action.type) {
             case 'SEND_WHATSAPP': // <-- CORRECTED: This now matches your schema enum
                 // Get the coachId from the eventData. This tells us which coach's WhatsApp to use.
@@ -67,6 +69,23 @@ const executeAutomationAction = async (action, eventData) => {
                 // Use the templateParser to replace variables in the message content.
                 // It uses the full 'eventData' to resolve {{leadData.name}}, {{coachId}}, etc.
                 const messageContent = parseTemplateString(action.config.message, eventData);
+
+                // AI-enhanced message personalization
+                if (action.config.useAI && eventData.aiInsights) {
+                    const personalizedMessage = await aiService.generateContextualResponse(
+                        messageContent,
+                        eventData.aiInsights.sentiment,
+                        {
+                            leadStage: eventData.leadData?.status,
+                            platform: 'whatsapp',
+                            leadScore: eventData.leadData?.score
+                        }
+                    );
+                    
+                    if (personalizedMessage.success) {
+                        messageContent = personalizedMessage.content;
+                    }
+                }
 
                 console.log(`[AutomationProcessor] Attempting to send WhatsApp message via Baileys for coach ${coachId} to ${recipientPhoneNumber}: "${messageContent}"`);
                 // Call the function from your whatsappManager to send the message.
@@ -142,25 +161,38 @@ const executeAutomationAction = async (action, eventData) => {
                 break;
 
             case 'AI_GENERATE_COPY':
-                await aiService.generateCopy(action.config, eventData);
+                const copyResult = await aiService.generateMarketingCopy(
+                    action.config.prompt || 'Generate marketing copy',
+                    action.config.options || {}
+                );
+                
+                if (copyResult.success) {
+                    // Store generated copy or use it in subsequent actions
+                    eventData.generatedCopy = copyResult.content;
+                }
                 break;
 
             case 'AI_DETECT_SENTIMENT':
-                await aiService.detectSentiment(eventData.message);
+                if (eventData.message) {
+                    const sentiment = await aiService.analyzeSentiment(eventData.message);
+                    eventData.detectedSentiment = sentiment;
+                }
                 break;
 
             case 'AI_SCORE_LEAD':
-                await aiService.scoreLead(eventData.lead);
+                if (eventData.leadData) {
+                    const insights = await aiService.generateLeadInsights(eventData.leadData);
+                    if (insights.success) {
+                        eventData.leadInsights = insights.content;
+                    }
+                }
                 break;
 
             default:
                 console.warn(`[AutomationProcessor] Unknown action type: ${action.type}. No action performed.`);
         }
     } catch (error) {
-        console.error(`[AutomationProcessor] CRITICAL ERROR executing action ${action.type} for eventType ${eventData.eventType} (Lead ID: ${eventData.leadId}):`, error);
-        // This is a crucial point for error handling in a production system.
-        // You'd typically log this error to an external service (Sentry, New Relic)
-        // and possibly send an alert to an administrator.
+        console.error(`[AutomationProcessor] CRITICAL ERROR executing action ${action.type}:`, error);
     }
 };
 

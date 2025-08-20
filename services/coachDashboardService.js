@@ -8,6 +8,7 @@ const dailyPriorityFeedService = require('./dailyPriorityFeedService');
 const staffLeaderboardService = require('./staffLeaderboardService');
 const aiAdsAgentService = require('./aiAdsAgentService');
 const workflowTaskService = require('./workflowTaskService');
+const aiService = require('./aiService');
 
 class CoachDashboardService {
     constructor() {
@@ -579,6 +580,207 @@ class CoachDashboardService {
             proposal: leads.filter(lead => lead.status === 'Proposal').length,
             converted: leads.filter(lead => lead.status === 'Converted').length
         };
+    }
+}
+
+// AI-powered dashboard insights generation
+async function generateAIDashboardInsights(coachId, timeRange = '30d') {
+    try {
+        // Get coach performance data
+        const performanceData = await this.calculateKPIs(coachId, timeRange);
+        const leadData = await this.getLeadsData(coachId, timeRange);
+        const revenueData = await this.getFinancialData(coachId, timeRange, 30);
+
+        // Generate AI insights
+        const insightsPrompt = `Analyze this coach's performance data and provide actionable insights:
+        
+        Performance Metrics:
+        - Total Leads: ${leadData.totalLeads}
+        - Conversion Rate: ${performanceData.leadConversionRate}%
+        - Average Lead Score: ${performanceData.avgLeadScore}
+        - Revenue: $${revenueData.totalRevenue}
+        - Time Period: ${timeRange}
+        
+        Provide:
+        1. Key performance insights
+        2. Areas for improvement
+        3. Recommended actions
+        4. Growth opportunities
+        5. Risk factors to watch`;
+
+        const insights = await aiService.generateMarketingCopy(insightsPrompt, {
+            temperature: 0.6,
+            maxTokens: 600
+        });
+
+        // Generate personalized recommendations
+        const recommendationsPrompt = `Based on the performance data above, generate specific, actionable recommendations for this coach to improve their business:
+        
+        Focus on:
+        - Lead generation strategies
+        - Conversion optimization
+        - Revenue growth tactics
+        - Time management
+        - Skill development`;
+
+        const recommendations = await aiService.generateMarketingCopy(recommendationsPrompt, {
+            temperature: 0.7,
+            maxTokens: 500
+        });
+
+        return {
+            success: true,
+            insights: insights.content,
+            recommendations: recommendations.content,
+            generatedAt: new Date(),
+            timeRange
+        };
+
+    } catch (error) {
+        console.error('Error generating AI dashboard insights:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// AI-powered content generation for social media
+async function generateSocialMediaContent(coachId, platform, contentType) {
+    try {
+        const coach = await Coach.findById(coachId);
+        if (!coach) {
+            throw new Error('Coach not found');
+        }
+
+        const leadData = await this.getLeadsData(coachId, '7d');
+        
+        let prompt = '';
+        switch (contentType) {
+            case 'success_story':
+                prompt = `Create a compelling success story post for ${coach.name}, a ${coach.niche} coach. 
+                Recent achievements: ${leadData.convertedLeads} new clients this week, 
+                average lead score: ${leadData.avgLeadScore}/100. 
+                Make it inspiring and include relevant hashtags for ${platform}.`;
+                break;
+                
+            case 'lead_generation':
+                prompt = `Create a lead generation post for ${coach.name}, a ${coach.niche} coach. 
+                Offer: ${coach.offer || 'Transformation Program'}. 
+                Target audience: ${coach.targetAudience || 'Fitness enthusiasts'}. 
+                Make it engaging and include a clear call-to-action for ${platform}.`;
+                break;
+                
+            case 'value_content':
+                prompt = `Create valuable, educational content for ${coach.name}, a ${coach.niche} coach. 
+                Focus on providing actionable tips that showcase expertise. 
+                Platform: ${platform}, Goal: Build authority and trust.`;
+                break;
+                
+            default:
+                prompt = `Create engaging social media content for ${coach.name}, a ${coach.niche} coach. 
+                Content type: ${contentType}, Platform: ${platform}. 
+                Make it relevant to their audience and business goals.`;
+        }
+
+        const content = await aiService.generateSocialPost(
+            coach.name,
+            coach.niche,
+            coach.offer || 'Transformation Program',
+            coach.targetAudience || 'Fitness enthusiasts'
+        );
+
+        return {
+            success: true,
+            content: content.content,
+            platform,
+            contentType,
+            generatedAt: new Date()
+        };
+
+    } catch (error) {
+        console.error('Error generating social media content:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// AI-powered lead nurturing recommendations
+async function generateLeadNurturingRecommendations(coachId, leadId) {
+    try {
+        const lead = await Lead.findById(leadId).populate('coachId');
+        if (!lead) {
+            throw new Error('Lead not found');
+        }
+
+        const nurturingPrompt = `Generate a personalized nurturing strategy for ${lead.name}:
+        
+        Lead Profile:
+        - Score: ${lead.score}/100
+        - Status: ${lead.status}
+        - Source: ${lead.source}
+        - Previous follow-ups: ${lead.followUpHistory?.length || 0}
+        - Coach: ${lead.coachId?.name}, Niche: ${lead.coachId?.niche}
+        
+        Provide:
+        1. Recommended nurturing sequence (3-5 steps)
+        2. Timing for each step
+        3. Content suggestions for each message
+        4. Objection handling strategies
+        5. Conversion optimization tips`;
+
+        const recommendations = await aiService.generateMarketingCopy(nurturingPrompt, {
+            temperature: 0.7,
+            maxTokens: 800
+        });
+
+        return {
+            success: true,
+            recommendations: recommendations.content,
+            leadId: lead._id,
+            leadName: lead.name,
+            generatedAt: new Date()
+        };
+
+    } catch (error) {
+        console.error('Error generating nurturing recommendations:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+// AI-powered performance optimization suggestions
+async function generatePerformanceOptimizationSuggestions(coachId) {
+    try {
+        const performanceData = await this.calculateKPIs(coachId, '90d');
+        const leadData = await this.getLeadsData(coachId, '90d');
+        const revenueData = await this.getFinancialData(coachId, '90d', 30);
+
+        const optimizationPrompt = `Analyze this coach's performance and provide optimization suggestions:
+        
+        Current Performance:
+        - Lead Conversion: ${performanceData.leadConversionRate}%
+        - Average Lead Score: ${performanceData.avgLeadScore}/100
+        - Revenue per Lead: $${revenueData.avgRevenuePerLead}
+        - Lead Response Time: ${performanceData.avgResponseTime} hours
+        
+        Provide specific, actionable suggestions to:
+        1. Improve conversion rates
+        2. Increase lead scores
+        3. Reduce response times
+        4. Boost revenue per lead
+        5. Optimize lead nurturing processes`;
+
+        const suggestions = await aiService.generateMarketingCopy(optimizationPrompt, {
+            temperature: 0.6,
+            maxTokens: 700
+        });
+
+        return {
+            success: true,
+            suggestions: suggestions.content,
+            coachId,
+            generatedAt: new Date()
+        };
+
+    } catch (error) {
+        console.error('Error generating optimization suggestions:', error);
+        return { success: false, error: error.message };
     }
 }
 

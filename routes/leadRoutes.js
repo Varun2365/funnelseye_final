@@ -11,7 +11,10 @@ const {
     deleteLead,
     assignNurturingSequence,
     advanceNurturingStep,
-    getNurturingProgress
+    getNurturingProgress,
+    aiQualifyLead,
+    generateNurturingSequence,
+    generateFollowUpMessage
 } = require('../controllers/leadController');
 
 const { protect, authorizeCoach } = require('../middleware/auth');
@@ -42,5 +45,10 @@ router.post('/assign-nurturing-sequence', assignNurturingSequence);
 router.post('/advance-nurturing-step', advanceNurturingStep);
 // Get nurturing sequence progress for a lead
 router.get('/:leadId/nurturing-progress', getNurturingProgress);
+
+// AI-powered lead management endpoints
+router.get('/:id/ai-qualify', aiQualifyLead);
+router.post('/:id/generate-nurturing-sequence', generateNurturingSequence);
+router.post('/:id/generate-followup-message', generateFollowUpMessage);
 
 module.exports = router;
