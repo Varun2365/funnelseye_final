@@ -104,8 +104,35 @@ const authorizeCoach = (...roles) => {
     };
 };
 
+// @desc    Authorize staff access - Middleware to check if user is staff or has staff access
+const authorizeStaff = (...roles) => {
+    return (req, res, next) => {
+        // Check if user is staff or has staff access
+        if (req.role === 'staff') {
+            // Staff can access their own dashboard
+            return next();
+        }
+        
+        // If specific roles are provided, check if user has those roles
+        if (roles.length > 0 && roles.includes(req.role)) {
+            return next();
+        }
+        
+        // If no roles specified, allow coach and admin to access staff data
+        if (req.role === 'coach' || req.role === 'admin' || req.role === 'super_admin') {
+            return next();
+        }
+        
+        return res.status(403).json({
+            success: false,
+            message: `User role (${req.role}) is not authorized to access staff dashboard.`
+        });
+    };
+};
+
 
 module.exports = {
     protect,
-    authorizeCoach
+    authorizeCoach,
+    authorizeStaff
 };

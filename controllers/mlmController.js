@@ -40,7 +40,8 @@ const addDownline = async (req, res) => {
             name,
             email,
             password,
-            sponsorId
+            sponsorId,
+            isVerified: false // New members need to verify email on first login
         });
         
         await newCoach.save();
@@ -54,7 +55,7 @@ const addDownline = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'Coach successfully added to downline!',
+            message: 'Coach successfully added to downline! Email verification required on first login.',
             data: {
                 coachId: newCoach._id,
                 sponsorId: newCoach.sponsorId,

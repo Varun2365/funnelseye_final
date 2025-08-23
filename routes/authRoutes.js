@@ -21,6 +21,21 @@ router.post('/verify-otp', authController.verifyOtp);
 // Required Body Fields: { "email": "string", "password": "string" }
 router.post('/login', authController.login);
 
+// Forgot password route: Send reset password email
+// POST /api/auth/forgot-password
+// Required Body Fields: { "email": "string" }
+router.post('/forgot-password', authController.forgotPassword);
+
+// Reset password route: Reset password with token
+// POST /api/auth/reset-password
+// Required Body Fields: { "token": "string", "password": "string" }
+router.post('/reset-password', authController.resetPassword);
+
+// Resend OTP route: Resend OTP for email verification
+// POST /api/auth/resend-otp
+// Required Body Fields: { "email": "string" }
+router.post('/resend-otp', authController.resendOtp);
+
 
 // --- Private Routes (Authentication required via JWT) ---
 

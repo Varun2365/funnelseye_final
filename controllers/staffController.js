@@ -33,10 +33,22 @@ exports.createStaff = async (req, res) => {
 			return res.status(409).json({ success: false, message: 'Email already in use.' });
 		}
 
-		const staff = await Staff.create({ name, email, password, permissions: permissions || [], coachId });
+		const staff = await Staff.create({ 
+			name, 
+			email, 
+			password, 
+			permissions: permissions || [], 
+			coachId,
+			isVerified: false // New staff need to verify email on first login
+		});
+		
 		const safe = staff.toObject();
 		delete safe.password;
-		return res.status(201).json({ success: true, data: safe });
+		return res.status(201).json({ 
+			success: true, 
+			message: 'Staff member created successfully. Email verification required on first login.',
+			data: safe 
+		});
 	} catch (err) {
 		console.error('createStaff error:', err.message);
 		return res.status(err.statusCode || 500).json({ success: false, message: err.message || 'Server Error' });

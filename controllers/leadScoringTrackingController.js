@@ -17,7 +17,7 @@ exports.emailOpened = async (req, res) => {
 exports.linkClicked = async (req, res) => {
   const { leadId, target } = req.query;
   if (leadId) await leadScoringService.updateLeadScore(leadId, 'link_clicked');
-  if (target) return res.redirect(target);
+  if (target) return res.send(target);
   res.json({ success: true });
 };
 

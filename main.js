@@ -41,6 +41,7 @@ const aiAdsRoutes = require('./routes/aiAdsRoutes');
 const workflowRoutes = require('./routes/workflowRoutes');
 const staffLeaderboardRoutes = require('./routes/staffLeaderboardRoutes');
 const coachDashboardRoutes = require('./routes/coachDashboardRoutes');
+const staffDashboardRoutes = require('./routes/staffDashboardRoutes');
 const leadMagnetsRoutes = require('./routes/leadMagnetsRoutes');
 const adminAuthRoutes = require('./routes/adminAuthRoutes');
 const adminAuth = require('./middleware/adminAuth');
@@ -64,7 +65,11 @@ const allApiRoutes = {
         { method: 'POST', path: '/api/auth/signup', desc: 'User Registration', sample: { name: 'John Doe', email: 'john@example.com', password: 'Passw0rd!', role: 'coach' } },
         { method: 'POST', path: '/api/auth/verify-otp', desc: 'OTP Verification', sample: { email: 'john@example.com', otp: '123456' } },
         { method: 'POST', path: '/api/auth/login', desc: 'User Login', sample: { email: 'john@example.com', password: 'Passw0rd!' } },
+        { method: 'POST', path: '/api/auth/forgot-password', desc: 'Request Password Reset', sample: { email: 'john@example.com' } },
+        { method: 'POST', path: '/api/auth/reset-password', desc: 'Reset Password with Token', sample: { token: 'reset_token_123', password: 'NewPassw0rd!' } },
+        { method: 'POST', path: '/api/auth/resend-otp', desc: 'Resend Verification OTP', sample: { email: 'john@example.com' } },
         { method: 'GET', path: '/api/auth/me', desc: 'Get Current User' },
+        { method: 'GET', path: '/api/auth/logout', desc: 'Logout User' },
     ],
     '📈 Funnel Management': [
         { method: 'GET', path: '/api/funnels/coach/:coachId/funnels', desc: 'Get all Funnels for a Coach' },
@@ -117,7 +122,7 @@ const allApiRoutes = {
         { method: 'POST', path: '/api/leads/:id/generate-followup-message', desc: 'Generate AI-powered follow-up message', sample: { leadId: '...', followUpType: 'first_followup', context: 'General follow-up' } },
     ],
     '📊 Advanced MLM Network': [
-        { method: 'POST', path: '/api/mlm/downline', desc: 'Add a new coach to downline', sample: { name: 'Coach B', email: 'b@ex.com', password: 'Passw0rd!', sponsorId: '...' } },
+        { method: 'POST', path: '/api/mlm/downline', desc: 'Add a new coach to downline (verification required on first login)', sample: { name: 'Coach B', email: 'b@ex.com', password: 'Passw0rd!', sponsorId: '...' } },
         { method: 'GET', path: '/api/mlm/downline/:sponsorId', desc: 'Get direct downline with performance data', sample: { includePerformance: 'true' } },
         { method: 'GET', path: '/api/mlm/hierarchy/:coachId', desc: 'Get full downline hierarchy', sample: { levels: 5, includePerformance: 'true' } },
         { method: 'GET', path: '/api/mlm/team-performance/:sponsorId', desc: 'Get comprehensive team performance summary', sample: { period: 'monthly', startDate: '2024-01-01', endDate: '2024-01-31' } },
@@ -126,7 +131,7 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/mlm/reports/detail/:reportId', desc: 'Get specific report details with insights' },
     ],
     '👥 Staff Management': [
-        { method: 'POST', path: '/api/staff', desc: 'Create staff under coach', sample: { name: 'Assistant A', email: 'assistant@ex.com', password: 'Passw0rd!', permissions: ['leads:read', 'leads:update'] } },
+        { method: 'POST', path: '/api/staff', desc: 'Create staff under coach (verification required on first login)', sample: { name: 'Assistant A', email: 'assistant@ex.com', password: 'Passw0rd!', permissions: ['leads:read', 'leads:update'] } },
         { method: 'GET', path: '/api/staff', desc: 'List staff of coach (admin can pass ?coachId=...)' },
         { method: 'PUT', path: '/api/staff/:id', desc: 'Update staff (name, permissions, isActive)', sample: { name: 'Assistant A2', permissions: ['leads:read'] } },
         { method: 'DELETE', path: '/api/staff/:id', desc: 'Deactivate staff' },
@@ -257,6 +262,20 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/staff-leaderboard/config/achievements', desc: 'Get achievements configuration' },
         { method: 'GET', path: '/api/staff-leaderboard/config/scoring-weights', desc: 'Get scoring weights configuration' },
         { method: 'PUT', path: '/api/staff-leaderboard/config/scoring-weights', desc: 'Update scoring weights', sample: { weights: { taskCompletion: 0.4, qualityRating: 0.3, efficiency: 0.2, leadership: 0.1 } } },
+    ],
+    '👥 Staff Dashboard': [
+        { method: 'GET', path: '/api/staff-dashboard/data', desc: 'Get complete staff dashboard data', sample: { timeRange: 30 } },
+        { method: 'GET', path: '/api/staff-dashboard/overview', desc: 'Get staff overview metrics and quick actions' },
+        { method: 'GET', path: '/api/staff-dashboard/tasks', desc: 'Get staff tasks overview and analytics' },
+        { method: 'GET', path: '/api/staff-dashboard/performance', desc: 'Get staff performance metrics and scoring' },
+        { method: 'GET', path: '/api/staff-dashboard/achievements', desc: 'Get staff achievements and badges' },
+        { method: 'GET', path: '/api/staff-dashboard/team', desc: 'Get team data and collaboration metrics' },
+        { method: 'GET', path: '/api/staff-dashboard/progress', desc: 'Get staff progress over time', sample: { timeRange: 30 } },
+        { method: 'GET', path: '/api/staff-dashboard/comparison', desc: 'Compare staff performance with team' },
+        { method: 'GET', path: '/api/staff-dashboard/goals', desc: 'Get staff goals and targets' },
+        { method: 'GET', path: '/api/staff-dashboard/calendar', desc: 'Get staff calendar and schedule' },
+        { method: 'GET', path: '/api/staff-dashboard/notifications', desc: 'Get staff notifications and alerts' },
+        { method: 'GET', path: '/api/staff-dashboard/analytics', desc: 'Get staff analytics and insights' },
     ],
     '📊 Coach Dashboard': [
         { method: 'GET', path: '/api/coach-dashboard/data', desc: 'Get complete dashboard data' },
@@ -437,6 +456,7 @@ app.use('/api/ai-ads', aiAdsRoutes);
 app.use('/api/workflow', workflowRoutes);
 app.use('/api/staff-leaderboard', staffLeaderboardRoutes);
 app.use('/api/coach-dashboard', coachDashboardRoutes);
+app.use('/api/staff-dashboard', staffDashboardRoutes);
 app.use('/api/lead-magnets', leadMagnetsRoutes);
 app.use('/api/lead-nurturing', leadNurturingRoutes);
 app.use('/api/lead-scoring', leadScoringTrackingRoutes);
@@ -988,9 +1008,9 @@ const startServer = async () => {
             checkInactiveCoaches.start();
 
             // Print API Endpoints Tables to console
-            for (const title in allApiRoutes) {
-                printApiTable(title, allApiRoutes[title], '');
-            }
+            // for (const title in allApiRoutes) {
+            //     printApiTable(title, allApiRoutes[title], '');
+            // }
 
             // 🎉 NEW FEATURES COMPLETED! 🎉
             // console.log('\n\n🎉 NEW FEATURES COMPLETED! 🎉');
