@@ -1,7 +1,6 @@
-// D:\PRJ_YCT_Final\schema\coachSchema.js
+// D:\PRJ_YCT_Final\schema/coachSchema.js
 
 const mongoose = require('mongoose');
-const User = require('./User'); // Import the base User model
 
 // --- Sub-schema for Portfolio Details ---
 const portfolioSchema = new mongoose.Schema({
@@ -78,11 +77,11 @@ const appointmentSchema = new mongoose.Schema({
     }]
 }, { _id: false });
 
-// --- Discriminator Schema for Coach ---
-const Coach = User.discriminator('coach', new mongoose.Schema({
+// --- Main Coach Schema ---
+const coachSchema = new mongoose.Schema({
     sponsorId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User', // Reference the User model, as all users are in the same collection
+        ref: 'User',
         default: null
     },
     portfolio: {
@@ -193,6 +192,47 @@ const Coach = User.discriminator('coach', new mongoose.Schema({
             }
         }
     }
-}, { timestamps: true }));
+}, { 
+    timestamps: true,
+    discriminatorKey: 'role',
+    collection: 'users'
+});
+
+// Create the Coach model - ensure it's properly registered
+let Coach;
+
+// Function to create the Coach model
+function createCoachModel() {
+    try {
+        // First, try to get existing model
+        if (mongoose.models.Coach) {
+            return mongoose.models.Coach;
+        }
+
+        // Try to create as discriminator if User model exists
+        if (mongoose.models.User) {
+            try {
+                return User.discriminator('coach', coachSchema);
+            } catch (discriminatorError) {
+                console.warn('Failed to create Coach as discriminator, creating standalone model:', discriminatorError.message);
+            }
+        }
+
+        // Fallback: create standalone model
+        return mongoose.model('Coach', coachSchema);
+    } catch (error) {
+        console.error('Error creating Coach model:', error);
+        // Last resort: create standalone model
+        return mongoose.model('Coach', coachSchema);
+    }
+}
+
+// Initialize the model
+Coach = createCoachModel();
+
+// Ensure the model is registered
+if (!mongoose.models.Coach) {
+    mongoose.models.Coach = Coach;
+}
 
 module.exports = Coach;

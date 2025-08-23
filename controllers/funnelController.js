@@ -1,10 +1,8 @@
-// D:\PRJ_YCT_Final\controllers\funnelController.js
+// D:\PRJ_YCT_Final\controllers/funnelController.js
 
-const Funnel = require('../schema/Funnel'); // Corrected path to the Funnel model
+const { Funnel, FunnelEvent, CustomDomain } = require('../schema'); // Corrected path to the Funnel model
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
-const FunnelEvent = require('../schema/FunnelEvent'); // Still needed for event tracking
-const CustomDomain = require('../schema/CustomDomain');
 
 // No longer need to import separate stage content schemas
 // No longer need `stageModels` object

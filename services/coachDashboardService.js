@@ -1,13 +1,9 @@
-const Lead = require('../schema/Lead');
-const Task = require('../schema/Task');
-const AdCampaign = require('../schema/AdCampaign');
-const Payment = require('../schema/Payment');
-const Staff = require('../schema/Staff');
-const Coach = require('../schema/coachSchema');
+const { Lead, Task, AdCampaign, Payment, Staff, Coach, Appointment } = require('../schema');
 const dailyPriorityFeedService = require('./dailyPriorityFeedService');
 const staffLeaderboardService = require('./staffLeaderboardService');
 const aiAdsAgentService = require('./aiAdsAgentService');
 const workflowTaskService = require('./workflowTaskService');
+const calendarService = require('./calendarService');
 const aiService = require('./aiService');
 
 class CoachDashboardService {
@@ -19,7 +15,8 @@ class CoachDashboardService {
             MARKETING: 'marketing',
             FINANCIAL: 'financial',
             TEAM: 'team',
-            PERFORMANCE: 'performance'
+            PERFORMANCE: 'performance',
+            CALENDAR: 'calendar' // NEW: Added calendar section
         };
     }
 
@@ -36,6 +33,7 @@ class CoachDashboardService {
                 financialData,
                 teamData,
                 performanceData,
+                calendarData,
                 dailyFeed
             ] = await Promise.all([
                 this.getOverviewData(coachId, startDate),
@@ -45,6 +43,7 @@ class CoachDashboardService {
                 this.getFinancialData(coachId, startDate, timeRange),
                 this.getTeamData(coachId, startDate),
                 this.getPerformanceData(coachId, startDate),
+                this.getCalendarData(coachId, startDate), // NEW: Added calendar data
                 dailyPriorityFeedService.generateDailyPriorityFeed(coachId)
             ]);
 
@@ -56,6 +55,7 @@ class CoachDashboardService {
                 financial: financialData,
                 team: teamData,
                 performance: performanceData,
+                calendar: calendarData, // NEW: Added calendar data
                 dailyFeed,
                 lastUpdated: new Date().toISOString()
             };
@@ -69,6 +69,7 @@ class CoachDashboardService {
         const leads = await Lead.find({ coachId, createdAt: { $gte: startDate } });
         const tasks = await Task.find({ coachId, createdAt: { $gte: startDate } });
         const payments = await Payment.find({ coachId, createdAt: { $gte: startDate } });
+        const appointments = await Appointment.find({ coachId, startTime: { $gte: startDate } }); // NEW: Added appointments
 
         const totalLeads = leads.length;
         const convertedLeads = leads.filter(lead => lead.status === 'Converted').length;
@@ -80,6 +81,11 @@ class CoachDashboardService {
 
         const totalRevenue = payments.reduce((sum, payment) => sum + payment.amount, 0);
         const avgRevenuePerLead = convertedLeads > 0 ? totalRevenue / convertedLeads : 0;
+
+        // NEW: Appointment metrics
+        const totalAppointments = appointments.length;
+        const completedAppointments = appointments.filter(apt => apt.status === 'completed').length;
+        const appointmentCompletionRate = totalAppointments > 0 ? (completedAppointments / totalAppointments) * 100 : 0;
 
         // Calculate growth rates
         const previousPeriodStart = new Date(startDate);
@@ -103,15 +109,47 @@ class CoachDashboardService {
                 taskCompletionRate: Math.round(taskCompletionRate * 100) / 100,
                 totalRevenue: Math.round(totalRevenue * 100) / 100,
                 avgRevenuePerLead: Math.round(avgRevenuePerLead * 100) / 100,
-                leadGrowth: Math.round(leadGrowth * 100) / 100
+                leadGrowth: Math.round(leadGrowth * 100) / 100,
+                // NEW: Added appointment metrics
+                totalAppointments,
+                completedAppointments,
+                appointmentCompletionRate: Math.round(appointmentCompletionRate * 100) / 100
             },
             quickActions: [
                 { name: 'Create New Lead', action: 'create_lead', icon: '👤' },
                 { name: 'Generate Ad Copy', action: 'generate_ad', icon: '🤖' },
                 { name: 'View Kanban Board', action: 'view_kanban', icon: '📋' },
-                { name: 'Team Leaderboard', action: 'view_leaderboard', icon: '🏆' }
+                { name: 'Team Leaderboard', action: 'view_leaderboard', icon: '🏆' },
+                { name: 'Book Appointment', action: 'book_appointment', icon: '📅' }, // NEW: Added appointment action
+                { name: 'View Calendar', action: 'view_calendar', icon: '🗓️' } // NEW: Added calendar action
             ]
         };
+    }
+
+    // NEW: Added calendar data method
+    async getCalendarData(coachId, startDate) {
+        try {
+            const [upcomingAppointments, todayAppointments, appointmentStats] = await Promise.all([
+                calendarService.getUpcomingAppointments(coachId, 5),
+                calendarService.getTodayAppointments(coachId),
+                calendarService.getAppointmentStats(coachId, 30)
+            ]);
+
+            return {
+                upcomingAppointments,
+                todayAppointments,
+                stats: appointmentStats,
+                nextAppointment: upcomingAppointments.length > 0 ? upcomingAppointments[0] : null
+            };
+        } catch (error) {
+            console.error('Error getting calendar data:', error);
+            return {
+                upcomingAppointments: [],
+                todayAppointments: [],
+                stats: {},
+                nextAppointment: null
+            };
+        }
     }
 
     async getLeadsData(coachId, startDate) {
@@ -404,12 +442,19 @@ class CoachDashboardService {
                 createdAt: { $gte: dayStart, $lte: dayEnd }
             });
 
+            // NEW: Added appointment trends
+            const appointments = await Appointment.find({
+                coachId,
+                startTime: { $gte: dayStart, $lte: dayEnd }
+            });
+
             trends.push({
                 date: date.toISOString().split('T')[0],
                 leads: leads.length,
                 tasks: tasks.length,
                 revenue: payments.reduce((sum, payment) => sum + payment.amount, 0),
-                conversions: leads.filter(lead => lead.status === 'Converted').length
+                conversions: leads.filter(lead => lead.status === 'Converted').length,
+                appointments: appointments.length // NEW: Added appointment count
             });
         }
 
@@ -420,19 +465,27 @@ class CoachDashboardService {
         const leads = await Lead.find({ coachId, createdAt: { $gte: startDate } });
         const tasks = await Task.find({ coachId, createdAt: { $gte: startDate } });
         const payments = await Payment.find({ coachId, createdAt: { $gte: startDate } });
+        const appointments = await Appointment.find({ coachId, startTime: { $gte: startDate } }); // NEW: Added appointments
 
         const totalLeads = leads.length;
         const convertedLeads = leads.filter(lead => lead.status === 'Converted').length;
         const totalTasks = tasks.length;
         const completedTasks = tasks.filter(task => task.status === 'Completed').length;
         const totalRevenue = payments.reduce((sum, payment) => sum + payment.amount, 0);
+        
+        // NEW: Added appointment KPIs
+        const totalAppointments = appointments.length;
+        const completedAppointments = appointments.filter(apt => apt.status === 'completed').length;
 
         return {
             leadConversionRate: totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0,
             taskCompletionRate: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
             revenuePerLead: totalLeads > 0 ? totalRevenue / totalLeads : 0,
             avgTaskDuration: await this.calculateAvgTaskDuration(tasks),
-            customerSatisfaction: await this.calculateCustomerSatisfaction(coachId, startDate)
+            customerSatisfaction: await this.calculateCustomerSatisfaction(coachId, startDate),
+            // NEW: Added appointment KPIs
+            appointmentCompletionRate: totalAppointments > 0 ? (completedAppointments / totalAppointments) * 100 : 0,
+            avgAppointmentsPerDay: totalAppointments > 0 ? totalAppointments / 30 : 0
         };
     }
 
@@ -466,6 +519,24 @@ class CoachDashboardService {
                 message: 'Multiple overdue tasks detected',
                 value: `${overdueTasks.length} tasks`,
                 recommendation: 'Review task assignments and deadlines'
+            });
+        }
+
+        // NEW: Check for appointment issues
+        const appointments = await Appointment.find({
+            coachId,
+            startTime: { $gte: startDate }
+        });
+        
+        const noShowRate = appointments.length > 0 ? 
+            appointments.filter(apt => apt.status === 'no_show').length / appointments.length : 0;
+            
+        if (noShowRate > 0.2) { // More than 20%
+            alerts.push({
+                type: 'warning',
+                message: 'High no-show rate detected',
+                value: `${(noShowRate * 100).toFixed(1)}%`,
+                recommendation: 'Implement better reminder system and follow-up procedures'
             });
         }
 
@@ -552,6 +623,13 @@ class CoachDashboardService {
                 title: 'Task Overview',
                 type: 'kanban',
                 data: await workflowTaskService.getKanbanBoard(coachId)
+            },
+            // NEW: Added calendar widget
+            {
+                id: 'calendar_overview',
+                title: 'Calendar Overview',
+                type: 'calendar',
+                data: await this.getCalendarData(coachId, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
             }
         ];
     }

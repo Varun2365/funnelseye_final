@@ -1,7 +1,4 @@
-const AdCampaign = require('../schema/AdCampaign');
-const AdSet = require('../schema/AdSet');
-const AdCreative = require('../schema/AdCreative');
-const Ad = require('../schema/Ad');
+const { AdCampaign, AdSet, AdCreative, Ad } = require('../schema');
 const metaAdsService = require('../services/metaAdsService');
 const aiAdsAgentService = require('../services/aiAdsAgentService');
 
@@ -14,6 +11,7 @@ async function listCampaigns(req, res) {
 
 // Create a new campaign with AI optimization
 async function createCampaign(req, res) {
+    console.log("Called")
     const coachId = req.user.id;
     const { coachMetaAccountId, campaignData, useAI = false } = req.body;
     
@@ -45,7 +43,7 @@ async function createCampaign(req, res) {
         }
         
         const data = await metaAdsService.createCampaign(coachMetaAccountId, enhancedCampaignData);
-        
+ 
         // Save to local database with AI metadata
         const campaign = await AdCampaign.create({
             campaignId: data.id,

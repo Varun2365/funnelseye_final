@@ -1,10 +1,7 @@
 // D:\PRJ_YCT_Final\services\aiAdsAgentService.js
 
 const OpenAI = require('openai');
-const AdCampaign = require('../schema/AdCampaign');
-const AdSet = require('../schema/AdSet');
-const AdCreative = require('../schema/AdCreative');
-const Ad = require('../schema/Ad');
+const { AdCampaign, AdSet, AdCreative, Ad } = require('../schema');
 const metaAdsService = require('./metaAdsService');
 
 const openai = new OpenAI({

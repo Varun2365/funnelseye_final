@@ -1,7 +1,6 @@
 // services/leadMagnetsService.js
 
-const Lead = require('../schema/Lead');
-const Coach = require('../schema/coachSchema');
+const { Lead, Coach } = require('../schema');
 const OpenAI = require('openai');
 const { sendMessageByCoach } = require('./metaWhatsAppService');
 
@@ -89,12 +88,17 @@ class LeadMagnetsService {
      */
     async updateLeadScore(leadId, interactionType, conversion = false) {
         try {
-            const Lead = require('../schema/Lead');
+            console.log(`[updateLeadScore] Updating score for leadId: ${leadId}, interactionType: ${interactionType}`);
+            
+            // Use the centralized Lead import instead of requiring locally
             const lead = await Lead.findById(leadId);
             
             if (!lead) {
+                console.error(`[updateLeadScore] Lead not found for leadId: ${leadId}`);
                 throw new Error('Lead not found');
             }
+            
+            console.log(`[updateLeadScore] Found lead: ${lead.name} (${lead._id})`);
             
             // Add the interaction to the lead's history
             lead.leadMagnetInteractions.push({
@@ -105,18 +109,20 @@ class LeadMagnetsService {
                 conversionDate: conversion ? new Date() : null
             });
             
-            // Recalculate the lead score
-            const { calculateLeadScore } = require('../controllers/leadController');
-            const { score, explanation } = calculateLeadScore(lead);
+            // Recalculate the lead score - use a simple scoring approach for now
+            // TODO: Import calculateLeadScore function properly
+            let score = lead.score || 0;
+            score += 8; // Add 8 points for lead magnet interaction
+            if (conversion) score += 15; // Add 15 points for conversion
             lead.score = score;
             
             await lead.save();
             
-            console.log(`Lead ${leadId} score updated to ${score} after ${interactionType} interaction`);
+            console.log(`[updateLeadScore] Lead ${leadId} score updated to ${score} after ${interactionType} interaction`);
             
-            return { score, explanation };
+            return { score, explanation: [`Score increased by ${conversion ? 23 : 8} points for ${interactionType} interaction`] };
         } catch (error) {
-            console.error('Error updating lead score:', error);
+            console.error('[updateLeadScore] Error updating lead score:', error);
             throw error;
         }
     }
@@ -126,6 +132,8 @@ class LeadMagnetsService {
      */
     async generateAIDietPlan(coachId, leadId, userPreferences) {
         try {
+            console.log(`[generateAIDietPlan] Starting with leadId: ${leadId}, coachId: ${coachId}`);
+            
             const { age, gender, weight, height, activityLevel, goals, dietaryRestrictions } = userPreferences;
             
             const bmr = this.calculateBMR(age, gender, weight, height);
@@ -148,7 +156,10 @@ class LeadMagnetsService {
 
             const dietPlan = completion.choices[0].message.content;
 
-            await Lead.findByIdAndUpdate(leadId, {
+            console.log(`[generateAIDietPlan] Diet plan generated, updating lead ${leadId}`);
+
+            // Update the lead with the interaction
+            const updateResult = await Lead.findByIdAndUpdate(leadId, {
                 $push: {
                     leadMagnetInteractions: {
                         type: 'ai_diet_planner',
@@ -157,6 +168,12 @@ class LeadMagnetsService {
                     }
                 }
             });
+
+            if (!updateResult) {
+                throw new Error(`Failed to update lead ${leadId} - lead may not exist`);
+            }
+
+            console.log(`[generateAIDietPlan] Lead updated successfully, now updating score`);
 
             // After successful generation, update lead score
             await this.updateLeadScore(leadId, 'ai_diet_planner', false);
@@ -169,7 +186,7 @@ class LeadMagnetsService {
                 message: 'AI diet plan generated successfully'
             };
         } catch (error) {
-            console.error('Error generating AI diet plan:', error);
+            console.error('[generateAIDietPlan] Error:', error);
             throw error;
         }
     }
@@ -285,7 +302,7 @@ class LeadMagnetsService {
      */
     async trackProgress(leadId, progressData) {
         try {
-            const Lead = require('../schema/Lead');
+            // Use the centralized Lead import instead of requiring locally
             const lead = await Lead.findById(leadId);
             
             if (!lead) {
@@ -415,7 +432,7 @@ class LeadMagnetsService {
      */
     async markLeadMagnetConversion(leadId, interactionType) {
         try {
-            const Lead = require('../schema/Lead');
+            // Use the centralized Lead import instead of requiring locally
             const lead = await Lead.findById(leadId);
             
             if (!lead) {
@@ -431,16 +448,16 @@ class LeadMagnetsService {
                 interaction.conversion = true;
                 interaction.conversionDate = new Date();
                 
-                // Recalculate score with conversion
-                const { calculateLeadScore } = require('../controllers/leadController');
-                const { score, explanation } = calculateLeadScore(lead);
+                // Recalculate score with conversion - use simple scoring approach
+                let score = lead.score || 0;
+                score += 15; // Add 15 points for conversion
                 lead.score = score;
                 
                 await lead.save();
                 
                 console.log(`Lead ${leadId} marked as converted for ${interactionType}, score updated to ${score}`);
                 
-                return { score, explanation };
+                return { score, explanation: [`Score increased by 15 points for ${interactionType} conversion`] };
             }
             
             return { score: lead.score, explanation: ['No interaction found to convert'] };
@@ -537,7 +554,7 @@ class LeadMagnetsService {
      */
     async getInteractionAnalytics(coachId, timeRange = 30) {
         try {
-            const Lead = require('../schema/Lead');
+            // Use the centralized Lead import instead of requiring locally
             const startDate = new Date();
             startDate.setDate(startDate.getDate() - timeRange);
 

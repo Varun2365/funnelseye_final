@@ -1,9 +1,7 @@
-// D:\PRJ_YCT_Final\controllers\leadController.js
+// D:\PRJ_YCT_Final\controllers/leadController.js
 
-const Lead = require('../schema/Lead');
-const Funnel = require('../schema/Funnel');
+const { Lead, Funnel, NurturingSequence } = require('../schema');
 const { publishEvent } = require('../services/rabbitmqProducer');
-const NurturingSequence = require('../schema/NurturingSequence');
 const { scheduleFutureEvent } = require('../services/automationSchedulerService');
 const leadScoringService = require('../services/leadScoringService');
 const aiService = require('../services/aiService');
@@ -233,6 +231,17 @@ const createLead = async (req, res) => {
         // --- End of event publishing ---
 
         await leadScoringService.updateLeadScore(lead._id, 'form_submitted');
+
+        // Auto-assign nurturing sequence if funnel is provided
+        if (funnelId) {
+            try {
+                const nurturingService = require('../services/nurturingService');
+                await nurturingService.autoAssignSequenceToLead(lead._id, funnelId);
+            } catch (nurturingError) {
+                console.error('Error auto-assigning nurturing sequence:', nurturingError);
+                // Don't fail the lead creation if nurturing fails
+            }
+        }
 
         res.status(201).json({
             success: true,

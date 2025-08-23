@@ -1,7 +1,4 @@
-const Staff = require('../schema/Staff');
-const Task = require('../schema/Task');
-const Lead = require('../schema/Lead');
-const ScoreLog = require('../schema/ScoreLog');
+const { Staff, Task, Lead, ScoreLog } = require('../schema');
 const staffLeaderboardService = require('./staffLeaderboardService');
 const workflowTaskService = require('./workflowTaskService');
 

@@ -1,9 +1,6 @@
 // D:\PRJ_YCT_Final\services/workflowTaskService.js
 
-const Task = require('../schema/Task');
-const Lead = require('../schema/Lead');
-const Coach = require('../schema/coachSchema');
-const Staff = require('../schema/Staff');
+const { Task, Lead, Coach, Staff } = require('../schema');
 const OpenAI = require('openai');
 const { scheduleFutureEvent } = require('./automationSchedulerService');
 

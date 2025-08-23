@@ -1,11 +1,7 @@
 // D:\PRJ_YCT_Final\services\actionExecutorService.js
 
 // --- Imports for your Mongoose Schemas ---
-const Lead = require('../schema/Lead');
-const Coach = require('../schema/coachSchema');
-const Task = require('../schema/Task');
-const Funnel = require('../schema/Funnel');
-const Payment = require('../schema/Payment'); 
+const { Lead, Coach, Task, Funnel, Payment } = require('../schema');
 const { sendMessageByCoach } = require('./metaWhatsAppService');
 
 const nodemailer = require('nodemailer');

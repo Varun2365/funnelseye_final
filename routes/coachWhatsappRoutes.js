@@ -2,116 +2,110 @@
 
 const express = require('express');
 const router = express.Router();
-// IMPORTANT: Import the whatsappManager service
-const whatsappManager = require('../services/whatsappManager');
-
-// Import authentication and activity tracking middleware
+const { 
+    // WhatsApp Management
+    initializeWhatsApp,
+    getActiveConversations,
+    getConversationHistory,
+    getEscalationQueue,
+    resolveEscalation,
+    
+    // Automation Rules
+    getAutomationRules,
+    createAutomationRule,
+    updateAutomationRule,
+    deleteAutomationRule,
+    
+    // Message Templates
+    getMessageTemplates,
+    createMessageTemplate,
+    
+    // Campaign Management
+    getWhatsAppCampaigns,
+    createWhatsAppCampaign,
+    sendCampaign,
+    
+    // Analytics
+    getWhatsAppAnalytics,
+    getLeadEngagementInsights,
+    
+    // Settings
+    getWhatsAppSettings,
+    updateWhatsAppSettings,
+    testWhatsAppIntegration
+} = require('../controllers/coachWhatsappController');
 const { protect } = require('../middleware/auth');
-const { updateLastActive } = require('../middleware/activityMiddleware');
 
-// --- Apply middleware to ALL routes below this line ---
-router.use(protect, updateLastActive);
+// Apply authentication middleware to all routes
+router.use(protect);
 
+// ===== WHATSAPP MANAGEMENT =====
 
-// @route   GET /api/coach-whatsapp/status
-// @desc    Check WhatsApp connection status for a coach
-// @access  Private
-router.get('/status', async (req, res) => {
-    // Get coachId securely from the authenticated user
-    const coachId = req.user.id;
-    if (!coachId) {
-        return res.status(400).json({ success: false, message: 'Coach ID is required from authenticated user.' });
-    }
+// Initialize WhatsApp manager
+router.post('/initialize', initializeWhatsApp);
 
-    const isConnected = whatsappManager.isClientConnected(coachId);
-    res.json({ success: true, coachId, connected: isConnected });
-});
+// Get active conversations
+router.get('/conversations', getActiveConversations);
 
-// @route   POST /api/coach-whatsapp/add-device
-// @desc    Initiate WhatsApp device linking (get QR code)
-// @access  Private
-router.post('/add-device', async (req, res) => {
-    const coachId = req.user.id;
-    try {
-        await whatsappManager.initializeClient(coachId);
-        res.status(202).json({
-            success: true,
-            message: 'WhatsApp client initialization initiated. Awaiting QR code via WebSocket.',
-            coachId: coachId
-        });
-    } catch (error) {
-        console.error('Error initiating WhatsApp client:', error);
-        res.status(500).json({ success: false, message: 'Failed to initiate WhatsApp client.', error: error.message });
-    }
-});
+// Get conversation history for a specific lead
+router.get('/conversations/:leadId/history', getConversationHistory);
 
-// @route   GET /api/coach-whatsapp/get-qr
-// @desc    Retrieve the latest QR code for a coach
-// @access  Private
-router.get('/get-qr', async (req, res) => {
-    const coachId = req.user.id;
-    const qrCodeData = whatsappManager.getQrCode(coachId);
-    if (qrCodeData) {
-        res.json({ success: true, coachId, qrCodeData });
-    } else {
-        res.status(404).json({ success: false, message: 'No QR code available or client already connected.' });
-    }
-});
+// Get escalation queue
+router.get('/escalations', getEscalationQueue);
 
-// @route   POST /api/coach-whatsapp/logout-device
-// @desc    Disconnect WhatsApp device for a coach
-// @access  Private
-router.post('/logout-device', async (req, res) => {
-    const coachId = req.user.id;
-    try {
-        await whatsappManager.logoutClient(coachId);
-        res.json({ success: true, message: 'WhatsApp device logged out and session cleared.' });
-    } catch (error) {
-        console.error('Error logging out WhatsApp client:', error);
-        res.status(500).json({ success: false, message: 'Failed to log out WhatsApp client.', error: error.message });
-    }
-});
+// Resolve an escalation
+router.put('/escalations/:leadId/resolve', resolveEscalation);
 
-// --- NEW: Routes for Sending Messages ---
+// ===== AUTOMATION RULES =====
 
-// @route   POST /api/coach-whatsapp/send-message
-// @desc    Send a text message from coach to lead
-// @access  Private
-router.post('/send-message', async (req, res) => {
-    const { recipientPhoneNumber, messageContent } = req.body;
-    const coachId = req.user.id;
+// Get all automation rules
+router.get('/automation-rules', getAutomationRules);
 
-    if (!coachId || !recipientPhoneNumber || !messageContent) {
-        return res.status(400).json({ success: false, message: 'Missing required fields: recipientPhoneNumber, and messageContent.' });
-    }
+// Create new automation rule
+router.post('/automation-rules', createAutomationRule);
 
-    try {
-        const sentMessage = await whatsappManager.sendCoachMessage(coachId, recipientPhoneNumber, messageContent);
-        res.status(200).json({ success: true, message: 'Text message sent successfully.', data: sentMessage });
-    } catch (error) {
-        console.error('Error sending text message:', error);
-        res.status(500).json({ success: false, message: 'Failed to send text message.', error: error.message });
-    }
-});
+// Update automation rule
+router.put('/automation-rules/:ruleId', updateAutomationRule);
 
-// @route   POST /api/coach-whatsapp/send-media
-// @desc    Send a media message (image, video, document) from coach to lead
-// @access  Private
-router.post('/send-media', async (req, res) => {
-    const { recipientPhoneNumber, filePathOrUrl, caption } = req.body;
-    const coachId = req.user.id;
+// Delete automation rule
+router.delete('/automation-rules/:ruleId', deleteAutomationRule);
 
-    if (!coachId || !recipientPhoneNumber || !filePathOrUrl) {
-        return res.status(400).json({ success: false, message: 'Missing required fields: recipientPhoneNumber, and filePathOrUrl.' });
-    }
+// ===== MESSAGE TEMPLATES =====
 
-    try {
-        const sentMediaMessage = await whatsappManager.sendMediaMessage(coachId, recipientPhoneNumber, filePathOrUrl, caption);
-        res.status(200).json({ success: true, message: 'Media message sent successfully.', data: sentMediaMessage });
-    } catch (error) {
-        console.error('Error sending media message:', error);
-        res.status(500).json({ success: false, message: 'Failed to send media message.', error: error.message });
-    }
-});
+// Get all message templates
+router.get('/templates', getMessageTemplates);
+
+// Create new message template
+router.post('/templates', createMessageTemplate);
+
+// ===== CAMPAIGN MANAGEMENT =====
+
+// Get all WhatsApp campaigns
+router.get('/campaigns', getWhatsAppCampaigns);
+
+// Create new campaign
+router.post('/campaigns', createWhatsAppCampaign);
+
+// Send campaign
+router.post('/campaigns/:campaignId/send', sendCampaign);
+
+// ===== ANALYTICS =====
+
+// Get WhatsApp analytics
+router.get('/analytics', getWhatsAppAnalytics);
+
+// Get lead engagement insights
+router.get('/leads/:leadId/engagement-insights', getLeadEngagementInsights);
+
+// ===== SETTINGS =====
+
+// Get WhatsApp settings
+router.get('/settings', getWhatsAppSettings);
+
+// Update WhatsApp settings
+router.put('/settings', updateWhatsAppSettings);
+
+// Test WhatsApp integration
+router.post('/test-integration', testWhatsAppIntegration);
 
 module.exports = router;

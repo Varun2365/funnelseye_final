@@ -1,5 +1,5 @@
 const leadScoringService = require('../services/leadScoringService');
-const Lead = require('../schema/Lead');
+const { Lead } = require('../schema');
 
 // 1x1 transparent GIF for email open tracking
 const pixel = Buffer.from(

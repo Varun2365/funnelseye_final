@@ -34,17 +34,53 @@ exports.generateAIDietPlan = asyncHandler(async (req, res, next) => {
     const coachId = req.user.id;
     const { leadId, userPreferences } = req.body;
 
-    const dietPlan = await leadMagnetsService.generateAIDietPlan(
-        coachId,
-        leadId,
-        userPreferences
-    );
+    // Validate leadId
+    if (!leadId) {
+        return res.status(400).json({
+            success: false,
+            message: 'leadId is required'
+        });
+    }
 
-    res.json({
-        success: true,
-        data: dietPlan,
-        message: 'AI diet plan generated successfully'
-    });
+    // Validate leadId format (should be a valid MongoDB ObjectId)
+    if (!leadId.match(/^[0-9a-fA-F]{24}$/)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid leadId format'
+        });
+    }
+
+    console.log(`[generateAIDietPlan] Generating diet plan for leadId: ${leadId}, coachId: ${coachId}`);
+
+    try {
+        const dietPlan = await leadMagnetsService.generateAIDietPlan(
+            coachId,
+            leadId,
+            userPreferences
+        );
+
+        res.json({
+            success: true,
+            data: dietPlan,
+            message: 'AI diet plan generated successfully'
+        });
+    } catch (error) {
+        console.error('[generateAIDietPlan] Error:', error);
+        
+        if (error.message === 'Lead not found') {
+            return res.status(404).json({
+                success: false,
+                message: 'Lead not found',
+                error: error.message
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            message: 'Error generating AI diet plan',
+            error: error.message
+        });
+    }
 });
 
 // Calculate BMI and get recommendations

@@ -1,6 +1,7 @@
 // D:\PRJ_YCT_Final\controllers\coachController.js
 
-const Coach = require('../schema/coachSchema');
+const { Coach } = require('../schema');
+const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 
 // @desc    Update a coach's portfolio information

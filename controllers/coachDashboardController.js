@@ -1,4 +1,5 @@
 const coachDashboardService = require('../services/coachDashboardService');
+const calendarService = require('../services/calendarService');
 const asyncHandler = require('../middleware/async');
 
 // Get complete dashboard data
@@ -288,6 +289,180 @@ exports.exportDashboardData = asyncHandler(async (req, res, next) => {
     res.json({
         success: true,
         data: dashboardData
+    });
+});
+
+// ===== NEW: CALENDAR & APPOINTMENT MANAGEMENT =====
+
+// Get coach's calendar for a date range
+exports.getCalendar = asyncHandler(async (req, res, next) => {
+    const { startDate, endDate } = req.query;
+    const coachId = req.user.id;
+
+    if (!startDate || !endDate) {
+        return res.status(400).json({
+            success: false,
+            message: 'Both startDate and endDate are required'
+        });
+    }
+
+    const calendar = await calendarService.getCoachCalendar(coachId, startDate, endDate);
+
+    res.json({
+        success: true,
+        data: calendar
+    });
+});
+
+// Get available booking slots for a specific date
+exports.getAvailableSlots = asyncHandler(async (req, res, next) => {
+    const { date } = req.query;
+    const coachId = req.user.id;
+
+    if (!date) {
+        return res.status(400).json({
+            success: false,
+            message: 'Date is required'
+        });
+    }
+
+    const slots = await calendarService.getAvailableSlots(coachId, date);
+
+    res.json({
+        success: true,
+        data: slots
+    });
+});
+
+// Book a new appointment
+exports.bookAppointment = asyncHandler(async (req, res, next) => {
+    const { leadId, startTime, duration, notes, timeZone } = req.body;
+    const coachId = req.user.id;
+
+    if (!leadId || !startTime || !duration) {
+        return res.status(400).json({
+            success: false,
+            message: 'leadId, startTime, and duration are required'
+        });
+    }
+
+    const appointment = await calendarService.bookAppointment(
+        coachId, 
+        leadId, 
+        startTime, 
+        duration, 
+        notes, 
+        timeZone
+    );
+
+    res.status(201).json({
+        success: true,
+        message: 'Appointment booked successfully',
+        data: appointment
+    });
+});
+
+// Get upcoming appointments
+exports.getUpcomingAppointments = asyncHandler(async (req, res, next) => {
+    const { limit = 10 } = req.query;
+    const coachId = req.user.id;
+
+    const appointments = await calendarService.getUpcomingAppointments(coachId, parseInt(limit));
+
+    res.json({
+        success: true,
+        data: appointments
+    });
+});
+
+// Get today's appointments
+exports.getTodayAppointments = asyncHandler(async (req, res, next) => {
+    const coachId = req.user.id;
+
+    const appointments = await calendarService.getTodayAppointments(coachId);
+
+    res.json({
+        success: true,
+        data: appointments
+    });
+});
+
+// Reschedule an appointment
+exports.rescheduleAppointment = asyncHandler(async (req, res, next) => {
+    const { appointmentId } = req.params;
+    const { newStartTime, newDuration } = req.body;
+    const coachId = req.user.id;
+
+    if (!newStartTime) {
+        return res.status(400).json({
+            success: false,
+            message: 'newStartTime is required'
+        });
+    }
+
+    const appointment = await calendarService.rescheduleAppointment(
+        appointmentId, 
+        coachId, 
+        newStartTime, 
+        newDuration
+    );
+
+    res.json({
+        success: true,
+        message: 'Appointment rescheduled successfully',
+        data: appointment
+    });
+});
+
+// Cancel an appointment
+exports.cancelAppointment = asyncHandler(async (req, res, next) => {
+    const { appointmentId } = req.params;
+    const coachId = req.user.id;
+
+    const result = await calendarService.cancelAppointment(appointmentId, coachId);
+
+    res.json({
+        success: true,
+        message: result.message
+    });
+});
+
+// Get appointment statistics
+exports.getAppointmentStats = asyncHandler(async (req, res, next) => {
+    const { timeRange = 30 } = req.query;
+    const coachId = req.user.id;
+
+    const stats = await calendarService.getAppointmentStats(coachId, parseInt(timeRange));
+
+    res.json({
+        success: true,
+        data: stats
+    });
+});
+
+// Get coach availability settings
+exports.getAvailability = asyncHandler(async (req, res, next) => {
+    const coachId = req.user.id;
+
+    const availability = await calendarService.getCoachAvailability(coachId);
+
+    res.json({
+        success: true,
+        data: availability
+    });
+});
+
+// Set coach availability settings
+exports.setAvailability = asyncHandler(async (req, res, next) => {
+    const coachId = req.user.id;
+    const availabilityData = req.body;
+
+    const availability = await calendarService.setCoachAvailability(coachId, availabilityData);
+
+    res.json({
+        success: true,
+        message: 'Availability settings updated successfully',
+        data: availability
     });
 });
 

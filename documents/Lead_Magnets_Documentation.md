@@ -125,7 +125,7 @@ The Lead Magnets module provides coaches with powerful tools to attract, engage,
 ```json
 {
   "coachId": "coach_123",
-  "leadInfo": {
+  "userPreferences": {
     "name": "John Doe",
     "age": 32,
     "weight": 180,

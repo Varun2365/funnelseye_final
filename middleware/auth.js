@@ -1,5 +1,5 @@
+const { User } = require('../schema'); // Import your User model (adjust path if needed, e.g., ../schema/User)
 const jwt = require('jsonwebtoken'); // For verifying JWT tokens
-const User = require('../schema/User'); // Import your User model (adjust path if needed, e.g., ../schema/User)
 
 // @desc    Protect routes - Middleware to check for valid JWT
 const protect = async (req, res, next) => {

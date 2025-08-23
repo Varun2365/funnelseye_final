@@ -1,8 +1,5 @@
 const axios = require('axios');
-const AdCampaign = require('../schema/AdCampaign');
-const AdSet = require('../schema/AdSet');
-const AdCreative = require('../schema/AdCreative');
-const Ad = require('../schema/Ad');
+const { AdCampaign, AdSet, AdCreative, Ad } = require('../schema');
 
 const META_ADS_API_BASE = 'https://graph.facebook.com/v19.0';
 const ACCESS_TOKEN = process.env.META_ADS_ACCESS_TOKEN;

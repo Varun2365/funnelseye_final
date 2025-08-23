@@ -1,8 +1,8 @@
-// PRJ_YCT_Final/controllers/publicLeadController.js
+// D:\PRJ_YCT_Final\controllers/publicLeadController.js
 
-const Lead = require('../schema/Lead');
-const Funnel = require('../schema/Funnel');
-const FormSubmissionMessage = require('../schema/FormSubmissionMessage'); // <-- Corrected path and schema name
+const { Lead, Funnel, Coach, FormSubmissionMessage } = require('../schema');
+const ErrorResponse = require('../utils/errorResponse');
+const asyncHandler = require('../middleware/async');
 const funnelseyeEventEmitter = require('../services/eventEmitterService');
 
 /**

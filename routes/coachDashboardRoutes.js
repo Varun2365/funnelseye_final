@@ -17,12 +17,25 @@ const {
     getKPIs, 
     getDashboardSections, 
     getRealTimeUpdates, 
-    exportDashboardData 
+    exportDashboardData,
+    // NEW: Calendar & Appointment Management
+    getCalendar,
+    getAvailableSlots,
+    bookAppointment,
+    getUpcomingAppointments,
+    getTodayAppointments,
+    rescheduleAppointment,
+    cancelAppointment,
+    getAppointmentStats,
+    getAvailability,
+    setAvailability
 } = require('../controllers/coachDashboardController');
 const { protect } = require('../middleware/auth');
 
 // Apply authentication middleware to all routes
 router.use(protect);
+
+// ===== DASHBOARD DATA ENDPOINTS =====
 
 // Get complete dashboard data
 router.get('/data', getDashboardData);
@@ -52,5 +65,25 @@ router.get('/real-time', getRealTimeUpdates);
 
 // Export dashboard data
 router.get('/export', exportDashboardData);
+
+// ===== NEW: CALENDAR & APPOINTMENT MANAGEMENT =====
+
+// Calendar view and management
+router.get('/calendar', getCalendar);
+router.get('/available-slots', getAvailableSlots);
+
+// Appointment management
+router.post('/appointments', bookAppointment);
+router.get('/appointments/upcoming', getUpcomingAppointments);
+router.get('/appointments/today', getTodayAppointments);
+router.put('/appointments/:appointmentId/reschedule', rescheduleAppointment);
+router.delete('/appointments/:appointmentId', cancelAppointment);
+
+// Appointment analytics
+router.get('/appointments/stats', getAppointmentStats);
+
+// Coach availability settings
+router.get('/availability', getAvailability);
+router.put('/availability', setAvailability);
 
 module.exports = router;

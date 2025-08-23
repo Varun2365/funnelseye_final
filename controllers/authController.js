@@ -1,7 +1,5 @@
 const bcrypt = require('bcryptjs');
-const User = require('../schema/User');
-const Coach = require('../schema/coachSchema'); // New import for the Coach discriminator model
-const Otp = require('../schema/Otp');
+const { User, Coach, Otp } = require('../schema'); // New import for the Coach discriminator model
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');

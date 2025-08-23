@@ -158,13 +158,121 @@ const rescheduleAppointment = async (appointmentId, coachId, newStartTime, newDu
 const cancelAppointment = async (appointmentId, coachId) => {
     const appt = await Appointment.findOne({ _id: appointmentId, coachId });
     if (!appt) throw new Error('Appointment not found');
-    await appt.deleteOne();
-    return true;
+    await appt.remove();
+    return { message: 'Appointment cancelled successfully' };
+};
+
+/**
+ * Get coach's calendar for a date range
+ */
+const getCoachCalendar = async (coachId, startDate, endDate) => {
+    const appointments = await Appointment.find({
+        coachId,
+        startTime: {
+            $gte: new Date(startDate),
+            $lte: new Date(endDate)
+        }
+    }).populate('leadId', 'name email phone');
+
+    return appointments;
+};
+
+/**
+ * Get coach's availability settings
+ */
+const getCoachAvailability = async (coachId) => {
+    return await CoachAvailability.findOne({ coachId });
+};
+
+/**
+ * Set coach's availability settings
+ */
+const setCoachAvailability = async (coachId, availabilityData) => {
+    let availability = await CoachAvailability.findOne({ coachId });
+    
+    if (availability) {
+        Object.assign(availability, availabilityData);
+        await availability.save();
+    } else {
+        availability = await CoachAvailability.create({
+            coachId,
+            ...availabilityData
+        });
+    }
+    
+    return availability;
+};
+
+/**
+ * Get upcoming appointments for a coach
+ */
+const getUpcomingAppointments = async (coachId, limit = 10) => {
+    const now = new Date();
+    return await Appointment.find({
+        coachId,
+        startTime: { $gte: now }
+    })
+    .populate('leadId', 'name email phone')
+    .sort('startTime')
+    .limit(limit);
+};
+
+/**
+ * Get today's appointments for a coach
+ */
+const getTodayAppointments = async (coachId) => {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+    
+    return await Appointment.find({
+        coachId,
+        startTime: {
+            $gte: startOfDay,
+            $lt: endOfDay
+        }
+    })
+    .populate('leadId', 'name email phone')
+    .sort('startTime');
+};
+
+/**
+ * Get appointment statistics for a coach
+ */
+const getAppointmentStats = async (coachId, timeRange = 30) => {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - timeRange);
+    
+    const appointments = await Appointment.find({
+        coachId,
+        startTime: { $gte: startDate }
+    });
+    
+    const total = appointments.length;
+    const completed = appointments.filter(apt => apt.status === 'completed').length;
+    const cancelled = appointments.filter(apt => apt.status === 'cancelled').length;
+    const noShow = appointments.filter(apt => apt.status === 'no_show').length;
+    
+    return {
+        total,
+        completed,
+        cancelled,
+        noShow,
+        completionRate: total > 0 ? (completed / total) * 100 : 0,
+        cancellationRate: total > 0 ? (cancelled / total) * 100 : 0,
+        noShowRate: total > 0 ? (noShow / total) * 100 : 0
+    };
 };
 
 module.exports = {
     getAvailableSlots,
     bookAppointment,
     rescheduleAppointment,
-    cancelAppointment
+    cancelAppointment,
+    getCoachCalendar,
+    getCoachAvailability,
+    setCoachAvailability,
+    getUpcomingAppointments,
+    getTodayAppointments,
+    getAppointmentStats
 };

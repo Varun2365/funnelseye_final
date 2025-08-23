@@ -1,8 +1,7 @@
 // D:\PRJ_YCT_Final\controllers/workflowTaskController.js
 
+const { Task, Lead } = require('../schema');
 const workflowTaskService = require('../services/workflowTaskService');
-const Task = require('../schema/Task');
-const Lead = require('../schema/Lead');
 const asyncHandler = require('../middleware/async');
 
 // @desc    Create a new task with intelligent assignment

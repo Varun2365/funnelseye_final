@@ -15,672 +15,608 @@ const path = require('path'); // For path manipulation
 const { Boom } = require('@hapi/boom'); // For handling disconnect reasons gracefully
 const mimeTypes = require('mime-types'); // For determining MIME types of local files
 const aiService = require('./aiService');
+const mongoose = require('mongoose');
+const Lead = require('../schema/Lead');
+const whatsappMessageSchema = require('../schema/whatsappMessageSchema');
+const leadScoringService = require('./leadScoringService');
+const { publishEvent } = require('./rabbitmqProducer');
 
-// --- 2. Global Variables ---
-// Global map to store active Baileys socket instances
-const clients = new Map();
-// Global map to store QR codes temporarily (before scanning)
-const qrCodes = new Map();
-// Socket.IO instance for real-time communication
-let ioInstance = null;
+// WhatsApp Message model
+const WhatsAppMessage = mongoose.models.WhatsAppMessage || mongoose.model('WhatsAppMessage', whatsappMessageSchema);
 
-// Baileys logger instance (set to 'silent' to reduce console noise, 'info' or 'debug' for more)
-const logger = pino({ level: 'silent' });
-
-// --- 3. Database Models (Corrected paths and names) ---
-const Lead = require('../schema/Lead'); // Corrected path
-const Message = require('../schema/Message'); // Corrected path and name (was LeadMessage)
-const Task = require('../schema/Task'); // Added Task model
-const leadScoringService = require('./leadScoringService'); // Added leadScoringService
-
-// --- 4. Helper Functions ---
+// In-memory storage for active conversations and sequences
+const activeConversations = new Map();
+const messageSequences = new Map();
+const escalationQueue = new Map();
 
 /**
- * Helper Function to Delete Baileys Session Data
+ * Enhanced WhatsApp Manager with Advanced Automation Features
  */
-async function deleteSession(coachId) {
-    const sessionPath = path.join(__dirname, `../baileys_auth/${coachId}`); // Baileys stores sessions here
-    try {
-        await fs.rm(sessionPath, { recursive: true, force: true });
-        console.log(`[SESSION] Baileys session data for coach ${coachId} deleted successfully.`);
-    } catch (error) {
-        console.error(`[SESSION ERROR] Failed to delete Baileys session data for coach ${coachId}:`, error);
-    }
-}
-
-/**
- * Helper function to clean a JID for database storage, removing ephemeral suffixes
- * and ensuring it has a single @s.whatsapp.net suffix for user JIDs.
- * @param {string} jid The JID from Baileys (e.g., '1234567890:1@s.whatsapp.net', 'groupid@g.us')
- * @returns {string} Cleaned JID (e.g., '1234567890@s.whatsapp.net', 'groupid@g.us')
- */
-function cleanJidForDb(jid) {
-    if (!jid) return null;
-
-    // Handle group JIDs - they typically don't have ephemeral suffixes and already end with @g.us
-    if (jid.endsWith('@g.us')) {
-        return jid;
+class WhatsAppManager {
+    constructor() {
+        this.automationRules = new Map();
+        this.sentimentThresholds = {
+            positive: 0.7,
+            negative: 0.3,
+            neutral: 0.5
+        };
+        this.escalationThresholds = {
+            negativeSentiment: 0.6,
+            multipleNegativeMessages: 3,
+            urgentKeywords: ['urgent', 'emergency', 'help', 'problem', 'issue']
+        };
+        this.io = null; // Socket.IO instance
     }
 
-    // For user JIDs, remove anything after a colon (ephemeral ID suffix)
-    let cleaned = jid.split(':')[0];
-
-    // Ensure it ends with @s.whatsapp.net
-    if (!cleaned.endsWith('@s.whatsapp.net')) {
-        cleaned += '@s.whatsapp.net';
-    }
-    return cleaned;
-}
-
-/**
- * Helper Function to Save a Message to the Database
- */
-async function saveMessage(messageData) {
-    try {
-        const message = new Message({
-            lead: messageData.leadId, // Assuming messageData contains leadId
-            coach: messageData.coachId, // Assuming messageData contains coachId
-            messageId: messageData.messageId,
-            timestamp: messageData.timestamp,
-            direction: messageData.direction,
-            type: messageData.type,
-            content: messageData.content,
-            sender: messageData.sender,
-            mediaUrl: messageData.mediaUrl,
-            aiSentiment: messageData.aiSentiment,
-            aiConfidence: messageData.aiConfidence,
-            aiEmotions: messageData.aiEmotions,
-            aiIntent: messageData.aiIntent,
-        });
-        await message.save();
-        console.log(`[DB] Saved message: ${messageData.messageId} for lead ${messageData.leadId}`);
-    } catch (error) {
-        console.error(`[DB ERROR] Error saving message:`, error);
-    }
-}
-
-/**
- * Helper Function to Get Recent Messages for Lead
- */
-async function getRecentMessages(jid, count) {
-    try {
-        const messages = await Message.find({
-            sender: cleanJidForDb(jid),
-            direction: 'inbound' // Assuming inbound messages are from the lead
-        }).sort({ timestamp: -1 }).limit(count);
-        return messages;
-    } catch (error) {
-        console.error(`[DB ERROR] Error fetching recent messages for ${jid}:`, error);
-        return [];
-    }
-}
-
-/**
- * Helper Function to Trigger Automation Rules
- */
-async function triggerAutomationRules(phoneNumber, messageData, aiInsights) {
-    try {
-        // Find lead by phone number
-        const lead = await Lead.findOne({ phone: phoneNumber });
-        if (!lead) return;
-
-        // Update lead score based on AI insights
-        let scoreEvent = 'whatsapp_message';
-        if (aiInsights.sentiment === 'positive') {
-            scoreEvent = 'whatsapp_positive';
-        } else if (aiInsights.sentiment === 'negative') {
-            scoreEvent = 'whatsapp_negative';
-        }
-
-        // Update lead score
-        await leadScoringService.updateLeadScore(lead._id, scoreEvent, lead.coachId);
-
-        // AI-powered lead qualification insights
-        if (aiInsights.confidence > 0.8) {
-            const leadInsights = await aiService.generateLeadInsights({
-                name: lead.name,
-                email: lead.email,
-                phone: lead.phone,
-                source: lead.source,
-                engagement: aiInsights.sentiment,
-                intent: aiInsights.intent,
-                emotions: aiInsights.emotions,
-                messageContent: messageData.body
-            });
-
-            if (leadInsights.success) {
-                // Create AI insight task for coach
-                await createAIInsightTask(lead._id, leadInsights.content, lead.coachId);
-            }
-        }
-
-    } catch (error) {
-        console.error('Error in AI-enhanced automation:', error);
-    }
-}
-
-/**
- * Helper Function to Create AI Insight Task
- */
-async function createAIInsightTask(leadId, aiInsights, coachId) {
-    try {
-        const task = await Task.create({
-            title: 'AI Lead Insight Generated',
-            description: `AI Analysis: ${aiInsights}`,
-            type: 'ai_insight',
-            priority: 'medium',
-            assignedTo: coachId,
-            leadId: leadId,
-            dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-            status: 'pending'
-        });
-
-        console.log(`AI insight task created for lead ${leadId}`);
-        return task;
-    } catch (error) {
-        console.error('Error creating AI insight task:', error);
-    }
-}
-
-
-/**
- * Helper Function to Handle Incoming Messages and Save to DB
- * This function needs adaptation for Baileys' message object structure
- */
-async function handleIncomingMessage(coachId, msg) {
-    // Baileys message object is different from whatsapp-web.js
-    // Extracting relevant info:
-    const from = msg.key.remoteJid; // The sender's JID (e.g., '1234567890@s.whatsapp.net' or 'groupid@g.us')
-    const isGroup = from.endsWith('@g.us');
-    // For groups, msg.key.participant is the actual sender's JID in the group.
-    // For DMs, msg.key.remoteJid is the sender.
-    const senderRawJid = msg.key.participant || msg.key.remoteJid; // The raw sender JID
-    const messageId = msg.key.id;
-    // Baileys timestamp is in seconds, convert to milliseconds for Date object
-    const timestamp = msg.messageTimestamp ? new Date(msg.messageTimestamp * 1000) : new Date();
-
-    let content = '';
-    let messageType = 'unknown';
-
-    if (msg.message) {
-        if (msg.message.conversation) { // Standard text message
-            content = msg.message.conversation;
-            messageType = 'text';
-        } else if (msg.message.extendedTextMessage?.text) { // Text message with preview/reply
-            content = msg.message.extendedTextMessage.text;
-            messageType = 'text';
-        } else if (msg.message.imageMessage) { // Image message
-            content = msg.message.imageMessage.caption || 'Image message';
-            messageType = 'image';
-            // TODO: Implement media download here if you want to store the actual file/URL
-            // const buffer = await downloadContentFromMessage(msg.message.imageMessage, 'image');
-            // Save buffer to a file and store the file path/URL in message.mediaUrl
-        } else if (msg.message.videoMessage) { // Video message
-            content = msg.message.videoMessage.caption || 'Video message';
-            messageType = 'video';
-            // TODO: Implement media download here
-        } else if (msg.message.documentMessage) { // Document message
-            content = msg.message.documentMessage.title || msg.message.documentMessage.fileName || 'Document message';
-            messageType = 'document';
-            // TODO: Implement media download here
-        } else if (msg.message.audioMessage) { // Audio message (can be voice note or regular audio)
-            content = 'Audio message';
-            messageType = msg.message.audioMessage.ptt ? 'voice_note' : 'audio'; // PTT means push-to-talk (voice note)
-            // TODO: Implement media download here
-        }
-        // Add more message types as needed (stickerMessage, contactMessage, locationMessage etc.)
+    /**
+     * Set Socket.IO instance for real-time updates
+     */
+    setIoInstance(io) {
+        this.io = io;
+        console.log('[WhatsAppManager] Socket.IO instance set successfully');
     }
 
-    console.log(`[MESSAGE IN] Coach ${coachId} received ${messageType} message from ${from} (${senderRawJid}): ${content}`);
-
-    try {
-        // Clean the JID to get a pure phone number for DB lookup/storage
-        const phoneNumber = from.replace('@s.whatsapp.net', '').replace('@g.us', '');
-
-        let lead = await Lead.findOne({
-            coachId: coachId, // Use coachId as per your schema
-            phone: phoneNumber // Assuming your schema has 'phone' field for contact number
-        });
-
-        if (!lead) {
-            // Create a new lead if not found, populating all required fields
-            lead = new Lead({
-                coachId: coachId,
-                phone: phoneNumber, // Map WhatsApp number to 'phone' field
-                name: isGroup ? from : phoneNumber, // Use JID for group names, phone number for DMs
-                email: `whatsapp_${phoneNumber}@yct.com`, // Generated placeholder email for required field
-                status: 'New', // Default status for new leads
-                source: 'WhatsApp', // Mark source as WhatsApp
-                leadTemperature: 'Warm' // Default lead temperature
-            });
-            await lead.save();
-            console.log(`[DB] Created new lead: ${lead.phoneNumber} (ID: ${lead._id})`);
-        }
-
-        // Save the incoming message
-        const message = new Message({ // Changed to 'Message'
-            lead: lead._id,
-            coach: coachId,
-            messageId: messageId,
-            timestamp: timestamp,
-            direction: 'inbound', // Mark as incoming
-            type: messageType,
-            content: content,
-            sender: cleanJidForDb(senderRawJid), // Clean the sender JID
-            // mediaUrl: // Populate this if you implement media download
-        });
-        await message.save();
-        console.log(`[DB] Saved incoming message for lead ${lead.phoneNumber}: ${content}`);
-
-        // Emit message to frontend via Socket.IO
-        if (ioInstance) {
-            ioInstance.to(coachId).emit('new-message', {
-                coachId: coachId,
-                leadPhoneNumber: lead.phoneNumber,
-                message: {
-                    id: messageId,
-                    sender: cleanJidForDb(senderRawJid), // Emit the cleaned sender JID
-                    text: content,
-                    timestamp: timestamp.getTime() / 1000, // Convert to Unix timestamp (seconds)
-                    type: messageType,
-                    // mediaUrl: message.mediaUrl // Include if you store it
-                }
-            });
-        }
-
-        // Enhanced message handler with AI integration
+    /**
+     * Initialize WhatsApp manager for a coach
+     */
+    async initializeCoach(coachId) {
         try {
-            // AI-powered sentiment analysis
-            const sentimentAnalysis = await aiService.analyzeSentiment(content);
+            console.log(`[WhatsAppManager] Initializing WhatsApp manager for coach: ${coachId}`);
             
-            // Log the message with AI insights
-            const messageData = {
-                leadId: lead._id, // Assuming lead._id is available
-                coachId: coachId,
-                messageId: messageId,
-                direction: 'inbound',
-                type: messageType,
-                content: content,
-                sender: cleanJidForDb(senderRawJid),
-                timestamp: timestamp,
-                // AI-enhanced fields
-                aiSentiment: sentimentAnalysis.sentiment,
-                aiConfidence: sentimentAnalysis.confidence,
-                aiEmotions: sentimentAnalysis.emotions,
-                aiIntent: sentimentAnalysis.intent,
-            };
-
-            // Save message to database
-            await saveMessage(messageData);
-
-            // AI-powered contextual response generation
-            if (sentimentAnalysis.sentiment === 'negative' || sentimentAnalysis.confidence > 0.7) {
-                const contextualResponse = await aiService.generateContextualResponse(
-                    content,
-                    sentimentAnalysis.sentiment,
-                    {
-                        leadStage: 'engaged',
-                        platform: 'whatsapp',
-                        previousMessages: await getRecentMessages(senderRawJid, 5)
-                    }
-                );
-
-                if (contextualResponse.success) {
-                    // Send AI-generated empathetic response
-                    await sendCoachMessage(coachId, phoneNumber, contextualResponse.content); // Assuming sendCoachMessage is available
-                    
-                    console.log(`AI generated contextual response for ${phoneNumber}: ${contextualResponse.content}`);
-                }
-            }
-
-            // Trigger automation rules based on AI insights
-            await triggerAutomationRules(phoneNumber, messageData, sentimentAnalysis);
-
-        } catch (error) {
-            console.error('Error handling incoming message with AI:', error);
-            // Fallback to basic message handling
-            // This part needs to be adapted to the existing handleIncomingMessageBasic if it exists
-            // For now, we'll just log the error and continue with basic handling
-            console.log(`[MESSAGE IN] Basic handling for AI error for coach ${coachId} message from ${from}: ${content}`);
-        }
-
-    } catch (error) {
-        console.error(`[DB ERROR] Error processing incoming message for coach ${coachId}:`, error);
-    }
-}
-
-
-// --- 5. Main Baileys Client Management Functions ---
-
-/**
- * Initializes a Baileys client for a given coach.
- */
-async function initializeClient(coachId) {
-    // If client already exists and is connected, just return it
-    if (clients.has(coachId)) {
-        const existingSock = clients.get(coachId);
-        // Baileys 'sock.user' object exists when connected/authenticated
-        if (existingSock.user && existingSock.user.id) {
-            console.log(`Baileys client for coach ${coachId} already connected.`);
-            return existingSock;
-        }
-    }
-
-    console.log(`Attempting to initialize Baileys client for coach: ${coachId}`);
-
-    // useMultiFileAuthState manages session data (creds, keys, etc.) in a local folder
-    const { state, saveCreds } = await useMultiFileAuthState(`./baileys_auth/${coachId}`);
-    // Fetch latest Baileys version to prevent issues with outdated clients
-    const { version, isLatest } = await fetchLatestBaileysVersion();
-    console.log(`Using Baileys version: ${version.join('.')} (Latest: ${isLatest})`);
-
-    const sock = makeWASocket({
-        auth: state, // Authentication state for the client
-        logger: logger, // Use the pino logger defined above
-        printQRInTerminal: false, // We'll handle QR emitting via Socket.IO
-        // --- START OF CHANGE ---
-        // Changed client name from 'MyWhatsAppApp' to 'CoachConnect Dashboard'
-        browser: Browsers.appropriate("FunnelsEye"), // Custom browser info sent to WhatsApp
-        // --- END OF CHANGE ---
-        version: version, // Ensure we use the fetched version
-        // Add more options as needed, e.g., for history sync, presence
-        syncFullHistory: true, // Fetch full message history on first connect
-        getMessage: async (key) => {
-            // Optional: Implement a message store for better stability and features.
-            // This is crucial for replying to messages accurately, fetching messages by ID, etc.
-            // For now, returning null means Baileys won't be able to retrieve old messages for certain operations.
-            // For production, consider storing messages in your DB and retrieving them here.
-            // Example: const msg = await Message.findOne({ messageId: key.id }); return msg ? msg.content : null;
-            return null;
-        }
-    });
-
-    // --- Baileys Event Listeners ---
-
-    // Handles connection status updates (connecting, open, close)
-    sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update;
-
-        if (qr) {
-            console.log(`[QR RECEIVED] Coach ${coachId} received QR code.`);
-            qrcode.generate(qr, { small: true }); // Print in console for quick check
-            qrCodes.set(coachId, qr); // Store QR code for frontend to fetch
-            if (ioInstance) {
-                ioInstance.to(coachId).emit('whatsapp-qr', { qrCodeData: qr, coachId: coachId });
-                console.log(`Socket.IO: Emitted QR for coach ${coachId}.`);
-            }
-        }
-
-        if (connection === 'close') {
-            // Get the reason for disconnection (from @hapi/boom errors)
-            let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-            console.error(`Baileys Client for coach ${coachId} DISCONNECTED! Reason: ${reason || lastDisconnect?.error}`);
-
-            // Decide whether to reconnect or clear session based on the reason
-            if (reason === DisconnectReason.loggedOut) {
-                console.log(`[LOGOUT] Coach ${coachId} explicitly logged out. Clearing session.`);
-                await deleteSession(coachId); // Delete session data as it's a permanent logout
-                clients.delete(coachId); // Remove from active clients map
-                if (ioInstance) {
-                    ioInstance.to(coachId).emit('whatsapp-status', { connected: false, message: 'Logged out. Please re-scan QR.', coachId: coachId });
-                }
-            } else {
-                console.log(`[RECONNECT] Attempting to reconnect coach ${coachId}...`);
-                qrCodes.delete(coachId); // Clear any lingering QR code if attempting reconnect
-                // Attempt to reconnect by re-initializing the client after a short delay
-                setTimeout(() => initializeClient(coachId), 5000); // Retry in 5 seconds
-                if (ioInstance) {
-                    ioInstance.to(coachId).emit('whatsapp-status', { connected: false, message: `Disconnected (${reason}). Reconnecting...`, coachId: coachId });
-                }
-            }
-        } else if (connection === 'open') {
-            console.log(`Baileys Client for coach ${coachId} is OPEN (CONNECTED)!`);
-            clients.set(coachId, sock); // Set the active socket instance in the map
-            qrCodes.delete(coachId); // Clear any lingering QR code
-
-            if (ioInstance) {
-                ioInstance.to(coachId).emit('whatsapp-status', { connected: true, coachId });
-                console.log(`Socket.IO: Emitted whatsapp-status: connected for coach ${coachId}.`);
-            }
-        }
-    });
-
-    // Save credentials whenever they are updated (essential for session persistence)
-    sock.ev.on('creds.update', saveCreds);
-
-    // Handle incoming messages
-    sock.ev.on('messages.upsert', async (chatUpdate) => {
-        // chatUpdate contains messages and their type ('notify' for new messages, 'append' for older messages)
-        if (chatUpdate.type === 'notify') {
-            for (const msg of chatUpdate.messages) {
-                // Ignore messages sent by our own client (unless it's a message from an unsaved number)
-                // Also ignore status updates or broadcast lists if you only care about direct messages
-                if (!msg.key.fromMe && !msg.key.remoteJid.endsWith('@broadcast')) {
-                    // Mark messages as read (optional, but good practice for sender)
-                    await sock.readMessages([msg.key]);
-                    await handleIncomingMessage(coachId, msg);
-                }
-            }
-        }
-    });
-
-    // You can add more event listeners here for other events like:
-    // sock.ev.on('presence.update', presenceUpdate => console.log(presenceUpdate));
-    // sock.ev.on('chats.update', chatsUpdate => console.log(chatsUpdate));
-    // sock.ev.on('contacts.update', contactsUpdate => console.log(contactsUpdate));
-
-    // For the initial call, return the socket (it will connect asynchronously in the background)
-    return sock;
-}
-
-// --- 6. Exported Functions ---
-
-/**
- * Returns the QR code for a given coach.
- */
-function getQrCode(coachId) {
-    return qrCodes.get(coachId);
-}
-
-/**
- * Checks if a Baileys client is connected for a given coach.
- * Note: Baileys doesn't have a 'ready' status like whatsapp-web.js.
- * We check if the 'user' object exists on the socket, which indicates a connected and authenticated session.
- */
-function isClientConnected(coachId) {
-    const sock = clients.get(coachId);
-    return sock && sock.user !== undefined && sock.user !== null;
-}
-
-/**
- * Logs out a Baileys client and deletes its session data.
- */
-async function logoutClient(coachId) {
-    const sock = clients.get(coachId);
-    if (sock) {
-        try {
-            await sock.logout(); // This will trigger 'connection.update' event with DisconnectReason.loggedOut
-            console.log(`Baileys client for coach ${coachId} logged out successfully.`);
-            // The 'connection.update' handler will then call deleteSession and remove from map
+            // Load coach's automation rules
+            await this.loadAutomationRules(coachId);
+            
+            // Initialize conversation tracking
+            activeConversations.set(coachId, new Map());
+            
+            console.log(`[WhatsAppManager] WhatsApp manager initialized for coach: ${coachId}`);
             return true;
         } catch (error) {
-            console.error(`Error logging out Baileys client for coach ${coachId}:`, error);
-            // If logout fails for some reason, ensure session is deleted and client removed
-            await deleteSession(coachId);
-            clients.delete(coachId);
+            console.error(`[WhatsAppManager] Error initializing coach ${coachId}:`, error);
             return false;
         }
     }
-    return false; // Client not found
-}
 
-/**
- * Sends a text message from a coach's Baileys client to a recipient.
- */
-async function sendCoachMessage(coachId, recipientPhoneNumber, messageContent) {
-    const sock = clients.get(coachId);
-    console.log(`[SEND MESSAGE ATTEMPT] Coach: ${coachId}, Client exists in map: ${!!sock}, Current client.user: ${sock ? sock.user?.id : 'N/A'}`);
-
-    if (!sock || !sock.user) { // Check if socket exists and is authenticated/connected
-        throw new Error(`Baileys client for coach ${coachId} is not connected.`);
-    }
-
-    // Baileys requires recipient JID format (e.g., '1234567890@s.whatsapp.net')
-    const recipientJid = `${recipientPhoneNumber}@s.whatsapp.net`;
-
-    try {
-        // Find the lead. If not found, create a new one.
-        let lead = await Lead.findOne({
-            coachId: coachId, // Use coachId as per your schema
-            phone: recipientPhoneNumber // Assuming your schema has 'phone' field for contact number
-        });
-
-        if (!lead) {
-            // Create a new lead if not found, populating all required fields
-            lead = new Lead({
-                coachId: coachId,
-                phone: recipientPhoneNumber, // Map WhatsApp number to 'phone' field
-                name: recipientPhoneNumber, // Use phone number as name for new lead
-                email: `whatsapp_${recipientPhoneNumber}@yct.com`, // Generated placeholder email
-                status: 'Contacted', // Mark as contacted since we are sending a message
-                source: 'WhatsApp', // Source is WhatsApp
-                leadTemperature: 'Warm' // Default temperature
-            });
-            await lead.save();
-            console.log(`[DB] Created new lead for outgoing message: ${lead.phoneNumber} (ID: ${lead._id})`);
+    /**
+     * Load automation rules for a coach
+     */
+    async loadAutomationRules(coachId) {
+        try {
+            // Load from database or configuration
+            const rules = [
+                {
+                    id: 'welcome_sequence',
+                    name: 'Welcome Sequence',
+                    trigger: 'first_message',
+                    steps: [
+                        { delay: 0, message: 'Hi {{lead.name}}! Welcome to our community. How can I help you today?' },
+                        { delay: 300000, message: 'Just checking in - did you have a chance to review our services?' },
+                        { delay: 86400000, message: 'Hi {{lead.name}}! We\'d love to help you achieve your goals. Ready to get started?' }
+                    ]
+                },
+                {
+                    id: 'follow_up_sequence',
+                    name: 'Follow-up Sequence',
+                    trigger: 'lead_created',
+                    steps: [
+                        { delay: 0, message: 'Hi {{lead.name}}! Thanks for your interest. I\'ll be in touch soon with personalized information.' },
+                        { delay: 3600000, message: 'Hi {{lead.name}}! I\'ve prepared some information for you. When would be a good time to discuss?' },
+                        { delay: 86400000, message: 'Hi {{lead.name}}! I wanted to follow up and see if you have any questions about our services.' }
+                    ]
+                }
+            ];
+            
+            this.automationRules.set(coachId, rules);
+            console.log(`[WhatsAppManager] Loaded ${rules.length} automation rules for coach: ${coachId}`);
+        } catch (error) {
+            console.error(`[WhatsAppManager] Error loading automation rules for coach ${coachId}:`, error);
         }
-
-        // sendMessage returns an object containing the key (id) of the sent message
-        const sentMsg = await sock.sendMessage(recipientJid, { text: messageContent });
-        console.log(`[MESSAGE OUT] Text message sent to ${recipientPhoneNumber} by coach ${coachId}. Message ID: ${sentMsg.key.id}`);
-
-        // Save outgoing message to DB
-        const message = new Message({ // Changed to 'Message'
-            lead: lead._id, // Use the found or newly created lead's ID
-            coach: coachId, // This should be coachId as per your Message schema
-            messageId: sentMsg.key.id, // Store the message ID from Baileys
-            timestamp: new Date(),
-            direction: 'outbound', // Mark as outgoing
-            type: 'text',
-            content: messageContent,
-            sender: cleanJidForDb(sock.user.id) // Clean the sender JID (your coach's JID)
-        });
-        await message.save();
-        console.log(`[DB] Saved outgoing message for lead ${lead.phoneNumber}: ${messageContent}`);
-
-        return true;
-    } catch (error) {
-        console.error(`Error sending text message for coach ${coachId} to ${recipientPhoneNumber}:`, error);
-        throw error; // Re-throw to be caught by the route handler
-    }
-}
-
-/**
- * Sends a media message from a coach's Baileys client to a recipient.
- * Supports local file paths or URLs for media.
- */
-async function sendMediaMessage(coachId, recipientPhoneNumber, filePathOrUrl, caption) {
-    const sock = clients.get(coachId);
-    if (!sock || !sock.user) {
-        throw new Error(`Baileys client for coach ${coachId} is not connected.`);
     }
 
-    const recipientJid = `${recipientPhoneNumber}@s.whatsapp.net`;
-
-    try {
-        // Find the lead. If not found, create a new one.
-        let lead = await Lead.findOne({
-            coachId: coachId, // Use coachId as per your schema
-            phone: recipientPhoneNumber // Assuming your schema has 'phone' field for contact number
-        });
-
-        if (!lead) {
-            // Create a new lead if not found, populating all required fields
-            lead = new Lead({
-                coachId: coachId,
-                phone: recipientPhoneNumber, // Map WhatsApp number to 'phone' field
-                name: recipientPhoneNumber, // Use phone number as name for new lead
-                email: `whatsapp_${recipientPhoneNumber}@yct.com`, // Generated placeholder email
-                status: 'Contacted', // Mark as contacted since we are sending a message
-                source: 'WhatsApp', // Source is WhatsApp
-                leadTemperature: 'Warm' // Default temperature
-            });
-            await lead.save();
-            console.log(`[DB] Created new lead for outgoing media message: ${lead.phoneNumber} (ID: ${lead._id})`);
-        }
-
-        let messageContent;
-        if (filePathOrUrl.startsWith('http://') || filePathOrUrl.startsWith('https://')) {
-            // If URL, Baileys can usually infer type. Explicitly check for common types.
-            if (/\.(jpg|jpeg|png|gif)$/i.test(filePathOrUrl)) {
-                messageContent = { image: { url: filePathOrUrl }, caption: caption };
-            } else if (/\.(mp4|avi|mov)$/i.test(filePathOrUrl)) {
-                messageContent = { video: { url: filePathOrUrl }, caption: caption };
-            } else if (/\.(mp3|aac|ogg|wav)$/i.test(filePathOrUrl)) {
-                messageContent = { audio: { url: filePathOrUrl, ptt: false } }; // ptt: true for voice note
-            } else {
-                // For other files, treat as document (Baileys needs mimetype and fileName)
-                messageContent = { document: { url: filePathOrUrl, mimetype: 'application/octet-stream', fileName: path.basename(filePathOrUrl) || 'document' } };
+    /**
+     * Handle incoming message with advanced automation
+     */
+    async handleIncomingMessage(coachId, msg) {
+        try {
+            console.log(`[WhatsAppManager] Processing incoming message for coach: ${coachId}`);
+            
+            // Extract message data
+            const messageData = this.extractMessageData(msg);
+            const phoneNumber = messageData.from;
+            
+            // Find or create lead
+            const lead = await this.findOrCreateLead(coachId, phoneNumber, messageData);
+            
+            // Analyze message sentiment and intent
+            const aiAnalysis = await this.analyzeMessage(messageData.content);
+            
+            // Update lead score based on interaction
+            await this.updateLeadScore(lead._id, aiAnalysis);
+            
+            // Check for escalation triggers
+            const shouldEscalate = await this.checkEscalationTriggers(lead._id, aiAnalysis, messageData);
+            
+            if (shouldEscalate) {
+                await this.escalateToHuman(coachId, lead._id, messageData, aiAnalysis);
+                return;
             }
+            
+            // Process automation rules
+            await this.processAutomationRules(coachId, lead._id, messageData, aiAnalysis);
+            
+            // Save message to database
+            await this.saveMessage(coachId, lead._id, messageData, 'inbound');
+            
+            console.log(`[WhatsAppManager] Successfully processed incoming message for lead: ${lead._id}`);
+            
+        } catch (error) {
+            console.error(`[WhatsAppManager] Error handling incoming message:`, error);
+        }
+    }
+
+    /**
+     * Extract structured data from WhatsApp message
+     */
+    extractMessageData(msg) {
+        const timestamp = msg.messageTimestamp ? new Date(msg.messageTimestamp * 1000) : new Date();
+        let content = '';
+        let messageType = 'unknown';
+
+        if (msg.message) {
+            if (msg.message.conversation) {
+                content = msg.message.conversation;
+                messageType = 'text';
+            } else if (msg.message.extendedTextMessage?.text) {
+                content = msg.message.extendedTextMessage.text;
+                messageType = 'text';
+            } else if (msg.message.imageMessage) {
+                content = msg.message.imageMessage.caption || 'Image message';
+                messageType = 'image';
+            } else if (msg.message.videoMessage) {
+                content = msg.message.videoMessage.caption || 'Video message';
+                messageType = 'video';
+            } else if (msg.message.documentMessage) {
+                content = msg.message.documentMessage.title || msg.message.documentMessage.fileName || 'Document message';
+                messageType = 'document';
+            } else if (msg.message.audioMessage) {
+                content = 'Audio message';
+                messageType = msg.message.audioMessage.ptt ? 'voice_note' : 'audio';
+            }
+        }
+
+        return {
+            from: msg.key?.remoteJid?.replace('@s.whatsapp.net', '') || msg.from,
+            to: msg.key?.participant || msg.to,
+            content: content,
+            type: messageType,
+            timestamp: timestamp,
+            messageId: msg.key?.id || msg.messageId,
+            mediaUrl: this.extractMediaUrl(msg),
+            isGroup: msg.key?.remoteJid?.includes('@g.us') || false
+        };
+    }
+
+    /**
+     * Extract media URL from message
+     */
+    extractMediaUrl(msg) {
+        if (msg.message?.imageMessage) {
+            return msg.message.imageMessage.url || null;
+        } else if (msg.message?.videoMessage) {
+            return msg.message.videoMessage.url || null;
+        } else if (msg.message?.documentMessage) {
+            return msg.message.documentMessage.url || null;
+        }
+        return null;
+    }
+
+    /**
+     * Find or create lead based on phone number
+     */
+    async findOrCreateLead(coachId, phoneNumber, messageData) {
+        let lead = await Lead.findOne({ 
+            phone: phoneNumber, 
+            coachId: coachId 
+        });
+
+        if (!lead) {
+            // Create new lead from WhatsApp message
+            lead = await Lead.create({
+                coachId: coachId,
+                phone: phoneNumber,
+                name: messageData.from || 'Unknown',
+                source: 'WhatsApp',
+                status: 'New',
+                score: 10, // Initial score for WhatsApp interaction
+                whatsappData: {
+                    firstMessage: messageData.content,
+                    firstMessageAt: messageData.timestamp,
+                    isActive: true
+                }
+            });
+
+            console.log(`[WhatsAppManager] Created new lead from WhatsApp: ${lead._id}`);
+            
+            // Trigger lead_created event
+            await publishEvent('funnelseye_events', 'lead_created', {
+                eventName: 'lead_created',
+                payload: { leadId: lead._id, coachId },
+                relatedDoc: { leadId: lead._id, coachId },
+                timestamp: new Date().toISOString()
+            });
         } else {
-            // If local file path
-            const mediaBuffer = await fs.readFile(filePathOrUrl); // Read file into buffer
-            const mimeType = mimeTypes.lookup(filePathOrUrl); // Determine MIME type
-            if (!mimeType) throw new Error(`Could not determine MIME type for local file: ${filePathOrUrl}`);
-
-            if (mimeType.startsWith('image/')) {
-                messageContent = { image: mediaBuffer, caption: caption };
-            } else if (mimeType.startsWith('video/')) {
-                messageContent = { video: mediaBuffer, caption: caption };
-            } else if (mimeType.startsWith('audio/')) {
-                messageContent = { audio: mediaBuffer, ptt: false };
-            } else {
-                messageContent = { document: mediaBuffer, mimetype: mimeType, fileName: path.basename(filePathOrUrl) };
-            }
+            // Update existing lead's WhatsApp activity
+            lead.whatsappData = lead.whatsappData || {};
+            lead.whatsappData.lastMessageAt = messageData.timestamp;
+            lead.whatsappData.isActive = true;
+            lead.whatsappData.messageCount = (lead.whatsappData.messageCount || 0) + 1;
+            await lead.save();
         }
 
-        const sentMsg = await sock.sendMessage(recipientJid, messageContent);
-        console.log(`[MESSAGE OUT] Media message sent to ${recipientPhoneNumber} by coach ${coachId}. Message ID: ${sentMsg.key.id}`);
+        return lead;
+    }
 
-        // Save outgoing media message to DB (similar to text message)
-        const message = new Message({ // Changed to 'Message'
-            lead: lead._id, // Use the found or newly created lead's ID
-            coach: coachId, // This should be coachId as per your Message schema
-            messageId: sentMsg.key.id,
-            timestamp: new Date(),
-            direction: 'outbound',
-            // Refine type based on what was sent
-            type: messageContent.image ? 'image' : messageContent.video ? 'video' : messageContent.audio ? 'audio' : messageContent.document ? 'document' : 'media',
-            content: caption || 'Media message',
-            mediaUrl: filePathOrUrl, // Store the URL or original path of the sent media
-            sender: cleanJidForDb(sock.user.id) // Clean the sender JID (your coach's JID)
-        });
-        await message.save();
-        console.log(`[DB] Saved outgoing media message for lead ${lead.phoneNumber}.`);
+    /**
+     * Analyze message using AI for sentiment and intent
+     */
+    async analyzeMessage(content) {
+        try {
+            const analysis = await aiService.analyzeMessage({
+                content: content,
+                analysisType: 'sentiment_intent_urgency'
+            });
 
-        return true;
-    } catch (error) {
-        console.error(`Error sending media message for coach ${coachId} to ${recipientPhoneNumber}:`, error);
-        throw error;
+            return {
+                sentiment: analysis.sentiment || 'neutral',
+                sentimentScore: analysis.sentimentScore || 0.5,
+                intent: analysis.intent || 'general',
+                urgency: analysis.urgency || 'low',
+                keywords: analysis.keywords || [],
+                confidence: analysis.confidence || 0.8
+            };
+        } catch (error) {
+            console.error(`[WhatsAppManager] Error analyzing message:`, error);
+            return {
+                sentiment: 'neutral',
+                sentimentScore: 0.5,
+                intent: 'general',
+                urgency: 'low',
+                keywords: [],
+                confidence: 0.5
+            };
+        }
+    }
+
+    /**
+     * Update lead score based on message analysis
+     */
+    async updateLeadScore(leadId, analysis) {
+        try {
+            let scoreChange = 0;
+            let explanation = [];
+
+            // Score based on sentiment
+            if (analysis.sentiment === 'positive') {
+                scoreChange += 5;
+                explanation.push('Positive message sentiment');
+            } else if (analysis.sentiment === 'negative') {
+                scoreChange -= 3;
+                explanation.push('Negative message sentiment');
+            }
+
+            // Score based on intent
+            if (analysis.intent === 'purchase' || analysis.intent === 'booking') {
+                scoreChange += 10;
+                explanation.push('High purchase intent');
+            } else if (analysis.intent === 'information') {
+                scoreChange += 3;
+                explanation.push('Information seeking');
+            }
+
+            // Score based on urgency
+            if (analysis.urgency === 'high') {
+                scoreChange += 8;
+                explanation.push('High urgency');
+            }
+
+            // Update lead score
+            await leadScoringService.updateLeadScore(leadId, 'whatsapp_interaction', scoreChange, explanation);
+
+        } catch (error) {
+            console.error(`[WhatsAppManager] Error updating lead score:`, error);
+        }
+    }
+
+    /**
+     * Check if message should be escalated to human
+     */
+    async checkEscalationTriggers(leadId, analysis, messageData) {
+        try {
+            // Check sentiment threshold
+            if (analysis.sentiment === 'negative' && analysis.sentimentScore < this.escalationThresholds.negativeSentiment) {
+                return true;
+            }
+
+            // Check for urgent keywords
+            const urgentKeywordsFound = this.escalationThresholds.urgentKeywords.some(keyword => 
+                messageData.content.toLowerCase().includes(keyword)
+            );
+
+            if (urgentKeywordsFound) {
+                return true;
+            }
+
+            // Check message count for negative sentiment
+            const lead = await Lead.findById(leadId);
+            if (lead.whatsappData?.negativeMessageCount >= this.escalationThresholds.multipleNegativeMessages) {
+                return true;
+            }
+
+            return false;
+        } catch (error) {
+            console.error(`[WhatsAppManager] Error checking escalation triggers:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Escalate conversation to human coach
+     */
+    async escalateToHuman(coachId, leadId, messageData, analysis) {
+        try {
+            console.log(`[WhatsAppManager] Escalating conversation to human for lead: ${leadId}`);
+
+            // Add to escalation queue
+            escalationQueue.set(leadId, {
+                coachId: coachId,
+                leadId: leadId,
+                reason: analysis.sentiment === 'negative' ? 'Negative sentiment' : 'Urgent keywords detected',
+                timestamp: new Date(),
+                messageData: messageData,
+                analysis: analysis
+            });
+
+            // Trigger escalation event
+            await publishEvent('funnelseye_events', 'whatsapp_escalation', {
+                eventName: 'whatsapp_escalation',
+                payload: { 
+                    leadId: leadId, 
+                    coachId: coachId,
+                    reason: 'Automated escalation triggered',
+                    analysis: analysis
+                },
+                relatedDoc: { leadId: leadId, coachId: coachId },
+                timestamp: new Date().toISOString()
+            });
+
+            // Send escalation notification to coach
+            await this.sendEscalationNotification(coachId, leadId, messageData, analysis);
+
+        } catch (error) {
+            console.error(`[WhatsAppManager] Error escalating to human:`, error);
+        }
+    }
+
+    /**
+     * Send escalation notification to coach
+     */
+    async sendEscalationNotification(coachId, leadId, messageData, analysis) {
+        try {
+            // This would integrate with your notification system
+            console.log(`[WhatsAppManager] Sending escalation notification to coach: ${coachId}`);
+            
+            // You can implement email, SMS, or in-app notifications here
+            // For now, we'll just log it
+            
+        } catch (error) {
+            console.error(`[WhatsAppManager] Error sending escalation notification:`, error);
+        }
+    }
+
+    /**
+     * Process automation rules for incoming message
+     */
+    async processAutomationRules(coachId, leadId, messageData, analysis) {
+        try {
+            const rules = this.automationRules.get(coachId) || [];
+            
+            for (const rule of rules) {
+                if (this.shouldTriggerRule(rule, messageData, analysis)) {
+                    await this.executeRule(rule, coachId, leadId, messageData);
+                }
+            }
+        } catch (error) {
+            console.error(`[WhatsAppManager] Error processing automation rules:`, error);
+        }
+    }
+
+    /**
+     * Check if rule should be triggered
+     */
+    shouldTriggerRule(rule, messageData, analysis) {
+        switch (rule.trigger) {
+            case 'first_message':
+                return messageData.isFirstMessage;
+            case 'negative_sentiment':
+                return analysis.sentiment === 'negative';
+            case 'urgent_message':
+                return analysis.urgency === 'high';
+            case 'specific_keywords':
+                return rule.keywords?.some(keyword => 
+                    messageData.content.toLowerCase().includes(keyword)
+                );
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Execute automation rule
+     */
+    async executeRule(rule, coachId, leadId, messageData) {
+        try {
+            console.log(`[WhatsAppManager] Executing rule: ${rule.name} for lead: ${leadId}`);
+
+            for (const step of rule.steps) {
+                // Schedule message with delay
+                setTimeout(async () => {
+                    await this.sendAutomatedMessage(coachId, leadId, step.message, messageData);
+                }, step.delay);
+            }
+
+        } catch (error) {
+            console.error(`[WhatsAppManager] Error executing rule:`, error);
+        }
+    }
+
+    /**
+     * Send automated message
+     */
+    async sendAutomatedMessage(coachId, leadId, messageTemplate, originalMessage) {
+        try {
+            // Replace template variables
+            const lead = await Lead.findById(leadId);
+            const personalizedMessage = this.replaceTemplateVariables(messageTemplate, lead, originalMessage);
+
+            // Send message via WhatsApp service
+            // await this.sendWhatsAppMessage(coachId, lead.phone, personalizedMessage);
+
+            // Save message to database
+            await this.saveMessage(coachId, leadId, {
+                content: personalizedMessage,
+                type: 'text',
+                timestamp: new Date(),
+                messageId: `auto_${Date.now()}`,
+                isAutomated: true
+            }, 'outbound');
+
+            console.log(`[WhatsAppManager] Sent automated message to lead: ${leadId}`);
+
+        } catch (error) {
+            console.error(`[WhatsAppManager] Error sending automated message:`, error);
+        }
+    }
+
+    /**
+     * Replace template variables in message
+     */
+    replaceTemplateVariables(template, lead, originalMessage) {
+        return template
+            .replace('{{lead.name}}', lead.name || 'there')
+            .replace('{{lead.firstName}}', lead.name?.split(' ')[0] || 'there')
+            .replace('{{coach.name}}', 'Your Coach')
+            .replace('{{company.name}}', 'Our Company');
+    }
+
+    /**
+     * Save message to database
+     */
+    async saveMessage(coachId, leadId, messageData, direction) {
+        try {
+            const message = new WhatsAppMessage({
+                coach: coachId,
+                lead: leadId,
+                messageId: messageData.messageId,
+                from: direction === 'inbound' ? messageData.from : messageData.to,
+                to: direction === 'inbound' ? messageData.to : messageData.from,
+                content: messageData.content,
+                direction: direction,
+                timestamp: messageData.timestamp,
+                mediaUrl: messageData.mediaUrl,
+                type: messageData.type,
+                isAutomated: messageData.isAutomated || false
+            });
+
+            await message.save();
+            console.log(`[WhatsAppManager] Saved ${direction} message to database`);
+
+        } catch (error) {
+            console.error(`[WhatsAppManager] Error saving message:`, error);
+        }
+    }
+
+    /**
+     * Get conversation history for a lead
+     */
+    async getConversationHistory(coachId, leadId, limit = 50) {
+        try {
+            const messages = await WhatsAppMessage.find({
+                coach: coachId,
+                lead: leadId
+            })
+            .sort({ timestamp: -1 })
+            .limit(limit);
+
+            return messages.reverse(); // Return in chronological order
+        } catch (error) {
+            console.error(`[WhatsAppManager] Error getting conversation history:`, error);
+            return [];
+        }
+    }
+
+    /**
+     * Get active conversations for a coach
+     */
+    async getActiveConversations(coachId) {
+        try {
+            const activeLeads = await Lead.find({
+                coachId: coachId,
+                'whatsappData.isActive': true
+            }).populate('whatsappData');
+
+            return activeLeads.map(lead => ({
+                leadId: lead._id,
+                name: lead.name,
+                phone: lead.phone,
+                lastMessageAt: lead.whatsappData?.lastMessageAt,
+                messageCount: lead.whatsappData?.messageCount || 0,
+                status: lead.status,
+                score: lead.score
+            }));
+        } catch (error) {
+            console.error(`[WhatsAppManager] Error getting active conversations:`, error);
+            return [];
+        }
+    }
+
+    /**
+     * Get escalation queue for a coach
+     */
+    async getEscalationQueue(coachId) {
+        try {
+            const escalations = [];
+            
+            for (const [leadId, escalation] of escalationQueue.entries()) {
+                if (escalation.coachId === coachId) {
+                    escalations.push({
+                        leadId: leadId,
+                        reason: escalation.reason,
+                        timestamp: escalation.timestamp,
+                        messageData: escalation.messageData,
+                        analysis: escalation.analysis
+                    });
+                }
+            }
+
+            return escalations;
+        } catch (error) {
+            console.error(`[WhatsAppManager] Error getting escalation queue:`, error);
+            return [];
+        }
+    }
+
+    /**
+     * Mark escalation as resolved
+     */
+    async resolveEscalation(leadId) {
+        try {
+            escalationQueue.delete(leadId);
+            console.log(`[WhatsAppManager] Resolved escalation for lead: ${leadId}`);
+        } catch (error) {
+            console.error(`[WhatsAppManager] Error resolving escalation:`, error);
+        }
     }
 }
 
-/**
- * Sets the Socket.IO instance for real-time communication.
- */
-function setIoInstance(io) {
-    ioInstance = io;
-}
-
-// --- 7. Module Exports (Must be at the very end of the file) ---
-module.exports = {
-    initializeClient,
-    getQrCode,
-    isClientConnected,
-    logoutClient,
-    sendCoachMessage,
-    sendMediaMessage,
-    setIoInstance,
-    // You can export deleteSession too if you need to call it from outside
-    // deleteSession
-};
+// Export singleton instance
+module.exports = new WhatsAppManager();

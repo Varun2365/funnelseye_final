@@ -1,5 +1,5 @@
+const { AdminUser } = require('../schema');
 const jwt = require('jsonwebtoken');
-const AdminUser = require('../schema/AdminUser');
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
 
 module.exports = async function(req, res, next) {

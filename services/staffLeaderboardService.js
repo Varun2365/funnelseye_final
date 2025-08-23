@@ -1,7 +1,4 @@
-const Staff = require('../schema/Staff');
-const Task = require('../schema/Task');
-const Lead = require('../schema/Lead');
-const Coach = require('../schema/coachSchema');
+const { Staff, Task, Lead, Coach } = require('../schema');
 
 class StaffLeaderboardService {
     constructor() {

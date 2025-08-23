@@ -1,9 +1,7 @@
 // D:\PRJ_YCT_Final\controllers/aiAdsController.js
 
 const aiAdsAgentService = require('../services/aiAdsAgentService');
-const AdCampaign = require('../schema/AdCampaign');
-const AdSet = require('../schema/AdSet');
-const AdCreative = require('../schema/AdCreative');
+const { AdCampaign, AdSet, AdCreative } = require('../schema');
 const asyncHandler = require('../middleware/async');
 
 // @desc    Generate AI-powered ad copy
