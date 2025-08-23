@@ -9,14 +9,14 @@ const zoomIntegrationSchema = new mongoose.Schema({
         index: true
     },
     
-    // Zoom API credentials
-    apiKey: {
+    // Zoom OAuth credentials (for Server-to-Server OAuth apps)
+    clientId: {
         type: String,
         required: true,
         trim: true
     },
     
-    apiSecret: {
+    clientSecret: {
         type: String,
         required: true,
         trim: true
@@ -34,6 +34,9 @@ const zoomIntegrationSchema = new mongoose.Schema({
     },
     
     tokenExpiresAt: Date,
+    
+    // Token generation timestamp
+    tokenGeneratedAt: Date,
     
     // Zoom account information
     zoomAccountId: {
@@ -172,7 +175,7 @@ zoomIntegrationSchema.pre('save', function(next) {
 
 // Method to check if integration is valid
 zoomIntegrationSchema.methods.isValid = function() {
-    return this.isActive && this.apiKey && this.apiSecret;
+    return this.isActive && this.clientId && this.clientSecret;
 };
 
 // Method to check if token needs refresh

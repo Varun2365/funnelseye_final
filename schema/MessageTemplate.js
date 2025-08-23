@@ -20,12 +20,12 @@ const messageTemplateSchema = new mongoose.Schema({
     },
     
     // Template type: whatsapp, email, sms, or universal
-    type: {
-        type: String,
-        enum: ['whatsapp', 'email', 'sms', 'universal'],
-        required: true,
-        default: 'universal'
-    },
+                    type: {
+                    type: String,
+                    enum: ['whatsapp', 'email', 'universal'],
+                    required: true,
+                    default: 'universal'
+                },
     
     // Template category for organization
     category: {

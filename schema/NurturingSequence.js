@@ -21,7 +21,6 @@ const NurturingStepSchema = new mongoose.Schema({
         enum: [
             'send_whatsapp_message',
             'send_email',
-            'send_sms',
             'create_task',
             'update_lead_score',
             'add_lead_tag',

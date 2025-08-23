@@ -1,18 +1,20 @@
-const Coach = require('../schema/coachSchema');
-const CoachPerformance = require('../schema/CoachPerformance');
-const CoachReport = require('../schema/CoachReport');
-const Lead = require('../schema/Lead');
-const Payment = require('../schema/Payment');
-const Task = require('../schema/Task');
-const Appointment = require('../schema/Appointment');
+const { User, CoachPerformance, CoachReport, Lead, Payment, Task, Appointment } = require('../schema');
+
+
 
 // @desc    Add a new coach to downline
 // @route   POST /api/mlm/downline
 // @access  Private
 const addDownline = async (req, res) => {
+    console.log('[MLM Controller] Request body:', req.body);
+    console.log('[MLM Controller] Request headers:', req.headers);
+    
     const { name, email, password, sponsorId } = req.body;
+    
+    console.log('[MLM Controller] Extracted values:', { name, email, password, sponsorId });
 
     if (!email || !password || !name || !sponsorId) {
+        console.log('[MLM Controller] Missing required fields:', { name: !!name, email: !!email, password: !!password, sponsorId: !!sponsorId });
         return res.status(400).json({ 
             success: false,
             message: 'Please enter all required fields: name, email, password, and sponsorId.' 
@@ -20,7 +22,7 @@ const addDownline = async (req, res) => {
     }
 
     try {
-        const sponsor = await Coach.findById(sponsorId);
+        const sponsor = await User.findById(sponsorId);
         if (!sponsor) {
             return res.status(404).json({ 
                 success: false,
@@ -28,7 +30,7 @@ const addDownline = async (req, res) => {
             });
         }
         
-        let coach = await Coach.findOne({ email });
+        let coach = await User.findOne({ email, role: 'coach' });
         if (coach) {
             return res.status(400).json({ 
                 success: false,
@@ -36,10 +38,12 @@ const addDownline = async (req, res) => {
             });
         }
 
-        const newCoach = new Coach({
+        // Create coach using User model with role discriminator
+        const newCoach = new User({
             name,
             email,
             password,
+            role: 'coach', // This will create a Coach discriminator
             sponsorId,
             isVerified: false // New members need to verify email on first login
         });
@@ -81,7 +85,7 @@ const getDownline = async (req, res) => {
     const { includePerformance = 'false' } = req.query;
 
     try {
-        const downline = await Coach.find({ sponsorId }).select('-password -__v');
+        const downline = await User.find({ sponsorId, role: 'coach' }).select('-password -__v');
         
         if (downline.length === 0) {
             return res.status(404).json({ 
@@ -136,7 +140,7 @@ const getDownlineHierarchy = async (req, res) => {
     const { levels = 5, includePerformance = 'false' } = req.query;
 
     try {
-        const sponsor = await Coach.findById(coachId);
+        const sponsor = await User.findById(coachId);
         if (!sponsor) {
             return res.status(404).json({ 
                 success: false,
@@ -144,8 +148,8 @@ const getDownlineHierarchy = async (req, res) => {
             });
         }
 
-        const hierarchy = await Coach.aggregate([
-            { $match: { _id: sponsor._id } },
+        const hierarchy = await User.aggregate([
+            { $match: { _id: sponsor._id, role: 'coach' } },
             {
                 $graphLookup: {
                     from: 'users',
@@ -235,7 +239,7 @@ const getTeamPerformance = async (req, res) => {
 
     try {
         // Get all downline coaches
-        const downline = await Coach.find({ sponsorId }).select('_id name email');
+        const downline = await User.find({ sponsorId, role: 'coach' }).select('_id name email');
         
         if (downline.length === 0) {
             return res.status(404).json({

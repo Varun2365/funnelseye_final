@@ -16,28 +16,31 @@ class ZoomService {
     }
 
     /**
-     * Generate JWT token for Zoom API authentication
+     * Generate OAuth access token for Zoom API authentication
      */
-    generateJWT(apiKey, apiSecret) {
-        const payload = {
-            iss: apiKey,
-            exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour expiry
-        };
+    async generateOAuthToken(clientId, clientSecret, accountId) {
+        try {
+            const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+            
+            const response = await axios.post('https://zoom.us/oauth/token', 
+                'grant_type=account_credentials&account_id=' + accountId,
+                {
+                    headers: {
+                        'Authorization': `Basic ${credentials}`,
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                }
+            );
 
-        const header = {
-            alg: 'HS256',
-            typ: 'JWT'
-        };
-
-        const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
-        const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
-        
-        const signature = crypto
-            .createHmac('sha256', apiSecret)
-            .update(`${encodedHeader}.${encodedPayload}`)
-            .digest('base64url');
-
-        return `${encodedHeader}.${encodedPayload}.${signature}`;
+            return {
+                accessToken: response.data.access_token,
+                expiresIn: response.data.expires_in,
+                tokenType: response.data.token_type
+            };
+        } catch (error) {
+            console.error('[ZoomService] Error generating OAuth token:', error.response?.data || error.message);
+            throw new Error('Failed to generate OAuth token');
+        }
     }
 
     /**
@@ -51,7 +54,7 @@ class ZoomService {
             });
 
             if (!integration) {
-                throw new Error('Zoom integration not found or inactive');
+                throw new Error(`Zoom integration not found for coach ${coachId}. Please set up Zoom integration first.`);
             }
 
             return integration;
@@ -85,8 +88,13 @@ class ZoomService {
             // Get coach's Zoom integration
             const integration = await this.getCoachIntegration(appointment.coachId._id);
 
-            // Generate JWT token
-            const token = this.generateJWT(integration.apiKey, integration.apiSecret);
+            // Generate OAuth token
+            const tokenData = await this.generateOAuthToken(
+                integration.clientId, 
+                integration.clientSecret, 
+                integration.zoomAccountId
+            );
+            const token = tokenData.accessToken;
 
             // Prepare meeting data
             const meetingData = {
@@ -178,7 +186,12 @@ class ZoomService {
             }
 
             const integration = await this.getCoachIntegration(appointment.coachId);
-            const token = this.generateJWT(integration.apiKey, integration.apiSecret);
+            const tokenData = await this.generateOAuthToken(
+                integration.clientId, 
+                integration.clientSecret, 
+                integration.zoomAccountId
+            );
+            const token = tokenData.accessToken;
 
             const meetingData = {
                 topic: updates.topic || appointment.zoomMeeting.topic,
@@ -227,7 +240,12 @@ class ZoomService {
             }
 
             const integration = await this.getCoachIntegration(appointment.coachId);
-            const token = this.generateJWT(integration.apiKey, integration.apiSecret);
+            const tokenData = await this.generateOAuthToken(
+                integration.clientId, 
+                integration.clientSecret, 
+                integration.zoomAccountId
+            );
+            const token = tokenData.accessToken;
 
             await axios.delete(
                 `${this.baseURL}/meetings/${appointment.zoomMeeting.meetingId}`,
@@ -259,7 +277,12 @@ class ZoomService {
     async getMeetingDetails(meetingId, coachId) {
         try {
             const integration = await this.getCoachIntegration(coachId);
-            const token = this.generateJWT(integration.apiKey, integration.apiSecret);
+            const tokenData = await this.generateOAuthToken(
+                integration.clientId, 
+                integration.clientSecret, 
+                integration.zoomAccountId
+            );
+            const token = tokenData.accessToken;
 
             const response = await axios.get(
                 `${this.baseURL}/meetings/${meetingId}`,
@@ -287,7 +310,12 @@ class ZoomService {
     async getMeetingParticipants(meetingId, coachId) {
         try {
             const integration = await this.getCoachIntegration(coachId);
-            const token = this.generateJWT(integration.apiKey, integration.apiSecret);
+            const tokenData = await this.generateOAuthToken(
+                integration.clientId, 
+                integration.clientSecret, 
+                integration.zoomAccountId
+            );
+            const token = tokenData.accessToken;
 
             const response = await axios.get(
                 `${this.baseURL}/meetings/${meetingId}/participants`,
@@ -315,7 +343,12 @@ class ZoomService {
     async testConnection(coachId) {
         try {
             const integration = await this.getCoachIntegration(coachId);
-            const token = this.generateJWT(integration.apiKey, integration.apiSecret);
+            const tokenData = await this.generateOAuthToken(
+                integration.clientId, 
+                integration.clientSecret, 
+                integration.zoomAccountId
+            );
+            const token = tokenData.accessToken;
 
             // Test API connection by getting user profile
             const response = await axios.get(

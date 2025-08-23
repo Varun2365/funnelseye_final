@@ -102,7 +102,7 @@ const TaskSchema = new mongoose.Schema({
         time: Date,
         type: {
             type: String,
-            enum: ['email', 'push', 'sms'],
+            enum: ['email', 'push'],
             default: 'email'
         },
         sent: {

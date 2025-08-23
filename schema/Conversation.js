@@ -22,7 +22,7 @@ const ConversationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['whatsapp', 'sms', 'email', 'other'], // Type of communication channel
+        enum: ['whatsapp', 'email', 'other'], // Type of communication channel
         required: true,
         default: 'whatsapp' // Default to whatsapp as that's our current focus
     },

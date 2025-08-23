@@ -21,7 +21,7 @@ const AutomationActionSchema = new mongoose.Schema({
             // Communication Actions
             'send_whatsapp_message',
             'create_email_message',
-            'create_sms_message',
+    
             'send_internal_notification',
             'send_push_notification',
             'schedule_drip_sequence',

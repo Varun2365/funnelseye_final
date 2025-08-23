@@ -193,46 +193,10 @@ const coachSchema = new mongoose.Schema({
         }
     }
 }, { 
-    timestamps: true,
-    discriminatorKey: 'role',
-    collection: 'users'
+    timestamps: true
+    // Remove collection: 'users' - let it inherit from User model
+    // Remove discriminatorKey: 'role' - let it inherit from User model
 });
 
-// Create the Coach model - ensure it's properly registered
-let Coach;
-
-// Function to create the Coach model
-function createCoachModel() {
-    try {
-        // First, try to get existing model
-        if (mongoose.models.Coach) {
-            return mongoose.models.Coach;
-        }
-
-        // Try to create as discriminator if User model exists
-        if (mongoose.models.User) {
-            try {
-                return User.discriminator('coach', coachSchema);
-            } catch (discriminatorError) {
-                console.warn('Failed to create Coach as discriminator, creating standalone model:', discriminatorError.message);
-            }
-        }
-
-        // Fallback: create standalone model
-        return mongoose.model('Coach', coachSchema);
-    } catch (error) {
-        console.error('Error creating Coach model:', error);
-        // Last resort: create standalone model
-        return mongoose.model('Coach', coachSchema);
-    }
-}
-
-// Initialize the model
-Coach = createCoachModel();
-
-// Ensure the model is registered
-if (!mongoose.models.Coach) {
-    mongoose.models.Coach = Coach;
-}
-
-module.exports = Coach;
+// Export the schema instead of the model to avoid circular dependency
+module.exports = coachSchema;

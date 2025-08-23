@@ -1,8 +1,11 @@
 // D:\PRJ_YCT_Final\schema\index.js
 
+const mongoose = require('mongoose');
+
 // Import all models in dependency order
 const User = require('./User');
-const Coach = require('./coachSchema');
+// Import schemas that will become discriminators
+const coachSchema = require('./coachSchema');
 const Staff = require('./Staff');
 const Lead = require('./Lead');
 const Task = require('./Task');
@@ -19,6 +22,8 @@ const NurturingSequence = require('./NurturingSequence');
 const NurturingStep = require('./NurturingStep');
 const AutomationRule = require('./AutomationRule');
 const CoachAvailability = require('./CoachAvailability');
+const CoachPerformance = require('./CoachPerformance');
+const CoachReport = require('./CoachReport');
 const Appointment = require('./Appointment');
 const CustomDomain = require('./CustomDomain');
 const File = require('./File');
@@ -31,6 +36,25 @@ const SystemLog = require('./SystemLog');
 const WhatsAppMessage = require('./whatsappMessageSchema');
 const MessageTemplate = require('./MessageTemplate');
 const ZoomIntegration = require('./ZoomIntegration');
+
+// Create discriminator models after base models are loaded
+let Coach;
+
+try {
+    // Create Coach as discriminator of User
+    if (User && mongoose.models.User) {
+        console.log('Creating Coach as discriminator of User model');
+        Coach = User.discriminator('coach', coachSchema);
+        console.log('✅ Coach discriminator model created successfully');
+    } else {
+        console.warn('⚠️ User model not available, creating standalone Coach model');
+        Coach = mongoose.model('Coach', coachSchema);
+    }
+} catch (error) {
+    console.error('❌ Error creating Coach model:', error.message);
+    // Fallback to standalone model
+    Coach = mongoose.model('Coach', coachSchema);
+}
 
 // Export all models
 const models = {
@@ -52,6 +76,8 @@ const models = {
     NurturingStep,
     AutomationRule,
     CoachAvailability,
+    CoachPerformance,
+    CoachReport,
     Appointment,
     CustomDomain,
     File,
@@ -73,8 +99,15 @@ Object.entries(models).forEach(([name, model]) => {
     } else if (typeof model !== 'function') {
         console.warn(`⚠️ Warning: Model ${name} is not a function:`, typeof model);
     } else {
-        console.log(`✅ Model ${name} loaded successfully`);
+        console.log(`✅ Model ${name} loaded successfully (${typeof model})`);
     }
 });
+
+// Log discriminator information
+if (Coach && User) {
+    console.log(`🔗 Coach is discriminator of User: ${Coach.modelName === 'User'}`);
+    console.log(`📊 Coach collection: ${Coach.collection.name}`);
+    console.log(`📊 User collection: ${User.collection.name}`);
+}
 
 module.exports = models;

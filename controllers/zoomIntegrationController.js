@@ -7,10 +7,10 @@ const ErrorResponse = require('../utils/errorResponse');
 // @route   POST /api/zoom-integration/setup
 // @access  Private (Coaches)
 const setupZoomIntegration = asyncHandler(async (req, res, next) => {
-    const { apiKey, apiSecret, zoomEmail, meetingSettings } = req.body;
+    const { clientId, clientSecret, zoomEmail, zoomAccountId, meetingSettings } = req.body;
     
-    if (!apiKey || !apiSecret) {
-        return next(new ErrorResponse('API Key and API Secret are required', 400));
+    if (!clientId || !clientSecret || !zoomEmail || !zoomAccountId) {
+        return next(new ErrorResponse('Client ID, Client Secret, Zoom Email, and Account ID are required', 400));
     }
 
     // Check if integration already exists
@@ -18,9 +18,10 @@ const setupZoomIntegration = asyncHandler(async (req, res, next) => {
     
     if (integration) {
         // Update existing integration
-        integration.apiKey = apiKey;
-        integration.apiSecret = apiSecret;
+        integration.clientId = clientId;
+        integration.clientSecret = clientSecret;
         integration.zoomEmail = zoomEmail;
+        integration.zoomAccountId = zoomAccountId;
         if (meetingSettings) {
             integration.meetingSettings = { ...integration.meetingSettings, ...meetingSettings };
         }
@@ -28,22 +29,33 @@ const setupZoomIntegration = asyncHandler(async (req, res, next) => {
         // Create new integration
         integration = new ZoomIntegration({
             coachId: req.coachId,
-            apiKey,
-            apiSecret,
+            clientId,
+            clientSecret,
             zoomEmail,
+            zoomAccountId,
             meetingSettings: meetingSettings || {}
         });
     }
 
-    // Test the connection
+    // Save the integration first
+    await integration.save();
+    
+    // Then test the connection
     try {
         const testResult = await zoomService.testConnection(req.coachId);
         if (!testResult.success) {
+            // If test fails, update integration status and return error
+            integration.lastSync = {
+                timestamp: new Date(),
+                status: 'failed',
+                error: testResult.message
+            };
+            await integration.save();
+            
             return next(new ErrorResponse(`Zoom connection test failed: ${testResult.message}`, 400));
         }
         
-        // Update integration with account info
-        integration.zoomAccountId = testResult.user.id;
+        // Update integration with success status
         integration.lastSync = {
             timestamp: new Date(),
             status: 'success'
@@ -63,6 +75,14 @@ const setupZoomIntegration = asyncHandler(async (req, res, next) => {
         });
         
     } catch (error) {
+        // Update integration with error status
+        integration.lastSync = {
+            timestamp: new Date(),
+            status: 'failed',
+            error: error.message
+        };
+        await integration.save();
+        
         return next(new ErrorResponse(`Failed to setup Zoom integration: ${error.message}`, 400));
     }
 });

@@ -172,27 +172,15 @@ const signup = async (req, res) => {
             return res.status(400).json({ success: false, message: 'User with this email already exists and is verified.' });
         }
 
-        let newUser;
-        if (role === 'coach') {
-            // Use the Coach discriminator model for coaches
-            newUser = await Coach.create({
-                name,
-                email,
-                password,
-                role,
-                isVerified: false,
-                sponsorId: null 
-            });
-        } else {
-            // Use the base User model for all other roles
-            newUser = await User.create({
-                name,
-                email,
-                password,
-                role,
-                isVerified: false
-            });
-        }
+        // Always use User model - the role field will automatically create the right discriminator
+        newUser = await User.create({
+            name,
+            email,
+            password,
+            role,
+            isVerified: false,
+            ...(role === 'coach' && { sponsorId: null }) // Only add sponsorId for coaches
+        });
         
         const otp = generateOtp();
         await Otp.create({ email, otp, createdAt: new Date(), expiresAt: new Date(Date.now() + 5 * 60 * 1000) });
