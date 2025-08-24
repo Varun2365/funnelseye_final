@@ -32,6 +32,9 @@ const AutomationActionSchema = new mongoose.Schema({
             'add_note_to_lead',
             'add_followup_date',
 
+            // Zoom Integration Actions
+            'create_zoom_meeting',
+
             // Payment Actions
             'create_invoice',
             'issue_refund',
@@ -54,6 +57,11 @@ const AutomationRuleSchema = new mongoose.Schema({
         required: true,
         unique: true,
         trim: true
+    },
+    coachId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
     },
     triggerEvent: {
         type: String,

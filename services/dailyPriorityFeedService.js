@@ -1,7 +1,6 @@
 // D:\PRJ_YCT_Final\services\dailyPriorityFeedService.js
 
-const Lead = require('../schema/Lead');
-const Appointment = require('../schema/Appointment'); // <-- ADD THIS
+const { Lead, Appointment } = require('../schema');
 
 const generateDailyPriorityFeed = async (coachId) => {
     const feedItems = [];
@@ -11,6 +10,29 @@ const generateDailyPriorityFeed = async (coachId) => {
     const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
     const seventyTwoHoursAgo = new Date(now.getTime() - (72 * 60 * 60 * 1000));
     const fifteenDaysAgo = new Date(now.getTime() - (15 * 24 * 60 * 60 * 1000));
+
+    console.log(`[DailyPriorityFeedService] Generating feed for coachId: ${coachId}`);
+    console.log(`[DailyPriorityFeedService] Time ranges - Now: ${now}, 24h ago: ${twentyFourHoursAgo}, 72h ago: ${seventyTwoHoursAgo}`);
+
+    // Debug: Check total leads for this coach
+    try {
+        const totalLeads = await Lead.countDocuments({ coachId: coachId });
+        console.log(`[DailyPriorityFeedService] Total leads for coach ${coachId}: ${totalLeads}`);
+        
+        if (totalLeads > 0) {
+            const sampleLead = await Lead.findOne({ coachId: coachId });
+            console.log(`[DailyPriorityFeedService] Sample lead:`, {
+                id: sampleLead._id,
+                name: sampleLead.name,
+                status: sampleLead.status,
+                leadTemperature: sampleLead.leadTemperature,
+                createdAt: sampleLead.createdAt,
+                nextFollowUpAt: sampleLead.nextFollowUpAt
+            });
+        }
+    } catch (error) {
+        console.error('[DailyPriorityFeedService] Error checking total leads:', error.message);
+    }
 
     // Priority 0: Today's Appointments (New)
     try {
@@ -55,6 +77,31 @@ const generateDailyPriorityFeed = async (coachId) => {
         });
     } catch (error) {
         console.error('[DailyPriorityFeedService] Error fetching overdue follow-ups:', error.message);
+    }
+
+    // Priority 1.5: New Leads (Created in last 24 hours) - ADD THIS SECTION
+    try {
+        const newLeads = await Lead.find({
+            coachId: coachId,
+            status: 'New',
+            createdAt: { $gte: twentyFourHoursAgo }
+        }).sort('-createdAt');
+
+        console.log(`[DailyPriorityFeedService] Found ${newLeads.length} new leads in last 24 hours`);
+
+        newLeads.forEach(lead => {
+            feedItems.push({
+                type: 'New Lead',
+                priority: 1.5,
+                title: `New Lead: ${lead.name}`,
+                description: `Source: ${lead.source || 'N/A'}. Created: ${lead.createdAt.toLocaleString()}.`,
+                leadId: lead._id,
+                leadName: lead.name,
+                createdAt: lead.createdAt
+            });
+        });
+    } catch (error) {
+        console.error('[DailyPriorityFeedService] Error fetching new leads:', error.message);
     }
 
     // Priority 2: Leads Requiring Immediate Follow-up Today
@@ -133,7 +180,33 @@ const generateDailyPriorityFeed = async (coachId) => {
         console.error('[DailyPriorityFeedService] Error fetching stale leads:', error.message);
     }
 
+    // Priority 5: All Recent Leads (Fallback for when other criteria don't match)
+    try {
+        const recentLeads = await Lead.find({
+            coachId: coachId,
+            status: { $nin: ['Converted', 'Unqualified'] },
+            createdAt: { $gte: seventyTwoHoursAgo }
+        }).sort('-createdAt').limit(10);
+
+        recentLeads.forEach(lead => {
+            feedItems.push({
+                type: 'Recent Lead',
+                priority: 5,
+                title: `Recent Lead: ${lead.name}`,
+                description: `Status: ${lead.status}. Source: ${lead.source || 'N/A'}. Created: ${lead.createdAt.toLocaleString()}.`,
+                leadId: lead._id,
+                leadName: lead.name,
+                createdAt: lead.createdAt
+            });
+        });
+    } catch (error) {
+        console.error('[DailyPriorityFeedService] Error fetching recent leads:', error.message);
+    }
+
     feedItems.sort((a, b) => a.priority - b.priority);
+
+    console.log(`[DailyPriorityFeedService] Generated ${feedItems.length} feed items for coach ${coachId}`);
+    console.log(`[DailyPriorityFeedService] Feed items:`, feedItems.map(item => ({ type: item.type, priority: item.priority, title: item.title })));
 
     return feedItems;
 };

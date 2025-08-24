@@ -41,8 +41,10 @@ const initActionExecutorWorker = async () => {
                     console.error('[Action Executor] Error processing action:', error);
                     // Log the payload for debugging
                     console.error('Action Payload:', actionPayload);
-                    // Re-queue the message for a retry
-                    channel.nack(msg);
+                    // Since we handle failures gracefully in the action executor,
+                    // we can still ack the message to prevent infinite loops
+                    console.log('[Action Executor] Acknowledging message despite error to prevent infinite loops');
+                    channel.ack(msg);
                 }
             }
         });

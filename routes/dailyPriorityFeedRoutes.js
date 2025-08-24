@@ -8,6 +8,7 @@ const {
     getAvailableSlots, 
     bookAppointment, 
     getCoachCalendar,
+    getAppointmentDetails,
     rescheduleAppointment,
     cancelAppointment
 } = require('../controllers/coachAvailabilityController');
@@ -29,7 +30,8 @@ router.post('/availability', protect, updateLastActive, authorizeCoach('coach', 
 router.get('/:coachId/available-slots', getAvailableSlots);
 router.post('/:coachId/book', bookAppointment);
 router.get('/:coachId/calendar', getCoachCalendar);
-// Reschedule/cancel endpoints (protected)
+// Appointment management endpoints (protected)
+router.get('/appointments/:id', protect, updateLastActive, authorizeCoach('coach','admin','staff'), getAppointmentDetails);
 router.put('/appointments/:id/reschedule', protect, updateLastActive, authorizeCoach('coach','admin','staff'), rescheduleAppointment);
 router.delete('/appointments/:id', protect, updateLastActive, authorizeCoach('coach','admin','staff'), cancelAppointment);
 

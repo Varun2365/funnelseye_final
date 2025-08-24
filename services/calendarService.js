@@ -105,6 +105,7 @@ const bookAppointment = async (coachId, leadId, startTime, duration, notes, time
         summary: notes || `New Appointment with Coach ${coachId}`,
         notes,
         timeZone,
+        appointmentType: 'online', // Default to online for Zoom integration
     });
 
     // 1. Publish 'appointment_booked' event to RabbitMQ

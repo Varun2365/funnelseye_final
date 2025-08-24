@@ -482,3 +482,46 @@ function convertToCSV(data) {
     
     return lines.join('\n');
 }
+
+// ===== ZOOM MEETINGS MANAGEMENT =====
+
+// Get all Zoom meetings for the coach
+exports.getZoomMeetings = asyncHandler(async (req, res, next) => {
+    const coachId = req.user.id;
+    const zoomService = require('../services/zoomService');
+
+    try {
+        const meetings = await zoomService.getCoachZoomMeetings(coachId);
+        
+        res.json({
+            success: true,
+            data: meetings
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// Get Zoom meeting details for a specific appointment
+exports.getZoomMeetingDetails = asyncHandler(async (req, res, next) => {
+    const { appointmentId } = req.params;
+    const coachId = req.user.id;
+    const zoomService = require('../services/zoomService');
+
+    try {
+        const meetingDetails = await zoomService.getZoomMeetingForAppointment(appointmentId, coachId);
+        
+        res.json({
+            success: true,
+            data: meetingDetails
+        });
+    } catch (error) {
+        res.status(404).json({
+            success: false,
+            message: error.message
+        });
+    }
+});

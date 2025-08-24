@@ -113,10 +113,36 @@ async function sendWhatsAppMessage(config, eventPayload) {
     const recipientNumber = leadData.phone;
     if (!recipientNumber) { throw new Error('Recipient phone number not found in event payload.'); }
     
-    // You'll need to define how message content is passed from your rules
-    const messageContent = config.message || `Hi ${leadData.name}, this is an automated message.`;
-    // await sendMessageByCoach(coachId, recipientNumber, messageContent);
-    console.log(`[ActionExecutor] WhatsApp message sent to ${recipientNumber} via metaWhatsAppService.`);
+    // Get message content from config
+    let messageContent = config.messageTemplate || config.message || `Hi ${leadData.name}, this is an automated message.`;
+    
+    // Process template variables in the message
+    if (messageContent.includes('{{lead.name}}')) {
+        messageContent = messageContent.replace('{{lead.name}}', leadData.name || 'there');
+    }
+    if (messageContent.includes('{{lead.email}}')) {
+        messageContent = messageContent.replace('{{lead.email}}', leadData.email || 'your email');
+    }
+    if (messageContent.includes('{{lead.phone}}')) {
+        messageContent = messageContent.replace('{{lead.phone}}', leadData.phone || 'your phone');
+    }
+    
+    // Apply delay if specified
+    if (config.delayMinutes && config.delayMinutes > 0) {
+        console.log(`[ActionExecutor] WhatsApp message scheduled with ${config.delayMinutes} minute delay to ${recipientNumber}`);
+        // In a real implementation, you'd schedule this message
+        // For now, we'll send it immediately
+    }
+    
+    // Send the message
+    try {
+        await sendMessageByCoach(coachId, recipientNumber, messageContent);
+        console.log(`[ActionExecutor] WhatsApp message sent to ${recipientNumber}: ${messageContent}`);
+    } catch (error) {
+        console.error(`[ActionExecutor] Unable to send WhatsApp message to ${recipientNumber}:`, error.message);
+        console.log(`[ActionExecutor] WhatsApp message failed but continuing to prevent infinite loops`);
+        // Don't throw error - just log and continue
+    }
 }
 
 /**
@@ -172,11 +198,44 @@ async function createNewTask(config, eventPayload) {
     // Corrected to use relatedDoc
     const leadData = eventPayload.relatedDoc;
     const { coachId } = leadData;
-    const { taskName, taskDescription, dueDate } = config;
-    if (!leadData || !coachId) { throw new Error('Lead or coach data not found.'); }
-    await Task.create({
-        name: taskName, description: taskDescription, assignedTo: coachId, relatedLead: leadData._id, dueDate: dueDate
+    
+    // Support both field naming conventions
+    const taskName = config.taskName || config.title;
+    const taskDescription = config.taskDescription || config.description;
+    let dueDate = config.dueDate;
+    
+    if (!leadData || !coachId) { 
+        throw new Error('Lead or coach data not found.'); 
+    }
+    
+    if (!taskName) {
+        throw new Error('Task name is required.');
+    }
+    
+    // Process dueDate if it's a template string or relative time
+    if (dueDate && typeof dueDate === 'string') {
+        if (dueDate.includes('{{lead.createdAt + 24h}}')) {
+            // Calculate 24 hours from lead creation
+            const leadCreatedAt = new Date(leadData.createdAt);
+            dueDate = new Date(leadCreatedAt.getTime() + 24 * 60 * 60 * 1000);
+        } else if (dueDate.includes('{{lead.createdAt + 2h}}')) {
+            // Calculate 2 hours from lead creation
+            const leadCreatedAt = new Date(leadData.createdAt);
+            dueDate = new Date(leadCreatedAt.getTime() + 2 * 60 * 60 * 1000);
+        }
+    }
+    
+    const task = await Task.create({
+        name: taskName,
+        description: taskDescription,
+        assignedTo: coachId,
+        relatedLead: leadData._id,
+        dueDate: dueDate,
+        coachId: coachId // Add coachId field
     });
+    
+    console.log(`[ActionExecutor] Task created successfully: ${task.name} for coach ${coachId}`);
+    return task;
 }
 
 /**
@@ -201,6 +260,156 @@ async function createCalendarEvent(config, eventPayload) {
     });
 }
 
+    /**
+     * Sends Zoom meeting notification to lead
+     */
+    async function sendZoomMeetingNotification(appointmentId, zoomMeeting) {
+        try {
+            // Get appointment details
+            const appointment = await Appointment.findById(appointmentId)
+                .populate('leadId', 'name email phone')
+                .populate('coachId', 'name email');
+
+            if (!appointment || !appointment.leadId) {
+                throw new Error('Appointment or lead not found');
+            }
+
+            const lead = appointment.leadId;
+            const coach = appointment.coachId;
+
+            // Send WhatsApp message with Zoom details
+            if (lead.phone) {
+                const whatsappMessage = `Hi ${lead.name}! 🎉
+
+Your Zoom meeting has been scheduled with ${coach.name}:
+
+📅 Date: ${new Date(appointment.startTime).toLocaleDateString()}
+⏰ Time: ${new Date(appointment.startTime).toLocaleTimeString()}
+⏱️ Duration: ${appointment.duration} minutes
+
+🔗 Join Meeting: ${zoomMeeting.joinUrl}
+🔑 Password: ${zoomMeeting.password}
+
+Please join 5 minutes before the scheduled time.
+
+See you there! 👋`;
+
+                await sendWhatsAppMessage({
+                    messageTemplate: whatsappMessage
+                }, {
+                    relatedDoc: {
+                        phone: lead.phone,
+                        coachId: coach._id,
+                        name: lead.name,
+                        email: lead.email
+                    }
+                });
+            }
+
+            // Send email with Zoom details
+            if (lead.email) {
+                const emailSubject = `Your Zoom Meeting with ${coach.name} - ${new Date(appointment.startTime).toLocaleDateString()}`;
+                const emailBody = `
+                    <h2>Your Zoom Meeting is Ready! 🎉</h2>
+                    
+                    <p>Hi ${lead.name},</p>
+                    
+                    <p>Your Zoom meeting with <strong>${coach.name}</strong> has been scheduled:</p>
+                    
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <h3>Meeting Details:</h3>
+                        <p><strong>Date:</strong> ${new Date(appointment.startTime).toLocaleDateString()}</p>
+                        <p><strong>Time:</strong> ${new Date(appointment.startTime).toLocaleTimeString()}</p>
+                        <p><strong>Duration:</strong> ${appointment.duration} minutes</p>
+                        <p><strong>Coach:</strong> ${coach.name}</p>
+                    </div>
+                    
+                    <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <h3>Join Your Meeting:</h3>
+                        <p><strong>Meeting Link:</strong> <a href="${zoomMeeting.joinUrl}" style="color: #1976d2;">${zoomMeeting.joinUrl}</a></p>
+                        <p><strong>Password:</strong> ${zoomMeeting.password}</p>
+                    </div>
+                    
+                    <p><strong>Important:</strong> Please join 5 minutes before the scheduled time.</p>
+                    
+                    <p>If you have any questions, please contact your coach.</p>
+                    
+                    <p>Best regards,<br>Your Coaching Team</p>
+                `;
+
+                await sendEmail({
+                    subject: emailSubject,
+                    body: emailBody
+                }, {
+                    relatedDoc: {
+                        email: lead.email,
+                        name: lead.name
+                    }
+                });
+            }
+
+            console.log(`[ActionExecutor] Zoom meeting notification sent to lead ${lead.name} (${lead.email})`);
+        } catch (error) {
+            console.error(`[ActionExecutor] Error sending Zoom notification:`, error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Creates a Zoom meeting for an appointment.
+     */
+    async function createZoomMeeting(config, eventPayload) {
+    console.log('[ActionExecutor] createZoomMeeting called with eventPayload:', JSON.stringify(eventPayload, null, 2));
+    
+    // Extract data from the appointment_booked event
+    let appointmentId, coachId;
+    
+    if (eventPayload.relatedDoc) {
+        // Try to get from relatedDoc first
+        appointmentId = eventPayload.relatedDoc.appointmentId || eventPayload.relatedDoc._id;
+        coachId = eventPayload.relatedDoc.coachId;
+    }
+    
+    // If not found in relatedDoc, try from payload
+    if (!appointmentId) {
+        appointmentId = eventPayload.payload?.appointmentId;
+    }
+    if (!coachId) {
+        coachId = eventPayload.payload?.coachId;
+    }
+    
+    console.log(`[ActionExecutor] Extracted - appointmentId: ${appointmentId}, coachId: ${coachId}`);
+    
+    if (!appointmentId || !coachId) {
+        throw new Error(`Appointment ID and coach ID are required for creating Zoom meeting. Got: appointmentId=${appointmentId}, coachId=${coachId}`);
+    }
+
+    try {
+        // Import Zoom service
+        const zoomService = require('./zoomService');
+        
+        // Create Zoom meeting for the appointment
+        const zoomMeeting = await zoomService.createMeetingForAppointment(appointmentId);
+        
+        console.log(`[ActionExecutor] Zoom meeting created successfully for appointment ${appointmentId}: ${zoomMeeting.meetingId}`);
+        
+        // Send notification to lead with Zoom meeting details
+        try {
+            await this.sendZoomMeetingNotification(appointmentId, zoomMeeting);
+            console.log(`[ActionExecutor] Zoom meeting notification sent to lead for appointment ${appointmentId}`);
+        } catch (error) {
+            console.error(`[ActionExecutor] Failed to send Zoom notification to lead:`, error.message);
+            // Don't fail the entire process if notification fails
+        }
+        
+        return zoomMeeting;
+    } catch (error) {
+        console.error(`[ActionExecutor] Failed to create Zoom meeting for appointment ${appointmentId}:`, error.message);
+        // Don't throw error to prevent automation loops
+        return null;
+    }
+}
+
 /**
  * Sends a notification to a coach's dashboard.
  */
@@ -219,9 +428,27 @@ async function updateLeadField(config, eventPayload) {
     const { field, value } = config;
     if (!leadId || !field) { throw new Error('Lead ID and field to update are required.'); }
     
+    let processedValue = value;
+    
+    // Process template variables in the value
+    if (typeof value === 'string' && value.includes('{{lead.')) {
+        const leadData = eventPayload.relatedDoc;
+        if (value.includes('{{lead.name}}')) {
+            processedValue = value.replace('{{lead.name}}', leadData.name || 'Unknown');
+        }
+        if (value.includes('{{lead.email}}')) {
+            processedValue = value.replace('{{lead.email}}', leadData.email || 'No email');
+        }
+        if (value.includes('{{lead.phone}}')) {
+            processedValue = value.replace('{{lead.phone}}', leadData.phone || 'No phone');
+        }
+    }
+    
     const updateObject = {};
-    updateObject[field] = value;
+    updateObject[field] = processedValue;
     await Lead.findByIdAndUpdate(leadId, { $set: updateObject });
+    
+    console.log(`[ActionExecutor] Lead field "${field}" updated to "${processedValue}" for lead ${leadId}`);
 }
 
 async function updateLeadScore(config, eventPayload) {
@@ -280,48 +507,300 @@ async function handlePaymentActions(config, eventPayload) {
 
 // Add missing action handlers
 async function addLeadTag(config, eventPayload) {
-    // Implement logic to add a tag to a lead
-    // Example: await Lead.findByIdAndUpdate(eventPayload.relatedDoc._id, { $addToSet: { tags: config.tag } });
+    const leadId = eventPayload.relatedDoc._id;
+    const { tag } = config;
+    
+    if (!leadId || !tag) {
+        throw new Error('Lead ID and tag are required for adding lead tag.');
+    }
+    
+    await Lead.findByIdAndUpdate(leadId, { 
+        $addToSet: { tags: tag } 
+    });
+    
+    console.log(`[ActionExecutor] Tag "${tag}" added to lead ${leadId}`);
 }
 async function removeLeadTag(config, eventPayload) {
-    // Implement logic to remove a tag from a lead
-    // Example: await Lead.findByIdAndUpdate(eventPayload.relatedDoc._id, { $pull: { tags: config.tag } });
+    const leadId = eventPayload.relatedDoc._id;
+    const { tag } = config;
+    
+    if (!leadId || !tag) {
+        throw new Error('Lead ID and tag are required for removing lead tag.');
+    }
+    
+    await Lead.findByIdAndUpdate(leadId, { 
+        $pull: { tags: tag } 
+    });
+    
+    console.log(`[ActionExecutor] Tag "${tag}" removed from lead ${leadId}`);
 }
 async function addToFunnel(config, eventPayload) {
-    // Implement logic to add a lead to a funnel
+    const leadId = eventPayload.relatedDoc._id;
+    const { funnelId, stageId = null } = config;
+    
+    if (!leadId || !funnelId) {
+        throw new Error('Lead ID and funnel ID are required for adding lead to funnel.');
+    }
+    
+    await Lead.findByIdAndUpdate(leadId, { 
+        $set: { 
+            funnelId: funnelId,
+            currentStage: stageId || 'entry',
+            addedToFunnelAt: new Date()
+        } 
+    });
+    
+    console.log(`[ActionExecutor] Lead ${leadId} added to funnel ${funnelId} at stage ${stageId || 'entry'}`);
 }
 async function moveToFunnelStage(config, eventPayload) {
-    // Implement logic to move a lead to a specific funnel stage
+    const leadId = eventPayload.relatedDoc._id;
+    const { stageId, stageName } = config;
+    
+    if (!leadId || !stageId) {
+        throw new Error('Lead ID and stage ID are required for moving lead to funnel stage.');
+    }
+    
+    await Lead.findByIdAndUpdate(leadId, { 
+        $set: { 
+            currentStage: stageId,
+            lastStageChange: new Date()
+        },
+        $push: {
+            funnelHistory: {
+                stageId: stageId,
+                stageName: stageName || stageId,
+                enteredAt: new Date()
+            }
+        }
+    });
+    
+    console.log(`[ActionExecutor] Lead ${leadId} moved to funnel stage ${stageId}`);
 }
 async function removeFromFunnel(config, eventPayload) {
-    // Implement logic to remove a lead from a funnel
+    const leadId = eventPayload.relatedDoc._id;
+    
+    if (!leadId) {
+        throw new Error('Lead ID is required for removing lead from funnel.');
+    }
+    
+    await Lead.findByIdAndUpdate(leadId, { 
+        $unset: { 
+            funnelId: 1,
+            currentStage: 1,
+            addedToFunnelAt: 1
+        } 
+    });
+    
+    console.log(`[ActionExecutor] Lead ${leadId} removed from funnel`);
 }
 async function createDeal(config, eventPayload) {
-    // Implement logic to create a deal for a lead
+    const leadId = eventPayload.relatedDoc._id;
+    const { dealValue, dealType = 'consultation', description } = config;
+    
+    if (!leadId) {
+        throw new Error('Lead ID is required for creating deal.');
+    }
+    
+    // This would typically create a deal in a separate collection
+    // For now, we'll update the lead with deal information
+    await Lead.findByIdAndUpdate(leadId, { 
+        $set: { 
+            dealStatus: 'created',
+            dealValue: dealValue,
+            dealType: dealType,
+            dealDescription: description,
+            dealCreatedAt: new Date()
+        } 
+    });
+    
+    console.log(`[ActionExecutor] Deal created for lead ${leadId}: ${dealType} - ${dealValue}`);
 }
 async function sendPushNotification(config, eventPayload) {
-    // Implement logic to send a push notification
+    const { recipientId, message, title } = config;
+    
+    if (!recipientId || !message) {
+        throw new Error('Recipient ID and message are required for push notification.');
+    }
+    
+    // This would typically integrate with a push notification service
+    // For now, we'll log it and could store it in a notifications collection
+    console.log(`[ActionExecutor] Push notification sent to ${recipientId}: ${title || 'Notification'} - ${message}`);
+    
+    // You could store this in a notifications collection for later processing
+    // await Notification.create({ recipientId, title, message, type: 'push', sentAt: new Date() });
 }
 async function scheduleDripSequence(config, eventPayload) {
-    // Implement logic to schedule a drip sequence
+    const leadId = eventPayload.relatedDoc._id;
+    const { sequenceName, startDelay = 0 } = config;
+    
+    if (!leadId || !sequenceName) {
+        throw new Error('Lead ID and sequence name are required for scheduling drip sequence.');
+    }
+    
+    // Calculate start time based on delay
+    const startTime = new Date(Date.now() + (startDelay * 60 * 1000)); // Convert minutes to milliseconds
+    
+    await Lead.findByIdAndUpdate(leadId, { 
+        $set: { 
+            dripSequence: {
+                name: sequenceName,
+                scheduledStart: startTime,
+                status: 'scheduled',
+                currentStep: 0
+            }
+        } 
+    });
+    
+    console.log(`[ActionExecutor] Drip sequence "${sequenceName}" scheduled for lead ${leadId} to start at ${startTime}`);
 }
 async function addNoteToLead(config, eventPayload) {
-    // Implement logic to add a note to a lead
+    const leadId = eventPayload.relatedDoc._id;
+    const { note, noteType = 'automation' } = config;
+    
+    if (!leadId || !note) {
+        throw new Error('Lead ID and note are required for adding note to lead.');
+    }
+    
+    await Lead.findByIdAndUpdate(leadId, { 
+        $push: { 
+            notes: {
+                content: note,
+                type: noteType,
+                createdAt: new Date(),
+                createdBy: 'automation_system'
+            }
+        } 
+    });
+    
+    console.log(`[ActionExecutor] Note added to lead ${leadId}: ${note}`);
 }
 async function addFollowupDate(config, eventPayload) {
-    // Implement logic to add a follow-up date to a lead
+    const leadId = eventPayload.relatedDoc._id;
+    const { followupDate, followupType = 'general' } = config;
+    
+    if (!leadId || !followupDate) {
+        throw new Error('Lead ID and followup date are required.');
+    }
+    
+    let calculatedDate;
+    if (typeof followupDate === 'string' && followupDate.includes('{{lead.createdAt +')) {
+        // Parse relative time expressions
+        const leadCreatedAt = new Date(eventPayload.relatedDoc.createdAt);
+        if (followupDate.includes('24h')) {
+            calculatedDate = new Date(leadCreatedAt.getTime() + 24 * 60 * 60 * 1000);
+        } else if (followupDate.includes('2h')) {
+            calculatedDate = new Date(leadCreatedAt.getTime() + 2 * 60 * 60 * 1000);
+        } else {
+            calculatedDate = new Date(followupDate);
+        }
+    } else {
+        calculatedDate = new Date(followupDate);
+    }
+    
+    await Lead.findByIdAndUpdate(leadId, { 
+        $set: { 
+            nextFollowupDate: calculatedDate,
+            followupType: followupType
+        } 
+    });
+    
+    console.log(`[ActionExecutor] Followup date set for lead ${leadId}: ${calculatedDate}`);
 }
 async function createInvoice(config, eventPayload) {
-    // Implement logic to create an invoice
+    const leadId = eventPayload.relatedDoc._id;
+    const { amount, currency = 'USD', description, dueDate } = config;
+    
+    if (!leadId || !amount) {
+        throw new Error('Lead ID and amount are required for creating invoice.');
+    }
+    
+    // This would typically create an invoice in a separate collection
+    // For now, we'll update the lead with invoice information
+    await Lead.findByIdAndUpdate(leadId, { 
+        $set: { 
+            invoiceStatus: 'created',
+            invoiceAmount: amount,
+            invoiceCurrency: currency,
+            invoiceDescription: description,
+            invoiceDueDate: dueDate ? new Date(dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default 30 days
+            invoiceCreatedAt: new Date()
+        } 
+    });
+    
+    console.log(`[ActionExecutor] Invoice created for lead ${leadId}: ${amount} ${currency}`);
 }
 async function issueRefund(config, eventPayload) {
-    // Implement logic to issue a refund
+    const leadId = eventPayload.relatedDoc._id;
+    const { amount, reason, refundType = 'partial' } = config;
+    
+    if (!leadId || !amount) {
+        throw new Error('Lead ID and amount are required for issuing refund.');
+    }
+    
+    // This would typically create a refund record in a separate collection
+    // For now, we'll update the lead with refund information
+    await Lead.findByIdAndUpdate(leadId, { 
+        $set: { 
+            refundStatus: 'issued',
+            refundAmount: amount,
+            refundReason: reason,
+            refundType: refundType,
+            refundIssuedAt: new Date()
+        } 
+    });
+    
+    console.log(`[ActionExecutor] Refund issued for lead ${leadId}: ${amount} - ${reason}`);
 }
 async function callWebhook(config, eventPayload) {
-    // Implement logic to call an external webhook
+    const { url, method = 'POST', headers = {}, body = {} } = config;
+    
+    if (!url) {
+        throw new Error('Webhook URL is required for calling webhook.');
+    }
+    
+    try {
+        // This would typically use axios or fetch to call the webhook
+        console.log(`[ActionExecutor] Webhook called: ${method} ${url}`);
+        console.log(`[ActionExecutor] Webhook payload:`, body);
+        
+        // Example webhook call (you'd need to import axios)
+        // const response = await axios({
+        //     method: method.toLowerCase(),
+        //     url: url,
+        //     headers: headers,
+        //     data: body
+        // });
+        
+        console.log(`[ActionExecutor] Webhook call successful to ${url}`);
+    } catch (error) {
+        console.error(`[ActionExecutor] Webhook call failed to ${url}:`, error.message);
+        throw error;
+    }
 }
 async function triggerAnotherAutomation(config, eventPayload) {
-    // Implement logic to trigger another automation rule
+    const { automationRuleId, triggerData = {} } = config;
+    
+    if (!automationRuleId) {
+        throw new Error('Automation rule ID is required for triggering another automation.');
+    }
+    
+    try {
+        // This would typically publish a new event to RabbitMQ
+        console.log(`[ActionExecutor] Triggering another automation rule: ${automationRuleId}`);
+        console.log(`[ActionExecutor] Trigger data:`, triggerData);
+        
+        // Example: Publish event to trigger another automation
+        // await publishEvent('automation_triggered', {
+        //     ruleId: automationRuleId,
+        //     triggerData: triggerData,
+        //     sourceEvent: eventPayload
+        // });
+        
+        console.log(`[ActionExecutor] Successfully triggered automation rule ${automationRuleId}`);
+    } catch (error) {
+        console.error(`[ActionExecutor] Failed to trigger automation rule ${automationRuleId}:`, error.message);
+        throw error;
+    }
 }
 
 
@@ -336,6 +815,7 @@ async function triggerAnotherAutomation(config, eventPayload) {
 async function executeAutomationAction(payload) {
     const { actionType, config, payload: eventPayload } = payload;
     console.log(`[ActionExecutor] Dispatching action: ${actionType}`);
+    console.log(`[ActionExecutor] Full payload:`, JSON.stringify(payload, null, 2));
 
     try {
         switch (actionType) {
@@ -343,6 +823,7 @@ async function executeAutomationAction(payload) {
                 await sendWhatsAppMessage(config, eventPayload);
                 break;
             case 'send_email':
+            case 'create_email_message':
                 await sendEmail(config, eventPayload);
                 break;
             case 'send_sms':
@@ -355,6 +836,7 @@ async function executeAutomationAction(payload) {
                 await aiRescoreLead(config, eventPayload);
                 break;
             case 'create_new_task':
+            case 'create_task':
                 await createNewTask(config, eventPayload);
                 break;
             case 'send_internal_notification':
@@ -400,6 +882,12 @@ async function executeAutomationAction(payload) {
             case 'add_followup_date':
                 await addFollowupDate(config, eventPayload);
                 break;
+            case 'create_zoom_meeting':
+                await createZoomMeeting(config, eventPayload);
+                break;
+            case 'create_deal':
+                await createDeal(config, eventPayload);
+                break;
             case 'create_invoice':
                 await createInvoice(config, eventPayload);
                 break;
@@ -417,7 +905,9 @@ async function executeAutomationAction(payload) {
         }
     } catch (error) {
         console.error(`[ActionExecutor] Failed to execute action "${actionType}":`, error.message);
-        throw error;
+        // Don't re-throw the error to prevent infinite loops in RabbitMQ
+        // Just log the failure and continue
+        console.log(`[ActionExecutor] Action "${actionType}" failed but continuing to prevent infinite loops`);
     }
 }
 

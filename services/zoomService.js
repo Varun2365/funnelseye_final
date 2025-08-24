@@ -80,9 +80,14 @@ class ZoomService {
                 throw new Error('Appointment not found');
             }
 
-            // Check if appointment is online
-            if (appointment.appointmentType !== 'online') {
+            // Check if appointment is online (with backward compatibility)
+            if (appointment.appointmentType && appointment.appointmentType !== 'online') {
                 throw new Error('Appointment is not online type');
+            }
+            
+            // If appointmentType is not set, assume it's online (for backward compatibility)
+            if (!appointment.appointmentType) {
+                console.log(`[ZoomService] Appointment ${appointment._id} has no appointmentType, assuming online`);
             }
 
             // Get coach's Zoom integration
@@ -391,6 +396,93 @@ class ZoomService {
 
         } catch (error) {
             console.error(`[ZoomService] Error getting usage stats:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get Zoom meeting details for a specific appointment
+     */
+    async getZoomMeetingForAppointment(appointmentId, coachId) {
+        try {
+            const appointment = await Appointment.findById(appointmentId)
+                .populate('leadId', 'name email phone')
+                .populate('coachId', 'name email');
+
+            if (!appointment) {
+                throw new Error('Appointment not found');
+            }
+
+            if (appointment.coachId._id.toString() !== coachId.toString()) {
+                throw new Error('Unauthorized access to appointment');
+            }
+
+            if (!appointment.zoomMeeting) {
+                return {
+                    success: false,
+                    message: 'No Zoom meeting found for this appointment',
+                    appointment: {
+                        id: appointment._id,
+                        startTime: appointment.startTime,
+                        duration: appointment.duration,
+                        leadName: appointment.leadId?.name,
+                        status: appointment.status
+                    }
+                };
+            }
+
+            return {
+                success: true,
+                meeting: appointment.zoomMeeting,
+                appointment: {
+                    id: appointment._id,
+                    startTime: appointment.startTime,
+                    duration: appointment.duration,
+                    leadName: appointment.leadId?.name,
+                    status: appointment.status,
+                    appointmentType: appointment.appointmentType
+                }
+            };
+        } catch (error) {
+            console.error(`[ZoomService] Error getting meeting details:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get all Zoom meetings for a coach
+     */
+    async getCoachZoomMeetings(coachId) {
+        try {
+            const appointments = await Appointment.find({
+                coachId: coachId,
+                'zoomMeeting.meetingId': { $exists: true }
+            })
+            .populate('leadId', 'name email phone')
+            .sort('-startTime');
+
+            const meetings = appointments.map(appointment => ({
+                meetingId: appointment.zoomMeeting.meetingId,
+                joinUrl: appointment.zoomMeeting.joinUrl,
+                startUrl: appointment.zoomMeeting.startUrl,
+                password: appointment.zoomMeeting.password,
+                appointment: {
+                    id: appointment._id,
+                    startTime: appointment.startTime,
+                    duration: appointment.duration,
+                    leadName: appointment.leadId?.name,
+                    leadEmail: appointment.leadId?.email,
+                    status: appointment.status
+                }
+            }));
+
+            return {
+                success: true,
+                meetings: meetings,
+                total: meetings.length
+            };
+        } catch (error) {
+            console.error(`[ZoomService] Error getting coach meetings:`, error);
             throw error;
         }
     }

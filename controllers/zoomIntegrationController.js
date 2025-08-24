@@ -1,5 +1,6 @@
 const ZoomIntegration = require('../schema/ZoomIntegration');
 const zoomService = require('../services/zoomService');
+const zoomCleanupService = require('../services/zoomCleanupService');
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
 
@@ -262,6 +263,137 @@ const getIntegrationStatus = asyncHandler(async (req, res, next) => {
     });
 });
 
+// @desc    Get Zoom meeting details for a specific appointment
+// @route   GET /api/zoom-integration/meetings/appointment/:appointmentId
+// @access  Private (Coaches)
+const getZoomMeetingForAppointment = asyncHandler(async (req, res, next) => {
+    const { appointmentId } = req.params;
+    
+    try {
+        const meetingDetails = await zoomService.getZoomMeetingForAppointment(appointmentId, req.coachId);
+        
+        res.status(200).json({
+            success: true,
+            data: meetingDetails
+        });
+    } catch (error) {
+        return next(new ErrorResponse(error.message, 404));
+    }
+});
+
+// @desc    Get all Zoom meetings for a coach
+// @route   GET /api/zoom-integration/meetings
+// @access  Private (Coaches)
+const getCoachZoomMeetings = asyncHandler(async (req, res, next) => {
+    try {
+        const meetings = await zoomService.getCoachZoomMeetings(req.coachId);
+        
+        res.status(200).json({
+            success: true,
+            data: meetings
+        });
+    } catch (error) {
+        return next(new ErrorResponse(error.message, 500));
+    }
+});
+
+// ===== ZOOM CLEANUP MANAGEMENT =====
+
+// @desc    Start automatic Zoom meeting cleanup
+// @route   POST /api/zoom-integration/cleanup/start
+// @access  Private (Coaches)
+const startCleanup = asyncHandler(async (req, res, next) => {
+    const { retentionDays = 2, interval = 'daily' } = req.body;
+    
+    if (retentionDays < 1) {
+        return next(new ErrorResponse('Retention period must be at least 1 day', 400));
+    }
+    
+    if (!['daily', 'weekly', 'manual'].includes(interval)) {
+        return next(new ErrorResponse('Invalid interval. Must be daily, weekly, or manual', 400));
+    }
+    
+    zoomCleanupService.startCleanup(retentionDays, interval);
+    
+    res.status(200).json({
+        success: true,
+        message: `Zoom cleanup started with ${retentionDays} days retention, interval: ${interval}`,
+        data: {
+            retentionDays,
+            interval,
+            isRunning: true
+        }
+    });
+});
+
+// @desc    Stop automatic Zoom meeting cleanup
+// @route   POST /api/zoom-integration/cleanup/stop
+// @access  Private (Coaches)
+const stopCleanup = asyncHandler(async (req, res, next) => {
+    zoomCleanupService.stopCleanup();
+    
+    res.status(200).json({
+        success: true,
+        message: 'Zoom cleanup stopped successfully',
+        data: {
+            isRunning: false
+        }
+    });
+});
+
+// @desc    Perform manual Zoom meeting cleanup
+// @route   POST /api/zoom-integration/cleanup/manual
+// @access  Private (Coaches)
+const manualCleanup = asyncHandler(async (req, res, next) => {
+    const { retentionDays = 2 } = req.body;
+    
+    if (retentionDays < 1) {
+        return next(new ErrorResponse('Retention period must be at least 1 day', 400));
+    }
+    
+    const result = await zoomCleanupService.manualCleanup(retentionDays);
+    
+    res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result
+    });
+});
+
+// @desc    Get Zoom cleanup statistics and status
+// @route   GET /api/zoom-integration/cleanup/stats
+// @access  Private (Coaches)
+const getCleanupStats = asyncHandler(async (req, res, next) => {
+    const stats = await zoomCleanupService.getCleanupStats();
+    
+    res.status(200).json({
+        success: true,
+        data: stats
+    });
+});
+
+// @desc    Update Zoom cleanup retention period
+// @route   PUT /api/zoom-integration/cleanup/retention
+// @access  Private (Coaches)
+const updateRetentionPeriod = asyncHandler(async (req, res, next) => {
+    const { retentionDays } = req.body;
+    
+    if (!retentionDays || retentionDays < 1) {
+        return next(new ErrorResponse('Retention period must be at least 1 day', 400));
+    }
+    
+    zoomCleanupService.updateRetentionPeriod(retentionDays);
+    
+    res.status(200).json({
+        success: true,
+        message: `Retention period updated to ${retentionDays} days`,
+        data: {
+            retentionDays,
+            isRunning: !!zoomCleanupService.cleanupInterval
+        }
+    });
+});
+
 module.exports = {
     setupZoomIntegration,
     getZoomIntegration,
@@ -271,5 +403,13 @@ module.exports = {
     createMeetingTemplate,
     getMeetingTemplates,
     deleteZoomIntegration,
-    getIntegrationStatus
+    getIntegrationStatus,
+    getZoomMeetingForAppointment,
+    getCoachZoomMeetings,
+    // NEW: Zoom Cleanup Management
+    startCleanup,
+    stopCleanup,
+    manualCleanup,
+    getCleanupStats,
+    updateRetentionPeriod
 };

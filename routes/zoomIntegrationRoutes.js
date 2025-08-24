@@ -9,7 +9,16 @@ const {
     createMeetingTemplate,
     getMeetingTemplates,
     deleteZoomIntegration,
-    getIntegrationStatus
+    getIntegrationStatus,
+    // NEW: Zoom Meeting Management
+    getZoomMeetingForAppointment,
+    getCoachZoomMeetings,
+    // NEW: Zoom Cleanup Management
+    startCleanup,
+    stopCleanup,
+    manualCleanup,
+    getCleanupStats,
+    updateRetentionPeriod
 } = require('../controllers/zoomIntegrationController');
 
 const { protect, authorizeCoach } = require('../middleware/auth');
@@ -38,6 +47,14 @@ router.get('/usage', authorizeCoach(), getZoomUsage);
 // Get integration status
 router.get('/status', authorizeCoach(), getIntegrationStatus);
 
+// ===== ZOOM MEETING MANAGEMENT =====
+
+// Get Zoom meeting details for an appointment
+router.get('/meetings/appointment/:appointmentId', authorizeCoach(), getZoomMeetingForAppointment);
+
+// Get all Zoom meetings for a coach
+router.get('/meetings', authorizeCoach(), getCoachZoomMeetings);
+
 // ===== MEETING TEMPLATES =====
 
 // Create meeting template
@@ -50,5 +67,22 @@ router.get('/meeting-templates', authorizeCoach(), getMeetingTemplates);
 
 // Delete Zoom integration
 router.delete('/', authorizeCoach(), deleteZoomIntegration);
+
+// ===== ZOOM CLEANUP MANAGEMENT =====
+
+// Start automatic cleanup
+router.post('/cleanup/start', authorizeCoach(), startCleanup);
+
+// Stop automatic cleanup
+router.post('/cleanup/stop', authorizeCoach(), stopCleanup);
+
+// Manual cleanup
+router.post('/cleanup/manual', authorizeCoach(), manualCleanup);
+
+// Get cleanup statistics
+router.get('/cleanup/stats', authorizeCoach(), getCleanupStats);
+
+// Update retention period
+router.put('/cleanup/retention', authorizeCoach(), updateRetentionPeriod);
 
 module.exports = router;

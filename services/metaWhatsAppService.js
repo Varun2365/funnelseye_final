@@ -1,9 +1,9 @@
 // D:\PRJ_YCT_Final\services\metaWhatsAppService.js
 
 const axios = require('axios');
-const Coach = require('../schema/coachSchema');
-const WhatsAppMessage = require('../schema/whatsappMessageSchema');
-const Lead = require('../schema/Lead');
+const { Coach } = require('../schema');
+const { WhatsAppMessage } = require('../schema');
+const { Lead } = require('../schema');
 
 // Meta API configuration from environment variables
 const META_API_URL = process.env.WHATSAPP_API_URL || 'https://graph.facebook.com/v19.0';

@@ -213,18 +213,43 @@ const getCoachCalendar = asyncHandler(async (req, res) => {
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
-  res.status(200).json({
-    success: true,
-    data: calendar,
-  });
+    res.status(200).json({
+    success: true,
+    data: calendar,
+  });
+});
+
+/**
+ * @desc    Get appointment details including Zoom meeting information
+ * @route   GET /api/coach/appointments/:id
+ * @access  Private (Coach/Admin/Staff)
+ */
+const getAppointmentDetails = asyncHandler(async (req, res) => {
+  const appointmentId = req.params.id;
+  const appointment = await Appointment.findById(appointmentId)
+    .populate('leadId', 'name email phone')
+    .populate('coachId', 'name email');
+  
+  if (!appointment) {
+    return res.status(404).json({ 
+      success: false, 
+      message: 'Appointment not found.' 
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    data: appointment
+  });
 });
 
 module.exports = {
-  getCoachAvailability,
-  setCoachAvailability,
-  getAvailableSlots: getAvailableSlotsController, // <-- CHANGED: Export the new controller function
-  bookAppointment: bookAppointmentController, // <-- CHANGED: Export the new controller function
-  getCoachCalendar,
+  getCoachAvailability,
+  setCoachAvailability,
+  getAvailableSlots: getAvailableSlotsController, // <-- CHANGED: Export the new controller function
+  bookAppointment: bookAppointmentController, // <-- CHANGED: Export the new controller function
+  getCoachCalendar,
+  getAppointmentDetails,
   rescheduleAppointment: rescheduleAppointmentController,
   cancelAppointment: cancelAppointmentController,
 };

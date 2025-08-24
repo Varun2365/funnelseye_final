@@ -32,6 +32,27 @@ const AppointmentSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  // Appointment type (online/offline)
+  appointmentType: {
+    type: String,
+    enum: ['online', 'offline'],
+    default: 'online', // Default to online since we're focusing on Zoom integration
+    required: true
+  },
+  // Zoom meeting details
+  zoomMeeting: {
+    meetingId: String,
+    joinUrl: String,
+    startUrl: String,
+    password: String,
+    createdAt: Date
+  },
+  // Meeting status
+  status: {
+    type: String,
+    enum: ['scheduled', 'confirmed', 'in_progress', 'completed', 'cancelled'],
+    default: 'scheduled'
+  }
 }, {
   timestamps: true, // Adds createdAt and updatedAt fields automatically
 });

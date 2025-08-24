@@ -73,6 +73,7 @@ const whatsappManager = require('./services/whatsappManager');
 const checkInactiveCoaches = require('./tasks/checkInactiveCoaches');
 const { init } = require('./services/rabbitmqProducer');
 const sslService = require('./services/sslService');
+const zoomCleanupService = require('./services/zoomCleanupService');
 
 // 🛡️ Middleware Imports
 const cors = require('cors');
@@ -296,12 +297,18 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/coach/:coachId/availability', desc: 'Get coach availability settings' },
         { method: 'POST', path: '/api/coach/availability', desc: 'Set or update coach availability', sample: { timeZone: 'Asia/Kolkata', workingHours: [{ dayOfWeek: 1, startTime: '09:00', endTime: '17:00' }], unavailableSlots: [], slotDuration: 30, bufferTime: 0 } },
         { method: 'GET', path: '/api/coach/:coachId/available-slots', desc: 'Get bookable slots for a coach' },
-        { method: 'POST', path: '/api/coach/:coachId/book', desc: 'Book a new appointment', sample: { leadId: '...', startTime: '2025-01-21T09:00:00Z', duration: 30, notes: 'Intro call', timeZone: 'Asia/Kolkata' } },
+        { method: 'POST', path: '/api/coach/:coachId/book', desc: 'Book a new appointment', sample: { leadId: '...', startTime: '2025-01-21T09:00Z', duration: 30, notes: 'Intro call', timeZone: 'Asia/Kolkata' } },
         { method: 'PUT', path: '/api/coach/appointments/:id/reschedule', desc: 'Reschedule an appointment', sample: { newStartTime: '2025-01-22T10:00:00Z', newDuration: 45 } },
         { method: 'DELETE', path: '/api/coach/appointments/:id', desc: 'Cancel an appointment' },
         { method: 'GET', path: '/api/coach/:coachId/calendar', desc: 'Get Calendar of Coach' },
-        { method: 'PUT', path: '/api/coach/:id/profile', desc: 'Update a coaches profile' },
-        { method: 'POST', path: '/api/coach/add-credits/:id', desc: 'Add credits to a coach account' }
+        { method: 'POST', path: '/api/coach/booking-recovery/initiate', desc: 'Initiate booking recovery session' },
+        { method: 'POST', path: '/api/coach/booking-recovery/cancel', desc: 'Cancel booking recovery session' }
+    ],
+    '👤 Coach Profile Management': [
+        { method: 'GET', path: '/api/coach-profile/me', desc: 'Get my coach information' },
+        { method: 'PUT', path: '/api/coach-profile/:id/profile', desc: 'Update a coaches profile' },
+        { method: 'PUT', path: '/api/coach-profile/:id/whatsapp-config', desc: 'Update WhatsApp configuration for a coach' },
+        { method: 'POST', path: '/api/coach-profile/add-credits/:id', desc: 'Add credits to a coach account' }
     ],
     '💳 Payment Processing': [
         { method: 'POST', path: '/api/payments/receive', desc: 'Receive a new payment and trigger automations', sample: { paymentId: 'gw_123', leadId: '...', amount: 4999, currency: 'INR', status: 'successful', paymentMethod: 'card', gatewayResponse: { id: 'gw_123', sig: '...' } } },
@@ -431,6 +438,9 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/coach-dashboard/appointments/stats', desc: 'Get appointment statistics' },
         { method: 'GET', path: '/api/coach-dashboard/availability', desc: 'Get coach availability settings' },
         { method: 'PUT', path: '/api/coach-dashboard/availability', desc: 'Set coach availability', sample: { timeZone: 'Asia/Kolkata', workingHours: [{ dayOfWeek: 1, startTime: '09:00', endTime: '17:00' }], slotDuration: 30 } },
+        // ===== NEW: ZOOM MEETINGS MANAGEMENT =====
+        { method: 'GET', path: '/api/coach-dashboard/zoom-meetings', desc: 'Get all Zoom meetings for coach' },
+        { method: 'GET', path: '/api/coach-dashboard/zoom-meetings/appointment/:appointmentId', desc: 'Get Zoom meeting details for specific appointment' },
     ],
     '💬 Message Templates': [
         { method: 'POST', path: '/api/message-templates', desc: 'Create new message template', sample: { name: 'Welcome Message', type: 'whatsapp', category: 'welcome', content: { body: 'Hi {{lead.name}}, welcome to our program!' } } },
@@ -447,7 +457,7 @@ const allApiRoutes = {
         { method: 'POST', path: '/api/message-templates/seed', desc: 'Seed pre-built templates for coach' },
     ],
     '🔗 Zoom Integration': [
-        { method: 'POST', path: '/api/zoom-integration/setup', desc: 'Setup Zoom API integration', sample: { apiKey: 'zoom_api_key', apiSecret: 'zoom_api_secret', zoomEmail: 'coach@example.com' } },
+        { method: 'POST', path: '/api/zoom-integration/setup', desc: 'Setup Zoom API integration', sample: { clientId: 'zoom_client_id', clientSecret: 'zoom_client_secret', zoomEmail: 'coach@example.com', zoomAccountId: 'zoom_account_id' } },
         { method: 'GET', path: '/api/zoom-integration', desc: 'Get Zoom integration settings' },
         { method: 'PUT', path: '/api/zoom-integration', desc: 'Update Zoom integration settings' },
         { method: 'POST', path: '/api/zoom-integration/test', desc: 'Test Zoom API connection' },
@@ -456,6 +466,15 @@ const allApiRoutes = {
         { method: 'POST', path: '/api/zoom-integration/meeting-templates', desc: 'Create meeting template', sample: { name: '30-min Session', duration: 30, settings: { join_before_host: true } } },
         { method: 'GET', path: '/api/zoom-integration/meeting-templates', desc: 'Get meeting templates' },
         { method: 'DELETE', path: '/api/zoom-integration', desc: 'Delete Zoom integration' },
+        // NEW: Zoom Meeting Management
+        { method: 'GET', path: '/api/zoom-integration/meetings', desc: 'Get all Zoom meetings for coach' },
+        { method: 'GET', path: '/api/zoom-integration/meetings/appointment/:appointmentId', desc: 'Get Zoom meeting details for specific appointment' },
+        // NEW: Zoom Cleanup Management
+        { method: 'POST', path: '/api/zoom-integration/cleanup/start', desc: 'Start automatic Zoom meeting cleanup', sample: { retentionDays: 2, interval: 'daily' } },
+        { method: 'POST', path: '/api/zoom-integration/cleanup/stop', desc: 'Stop automatic Zoom meeting cleanup' },
+        { method: 'POST', path: '/api/zoom-integration/cleanup/manual', desc: 'Perform manual Zoom meeting cleanup', sample: { retentionDays: 2 } },
+        { method: 'GET', path: '/api/zoom-integration/cleanup/stats', desc: 'Get Zoom cleanup statistics and status' },
+        { method: 'PUT', path: '/api/zoom-integration/cleanup/retention', desc: 'Update Zoom cleanup retention period', sample: { retentionDays: 3 } },
     ],
     '🎯 Lead Magnets': [
         { method: 'GET', path: '/api/lead-magnets/coach', desc: 'Get coach lead magnet settings' },
@@ -609,7 +628,6 @@ app.use(async (req, res, next) => {
 // 🔗 Mount API Routes
 // ===== CORE AUTHENTICATION & USER MANAGEMENT =====
 app.use('/api/auth', authRoutes);
-app.use('/api/coach', coachRoutes);
 
 // ===== FUNNEL & LEAD MANAGEMENT =====
 app.use('/api/funnels', funnelRoutes);
@@ -628,7 +646,12 @@ app.use('/api/workflow', workflowRoutes);
 // ===== COACH DASHBOARD & AUTOMATION =====
 app.use('/api/coach-dashboard', coachDashboardRoutes);
 app.use('/api/coach-whatsapp', coachWhatsappRoutes);
+
+// ===== COACH ROUTES (REORGANIZED) =====
+// Public coach routes (no auth required)
 app.use('/api/coach', dailyPriorityFeedRoutes);
+// Protected coach routes (auth required)
+app.use('/api/coach-profile', coachRoutes);
 
 // ===== E-COMMERCE & PAYMENTS =====
 app.use('/api/payments', require('./routes/paymentRoutes'));
@@ -1365,8 +1388,11 @@ const startServer = async () => {
             console.log(`\n\n✨ Server is soaring on port ${PORT}! ✨`);
             console.log(`Local Development Base URL: http://localhost:${PORT}`);
 
-            // --- Start the scheduled task ---
-            checkInactiveCoaches.start();
+                    // --- Start the scheduled task ---
+        checkInactiveCoaches.start();
+        
+        // --- Start Zoom cleanup service ---
+        zoomCleanupService.startCleanup(2, 'daily'); // Default: 2 days retention, daily cleanup
 
             // Print API Endpoints Tables to console
             // for (const title in allApiRoutes) {

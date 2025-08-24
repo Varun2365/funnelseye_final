@@ -1,7 +1,7 @@
 // D:\\PRJ_YCT_Final\\tasks\\checkInactiveCoaches.js
 
 const cron = require('node-cron');
-const Coach = require('../schema/coachSchema');
+const { Coach } = require('../schema');
 const sendAlertToSponsor = require('../services/alertService');
 
 // Inactivity threshold is 4 days

@@ -28,7 +28,10 @@ const {
     cancelAppointment,
     getAppointmentStats,
     getAvailability,
-    setAvailability
+    setAvailability,
+    // NEW: Zoom Meetings Management
+    getZoomMeetings,
+    getZoomMeetingDetails
 } = require('../controllers/coachDashboardController');
 const { protect } = require('../middleware/auth');
 
@@ -85,5 +88,13 @@ router.get('/appointments/stats', getAppointmentStats);
 // Coach availability settings
 router.get('/availability', getAvailability);
 router.put('/availability', setAvailability);
+
+// ===== ZOOM MEETINGS MANAGEMENT =====
+
+// Get all Zoom meetings for the coach
+router.get('/zoom-meetings', getZoomMeetings);
+
+// Get Zoom meeting details for a specific appointment
+router.get('/zoom-meetings/appointment/:appointmentId', getZoomMeetingDetails);
 
 module.exports = router;
