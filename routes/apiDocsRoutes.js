@@ -1,0 +1,1172 @@
+// API Documentation Routes
+// This file will contain the API documentation HTML generation logic moved from main.js
+
+const express = require('express');
+const router = express.Router();
+
+// TODO: Add the API documentation route logic here
+const allApiRoutes = {
+    '🔑 Authentication': [
+        { method: 'POST', path: '/api/auth/signup', desc: 'User Registration', sample: { name: 'John Doe', email: 'john@example.com', password: 'Passw0rd!', role: 'coach' } },
+        { method: 'POST', path: '/api/auth/verify-otp', desc: 'OTP Verification', sample: { email: 'john@example.com', otp: '123456' } },
+        { method: 'POST', path: '/api/auth/login', desc: 'User Login', sample: { email: 'john@example.com', password: 'Passw0rd!' } },
+        { method: 'POST', path: '/api/auth/forgot-password', desc: 'Request Password Reset', sample: { email: 'john@example.com' } },
+        { method: 'POST', path: '/api/auth/reset-password', desc: 'Reset Password with Token', sample: { token: 'reset_token_123', password: 'NewPassw0rd!' } },
+        { method: 'POST', path: '/api/auth/resend-otp', desc: 'Resend Verification OTP', sample: { email: 'john@example.com' } },
+        { method: 'GET', path: '/api/auth/me', desc: 'Get Current User' },
+        { method: 'GET', path: '/api/auth/logout', desc: 'Logout User' },
+    ],
+    '📈 Funnel Management': [
+        { method: 'GET', path: '/api/funnels/coach/:coachId/funnels', desc: 'Get all Funnels for a Coach' },
+        { method: 'GET', path: '/api/funnels/coach/:coachId/funnels/:funnelId', desc: 'Get Single Funnel Details' },
+        { method: 'POST', path: '/api/funnels/coach/:coachId/funnels', desc: 'Create New Funnel', sample: { name: 'My Funnel', description: 'Demo', funnelUrl: 'coach-1/demo-funnel', targetAudience: 'customer', stages: [] } },
+        { method: 'PUT', path: '/api/funnels/coach/:coachId/funnels/:funnelId', desc: 'Update Funnel', sample: { name: 'Updated Funnel Name' } },
+        { method: 'DELETE', path: '/api/funnels/coach/:coachId/funnel/:funnelId', desc: 'Delete Funnel' },
+        { method: 'GET', path: '/api/funnels/coach/:coachId/funnels/:funnelId/stages/:stageType', desc: 'Get Stages by Type' },
+        { method: 'POST', path: '/api/funnels/:funnelId/stages', desc: 'Add Stage to Funnel', sample: { pageId: 'landing-1', name: 'Landing', type: 'Landing', html: '<div>...</div>' } },
+        { method: 'PUT', path: '/api/funnels/:funnelId/stages/:stageSettingsId', desc: 'Update Stage Settings', sample: { name: 'New name', isEnabled: true } },
+        { method: 'POST', path: '/api/funnels/track', desc: 'Track Funnel Event', sample: { funnelId: '...', stageId: '...', eventType: 'PageView', sessionId: 'sess-123', metadata: { ref: 'ad' } } },
+        { method: 'GET', path: '/api/funnels/:funnelId/analytics', desc: 'Get Funnel Analytics Data' },
+        // // Custom URL Management
+        // { method: 'POST', path: '/api/funnels/:funnelId/custom-urls', desc: 'Add Custom URL to Funnel', sample: { customSlug: 'my-brand', displayName: 'My Branded URL', description: 'Custom URL for marketing' } },
+        // { method: 'GET', path: '/api/funnels/:funnelId/custom-urls', desc: 'Get All Custom URLs for Funnel' },
+        // { method: 'PUT', path: '/api/funnels/:funnelId/custom-urls/:customSlug', desc: 'Update Custom URL', sample: { displayName: 'Updated Name', isActive: true } },
+        // { method: 'DELETE', path: '/api/funnels/:funnelId/custom-urls/:customSlug', desc: 'Delete Custom URL' },
+        // { method: 'GET', path: '/api/funnels/:funnelId/custom-urls/:customSlug/analytics', desc: 'Get Custom URL Analytics' },
+    ],
+    '🔗 Custom URL Access (Public)': [
+        { method: 'GET', path: '/api/custom-urls/:customSlug', desc: 'Get Funnel by Custom URL (Public)' },
+        { method: 'POST', path: '/api/custom-urls/:customSlug/visit', desc: 'Track Custom URL Visit (Public)', sample: { converted: true } },
+    ],
+    '🌐 Custom Domain Management': [
+        { method: 'POST', path: '/api/custom-domains', desc: 'Add Custom Domain', sample: { domain: 'coachvarun.in' } },
+        { method: 'GET', path: '/api/custom-domains', desc: 'Get All Custom Domains for Coach' },
+        { method: 'GET', path: '/api/custom-domains/:id', desc: 'Get Single Custom Domain Details' },
+        { method: 'PUT', path: '/api/custom-domains/:id', desc: 'Update Custom Domain Settings' },
+        { method: 'DELETE', path: '/api/custom-domains/:id', desc: 'Delete Custom Domain' },
+        { method: 'POST', path: '/api/custom-domains/:id/verify-dns', desc: 'Verify DNS Records' },
+        { method: 'POST', path: '/api/custom-domains/:id/generate-ssl', desc: 'Generate SSL Certificate' },
+        { method: 'GET', path: '/api/custom-domains/:id/dns-instructions', desc: 'Get DNS Setup Instructions' },
+        { method: 'GET', path: '/api/custom-domains/resolve/:hostname', desc: 'Resolve Domain by Hostname (Public)' },
+    ],
+    '🎯 Lead Management (CRM)': [
+        { method: 'POST', path: '/api/leads', desc: 'Create New Lead (PUBLIC)', sample: { coachId: '...', funnelId: '...', name: 'Jane', email: 'jane@ex.com', phone: '+11234567890', source: 'Web Form' } },
+        { method: 'GET', path: '/api/leads', desc: 'Get All Leads (filters/pagination)' },
+        { method: 'GET', path: '/api/leads/:leadId', desc: 'Get Single Lead by ID' },
+        { method: 'PUT', path: '/api/leads/:leadId', desc: 'Update Lead', sample: { status: 'Contacted', leadTemperature: 'Hot' } },
+        { method: 'DELETE', path: '/api/leads/:leadId', desc: 'Delete Lead' },
+        { method: 'POST', path: '/api/leads/:leadId/followup', desc: 'Add Follow-up Note', sample: { note: 'Called the lead', nextFollowUpAt: '2025-01-20T10:00:00Z' } },
+        { method: 'GET', path: '/api/leads/followups/upcoming', desc: 'Get Leads for Upcoming Follow-ups' },
+        { method: 'POST', path: '/api/leads/:leadId/ai-rescore', desc: 'AI Rescore a Lead' },
+        { method: 'POST', path: '/api/leads/assign-nurturing-sequence', desc: 'Assign a nurturing sequence to a lead', sample: { leadId: '...', sequenceId: '...' } },
+        { method: 'POST', path: '/api/leads/advance-nurturing-step', desc: 'Advance a lead to the next nurturing step', sample: { leadId: '...' } },
+        { method: 'GET', path: '/api/leads/:leadId/nurturing-progress', desc: 'Get nurturing sequence progress for a lead' },
+        // AI-powered Lead Management Endpoints
+        { method: 'GET', path: '/api/leads/:leadId/ai-qualify', desc: 'AI-powered lead qualification and insights', sample: { leadId: '...' } },
+        { method: 'POST', path: '/api/leads/:leadId/generate-nurturing-sequence', desc: 'Generate AI-powered nurturing strategy', sample: { leadId: '...', sequenceType: 'warm_lead' } },
+        { method: 'POST', path: '/api/leads/:leadId/generate-followup-message', desc: 'Generate AI-powered follow-up message', sample: { leadId: '...', followUpType: 'first_followup', context: 'General follow-up' } },
+    ],
+    '📱 Unified WhatsApp Integration': [
+        // Integration Management
+        { method: 'POST', path: '/api/whatsapp/integration/setup', desc: 'Setup WhatsApp integration (Meta API or Baileys)', sample: { integrationType: 'meta_official', metaApiToken: 'token123', phoneNumberId: 'phone123' } },
+        { method: 'POST', path: '/api/whatsapp/integration/switch', desc: 'Switch between integration types', sample: { integrationType: 'baileys_personal' } },
+        { method: 'GET', path: '/api/whatsapp/integration/list', desc: 'Get all integrations for a coach' },
+        { method: 'POST', path: '/api/whatsapp/integration/test', desc: 'Test integration connection' },
+        { method: 'GET', path: '/api/whatsapp/integration/health', desc: 'Get integration health status' },
+        
+        // Messaging
+        { method: 'POST', path: '/api/whatsapp/message/send', desc: 'Send WhatsApp message', sample: { recipientNumber: '+1234567890', content: 'Hello!', options: { mediaUrl: 'https://example.com/image.jpg' } } },
+        { method: 'POST', path: '/api/whatsapp/message/template', desc: 'Send template message', sample: { recipientNumber: '+1234567890', templateName: 'welcome_message', language: 'en', components: [] } },
+        
+        // Inbox Management
+        { method: 'GET', path: '/api/whatsapp/inbox/conversations', desc: 'Get inbox conversations', sample: { status: 'active', category: 'lead', search: 'john', page: 1, limit: 20 } },
+        { method: 'GET', path: '/api/whatsapp/inbox/conversations/:conversationId/messages', desc: 'Get messages for a conversation', sample: { page: 1, limit: 50 } },
+        { method: 'POST', path: '/api/whatsapp/inbox/conversations/:conversationId/read', desc: 'Mark conversation as read' },
+        { method: 'POST', path: '/api/whatsapp/inbox/conversations/:conversationId/archive', desc: 'Archive conversation' },
+        { method: 'POST', path: '/api/whatsapp/inbox/conversations/:conversationId/pin', desc: 'Toggle conversation pin' },
+        { method: 'GET', path: '/api/whatsapp/inbox/stats', desc: 'Get inbox statistics' },
+        { method: 'GET', path: '/api/whatsapp/inbox/search', desc: 'Search inbox', sample: { q: 'search term', type: 'conversations' } },
+        
+        // Contact Management
+        { method: 'GET', path: '/api/whatsapp/contacts', desc: 'Get all contacts', sample: { status: 'active', category: 'lead', search: 'john', page: 1, limit: 20 } },
+        { method: 'PUT', path: '/api/whatsapp/contacts/:contactId', desc: 'Update contact information', sample: { contactName: 'John Doe', notes: 'VIP customer', category: 'client' } },
+        { method: 'POST', path: '/api/whatsapp/contacts/:contactId/block', desc: 'Block/unblock contact', sample: { action: 'block' } },
+        
+        // Baileys Personal Account
+        { method: 'POST', path: '/api/whatsapp/baileys/session/init', desc: 'Initialize Baileys session' },
+        { method: 'GET', path: '/api/whatsapp/baileys/session/qr', desc: 'Get Baileys QR code for scanning' },
+        { method: 'GET', path: '/api/whatsapp/baileys/session/status', desc: 'Get Baileys session status' },
+        { method: 'POST', path: '/api/whatsapp/baileys/session/disconnect', desc: 'Disconnect Baileys session' },
+        { method: 'DELETE', path: '/api/whatsapp/baileys/session', desc: 'Delete Baileys session data' },
+        
+        // Webhooks (Meta API)
+        { method: 'GET', path: '/api/whatsapp/webhook', desc: 'WhatsApp webhook verification (Public)' },
+        { method: 'POST', path: '/api/whatsapp/webhook', desc: 'Handle incoming WhatsApp messages (Public)' },
+    ],
+    '🌱 Nurturing Sequences': [
+        { method: 'POST', path: '/api/nurturing-sequences', desc: 'Create new nurturing sequence', sample: { name: 'Warm Lead Sequence', description: '5-step sequence for warm leads', category: 'warm_lead', steps: [{ stepNumber: 1, name: 'Welcome Message', actionType: 'send_whatsapp_message', actionConfig: { message: 'Hi {{lead.name}}, welcome!' }, delayDays: 0 }] } },
+        { method: 'GET', path: '/api/nurturing-sequences', desc: 'Get all nurturing sequences for coach' },
+        { method: 'GET', path: '/api/nurturing-sequences/:id', desc: 'Get single nurturing sequence details' },
+        { method: 'PUT', path: '/api/nurturing-sequences/:id', desc: 'Update nurturing sequence' },
+        { method: 'DELETE', path: '/api/nurturing-sequences/:id', desc: 'Delete nurturing sequence' },
+        { method: 'POST', path: '/api/nurturing-sequences/:id/duplicate', desc: 'Duplicate a nurturing sequence', sample: { newName: 'Warm Lead Sequence Copy' } },
+        { method: 'PUT', path: '/api/nurturing-sequences/:id/toggle', desc: 'Toggle sequence active status' },
+        { method: 'POST', path: '/api/nurturing-sequences/assign-to-funnel', desc: 'Assign sequence to funnel', sample: { sequenceId: '...', funnelId: '...' } },
+        { method: 'POST', path: '/api/nurturing-sequences/remove-from-funnel', desc: 'Remove sequence from funnel', sample: { sequenceId: '...', funnelId: '...' } },
+        { method: 'POST', path: '/api/nurturing-sequences/bulk-assign', desc: 'Bulk assign sequences to funnels', sample: { sequenceIds: ['seq1', 'seq2'], funnelIds: ['funnel1', 'funnel2'] } },
+        { method: 'GET', path: '/api/nurturing-sequences/:id/stats', desc: 'Get sequence execution statistics' },
+        { method: 'GET', path: '/api/nurturing-sequences/category/:category', desc: 'Get sequences by category' },
+        { method: 'POST', path: '/api/nurturing-sequences/:id/test', desc: 'Test sequence execution (dry run)', sample: { leadId: '...' } },
+    ],
+    '📊 Advanced MLM Network (Unified)': [
+        // ===== PUBLIC ROUTES (No Authentication Required) =====
+        { method: 'GET', path: '/api/advanced-mlm/hierarchy-levels', desc: 'Get all hierarchy levels (Public)', sample: {} },
+        { method: 'POST', path: '/api/advanced-mlm/generate-coach-id', desc: 'Generate unique coach ID (Public)', sample: {} },
+        { method: 'GET', path: '/api/advanced-mlm/search-sponsor', desc: 'Search for sponsors (Public)', sample: { query: 'John' } },
+        { method: 'POST', path: '/api/advanced-mlm/external-sponsor', desc: 'Create external sponsor (Public)', sample: { name: 'External Sponsor', phone: '+1234567890', email: 'sponsor@example.com', company: 'Company Name', notes: 'Additional notes' } },
+        { method: 'POST', path: '/api/advanced-mlm/signup', desc: 'Coach signup with hierarchy details (Public)', sample: { name: 'Coach Name', email: 'coach@example.com', password: 'Passw0rd!', selfCoachId: 'W2983738', currentLevel: 1, sponsorId: '...', externalSponsorId: '...', teamRankName: 'Team A', presidentTeamRankName: 'President Team' } },
+        
+        // ===== PRIVATE ROUTES (Coach Authentication Required) =====
+        { method: 'POST', path: '/api/advanced-mlm/lock-hierarchy', desc: 'Lock hierarchy after first login (Private)', sample: { coachId: '...' } },
+        { method: 'POST', path: '/api/advanced-mlm/admin-request', desc: 'Submit admin request for hierarchy change (Private)', sample: { requestType: 'level_change', requestedData: { currentLevel: 2 }, reason: 'Promotion to level 2', supportingDocuments: [] } },
+        { method: 'GET', path: '/api/advanced-mlm/admin-requests/:coachId', desc: 'Get coach admin requests (Private)', sample: {} },
+        { method: 'GET', path: '/api/advanced-mlm/commissions/:coachId', desc: 'Get coach commissions (Private)', sample: { status: 'pending', month: 1, year: 2024 } },
+        
+        // ===== DOWNLINE MANAGEMENT =====
+        { method: 'POST', path: '/api/advanced-mlm/downline', desc: 'Add a new coach to downline (verification required on first login)', sample: { name: 'Coach B', email: 'b@ex.com', password: 'Passw0rd!', sponsorId: '...' } },
+        { method: 'GET', path: '/api/advanced-mlm/downline/:sponsorId', desc: 'Get direct downline with performance data', sample: { includePerformance: 'true' } },
+        { method: 'GET', path: '/api/advanced-mlm/hierarchy/:coachId', desc: 'Get full downline hierarchy', sample: { levels: 5, includePerformance: 'true' } },
+        
+        // ===== TEAM PERFORMANCE & REPORTS =====
+        { method: 'GET', path: '/api/advanced-mlm/team-performance/:sponsorId', desc: 'Get comprehensive team performance summary', sample: { period: 'monthly', startDate: '2024-01-01', endDate: '2024-01-31' } },
+        { method: 'POST', path: '/api/advanced-mlm/generate-report', desc: 'Generate comprehensive team report', sample: { sponsorId: '...', reportType: 'team_summary', period: 'monthly', startDate: '2024-01-01', endDate: '2024-01-31', config: {} } },
+        { method: 'GET', path: '/api/advanced-mlm/reports/:sponsorId', desc: 'Get list of generated reports', sample: { status: 'completed', reportType: 'team_summary', limit: 10 } },
+        { method: 'GET', path: '/api/advanced-mlm/reports/detail/:reportId', desc: 'Get specific report details with insights' },
+        
+        // ===== ADMIN ROUTES (Admin Authentication Required) =====
+        { method: 'GET', path: '/api/advanced-mlm/admin/pending-requests', desc: 'Get pending admin requests (Admin)', sample: {} },
+        { method: 'PUT', path: '/api/advanced-mlm/admin/process-request/:requestId', desc: 'Process admin request (Admin)', sample: { status: 'approved', adminNotes: 'Request approved after verification' } },
+        { method: 'PUT', path: '/api/advanced-mlm/admin/change-upline', desc: 'Change coach upline (Admin)', sample: { coachId: '...', newUplineId: '...', newUplineName: 'New Sponsor', isExternalSponsor: false } },
+        { method: 'GET', path: '/api/advanced-mlm/admin/commission-settings', desc: 'Get commission settings (Admin)', sample: {} },
+        { method: 'PUT', path: '/api/advanced-mlm/admin/commission-settings', desc: 'Update commission settings (Admin)', sample: { commissionPercentage: 15, minimumSubscriptionAmount: 100, maximumCommissionAmount: 1000, notes: 'Updated commission structure' } },
+        { method: 'POST', path: '/api/advanced-mlm/admin/calculate-commission', desc: 'Calculate commission for subscription (Admin)', sample: { subscriptionId: '...', referredBy: '...' } },
+        { method: 'POST', path: '/api/advanced-mlm/admin/process-monthly-commissions', desc: 'Process monthly commission payments (Admin)', sample: { month: 1, year: 2024 } },
+    ],
+    // Note: Coach Hierarchy System has been integrated into Advanced MLM Network (Unified) above
+    '👥 Staff Management': [
+        { method: 'POST', path: '/api/staff', desc: 'Create staff under coach (verification required on first login)', sample: { name: 'Assistant A', email: 'assistant@ex.com', password: 'Passw0rd!', permissions: ['leads:read', 'leads:update'] } },
+        { method: 'GET', path: '/api/staff', desc: 'List staff of coach (admin can pass ?coachId=...)' },
+        { method: 'PUT', path: '/api/staff/:id', desc: 'Update staff (name, permissions, isActive)', sample: { name: 'Assistant A2', permissions: ['leads:read'] } },
+        { method: 'DELETE', path: '/api/staff/:id', desc: 'Deactivate staff' },
+    ],
+    '💰 Performance & Commissions': [
+        { method: 'POST', path: '/api/performance/record-sale', desc: 'Record a new sale for a coach', sample: { coachId: '...', amount: 1000, currency: 'USD' } },
+        { method: 'GET', path: '/api/performance/downline/:coachId', desc: 'Get total sales for downline coaches' },
+        // Note: Advanced MLM commission system is now integrated in the Advanced MLM Network section
+    ],
+    '⚙️ Automation Rules': [
+        {
+            "method": "POST",
+            "path": "/api/automation-rules",
+            "desc": "Create New Automation Rule",
+            "sample": {
+                "name": "Hot lead message",
+                "coachId": "...",
+                "triggerEvent": "lead_temperature_changed",
+                "actions": [
+                    {
+                        "type": "send_whatsapp_message",
+                        "config": {
+                            "message": "Hi {{leadData.name}}"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "method": "GET",
+            "path": "/api/automation-rules",
+            "desc": "Get All Automation Rules"
+        },
+        {
+            "method": "GET",
+            "path": "/api/automation-rules/:id",
+            "desc": "Get Single Automation Rule"
+        },
+        {
+            "method": "PUT",
+            "path": "/api/automation-rules/:id",
+            "desc": "Update Automation Rule",
+            "sample": {
+                "isActive": false
+            }
+        },
+        {
+            "method": "DELETE",
+            "path": "/api/automation-rules/:id",
+            "desc": "Delete Automation Rule"
+        }
+    ],
+    '💬 WhatsApp Messaging (Meta API)': [
+        { method: 'GET', path: '/api/whatsapp/webhook', desc: 'Webhook Verification (Meta)' },
+        { method: 'POST', path: '/api/whatsapp/webhook', desc: 'Receive Incoming Messages (Meta)', sample: { entry: [{ changes: [{ value: { messages: [{ from: '911234567890', text: { body: 'Hi' }, type: 'text' }], metadata: { phone_number_id: '...' } } }] }] } },
+        { method: 'POST', path: '/api/whatsapp/send-message', desc: 'Send Outbound Message', sample: { coachId: '...', recipientPhoneNumber: '911234567890', messageContent: 'Hello!' } },
+    ],
+    '📱 WhatsApp Automation (Coach Dashboard)': [
+        // ===== WHATSAPP MANAGEMENT =====
+        { method: 'POST', path: '/api/coach-whatsapp/initialize', desc: 'Initialize WhatsApp automation for coach' },
+        { method: 'GET', path: '/api/coach-whatsapp/conversations', desc: 'Get active conversations' },
+        { method: 'GET', path: '/api/coach-whatsapp/conversations/:leadId/history', desc: 'Get conversation history for lead' },
+        { method: 'GET', path: '/api/coach-whatsapp/escalations', desc: 'Get escalation queue' },
+        { method: 'PUT', path: '/api/coach-whatsapp/escalations/:leadId/resolve', desc: 'Resolve escalation for lead' },
+        // ===== AUTOMATION RULES =====
+        { method: 'GET', path: '/api/coach-whatsapp/automation-rules', desc: 'Get automation rules' },
+        { method: 'POST', path: '/api/coach-whatsapp/automation-rules', desc: 'Create automation rule', sample: { name: 'Welcome Message', trigger: 'first_message', action: 'send_template', templateId: 'welcome_msg' } },
+        { method: 'PUT', path: '/api/coach-whatsapp/automation-rules/:ruleId', desc: 'Update automation rule' },
+        { method: 'DELETE', path: '/api/coach-whatsapp/automation-rules/:ruleId', desc: 'Delete automation rule' },
+        // ===== MESSAGE TEMPLATES =====
+        { method: 'GET', path: '/api/coach-whatsapp/templates', desc: 'Get message templates' },
+        { method: 'POST', path: '/api/coach-whatsapp/templates', desc: 'Create message template', sample: { name: 'Welcome', content: 'Hi {{lead.name}}, welcome to our program!', category: 'welcome' } },
+        // ===== CAMPAIGN MANAGEMENT =====
+        { method: 'GET', path: '/api/coach-whatsapp/campaigns', desc: 'Get WhatsApp campaigns' },
+        { method: 'POST', path: '/api/coach-whatsapp/campaigns', desc: 'Create WhatsApp campaign', sample: { name: 'Welcome Series', targetAudience: 'new_leads', messageTemplate: 'welcome_series' } },
+        { method: 'POST', path: '/api/coach-whatsapp/campaigns/:campaignId/send', desc: 'Send campaign to target audience' },
+        // ===== ANALYTICS =====
+        { method: 'GET', path: '/api/coach-whatsapp/analytics', desc: 'Get WhatsApp analytics' },
+        { method: 'GET', path: '/api/coach-whatsapp/leads/:leadId/engagement-insights', desc: 'Get lead engagement insights' },
+        // ===== SETTINGS =====
+        { method: 'GET', path: '/api/coach-whatsapp/settings', desc: 'Get WhatsApp settings' },
+        { method: 'PUT', path: '/api/coach-whatsapp/settings', desc: 'Update WhatsApp settings' },
+        { method: 'POST', path: '/api/coach-whatsapp/test-integration', desc: 'Test WhatsApp integration' },
+    ],
+    '📁 File Upload': [
+        { method: 'POST', path: '/api/files/upload', desc: 'Upload a file' },
+    ],
+    '💡 Priority Feed & Calendar': [
+        { method: 'GET', path: '/api/coach/daily-feed', desc: 'Get daily prioritized suggestions' },
+        { method: 'GET', path: '/api/coach/:coachId/availability', desc: 'Get coach availability settings' },
+        { method: 'POST', path: '/api/coach/availability', desc: 'Set or update coach availability', sample: { timeZone: 'Asia/Kolkata', workingHours: [{ dayOfWeek: 1, startTime: '09:00', endTime: '17:00' }], unavailableSlots: [], slotDuration: 30, bufferTime: 0 } },
+        { method: 'GET', path: '/api/coach/:coachId/available-slots', desc: 'Get bookable slots for a coach' },
+        { method: 'POST', path: '/api/coach/:coachId/book', desc: 'Book a new appointment', sample: { leadId: '...', startTime: '2025-01-21T09:00Z', duration: 30, notes: 'Intro call', timeZone: 'Asia/Kolkata' } },
+        { method: 'PUT', path: '/api/coach/appointments/:id/reschedule', desc: 'Reschedule an appointment', sample: { newStartTime: '2025-01-22T10:00:00Z', newDuration: 45 } },
+        { method: 'DELETE', path: '/api/coach/appointments/:id', desc: 'Cancel an appointment' },
+        { method: 'GET', path: '/api/coach/:coachId/calendar', desc: 'Get Calendar of Coach' },
+        { method: 'POST', path: '/api/coach/booking-recovery/initiate', desc: 'Initiate booking recovery session' },
+        { method: 'POST', path: '/api/coach/booking-recovery/cancel', desc: 'Cancel booking recovery session' }
+    ],
+    '👤 Coach Profile Management': [
+        { method: 'GET', path: '/api/coach-profile/me', desc: 'Get my coach information' },
+        { method: 'PUT', path: '/api/coach-profile/:id/profile', desc: 'Update a coaches profile' },
+        { method: 'PUT', path: '/api/coach-profile/:id/whatsapp-config', desc: 'Update WhatsApp configuration for a coach' },
+        { method: 'POST', path: '/api/coach-profile/add-credits/:id', desc: 'Add credits to a coach account' }
+    ],
+    '💳 Payment Processing': [
+        { method: 'POST', path: '/api/payments/receive', desc: 'Receive a new payment and trigger automations', sample: { paymentId: 'gw_123', leadId: '...', amount: 4999, currency: 'INR', status: 'successful', paymentMethod: 'card', gatewayResponse: { id: 'gw_123', sig: '...' } } },
+    ],
+    '🛒 E-commerce & Payments (Coach Dashboard)': [
+        // ===== PAYMENT PROCESSING =====
+        { method: 'POST', path: '/api/payments/process', desc: 'Process payment with multiple gateways', sample: { amount: 999, currency: 'USD', paymentMethod: 'stripe', leadId: '...', coachId: '...' } },
+        { method: 'POST', path: '/api/payments/stripe', desc: 'Process Stripe payment' },
+        { method: 'POST', path: '/api/payments/paypal', desc: 'Process PayPal payment' },
+        { method: 'POST', path: '/api/payments/razorpay', desc: 'Process Razorpay payment' },
+        // ===== SUBSCRIPTION MANAGEMENT =====
+        { method: 'POST', path: '/api/subscriptions', desc: 'Create subscription', sample: { coachId: '...', planId: 'professional', paymentMethod: 'stripe', autoRenew: true } },
+        { method: 'GET', path: '/api/subscriptions/:subscriptionId', desc: 'Get subscription details' },
+        { method: 'PUT', path: '/api/subscriptions/:subscriptionId/renew', desc: 'Renew subscription' },
+        { method: 'PUT', path: '/api/subscriptions/:subscriptionId/cancel', desc: 'Cancel subscription', sample: { reason: 'User requested cancellation' } },
+        // ===== SHOPPING CART =====
+        { method: 'POST', path: '/api/cart', desc: 'Update shopping cart', sample: { coachId: '...', leadId: '...', items: [{ productId: 'prod_123', quantity: 1, price: 99 }] } },
+        { method: 'GET', path: '/api/cart/:cartId', desc: 'Get cart details' },
+        { method: 'POST', path: '/api/cart/:cartId/recovery', desc: 'Send cart recovery notification' },
+        { method: 'POST', path: '/api/cart/:cartId/complete', desc: 'Complete cart purchase', sample: { paymentData: { method: 'stripe', token: 'tok_123' } } },
+        // ===== REVENUE ANALYTICS =====
+        { method: 'GET', path: '/api/payments/revenue-analytics', desc: 'Get revenue analytics', sample: { coachId: '...', timeRange: 30 } },
+        { method: 'GET', path: '/api/payments/subscription-analytics', desc: 'Get subscription analytics' },
+        // ===== INVOICE GENERATION =====
+        { method: 'POST', path: '/api/payments/:paymentId/invoice', desc: 'Generate invoice for payment' },
+        // ===== UTILITY METHODS =====
+        { method: 'GET', path: '/api/payments/subscription-plans', desc: 'Get available subscription plans' },
+        { method: 'GET', path: '/api/payments/payment-methods', desc: 'Get supported payment methods' },
+    ],
+    '🤖 AI Ads Agent': [
+        { method: 'POST', path: '/api/ai-ads/generate-copy', desc: 'Generate AI-powered ad copy', sample: { targetAudience: 'Fitness enthusiasts 25-40', productInfo: 'Personal training program', campaignObjective: 'CONVERSIONS' } },
+        { method: 'POST', path: '/api/ai-ads/optimize-budget/:campaignId', desc: 'Optimize budget allocation for campaign' },
+        { method: 'GET', path: '/api/ai-ads/detect-anomalies/:campaignId', desc: 'Detect performance anomalies' },
+        { method: 'POST', path: '/api/ai-ads/targeting-recommendations', desc: 'Generate targeting recommendations', sample: { targetAudience: 'Weight loss seekers', budget: 100 } },
+        { method: 'POST', path: '/api/ai-ads/auto-optimize/:campaignId', desc: 'Auto-optimize campaign performance' },
+        { method: 'GET', path: '/api/ai-ads/performance-insights/:campaignId', desc: 'Get detailed performance insights' },
+        { method: 'POST', path: '/api/ai-ads/create-optimized-campaign', desc: 'Create AI-optimized campaign', sample: { name: 'AI Campaign', objective: 'CONVERSIONS', targetAudience: 'Fitness', budget: 50, productInfo: 'Training program' } },
+        { method: 'GET', path: '/api/ai-ads/dashboard', desc: 'Get AI ads dashboard data' },
+        { method: 'POST', path: '/api/ai-ads/bulk-optimize', desc: 'Bulk optimize multiple campaigns', sample: { campaignIds: ['campaign1', 'campaign2'] } },
+        { method: 'POST', path: '/api/ai-ads/generate-variations', desc: 'Generate ad variations', sample: { originalAdCopy: 'Lose weight fast', targetAudience: 'Fitness', variationCount: 5 } },
+        // Social Media Integration
+        { method: 'POST', path: '/api/ai-ads/generate-poster', desc: 'Generate simple background image with AI text content and positioning instructions', sample: { coachName: 'John Doe', niche: 'Weight Loss & Nutrition', offer: '12-Week Transformation Program', targetAudience: 'weight_loss' } },
+        { method: 'POST', path: '/api/ai-ads/generate-poster-variations', desc: 'Generate multiple background variations with text content for better selection', sample: { coachName: 'John Doe', niche: 'Weight Loss & Nutrition', offer: '12-Week Transformation Program', targetAudience: 'weight_loss', variationCount: 3 } },
+        { method: 'POST', path: '/api/ai-ads/generate-headlines', desc: 'Generate AI-powered marketing headlines', sample: { coachName: 'John Doe', niche: 'Weight Loss & Nutrition', offer: '12-Week Transformation Program', targetAudience: 'weight_loss', headlineCount: 5 } },
+        { method: 'POST', path: '/api/ai-ads/generate-social-post', desc: 'Generate complete social media post content', sample: { coachName: 'John Doe', niche: 'Weight Loss & Nutrition', offer: '12-Week Transformation Program', targetAudience: 'weight_loss' } },
+        { method: 'POST', path: '/api/ai-ads/upload-to-instagram', desc: 'Upload generated content to Instagram via Meta Ads', sample: { imageUrl: 'https://example.com/poster.jpg', caption: 'Transform your body!', coachMetaAccountId: 'act_123456789' } },
+        { method: 'POST', path: '/api/ai-ads/generate-campaign', desc: 'Generate complete social media campaign package', sample: { coachName: 'John Doe', niche: 'Weight Loss & Nutrition', offer: '12-Week Transformation Program', targetAudience: 'weight_loss', campaignDuration: 7, dailyBudget: 50 } },
+        { method: 'GET', path: '/api/ai-ads/social-media-history', desc: 'Get social media content generation history' },
+    ],
+    '📋 Workflow & Task Management': [
+        { method: 'GET', path: '/api/workflow/kanban-board', desc: 'Get Kanban board data' },
+        { method: 'POST', path: '/api/workflow/tasks', desc: 'Create new task with intelligent assignment', sample: { name: 'Follow up call', description: 'Call prospect', dueDate: '2025-01-25T10:00:00Z', relatedLead: 'leadId', priority: 'HIGH', stage: 'LEAD_QUALIFICATION' } },
+        { method: 'PUT', path: '/api/workflow/tasks/:taskId/move', desc: 'Move task between stages (Kanban)', sample: { newStage: 'PROPOSAL' } },
+        { method: 'GET', path: '/api/workflow/tasks', desc: 'Get all tasks with filtering', sample: { status: 'Pending', priority: 'HIGH', page: 1, limit: 10 } },
+        { method: 'GET', path: '/api/workflow/tasks/:id', desc: 'Get single task details' },
+        { method: 'PUT', path: '/api/workflow/tasks/:id', desc: 'Update task', sample: { status: 'In Progress', priority: 'URGENT' } },
+        { method: 'DELETE', path: '/api/workflow/tasks/:id', desc: 'Delete task' },
+        { method: 'POST', path: '/api/workflow/tasks/:id/comments', desc: 'Add comment to task', sample: { content: 'Called prospect, interested in program' } },
+        { method: 'POST', path: '/api/workflow/tasks/:id/time-log', desc: 'Log time to task', sample: { startTime: '2025-01-20T09:00:00Z', endTime: '2025-01-20T10:00:00Z', description: 'Client call' } },
+        { method: 'POST', path: '/api/workflow/tasks/:id/subtasks', desc: 'Add subtask', sample: { name: 'Send proposal', description: 'Email proposal to client' } },
+        { method: 'GET', path: '/api/workflow/analytics', desc: 'Get task analytics', sample: { dateRange: 30 } },
+        { method: 'POST', path: '/api/workflow/auto-assign', desc: 'Auto-assign unassigned tasks' },
+        { method: 'GET', path: '/api/workflow/upcoming-tasks', desc: 'Get upcoming tasks', sample: { days: 7 } },
+        { method: 'PUT', path: '/api/workflow/bulk-update-status', desc: 'Bulk update task status', sample: { taskIds: ['task1', 'task2'], newStatus: 'Completed' } },
+        { method: 'POST', path: '/api/workflow/generate-sop', desc: 'Generate SOP for task type', sample: { taskType: 'Lead Follow-up', context: 'Fitness coaching business' } },
+        { method: 'GET', path: '/api/workflow/overdue-tasks', desc: 'Get overdue tasks' },
+        { method: 'GET', path: '/api/workflow/tasks/stage/:stage', desc: 'Get tasks by stage' },
+        { method: 'POST', path: '/api/workflow/tasks/from-lead/:leadId', desc: 'Create task from lead', sample: { name: 'Follow up', priority: 'HIGH' } },
+        { method: 'GET', path: '/api/workflow/tasks/:id/dependencies', desc: 'Get task dependencies' },
+        { method: 'POST', path: '/api/workflow/tasks/:id/dependencies', desc: 'Add task dependency', sample: { dependencyId: 'taskId' } },
+        { method: 'DELETE', path: '/api/workflow/tasks/:id/dependencies/:dependencyId', desc: 'Remove task dependency' },
+    ],
+    '🏆 Staff Leaderboard & Scoring': [
+        { method: 'GET', path: '/api/staff-leaderboard/leaderboard', desc: 'Get staff leaderboard with rankings' },
+        { method: 'GET', path: '/api/staff-leaderboard/staff/:staffId/score', desc: 'Get individual staff performance score' },
+        { method: 'GET', path: '/api/staff-leaderboard/staff/:staffId/achievements', desc: 'Get staff achievements and badges' },
+        { method: 'GET', path: '/api/staff-leaderboard/staff/:staffId/progress', desc: 'Get staff progress over time' },
+        { method: 'GET', path: '/api/staff-leaderboard/team/analytics', desc: 'Get team performance analytics' },
+        { method: 'GET', path: '/api/staff-leaderboard/team/most-improved', desc: 'Get most improved staff member' },
+        { method: 'GET', path: '/api/staff-leaderboard/team/trends', desc: 'Get team performance trends' },
+        { method: 'GET', path: '/api/staff-leaderboard/staff/comparison', desc: 'Compare staff performance', sample: { staffIds: ['staff1', 'staff2'] } },
+        { method: 'GET', path: '/api/staff-leaderboard/config/ranking-levels', desc: 'Get ranking levels configuration' },
+        { method: 'GET', path: '/api/staff-leaderboard/config/achievements', desc: 'Get achievements configuration' },
+        { method: 'GET', path: '/api/staff-leaderboard/config/scoring-weights', desc: 'Get scoring weights configuration' },
+        { method: 'PUT', path: '/api/staff-leaderboard/config/scoring-weights', desc: 'Update scoring weights', sample: { weights: { taskCompletion: 0.4, qualityRating: 0.3, efficiency: 0.2, leadership: 0.1 } } },
+    ],
+    '👥 Staff Dashboard': [
+        { method: 'GET', path: '/api/staff-dashboard/data', desc: 'Get complete staff dashboard data', sample: { timeRange: 30 } },
+        { method: 'GET', path: '/api/staff-dashboard/overview', desc: 'Get staff overview metrics and quick actions' },
+        { method: 'GET', path: '/api/staff-dashboard/tasks', desc: 'Get staff tasks overview and analytics' },
+        { method: 'GET', path: '/api/staff-dashboard/performance', desc: 'Get staff performance metrics and scoring' },
+        { method: 'GET', path: '/api/staff-dashboard/achievements', desc: 'Get staff achievements and badges' },
+        { method: 'GET', path: '/api/staff-dashboard/team', desc: 'Get team data and collaboration metrics' },
+        { method: 'GET', path: '/api/staff-dashboard/progress', desc: 'Get staff progress over time', sample: { timeRange: 30 } },
+        { method: 'GET', path: '/api/staff-dashboard/comparison', desc: 'Compare staff performance with team' },
+        { method: 'GET', path: '/api/staff-dashboard/goals', desc: 'Get staff goals and targets' },
+        { method: 'GET', path: '/api/staff-dashboard/calendar', desc: 'Get staff calendar and schedule' },
+        { method: 'GET', path: '/api/staff-dashboard/notifications', desc: 'Get staff notifications and alerts' },
+        { method: 'GET', path: '/api/staff-dashboard/analytics', desc: 'Get staff analytics and insights' },
+    ],
+    '📊 Coach Dashboard': [
+        { method: 'GET', path: '/api/coach-dashboard/data', desc: 'Get complete dashboard data' },
+        { method: 'GET', path: '/api/coach-dashboard/overview', desc: 'Get overview metrics and quick actions' },
+        { method: 'GET', path: '/api/coach-dashboard/leads', desc: 'Get leads analytics and funnel data' },
+        { method: 'GET', path: '/api/coach-dashboard/tasks', desc: 'Get tasks analytics and distribution' },
+        { method: 'GET', path: '/api/coach-dashboard/marketing', desc: 'Get marketing analytics and AI insights' },
+        { method: 'GET', path: '/api/coach-dashboard/financial', desc: 'Get financial analytics and revenue trends' },
+        { method: 'GET', path: '/api/coach-dashboard/team', desc: 'Get team analytics and leaderboard' },
+        { method: 'GET', path: '/api/coach-dashboard/performance', desc: 'Get performance analytics and KPIs' },
+        { method: 'GET', path: '/api/coach-dashboard/widgets', desc: 'Get dashboard widgets configuration' },
+        { method: 'GET', path: '/api/coach-dashboard/widgets/:widgetId', desc: 'Get specific widget data' },
+        { method: 'GET', path: '/api/coach-dashboard/trends', desc: 'Get performance trends over time' },
+        { method: 'GET', path: '/api/coach-dashboard/alerts', desc: 'Get performance alerts and warnings' },
+        { method: 'GET', path: '/api/coach-dashboard/ai-insights', desc: 'Get AI-powered insights and recommendations' },
+        { method: 'GET', path: '/api/coach-dashboard/kpis', desc: 'Get key performance indicators' },
+        { method: 'GET', path: '/api/coach-dashboard/sections', desc: 'Get dashboard sections configuration' },
+        { method: 'GET', path: '/api/coach-dashboard/real-time', desc: 'Get real-time dashboard updates' },
+        { method: 'GET', path: '/api/coach-dashboard/export', desc: 'Export dashboard data', sample: { format: 'csv', timeRange: 30 } },
+        // ===== NEW: CALENDAR & APPOINTMENT MANAGEMENT =====
+        { method: 'GET', path: '/api/coach-dashboard/calendar', desc: 'Get coach calendar with appointments' },
+        { method: 'GET', path: '/api/coach-dashboard/available-slots', desc: 'Get available booking slots' },
+        { method: 'POST', path: '/api/coach-dashboard/appointments', desc: 'Book new appointment', sample: { leadId: '...', startTime: '2025-01-21T09:00:00Z', duration: 30, notes: 'Intro call' } },
+        { method: 'GET', path: '/api/coach-dashboard/appointments/upcoming', desc: 'Get upcoming appointments' },
+        { method: 'GET', path: '/api/coach-dashboard/appointments/today', desc: 'Get today\'s appointments' },
+        { method: 'PUT', path: '/api/coach-dashboard/appointments/:appointmentId/reschedule', desc: 'Reschedule appointment', sample: { newStartTime: '2025-01-22T10:00:00Z', newDuration: 45 } },
+        { method: 'DELETE', path: '/api/coach-dashboard/appointments/:appointmentId', desc: 'Cancel appointment' },
+        { method: 'GET', path: '/api/coach-dashboard/appointments/stats', desc: 'Get appointment statistics' },
+        { method: 'GET', path: '/api/coach-dashboard/availability', desc: 'Get coach availability settings' },
+        { method: 'PUT', path: '/api/coach-dashboard/availability', desc: 'Set coach availability', sample: { timeZone: 'Asia/Kolkata', workingHours: [{ dayOfWeek: 1, startTime: '09:00', endTime: '17:00' }], slotDuration: 30 } },
+        // ===== NEW: ZOOM MEETINGS MANAGEMENT =====
+        { method: 'GET', path: '/api/coach-dashboard/zoom-meetings', desc: 'Get all Zoom meetings for coach' },
+        { method: 'GET', path: '/api/coach-dashboard/zoom-meetings/appointment/:appointmentId', desc: 'Get Zoom meeting details for specific appointment' },
+    ],
+    '💬 Message Templates': [
+        { method: 'POST', path: '/api/message-templates', desc: 'Create new message template', sample: { name: 'Welcome Message', type: 'whatsapp', category: 'welcome', content: { body: 'Hi {{lead.name}}, welcome to our program!' } } },
+        { method: 'GET', path: '/api/message-templates', desc: 'Get all message templates for coach' },
+        { method: 'GET', path: '/api/message-templates/pre-built', desc: 'Get pre-built message templates' },
+        { method: 'GET', path: '/api/message-templates/categories', desc: 'Get available template categories' },
+        { method: 'GET', path: '/api/message-templates/types', desc: 'Get available template types' },
+        { method: 'GET', path: '/api/message-templates/variables', desc: 'Get common template variables' },
+        { method: 'GET', path: '/api/message-templates/:id', desc: 'Get specific template details' },
+        { method: 'PUT', path: '/api/message-templates/:id', desc: 'Update message template' },
+        { method: 'DELETE', path: '/api/message-templates/:id', desc: 'Delete message template' },
+        { method: 'POST', path: '/api/message-templates/:id/duplicate', desc: 'Duplicate a template', sample: { newName: 'Welcome Message Copy' } },
+        { method: 'POST', path: '/api/message-templates/:id/render', desc: 'Render template with variables', sample: { variables: { 'lead.name': 'John', 'coach.name': 'Sarah' } } },
+        { method: 'POST', path: '/api/message-templates/seed', desc: 'Seed pre-built templates for coach' },
+    ],
+    '🔗 Zoom Integration': [
+        { method: 'POST', path: '/api/zoom-integration/setup', desc: 'Setup Zoom API integration', sample: { clientId: 'zoom_client_id', clientSecret: 'zoom_client_secret', zoomEmail: 'coach@example.com', zoomAccountId: 'zoom_account_id' } },
+        { method: 'GET', path: '/api/zoom-integration', desc: 'Get Zoom integration settings' },
+        { method: 'PUT', path: '/api/zoom-integration', desc: 'Update Zoom integration settings' },
+        { method: 'POST', path: '/api/zoom-integration/test', desc: 'Test Zoom API connection' },
+        { method: 'GET', path: '/api/zoom-integration/usage', desc: 'Get Zoom account usage statistics' },
+        { method: 'GET', path: '/api/zoom-integration/status', desc: 'Get integration status and health' },
+        { method: 'POST', path: '/api/zoom-integration/meeting-templates', desc: 'Create meeting template', sample: { name: '30-min Session', duration: 30, settings: { join_before_host: true } } },
+        { method: 'GET', path: '/api/zoom-integration/meeting-templates', desc: 'Get meeting templates' },
+        { method: 'DELETE', path: '/api/zoom-integration', desc: 'Delete Zoom integration' },
+        // NEW: Zoom Meeting Management
+        { method: 'GET', path: '/api/zoom-integration/meetings', desc: 'Get all Zoom meetings for coach' },
+        { method: 'GET', path: '/api/zoom-integration/meetings/appointment/:appointmentId', desc: 'Get Zoom meeting details for specific appointment' },
+        // NEW: Zoom Cleanup Management
+        { method: 'POST', path: '/api/zoom-integration/cleanup/start', desc: 'Start automatic Zoom meeting cleanup', sample: { retentionDays: 2, interval: 'daily' } },
+        { method: 'POST', path: '/api/zoom-integration/cleanup/stop', desc: 'Stop automatic Zoom meeting cleanup' },
+        { method: 'POST', path: '/api/zoom-integration/cleanup/manual', desc: 'Perform manual Zoom meeting cleanup', sample: { retentionDays: 2 } },
+        { method: 'GET', path: '/api/zoom-integration/cleanup/stats', desc: 'Get Zoom cleanup statistics and status' },
+        { method: 'PUT', path: '/api/zoom-integration/cleanup/retention', desc: 'Update Zoom cleanup retention period', sample: { retentionDays: 3 } },
+    ],
+    '🎯 Lead Magnets': [
+        { method: 'GET', path: '/api/lead-magnets/coach', desc: 'Get coach lead magnet settings' },
+        { method: 'PUT', path: '/api/lead-magnets/coach', desc: 'Update coach lead magnet settings' },
+        { method: 'POST', path: '/api/lead-magnets/ai-diet-plan', desc: 'Generate AI diet plan via WhatsApp' },
+        { method: 'POST', path: '/api/lead-magnets/bmi-calculator', desc: 'Calculate BMI with recommendations' },
+        { method: 'POST', path: '/api/lead-magnets/ebook-generator', desc: 'Generate personalized e-book content' },
+        { method: 'POST', path: '/api/lead-magnets/workout-calculator', desc: 'Calculate workout metrics (1RM, heart rate)' },
+        { method: 'POST', path: '/api/lead-magnets/progress-tracker', desc: 'Track fitness progress and analytics' },
+        { method: 'POST', path: '/api/lead-magnets/sleep-analyzer', desc: 'Analyze sleep quality and get recommendations' },
+        { method: 'POST', path: '/api/lead-magnets/stress-assessment', desc: 'Assess stress levels and get coping strategies' },
+        { method: 'GET', path: '/api/lead-magnets/available', desc: 'Get all available lead magnets' },
+        { method: 'GET', path: '/api/lead-magnets/analytics', desc: 'Get lead magnet performance analytics' },
+        { method: 'GET', path: '/api/lead-magnets/history/:leadId', desc: 'Get lead magnet interaction history' },
+    ],
+    '🌐 Public Funnel Pages': [
+        { method: 'GET', path: '/funnels/:funnelSlug/:pageSlug', desc: 'Render a public funnel page' },
+    ],
+    '📢 Marketing & Advertising': [
+        { method: 'GET', path: '/api/ads', desc: 'List all ad campaigns for coach' },
+        { method: 'POST', path: '/api/ads/create', desc: 'Create a new ad campaign', sample: { coachMetaAccountId: '123456789', campaignData: { name: 'My Campaign', objective: 'LEAD_GENERATION', budget: 100 } } },
+        { method: 'POST', path: '/api/ads/sync', desc: 'Sync campaigns from Meta to DB', sample: { coachMetaAccountId: '123456789' } },
+        { method: 'PUT', path: '/api/ads/:campaignId', desc: 'Update an ad campaign', sample: { name: 'Updated Name', budget: 200 } },
+        { method: 'POST', path: '/api/ads/:campaignId/pause', desc: 'Pause an ad campaign' },
+        { method: 'POST', path: '/api/ads/:campaignId/resume', desc: 'Resume an ad campaign' },
+        { method: 'GET', path: '/api/ads/:campaignId/analytics', desc: 'Get analytics/insights for a campaign' },
+        { method: 'POST', path: '/api/ads/upload-image', desc: 'Upload image and get Meta image hash', sample: { imageUrl: 'https://example.com/image.jpg' } },
+        { method: 'POST', path: '/api/ads/:campaignId/ad-sets', desc: 'Create ad set for targeting and budget', sample: { name: 'Target Audience', targeting: { age_min: 25, age_max: 45, geo_locations: { countries: ['US'] } }, daily_budget: 2500 } },
+        { method: 'POST', path: '/api/ads/:campaignId/creatives', desc: 'Create ad creative with image and text', sample: { name: 'Website Creative', object_story_spec: { link_data: { link: 'https://yourwebsite.com', message: 'Check out our amazing program!', image_hash: 'abc123...', call_to_action: { type: 'LEARN_MORE' } } } } },
+        { method: 'POST', path: '/api/ads/:campaignId/ads', desc: 'Create ad that combines ad set and creative', sample: { name: 'Website Traffic Ad', adset_id: 'adset_456', creative: { creative_id: 'creative_789' }, status: 'PAUSED' } },
+        { method: 'GET', path: '/api/ads/:campaignId/ad-sets', desc: 'List ad sets for a campaign' },
+        { method: 'GET', path: '/api/ads/:campaignId/creatives', desc: 'List ad creatives for a campaign' },
+        { method: 'GET', path: '/api/ads/:campaignId/ads', desc: 'List ads for a campaign' },
+        {
+            method: 'POST', path: '/api/ads/create-url-campaign', desc: 'Create complete URL campaign (all-in-one)', sample: {
+                coachMetaAccountId: '123456789',
+                campaignData: { name: 'Website Traffic Q1', objective: 'LINK_CLICKS', status: 'PAUSED', daily_budget: 5000 },
+                adSetData: { name: 'Target Audience', targeting: { age_min: 25, age_max: 45, geo_locations: { countries: ['US'] } }, daily_budget: 2500, billing_event: 'IMPRESSIONS', optimization_goal: 'LINK_CLICKS' },
+                creativeData: { name: 'Website Creative', object_story_spec: { link_data: { link: 'https://yourfitnesswebsite.com', message: 'Transform your fitness journey today!', image_hash: 'abc123...', call_to_action: { type: 'LEARN_MORE' } } } },
+                adData: { name: 'Website Traffic Ad', status: 'PAUSED' }
+            }
+        }
+    ],
+    '🧮 Lead Scoring & Tracking': [
+        { method: 'GET', path: '/api/lead-scoring/email-opened', desc: 'Track email open (tracking pixel, use ?leadId=LEAD_ID)' },
+        { method: 'GET', path: '/api/lead-scoring/link-clicked', desc: 'Track link click and redirect (use ?leadId=LEAD_ID&target=URL)' },
+        { method: 'POST', path: '/api/lead-scoring/whatsapp-replied', desc: 'Track WhatsApp reply (webhook, { leadId })' },
+        { method: 'POST', path: '/api/lead-scoring/form-submitted', desc: 'Track form submission ({ leadId })' },
+        { method: 'POST', path: '/api/lead-scoring/call-booked', desc: 'Track call/meeting booking ({ leadId })' },
+        { method: 'POST', path: '/api/lead-scoring/call-attended', desc: 'Track attended call ({ leadId })' },
+        { method: 'POST', path: '/api/lead-scoring/profile-completed', desc: 'Track profile completion ({ leadId })' },
+        { method: 'POST', path: '/api/lead-scoring/lead-magnet-converted', desc: 'Track lead magnet conversion ({ leadId })' },
+        { method: 'POST', path: '/api/lead-scoring/followup-added', desc: 'Track follow-up note added ({ leadId })' },
+        { method: 'POST', path: '/api/lead-scoring/booking-recovered', desc: 'Track booking recovery ({ leadId })' },
+        { method: 'POST', path: '/api/lead-scoring/inactivity-decay', desc: 'Track inactivity decay ({ leadId })' },
+        { method: 'POST', path: '/api/lead-scoring/unsubscribed', desc: 'Track unsubscribe event ({ leadId })' },
+        { method: 'POST', path: '/api/lead-scoring/email-bounced', desc: 'Track email bounce event ({ leadId })' },
+    ],
+    '🤖 AI Services': [
+      { method: 'GET', path: '/api/ai/test-connection', desc: 'Test AI service connection and API keys' },
+      { method: 'GET', path: '/api/ai/models', desc: 'Get available AI models and providers' },
+      { method: 'POST', path: '/api/ai/generate-marketing-copy', desc: 'Generate marketing copy with AI', sample: { prompt: 'Create compelling copy for a fitness program', temperature: 0.8, maxTokens: 500 } },
+      { method: 'POST', path: '/api/ai/generate-headlines', desc: 'Generate marketing headlines and CTAs', sample: { product: '12-week fitness program', targetAudience: 'busy professionals', count: 5 } },
+      { method: 'POST', path: '/api/ai/generate-social-post', desc: 'Generate social media posts', sample: { coachName: 'John Doe', niche: 'Weight Loss', offer: '12-week program', targetAudience: 'weight loss seekers' } },
+      { method: 'POST', path: '/api/ai/analyze-sentiment', desc: 'Analyze sentiment of WhatsApp messages', sample: { message: 'I am interested in your program' } },
+      { method: 'POST', path: '/api/ai/generate-contextual-response', desc: 'Generate contextual responses based on sentiment', sample: { userMessage: 'How much does it cost?', sentiment: 'interested', context: { leadStage: 'qualified' } } },
+      { method: 'POST', path: '/api/ai/generate-sop', desc: 'Generate Standard Operating Procedures', sample: { taskType: 'Lead Follow-up', context: 'Fitness coaching business' } },
+      { method: 'POST', path: '/api/ai/generate-lead-insights', desc: 'Generate AI-powered lead insights', sample: { leadData: { name: 'Jane', email: 'jane@example.com', source: 'Facebook Ad', engagement: 'high' } } },
+      { method: 'POST', path: '/api/ai/optimize-content', desc: 'Optimize content for better performance', sample: { content: 'Join our fitness program', targetAudience: 'beginners', goal: 'increase conversions' } },
+      { method: 'POST', path: '/api/ai/chat-completion', desc: 'Generic AI chat completion', sample: { messages: [{ role: 'user', content: 'Hello' }], model: 'gpt-3.5-turbo', temperature: 0.7 } },
+    ],
+    '🤖 AI-Powered Features': [
+      // AI Service Endpoints
+      { method: 'GET', path: '/api/ai/test-connection', desc: 'Test AI service connection and API keys' },
+      { method: 'GET', path: '/api/ai/models', desc: 'Get available AI models and providers' },
+      { method: 'POST', path: '/api/ai/generate-marketing-copy', desc: 'Generate marketing copy with AI', sample: { prompt: 'Create compelling copy for a fitness program', temperature: 0.8, maxTokens: 500 } },
+      { method: 'POST', path: '/api/ai/generate-headlines', desc: 'Generate marketing headlines and CTAs', sample: { product: '12-week fitness program', targetAudience: 'busy professionals', count: 5 } },
+      { method: 'POST', path: '/api/ai/generate-social-post', desc: 'Generate social media posts', sample: { coachName: 'John Doe', niche: 'Weight Loss', offer: '12-week program', targetAudience: 'weight loss seekers' } },
+      { method: 'POST', path: '/api/ai/analyze-sentiment', desc: 'Analyze sentiment of WhatsApp messages', sample: { message: 'I am interested in your program' } },
+      { method: 'POST', path: '/api/ai/generate-contextual-response', desc: 'Generate contextual responses based on sentiment', sample: { userMessage: 'How much does it cost?', sentiment: 'interested', context: { leadStage: 'qualified' } } },
+      { method: 'POST', path: '/api/ai/generate-sop', desc: 'Generate Standard Operating Procedures', sample: { taskType: 'Lead Follow-up', context: 'Fitness coaching business' } },
+      { method: 'POST', path: '/api/ai/generate-lead-insights', desc: 'Generate AI-powered lead insights', sample: { leadData: { name: 'Jane', email: 'jane@example.com', source: 'Facebook Ad', engagement: 'high' } } },
+      { method: 'POST', path: '/api/ai/optimize-content', desc: 'Optimize content for better performance', sample: { content: 'Join our fitness program', targetAudience: 'beginners', goal: 'increase conversions' } },
+      { method: 'POST', path: '/api/ai/chat-completion', desc: 'Generic AI chat completion', sample: { messages: [{ role: 'user', content: 'Hello' }], model: 'gpt-3.5-turbo', temperature: 0.7 } },
+      // AI-Powered Lead Management Endpoints
+      { method: 'GET', path: '/api/leads/:leadId/ai-qualify', desc: 'AI-powered lead qualification and insights', sample: { leadId: '...' } },
+      { method: 'POST', path: '/api/leads/:leadId/generate-nurturing-sequence', desc: 'Generate AI-powered nurturing strategy', sample: { leadId: '...', sequenceType: 'warm_lead' } },
+      { method: 'POST', path: '/api/leads/:leadId/generate-followup-message', desc: 'Generate AI-powered follow-up message', sample: { leadId: '...', followUpType: 'first_followup', context: 'General follow-up' } },
+    ],
+    '🚀 NEW: COMPREHENSIVE COACH DASHBOARD FEATURES': [
+        { method: 'INFO', path: '📅 Calendar & Appointment System', desc: 'Complete appointment booking, scheduling, and calendar management with conflict detection and reminders' },
+        { method: 'INFO', path: '📱 WhatsApp Automation Engine', desc: 'Advanced WhatsApp automation with sentiment analysis, AI-powered responses, human escalation, and campaign management' },
+        { method: 'INFO', path: '🛒 E-commerce & Payment Processing', desc: 'Multi-gateway payment processing (Stripe, PayPal, Razorpay), subscription management, shopping cart, and revenue analytics' },
+        { method: 'INFO', path: '🤖 AI Integration', desc: 'Sentiment analysis, lead qualification, performance insights, and automated content generation' },
+        { method: 'INFO', path: '⚡ Automation Engine', desc: 'Event-driven automation with RabbitMQ integration for seamless workflow orchestration' },
+        { method: 'INFO', path: '📊 Advanced Analytics', desc: 'Comprehensive dashboard with real-time metrics, performance tracking, and business intelligence' },
+        { method: 'INFO', path: '🔗 Integration Hub', desc: 'Seamless integration with existing automation rules, lead nurturing, and marketing campaigns' }
+    ]
+};
+
+// 🏠 Dynamic Homepage Route with new UI
+router.get('/', (req, res) => {
+    let routeTables = '';
+    let sidebarLinks = '';
+
+    // Group similar sections for better organization
+    const groupedSections = {
+        '🔑 Core Services': ['🔑 Authentication', '📈 Funnel Management', '🎯 Lead Management (CRM)', '📱 Unified WhatsApp Integration'],
+        '🤖 AI & Automation': ['🤖 AI Services', '🤖 AI-Powered Features', '⚙️ Automation Rules', '📋 Workflow & Task Management'],
+        '📊 Business Intelligence': ['📊 Coach Dashboard', '👥 Staff Management', '📊 Advanced MLM Network (Unified)'],
+        '💰 E-commerce & Payments': ['💳 Payment Processing', '🛒 E-commerce & Payments (Coach Dashboard)', '💰 Performance & Commissions'],
+        '📢 Marketing & Advertising': ['📢 Marketing & Advertising', '🤖 AI Ads Agent', '🌱 Nurturing Sequences', '🎯 Lead Magnets'],
+        '🔗 Integrations & Utilities': ['🔗 Custom URL Access (Public)', '🌐 Custom Domain Management', '🔗 Zoom Integration', '💬 Message Templates', '📁 File Upload', '💡 Priority Feed & Calendar', '👤 Coach Profile Management']
+    };
+
+    // Generate sidebar with grouped sections
+    for (const groupTitle in groupedSections) {
+        const groupId = groupTitle.replace(/[^a-zA-Z0-9]/g, '');
+        sidebarLinks += `
+            <div class="sidebar-group">
+                <div class="sidebar-group-header" onclick="toggleGroup('${groupId}')">
+                    <span class="sidebar-group-title">${groupTitle}</span>
+                    <button class="sidebar-group-toggle" id="toggle-${groupId}">▼</button>
+                </div>
+                <div class="sidebar-group-links" id="group-${groupId}">
+        `;
+        
+        groupedSections[groupTitle].forEach(sectionTitle => {
+            if (allApiRoutes[sectionTitle]) {
+                const id = sectionTitle.replace(/[^a-zA-Z0-9]/g, '');
+                sidebarLinks += `<a href="#${id}" class="tab-link">${sectionTitle}</a>`;
+            }
+        });
+        
+        sidebarLinks += `
+                </div>
+            </div>
+        `;
+    }
+
+    // Generate route tables for all sections
+    for (const title in allApiRoutes) {
+        const id = title.replace(/[^a-zA-Z0-9]/g, '');
+        routeTables += `
+            <div id="${id}" class="route-table-container">
+                <h2>${title}</h2>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Method</th>
+                                <th>Endpoint</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+        allApiRoutes[title].forEach(route => {
+            routeTables += `
+                <tr>
+                    <td class="method method-${route.method.toLowerCase()}">${route.method}</td>
+                    <td>${route.path}</td>
+                    <td>
+                        ${route.desc.replace(/`/g, '\\`')}
+                        ${route.sample ? '<pre style="margin-top:8px;background:#0b1020;color:#d1e9ff;padding:10px;border-radius:6px;white-space:pre-wrap;">' + JSON.stringify(route.sample, null, 2).replace(/`/g, '\\`') + '</pre>' : ''}
+                    </td>
+                </tr>
+            `;
+        });
+        routeTables += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>FunnelsEye API</title>
+            <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+            <style>
+                :root {
+                    --bg-color: #0d1117;
+                    --card-bg: rgba(22, 27, 34, 0.8);
+                    --primary-color: #58a6ff;
+                    --secondary-color: #f082ff;
+                    --text-color: #c9d1d9;
+                    --border-color: #30363d;
+                    --button-bg: #238636;
+                    --button-hover: #2ea043;
+                }
+                body, html {
+                    margin: 0;
+                    padding: 0;
+                    font-family: 'Poppins', sans-serif;
+                    background-color: var(--bg-color);
+                    color: var(--text-color);
+                    height: 100%;
+                    overflow-x: hidden;
+                    overflow-y: auto;
+                }
+                .background-bubbles {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    overflow: hidden;
+                    z-index: 0;
+                }
+                .bubble {
+                    position: absolute;
+                    bottom: -100px;
+                    background-color: rgba(88, 166, 255, 0.1);
+                    border-radius: 50%;
+                    animation: floatUp 15s infinite ease-in;
+                }
+                .bubble:nth-child(1) { width: 60px; height: 60px; left: 10%; animation-duration: 12s; }
+                .bubble:nth-child(2) { width: 40px; height: 40px; left: 20%; animation-duration: 15s; animation-delay: 2s; }
+                .bubble:nth-child(3) { width: 80px; height: 80px; left: 35%; animation-duration: 18s; animation-delay: 1s; }
+                .bubble:nth-child(4) { width: 50px; height: 50px; left: 50%; animation-duration: 11s; }
+                .bubble:nth-child(5) { width: 70px; height: 70px; left: 65%; animation-duration: 16s; animation-delay: 3s; }
+                .bubble:nth-child(6) { width: 90px; height: 90px; left: 80%; animation-duration: 20s; }
+                .bubble:nth-child(7) { width: 65px; height: 65px; left: 90%; animation-duration: 13s; animation-delay: 2s; }
+                .bubble:nth-child(8) { width: 55px; height: 55px; left: 25%; animation-duration: 17s; animation-delay: 4s; }
+                .bubble:nth-child(9) { width: 75px; height: 75px; left: 45%; animation-duration: 14s; }
+                .bubble:nth-child(10) { width: 100px; height: 100px; left: 70%; animation-duration: 22s; animation-delay: 5s; }
+
+                @keyframes floatUp {
+                    0% { transform: translateY(0) rotate(0deg); opacity: 0; border-radius: 50%; }
+                    50% { opacity: 1; }
+                    100% { transform: translateY(-1000px) rotate(720deg); opacity: 0; border-radius: 20%; }
+                }
+
+                .main-content {
+                    position: relative;
+                    z-index: 1;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    flex-direction: column;
+                    transition: all 0.5s ease-in-out;
+                    padding: 2rem;
+                    box-sizing: border-box;
+                }
+                .main-content.collapsed {
+                    justify-content: flex-start;
+                    align-items: flex-start;
+                    height: auto;
+                    padding: 0;
+                }
+                .main-content.collapsed .header-section {
+                    display: none;
+                }
+                .container {
+                    background-color: var(--card-bg);
+                    backdrop-filter: blur(10px);
+                    border: 1px solid var(--border-color);
+                    border-radius: 1rem;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+                    max-width: 1200px;
+                    width: 90%;
+                    display: flex;
+                    flex-direction: column;
+                    min-height: 80vh;
+                    overflow: hidden;
+                    transition: all 0.5s ease-in-out;
+                }
+                .header-section {
+                    text-align: center;
+                    padding: 4rem 2rem;
+                    max-width: 800px;
+                    animation: fadeIn 1.5s ease-in-out;
+                }
+                .header-section h1 {
+                    font-size: 3rem;
+                    font-weight: 700;
+                    color: white;
+                    margin: 0;
+                    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    filter: drop-shadow(0 0 5px rgba(88, 166, 255, 0.3));
+                }
+                .header-section p {
+                    margin-top: 1rem;
+                    font-size: 1.1rem;
+                    color: var(--text-color);
+                }
+                #show-endpoints-btn {
+                    margin-top: 2rem;
+                    padding: 12px 28px;
+                    font-size: 1rem;
+                    font-weight: 600;
+                    color: white;
+                    background-color: var(--button-bg);
+                    border: none;
+                    border-radius: 50px;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 4px 15px rgba(35, 134, 54, 0.4);
+                }
+                #show-endpoints-btn:hover {
+                    background-color: var(--button-hover);
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(46, 160, 67, 0.6);
+                }
+                .api-docs-container {
+                    display: none;
+                    flex: 1;
+                    transition: all 0.5s ease-in-out;
+                    max-height: calc(100vh - 40px);
+                    overflow-y: auto;
+                    overflow-x: auto;
+                    min-width: 0;
+                }
+                .api-docs-container.visible {
+                    display: flex;
+                    min-width: 0;
+                    width: 100%;
+                }
+                .sidebar {
+                    width: 280px;
+                    padding: 2rem 1rem;
+                    display: flex;
+                    flex-direction: column;
+                    border-right: 1px solid var(--border-color);
+                    overflow-y: auto;
+                    flex-shrink: 0;
+                    transition: transform 0.3s ease-in-out;
+                }
+                
+                .sidebar-group {
+                    margin-bottom: 1rem;
+                }
+                
+                .sidebar-group-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 0.5rem 0;
+                    cursor: pointer;
+                    user-select: none;
+                    border-bottom: 1px solid var(--border-color);
+                    margin-bottom: 0.5rem;
+                }
+                
+                .sidebar-group-title {
+                    font-weight: 600;
+                    color: var(--primary-color);
+                    font-size: 0.9rem;
+                }
+                
+                .sidebar-group-toggle {
+                    background: none;
+                    border: none;
+                    color: var(--text-color);
+                    cursor: pointer;
+                    padding: 0.25rem;
+                    border-radius: 4px;
+                    transition: all 0.2s ease;
+                }
+                
+                .sidebar-group-toggle:hover {
+                    background: rgba(88, 166, 255, 0.1);
+                }
+                
+                .sidebar-group-toggle.expanded {
+                    transform: rotate(180deg);
+                }
+                
+                .sidebar-group-links {
+                    max-height: 0;
+                    overflow: hidden;
+                    transition: max-height 0.3s ease-in-out;
+                }
+                
+                .sidebar-group-links.expanded {
+                    max-height: 500px;
+                }
+                
+                .sidebar-group-links a {
+                    display: block;
+                    padding: 0.5rem 0.5rem 0.5rem 1rem;
+                    color: var(--text-color);
+                    text-decoration: none;
+                    font-size: 0.85rem;
+                    border-radius: 4px;
+                    transition: all 0.2s ease;
+                    margin-bottom: 0.25rem;
+                }
+                
+                .sidebar-group-links a:hover {
+                    background: rgba(88, 166, 255, 0.1);
+                    color: var(--primary-color);
+                }
+                .sidebar.collapsed {
+                    transform: translateX(-100%);
+                }
+                .sidebar-overlay {
+                    display: none;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    z-index: 998;
+                    opacity: 0;
+                    transition: opacity 0.3s ease-in-out;
+                }
+                .sidebar-overlay.visible {
+                    opacity: 1;
+                }
+                .hamburger-menu {
+                    display: none;
+                    position: fixed;
+                    top: 20px;
+                    left: 20px;
+                    z-index: 1000;
+                    background: var(--card-bg);
+                    border: 1px solid var(--border-color);
+                    border-radius: 8px;
+                    padding: 10px;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                }
+                .hamburger-menu:hover {
+                    background: rgba(88, 166, 255, 0.1);
+                    border-color: var(--primary-color);
+                }
+                .hamburger-icon {
+                    width: 20px;
+                    height: 2px;
+                    background: var(--text-color);
+                    margin: 4px 0;
+                    transition: 0.3s;
+                }
+                .hamburger-menu.active .hamburger-icon:nth-child(1) {
+                    transform: rotate(-45deg) translate(-5px, 6px);
+                }
+                .hamburger-menu.active .hamburger-icon:nth-child(2) {
+                    opacity: 0;
+                }
+                .hamburger-menu.active .hamburger-icon:nth-child(3) {
+                    transform: rotate(45deg) translate(-5px, -6px);
+                }
+                .tabs {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.5rem;
+                }
+                .tab-link {
+                    display: block;
+                    padding: 12px 15px;
+                    color: var(--text-color);
+                    text-decoration: none;
+                    font-weight: 400;
+                    border-radius: 8px;
+                    transition: all 0.2s ease;
+                }
+                .tab-link:hover, .tab-link.active {
+                    background-color: rgba(88, 166, 255, 0.2);
+                    color: var(--primary-color);
+                    font-weight: 600;
+                }
+                .content-wrapper {
+                    padding: 2rem;
+                    flex-grow: 1;
+                    overflow-y: auto;
+                    overflow-x: auto;
+                    min-width: 0;
+                    max-width: 100%;
+                }
+                .route-table-container {
+                    display: none;
+                    animation: fadeIn 0.5s ease-in-out;
+                }
+                .route-table-container.active {
+                    display: block;
+                }
+                .table-wrapper {
+                    overflow-x: auto;
+                    border-radius: 10px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    scrollbar-width: thin;
+                    scrollbar-color: var(--border-color) transparent;
+                }
+                .table-wrapper::-webkit-scrollbar {
+                    height: 8px;
+                }
+                .table-wrapper::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .table-wrapper::-webkit-scrollbar-thumb {
+                    background: var(--border-color);
+                    border-radius: 4px;
+                }
+                .table-wrapper::-webkit-scrollbar-thumb:hover {
+                    background: var(--primary-color);
+                }
+                h2 {
+                    font-size: 1.8rem;
+                    color: var(--primary-color);
+                    margin-top: 0;
+                    margin-bottom: 1.5rem;
+                }
+                table {
+                    width: 100%;
+                    min-width: 800px;
+                    border-collapse: separate;
+                    border-spacing: 0;
+                    background-color: rgba(0,0,0,0.1);
+                    border-radius: 10px;
+                    overflow: hidden;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    margin-bottom: 2rem;
+                }
+                th, td {
+                    padding: 15px;
+                    text-align: left;
+                    border-bottom: 1px solid var(--border-color);
+                }
+                th {
+                    background-color: rgba(0,0,0,0.2);
+                    color: var(--primary-color);
+                    font-weight: 600;
+                    text-transform: uppercase;
+                }
+                tr:last-child td { border-bottom: none; }
+                tr:hover { background-color: rgba(255,255,255,0.05); }
+                .method {
+                    padding: 5px 10px;
+                    border-radius: 5px;
+                    color: white;
+                    font-weight: bold;
+                    font-size: 0.8rem;
+                    text-transform: uppercase;
+                }
+                .method-get { background-color: #2da44e; }
+                .method-post { background-color: #58a6ff; }
+                .method-put { background-color: #e3b341; }
+                .method-delete { background-color: #f85149; }
+                
+                /* Animations */
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+
+                @media (max-width: 768px) {
+                    .container {
+                        width: 95%;
+                        min-height: 90vh;
+                        flex-direction: column;
+                    }
+                    .main-content.collapsed {
+                        height: 100%;
+                    }
+                    .api-docs-container.visible {
+                        flex-direction: column;
+                    }
+                    .sidebar {
+                        width: 100%;
+                        border-right: none;
+                        border-bottom: 1px solid var(--border-color);
+                        position: fixed;
+                        left: 0;
+                        top: 0;
+                        height: 100vh;
+                        background: var(--card-bg);
+                        z-index: 999;
+                        transform: translateX(-100%);
+                    }
+                    .sidebar.visible {
+                        transform: translateX(0);
+                    }
+                    .hamburger-menu {
+                        display: block;
+                    }
+                    .content-wrapper {
+                        padding: 1rem;
+                        margin-left: 0;
+                        width: 100%;
+                        overflow-x: auto;
+                    }
+                    .table-wrapper {
+                        overflow-x: auto;
+                        -webkit-overflow-scrolling: touch;
+                    }
+                    .hamburger-menu {
+                        top: 15px;
+                        left: 15px;
+                    }
+                    .sidebar-overlay {
+                        display: block;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="hamburger-menu" id="hamburger-menu">
+                <div class="hamburger-icon"></div>
+                <div class="hamburger-icon"></div>
+                <div class="hamburger-icon"></div>
+            </div>
+            <div class="sidebar-overlay" id="sidebar-overlay"></div>
+            <div class="background-bubbles">
+                <div class="bubble"></div><div class="bubble"></div><div class="bubble"></div><div class="bubble"></div><div class="bubble"></div>
+                <div class="bubble"></div><div class="bubble"></div><div class="bubble"></div><div class="bubble"></div><div class="bubble"></div>
+            </div>
+            <div class="main-content" id="main-content">
+                <div class="header-section" id="header-section">
+                    <h1>✨ FunnelsEye API</h1>
+                    <p>Your all-in-one backend for marketing funnels, lead management, and more.</p>
+                    <button id="show-endpoints-btn">Show API Endpoints</button>
+                </div>
+                <div class="api-docs-container" id="api-docs-container">
+                    <div class="sidebar">
+                        <div class="tabs">
+                            ${sidebarLinks}
+                        </div>
+                    </div>
+                    <div class="content-wrapper">
+                        <div id="docsWrapper">
+                            ${routeTables}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <script>
+                // Function to toggle sidebar groups
+                function toggleGroup(groupId) {
+                    const groupLinks = document.getElementById(\`group-\${groupId}\`);
+                    const toggleBtn = document.getElementById(\`toggle-\${groupId}\`);
+                    
+                    if (groupLinks.classList.contains('expanded')) {
+                        groupLinks.classList.remove('expanded');
+                        toggleBtn.classList.remove('expanded');
+                        toggleBtn.textContent = '▼';
+                    } else {
+                        groupLinks.classList.add('expanded');
+                        toggleBtn.classList.add('expanded');
+                        toggleBtn.textContent = '▲';
+                    }
+                }
+
+                document.addEventListener('DOMContentLoaded', () => {
+                    const tabLinks = document.querySelectorAll('.tab-link');
+                    const tabContents = document.querySelectorAll('.route-table-container');
+                    const showBtn = document.getElementById('show-endpoints-btn');
+                    const docsContainer = document.getElementById('api-docs-container');
+                    const headerSection = document.getElementById('header-section');
+                    const mainContent = document.getElementById('main-content');
+                    const hamburgerMenu = document.getElementById('hamburger-menu');
+                    const sidebar = document.querySelector('.sidebar');
+                    const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+                    // Initialize sidebar groups - expand first group by default
+                    if (window.innerWidth > 768) {
+                        const firstGroup = document.querySelector('.sidebar-group');
+                        if (firstGroup) {
+                            const groupId = firstGroup.querySelector('.sidebar-group-header').getAttribute('onclick').match(/'([^']+)'/)[1];
+                            toggleGroup(groupId);
+                        }
+                    }
+
+                    showBtn.addEventListener('click', () => {
+                        docsContainer.classList.add('visible');
+                        mainContent.classList.add('collapsed');
+                        
+                        // Set the first tab as active by default
+                        if (tabLinks.length > 0) {
+                            tabLinks[0].classList.add('active');
+                            tabContents[0].classList.add('active');
+                        }
+                    });
+
+                    tabLinks.forEach(link => {
+                        link.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            tabLinks.forEach(l => l.classList.remove('active'));
+                            tabContents.forEach(c => c.classList.remove('active'));
+
+                            e.target.classList.add('active');
+                            const targetId = e.target.getAttribute('href').substring(1);
+                            document.getElementById(targetId).classList.add('active');
+                            
+                            // On mobile, close sidebar after tab selection
+                            if (window.innerWidth <= 768) {
+                                sidebar.classList.remove('visible');
+                                hamburgerMenu.classList.remove('active');
+                                sidebarOverlay.classList.remove('visible');
+                            }
+                        });
+                    });
+
+                    // Hamburger menu functionality
+                    hamburgerMenu.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        hamburgerMenu.classList.toggle('active');
+                        sidebar.classList.toggle('visible');
+                        sidebarOverlay.classList.toggle('visible');
+                    });
+
+                    // Close sidebar when clicking outside on mobile
+                    document.addEventListener('click', (e) => {
+                        if (window.innerWidth <= 768) {
+                            if (!sidebar.contains(e.target) && !hamburgerMenu.contains(e.target)) {
+                                sidebar.classList.remove('visible');
+                                hamburgerMenu.classList.remove('active');
+                                sidebarOverlay.classList.remove('visible');
+                            }
+                        }
+                    });
+
+                    // Close sidebar when clicking on overlay
+                    sidebarOverlay.addEventListener('click', () => {
+                        sidebar.classList.remove('visible');
+                        hamburgerMenu.classList.remove('active');
+                        sidebarOverlay.classList.remove('visible');
+                    });
+
+                    // Handle window resize
+                    window.addEventListener('resize', () => {
+                        if (window.innerWidth > 768) {
+                            sidebar.classList.remove('visible');
+                            hamburgerMenu.classList.remove('active');
+                            sidebarOverlay.classList.remove('visible');
+                        }
+                    });
+                });
+            </script>
+        </body>
+        </html>
+    `);
+});
+
+module.exports = router;

@@ -45,6 +45,9 @@ const addDownline = async (req, res) => {
             password,
             role: 'coach', // This will create a Coach discriminator
             sponsorId,
+            selfCoachId: null, // Will be set during hierarchy setup
+            currentLevel: 1, // Default to level 1
+            hierarchyLocked: false,
             isVerified: false // New members need to verify email on first login
         });
         

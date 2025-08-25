@@ -340,7 +340,7 @@ const getLeads = async (req, res) => {
 // @access  Private (Coaches/Admins)
 const getLead = async (req, res) => {
     try {
-        const lead = await Lead.findOne({ _id: req.params.id, coachId: req.coachId })
+        const lead = await Lead.findOne({ _id: req.params.leadId, coachId: req.coachId })
             .populate('funnelId', 'name')
             .populate('assignedTo', 'name')
             .populate('followUpHistory.createdBy', 'name')
@@ -376,7 +376,7 @@ const getLead = async (req, res) => {
 // @access  Private (Coaches/Admins)
 const updateLead = async (req, res) => {
     try {
-        const existingLead = await Lead.findOne({ _id: req.params.id, coachId: req.coachId });
+        const existingLead = await Lead.findOne({ _id: req.params.leadId, coachId: req.coachId });
 
         if (!existingLead) {
             return res.status(404).json({
@@ -389,7 +389,7 @@ const updateLead = async (req, res) => {
         const oldTemperature = existingLead.leadTemperature;
         const oldAssignedTo = existingLead.assignedTo ? existingLead.assignedTo.toString() : null;
 
-        const updatedLead = await Lead.findOneAndUpdate({ _id: req.params.id, coachId: req.coachId }, req.body, {
+        const updatedLead = await Lead.findOneAndUpdate({ _id: req.params.leadId, coachId: req.coachId }, req.body, {
             new: true,
             runValidators: true
         });
@@ -473,7 +473,7 @@ const updateLead = async (req, res) => {
 // @access  Private (Coaches/Admins)
 const addFollowUpNote = async (req, res) => {
     try {
-        let lead = await Lead.findOne({ _id: req.params.id, coachId: req.coachId });
+        let lead = await Lead.findOne({ _id: req.params.leadId, coachId: req.coachId });
 
         if (!lead) {
             return res.status(404).json({
@@ -517,7 +517,7 @@ const addFollowUpNote = async (req, res) => {
 
         await leadScoringService.updateLeadScore(lead._id, 'followup_added');
 
-        lead = await Lead.findOne({ _id: req.params.id, coachId: req.coachId })
+        lead = await Lead.findOne({ _id: req.params.leadId, coachId: req.coachId })
             .populate('funnelId', 'name')
             .populate('assignedTo', 'name')
             .populate('followUpHistory.createdBy', 'name');
@@ -606,7 +606,7 @@ const getUpcomingFollowUps = async (req, res) => {
 // @access  Private (Coaches/Admins)
 const deleteLead = async (req, res) => {
     try {
-        const lead = await Lead.findOne({ _id: req.params.id, coachId: req.coachId });
+        const lead = await Lead.findOne({ _id: req.params.leadId, coachId: req.coachId });
 
         if (!lead) {
             return res.status(404).json({
@@ -904,10 +904,79 @@ const aiQualifyLead = async (req, res) => {
     }
 };
 
+// Helper function to convert AI content to structured nurturing steps
+function generateSequenceSteps(aiContent, sequenceType, lead) {
+    const steps = [];
+    let stepNumber = 1;
+    
+    // Define action types based on sequence type
+    const actionTypes = {
+        'warm_lead': ['send_email', 'send_whatsapp_message', 'create_task'],
+        'cold_lead': ['send_email', 'send_whatsapp_message', 'send_email', 'create_task', 'send_whatsapp_message'],
+        'objection_handling': ['send_whatsapp_message', 'send_email', 'create_task', 'send_whatsapp_message'],
+        'follow_up': ['send_whatsapp_message', 'send_email', 'create_task'],
+        'reactivation': ['send_email', 'send_whatsapp_message', 'create_task', 'send_whatsapp_message']
+    };
+    
+    const sequenceActions = actionTypes[sequenceType] || actionTypes['warm_lead'];
+    
+    // Generate steps based on action types
+    sequenceActions.forEach((actionType, index) => {
+        let actionConfig = {};
+        let stepName = '';
+        let stepDescription = '';
+        
+        switch (actionType) {
+            case 'send_email':
+                stepName = `Email ${stepNumber}`;
+                stepDescription = `Send personalized email to ${lead.name}`;
+                actionConfig = {
+                    subject: `Follow-up from your coach`,
+                    body: `Hi ${lead.name}, this is a personalized follow-up message.`
+                };
+                break;
+                
+            case 'send_whatsapp_message':
+                stepName = `WhatsApp ${stepNumber}`;
+                stepDescription = `Send WhatsApp message to ${lead.name}`;
+                actionConfig = {
+                    message: `Hi ${lead.name}, how are you doing with your fitness journey?`
+                };
+                break;
+                
+            case 'create_task':
+                stepName = `Follow-up Task ${stepNumber}`;
+                stepDescription = `Create manual follow-up task for ${lead.name}`;
+                actionConfig = {
+                    title: `Follow up with ${lead.name}`,
+                    description: `Check progress and answer questions`,
+                    priority: 'medium'
+                };
+                break;
+        }
+        
+        steps.push({
+            stepNumber: stepNumber,
+            name: stepName,
+            description: stepDescription,
+            actionType: actionType,
+            actionConfig: actionConfig,
+            delayDays: index === 0 ? 0 : Math.floor(index / 2), // First step immediate, others spaced out
+            delayHours: index === 0 ? 0 : (index % 2) * 12, // Alternate between 0 and 12 hours
+            isActive: true
+        });
+        
+        stepNumber++;
+    });
+    
+    return steps;
+}
+
 // AI-powered lead nurturing sequence generation
 const generateNurturingSequence = async (req, res) => {
     try {
-        const { leadId, sequenceType } = req.body;
+        const { sequenceType } = req.body;
+        const leadId = req.params.leadId; // Get leadId from URL parameters
         const lead = await Lead.findById(leadId).populate('coachId');
         
         if (!lead) {
@@ -935,18 +1004,29 @@ const generateNurturingSequence = async (req, res) => {
                 from ${lead.source}. Goal: Convert to client for ${lead.coachId?.offer || 'fitness program'}`;
         }
 
-        const nurturingSequence = await aiService.generateMarketingCopy(sequencePrompt, {
+        // Generate AI content for the sequence
+        const aiSequenceContent = await aiService.generateMarketingCopy(sequencePrompt, {
             temperature: 0.7,
             maxTokens: 800
         });
 
+        // Convert AI content to proper nurturing sequence format
+        const sequenceSteps = generateSequenceSteps(aiSequenceContent.content, sequenceType, lead);
+
         res.json({
             success: true,
             data: {
-                sequence: nurturingSequence.content,
+                sequence: aiSequenceContent.content,
                 type: sequenceType,
                 leadId: lead._id,
-                recommendedSteps: 5
+                recommendedSteps: 5,
+                // Add the structured sequence for easy creation
+                structuredSequence: {
+                    name: `${sequenceType.replace('_', ' ').toUpperCase()} Sequence for ${lead.name}`,
+                    description: `AI-generated nurturing sequence for ${lead.name} (${sequenceType})`,
+                    category: sequenceType,
+                    steps: sequenceSteps
+                }
             }
         });
 
@@ -959,7 +1039,8 @@ const generateNurturingSequence = async (req, res) => {
 // AI-powered follow-up message generation
 const generateFollowUpMessage = async (req, res) => {
     try {
-        const { leadId, followUpType, context } = req.body;
+        const { followUpType, context } = req.body;
+        const leadId = req.params.leadId; // Get leadId from URL parameters
         const lead = await Lead.findById(leadId).populate('coachId');
         
         if (!lead) {
@@ -1022,7 +1103,7 @@ module.exports = {
     // simple AI rescore endpoint handler
     aiRescore: async (req, res) => {
         try {
-            const lead = await Lead.findOne({ _id: req.params.id, coachId: req.coachId });
+            const lead = await Lead.findOne({ _id: req.params.leadId, coachId: req.coachId });
             if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
             const { score, explanation } = calculateLeadScore(lead);
             lead.score = score;

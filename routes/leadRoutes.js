@@ -29,13 +29,13 @@ router.route('/').post(createLead);
 router.use(protect, updateLastActive, authorizeCoach());
 
 router.route('/').get(getLeads);
-router.route('/:id')
+router.route('/:leadId')
     .get(getLead)
     .put(updateLead)
     .delete(deleteLead);
 // AI rescore endpoint (protected)
-router.post('/:id/ai-rescore', require('../controllers/leadController').aiRescore);
-router.route('/:id/followup')
+router.post('/:leadId/ai-rescore', require('../controllers/leadController').aiRescore);
+router.route('/:leadId/followup')
     .post(addFollowUpNote);
 router.route('/followups/upcoming')
     .get(getUpcomingFollowUps);
@@ -47,8 +47,8 @@ router.post('/advance-nurturing-step', advanceNurturingStep);
 router.get('/:leadId/nurturing-progress', getNurturingProgress);
 
 // AI-powered lead management endpoints
-router.get('/:id/ai-qualify', aiQualifyLead);
-router.post('/:id/generate-nurturing-sequence', generateNurturingSequence);
-router.post('/:id/generate-followup-message', generateFollowUpMessage);
+router.get('/:leadId/ai-qualify', aiQualifyLead);
+router.post('/:leadId/generate-nurturing-sequence', generateNurturingSequence);
+router.post('/:leadId/generate-followup-message', generateFollowUpMessage);
 
 module.exports = router;

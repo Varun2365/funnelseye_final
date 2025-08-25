@@ -130,9 +130,30 @@ const authorizeStaff = (...roles) => {
     };
 };
 
+// @desc    Authorize admin access - Middleware to check if user has admin privileges
+const authorizeAdmin = (...roles) => {
+    return (req, res, next) => {
+        // Check if user has admin role
+        if (req.role === 'admin' || req.role === 'super_admin') {
+            return next();
+        }
+        
+        // If specific roles are provided, check if user has those roles
+        if (roles.length > 0 && roles.includes(req.role)) {
+            return next();
+        }
+        
+        return res.status(403).json({
+            success: false,
+            message: `User role (${req.role}) is not authorized to access admin functions. Admin privileges required.`
+        });
+    };
+};
+
 
 module.exports = {
     protect,
     authorizeCoach,
-    authorizeStaff
+    authorizeStaff,
+    authorizeAdmin
 };

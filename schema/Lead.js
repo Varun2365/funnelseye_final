@@ -238,6 +238,10 @@ const LeadSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    lastNurturingStepAt: {
+        type: Date,
+        default: null
+    },
 
     // --- Lead Magnet Interactions ---
     leadMagnetInteractions: [

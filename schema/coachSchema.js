@@ -79,10 +79,47 @@ const appointmentSchema = new mongoose.Schema({
 
 // --- Main Coach Schema ---
 const coachSchema = new mongoose.Schema({
+    // --- Hierarchy Fields ---
+    selfCoachId: {
+        type: String,
+        required: true,
+        unique: true,
+        trim: true
+    },
+    currentLevel: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 12,
+        default: 1
+    },
     sponsorId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         default: null
+    },
+    externalSponsorId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'ExternalSponsor',
+        default: null
+    },
+    teamRankName: {
+        type: String,
+        trim: true,
+        default: ''
+    },
+    presidentTeamRankName: {
+        type: String,
+        trim: true,
+        default: ''
+    },
+    // --- Hierarchy Lock Fields ---
+    hierarchyLocked: {
+        type: Boolean,
+        default: false
+    },
+    hierarchyLockedAt: {
+        type: Date
     },
     portfolio: {
         type: portfolioSchema,

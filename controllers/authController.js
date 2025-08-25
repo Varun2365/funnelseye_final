@@ -179,7 +179,12 @@ const signup = async (req, res) => {
             password,
             role,
             isVerified: false,
-            ...(role === 'coach' && { sponsorId: null }) // Only add sponsorId for coaches
+            ...(role === 'coach' && { 
+                sponsorId: null,
+                selfCoachId: null, // Will be set during hierarchy setup
+                currentLevel: 1, // Default to level 1
+                hierarchyLocked: false
+            }) // Only add hierarchy fields for coaches
         });
         
         const otp = generateOtp();

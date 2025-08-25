@@ -37,21 +37,33 @@ const WhatsAppMessage = require('./whatsappMessageSchema');
 const MessageTemplate = require('./MessageTemplate');
 const ZoomIntegration = require('./ZoomIntegration');
 
+// Import new WhatsApp schemas
+const WhatsAppIntegration = require('./WhatsAppIntegration');
+const WhatsAppConversation = require('./WhatsAppConversation');
+const WhatsAppContact = require('./WhatsAppContact');
+
+// Import hierarchy schemas
+const CoachHierarchyLevel = require('./CoachHierarchyLevel');
+const AdminRequest = require('./AdminRequest');
+const ExternalSponsor = require('./ExternalSponsor');
+const Commission = require('./Commission');
+const CommissionSettings = require('./CommissionSettings');
+
 // Create discriminator models after base models are loaded
 let Coach;
 
 try {
     // Create Coach as discriminator of User
     if (User && mongoose.models.User) {
-        console.log('Creating Coach as discriminator of User model');
+        // console.log('Creating Coach as discriminator of User model');
         Coach = User.discriminator('coach', coachSchema);
-        console.log('✅ Coach discriminator model created successfully');
+        // console.log('✅ Coach discriminator model created successfully');
     } else {
-        console.warn('⚠️ User model not available, creating standalone Coach model');
+        // console.warn('⚠️ User model not available, creating standalone Coach model');
         Coach = mongoose.model('Coach', coachSchema);
     }
 } catch (error) {
-    console.error('❌ Error creating Coach model:', error.message);
+    // console.error('❌ Error creating Coach model:', error.message);
     // Fallback to standalone model
     Coach = mongoose.model('Coach', coachSchema);
 }
@@ -89,25 +101,27 @@ const models = {
     SystemLog,
     WhatsAppMessage,
     MessageTemplate,
-    ZoomIntegration
+    ZoomIntegration,
+    // New WhatsApp models
+    WhatsAppIntegration,
+    WhatsAppConversation,
+    WhatsAppContact,
+    // Hierarchy models
+    CoachHierarchyLevel,
+    AdminRequest,
+    ExternalSponsor,
+    // Commission models
+    Commission,
+    CommissionSettings
 };
 
 // Validate all models are properly loaded
 Object.entries(models).forEach(([name, model]) => {
     if (!model) {
-        console.warn(`⚠️ Warning: Model ${name} is undefined`);
+        // console.warn(`⚠️ Warning: Model ${name} is undefined`);
     } else if (typeof model !== 'function') {
-        console.warn(`⚠️ Warning: Model ${name} is not a function:`, typeof model);
-    } else {
-        console.log(`✅ Model ${name} loaded successfully (${typeof model})`);
+        // console.warn(`⚠️ Warning: Model ${name} is not a function:`, typeof model);
     }
 });
-
-// Log discriminator information
-if (Coach && User) {
-    console.log(`🔗 Coach is discriminator of User: ${Coach.modelName === 'User'}`);
-    console.log(`📊 Coach collection: ${Coach.collection.name}`);
-    console.log(`📊 User collection: ${User.collection.name}`);
-}
 
 module.exports = models;

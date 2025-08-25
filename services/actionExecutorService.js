@@ -2,7 +2,7 @@
 
 // --- Imports for your Mongoose Schemas ---
 const { Lead, Coach, Task, Funnel, Payment } = require('../schema');
-const { sendMessageByCoach } = require('./metaWhatsAppService');
+const unifiedWhatsAppService = require('./unifiedWhatsAppService');
 
 const nodemailer = require('nodemailer');
 const twilio = require('twilio');
@@ -136,7 +136,7 @@ async function sendWhatsAppMessage(config, eventPayload) {
     
     // Send the message
     try {
-        await sendMessageByCoach(coachId, recipientNumber, messageContent);
+        await unifiedWhatsAppService.sendMessage(coachId, recipientNumber, messageContent);
         console.log(`[ActionExecutor] WhatsApp message sent to ${recipientNumber}: ${messageContent}`);
     } catch (error) {
         console.error(`[ActionExecutor] Unable to send WhatsApp message to ${recipientNumber}:`, error.message);
@@ -809,6 +809,85 @@ async function triggerAnotherAutomation(config, eventPayload) {
 // =======================================================================
 
 /**
+ * Process nurturing step due events
+ */
+async function processNurturingStepDue(config, eventPayload) {
+    try {
+        const { leadId, stepId, sequenceId } = eventPayload;
+        
+        console.log(`[ActionExecutor] Processing nurturing step due for lead ${leadId}, step ${stepId}`);
+        
+        // Get the lead and sequence
+        const lead = await Lead.findById(leadId);
+        const sequence = await require('../schema/NurturingSequence').findById(sequenceId);
+        
+        if (!lead || !sequence) {
+            console.error(`[ActionExecutor] Lead or sequence not found for nurturing step`);
+            return;
+        }
+        
+        // Check if this is still the current step for the lead
+        if (lead.nurturingStepIndex >= sequence.steps.length) {
+            console.log(`[ActionExecutor] Lead ${leadId} has completed the sequence`);
+            return;
+        }
+        
+        const currentStep = sequence.steps[lead.nurturingStepIndex];
+        if (!currentStep || currentStep._id.toString() !== stepId) {
+            console.log(`[ActionExecutor] Step ${stepId} is no longer current for lead ${leadId}`);
+            return;
+        }
+        
+        // Execute the step
+        await executeNurturingStep(lead, currentStep);
+        
+        // Move to next step
+        lead.nurturingStepIndex += 1;
+        lead.lastNurturingStepAt = new Date();
+        await lead.save();
+        
+        console.log(`[ActionExecutor] Successfully processed nurturing step ${currentStep.stepNumber} for lead ${leadId}`);
+        
+    } catch (error) {
+        console.error(`[ActionExecutor] Error processing nurturing step due:`, error);
+    }
+}
+
+/**
+ * Execute a nurturing step
+ */
+async function executeNurturingStep(lead, step) {
+    try {
+        console.log(`[ActionExecutor] Executing nurturing step ${step.stepNumber}: ${step.name}`);
+        
+        // Create automation event for the step
+        const eventPayload = {
+            leadId: lead._id,
+            coachId: lead.coachId,
+            stepIndex: lead.nurturingStepIndex,
+            actionType: step.actionType,
+            config: step.actionConfig || {},
+            leadData: lead.toObject(),
+            sequenceStep: {
+                stepNumber: step.stepNumber,
+                stepName: step.name,
+                stepDescription: step.description
+            }
+        };
+
+        // Execute the step action
+        await executeAutomationAction({
+            actionType: step.actionType,
+            config: step.actionConfig || {},
+            payload: eventPayload
+        });
+        
+    } catch (error) {
+        console.error(`[ActionExecutor] Error executing nurturing step:`, error);
+    }
+}
+
+/**
  * Main dispatcher to execute the correct action based on its type.
  * @param {object} payload - The message payload from the RabbitMQ actions queue.
  */
@@ -884,6 +963,9 @@ async function executeAutomationAction(payload) {
                 break;
             case 'create_zoom_meeting':
                 await createZoomMeeting(config, eventPayload);
+                break;
+            case 'nurturing_step_due':
+                await processNurturingStepDue(config, eventPayload);
                 break;
             case 'create_deal':
                 await createDeal(config, eventPayload);
