@@ -129,7 +129,6 @@ const WhatsAppIntegrationSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient querying
-WhatsAppIntegrationSchema.index({ coachId: 1 });
 WhatsAppIntegrationSchema.index({ integrationType: 1, isActive: 1 });
 WhatsAppIntegrationSchema.index({ connectionStatus: 1 });
 

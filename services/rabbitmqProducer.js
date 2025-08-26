@@ -11,13 +11,13 @@ const DEFAULT_EXCHANGE_NAME = 'funnelseye_events';
  */
 const init = async () => {
     try {
-        console.log('[RabbitMQ Service] Attempting to connect to RabbitMQ...');
+      
         connection = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://localhost:5672');
         channel = await connection.createChannel();
 
         await channel.assertExchange(DEFAULT_EXCHANGE_NAME, 'topic', { durable: true });
 
-        console.log(`[RabbitMQ Service] Connected and asserted exchange "${DEFAULT_EXCHANGE_NAME}"`);
+
 
         connection.on('close', () => {
             console.error('[RabbitMQ Service] Connection closed unexpectedly. Attempting to reconnect...');
@@ -86,7 +86,7 @@ const consumeEvents = async (exchange, routingKey, handler, queueName) => {
         const q = await channel.assertQueue(queueName, { durable: true });
         await channel.bindQueue(q.queue, exchange, routingKey);
 
-        console.log(`[RabbitMQ Service] Waiting for events in queue "${q.queue}" with routing key "${routingKey}"`);
+        // console.log(`[RabbitMQ Service] Waiting for events in queue "${q.queue}" with routing key "${routingKey}"`);
 
         await channel.consume(q.queue, (msg) => {
             if (msg) {

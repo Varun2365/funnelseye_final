@@ -38,8 +38,7 @@ const coachHierarchyLevelSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Index for efficient querying
-coachHierarchyLevelSchema.index({ level: 1 });
+// Index for efficient querying (removed duplicate level index since it's already unique)
 coachHierarchyLevelSchema.index({ isActive: 1 });
 
 module.exports = mongoose.models.CoachHierarchyLevel || mongoose.model('CoachHierarchyLevel', coachHierarchyLevelSchema);

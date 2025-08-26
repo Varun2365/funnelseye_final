@@ -13,7 +13,6 @@ const { Server } = require('socket.io');
 
 // ⚙️ Configuration & Utilities
 const { connectDB } = require('./config/db');
-const whatsappManager = require('./services/whatsappManager');
 const checkInactiveCoaches = require('./tasks/checkInactiveCoaches');
 const { init } = require('./services/rabbitmqProducer');
 const sslService = require('./services/sslService');
@@ -80,11 +79,6 @@ const io = new Server(server, {
         methods: ["GET", "POST"]
     }
 });
-whatsappManager.setIoInstance(io);
-
-// Set up admin notification service with Socket.IO
-const adminNotificationService = require('./admin/services/adminNotificationService');
-adminNotificationService.setIoInstance(io);
 
 // Socket.IO event handlers for admin notifications
 io.on('connection', (socket) => {
@@ -411,6 +405,10 @@ const startServer = async () => {
             
             // --- Start Zoom cleanup service ---
             zoomCleanupService.startCleanup(2, 'daily'); // Default: 2 days retention, daily cleanup
+            const nextCleanup = zoomCleanupService.getNextCleanupTime();
+            if (nextCleanup) {
+                // console.log(`[ZoomCleanup] Next cleanup scheduled for: ${nextCleanup.toLocaleString()}`);
+            }
         });
     } catch (error) {
         console.error(`\n❌ Server failed to start: ${error.message}\n`);
@@ -420,6 +418,22 @@ const startServer = async () => {
 
 // Import new services for email, SMS, calendar, notification, and AI
 const { emailService, smsService, internalNotificationService, aiService } = require('./services/actionExecutorService');
+
+// Initialize Socket.IO dependent services after server starts
+const initializeSocketServices = () => {
+    try {
+        const whatsappManager = require('./services/whatsappManager');
+        whatsappManager.setIoInstance(io);
+        
+        const adminNotificationService = require('./admin/services/adminNotificationService');
+        adminNotificationService.setIoInstance(io);
+    } catch (error) {
+        console.error('Error initializing Socket.IO services:', error.message);
+    }
+};
+
+// Call initialization after server starts
+setTimeout(initializeSocketServices, 1000);
 
 // Initiate the server startup process
 startServer();

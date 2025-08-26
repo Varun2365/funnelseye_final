@@ -43,16 +43,57 @@ async function processLeadNurturing(lead) {
 
         const sequence = lead.nurturingSequence;
         
+        // Migrate existing leads from old nurturingStepIndex to new nurturingProgress structure
+        if (!lead.nurturingProgress && typeof lead.nurturingStepIndex === 'number') {
+            lead.nurturingProgress = {
+                isActive: true,
+                currentStepIndex: lead.nurturingStepIndex,
+                completedSteps: [],
+                lastStepAt: lead.lastNurturingStepAt || lead.updatedAt || lead.createdAt,
+                nextStepAt: null
+            };
+            
+            // Mark all previous steps as completed
+            for (let i = 0; i < lead.nurturingStepIndex; i++) {
+                if (sequence.steps[i]) {
+                    lead.nurturingProgress.completedSteps.push(sequence.steps[i]._id.toString());
+                }
+            }
+            
+            console.log(`[NurturingWorker] Migrated lead ${lead._id} from old nurturingStepIndex ${lead.nurturingStepIndex} to new nurturingProgress structure`);
+        }
+        
+        // Initialize nurturing progress if not exists
+        if (!lead.nurturingProgress) {
+            lead.nurturingProgress = {
+                isActive: true,
+                currentStepIndex: 0,
+                completedSteps: [],
+                lastStepAt: null,
+                nextStepAt: null
+            };
+        }
+        
         // Check if lead has completed the sequence
-        if (lead.nurturingStepIndex >= sequence.steps.length) {
+        if (lead.nurturingProgress.currentStepIndex >= sequence.steps.length) {
             console.log(`[NurturingWorker] Lead ${lead._id} completed sequence "${sequence.name}"`);
+            lead.nurturingProgress.isActive = false;
+            await lead.save();
             return;
         }
 
-        const currentStep = sequence.steps[lead.nurturingStepIndex];
+        const currentStep = sequence.steps[lead.nurturingProgress.currentStepIndex];
         if (!currentStep || !currentStep.isActive) {
-            // Skip inactive steps
-            lead.nurturingStepIndex += 1;
+            // Skip inactive steps and move to next
+            lead.nurturingProgress.currentStepIndex += 1;
+            await lead.save();
+            return await processLeadNurturing(lead);
+        }
+
+        // Check if this step was already executed
+        if (lead.nurturingProgress.completedSteps.includes(currentStep._id.toString())) {
+            console.log(`[NurturingWorker] Step ${currentStep.stepNumber} already executed for lead ${lead._id}, moving to next`);
+            lead.nurturingProgress.currentStepIndex += 1;
             await lead.save();
             return await processLeadNurturing(lead);
         }
@@ -61,20 +102,31 @@ async function processLeadNurturing(lead) {
         if (await shouldExecuteStep(lead, currentStep)) {
             console.log(`[NurturingWorker] Executing step ${currentStep.stepNumber} for lead ${lead._id}`);
             
-            // Execute the step immediately
-            await executeNurturingStep(lead, currentStep);
+            // Execute the step
+            const success = await executeNurturingStep(lead, currentStep);
             
-            // Move to next step
-            lead.nurturingStepIndex += 1;
-            await lead.save();
-
-            // Schedule next step if it has delay
-            if (lead.nurturingStepIndex < sequence.steps.length) {
-                const nextStep = sequence.steps[lead.nurturingStepIndex];
-                if (nextStep.delayDays > 0 || nextStep.delayHours > 0) {
-                    await scheduleNextStep(lead, nextStep);
+            if (success) {
+                // Mark step as completed
+                lead.nurturingProgress.completedSteps.push(currentStep._id.toString());
+                lead.nurturingProgress.lastStepAt = new Date();
+                
+                // Move to next step
+                lead.nurturingProgress.currentStepIndex += 1;
+                
+                // Schedule next step if it has delay
+                if (lead.nurturingProgress.currentStepIndex < sequence.steps.length) {
+                    const nextStep = sequence.steps[lead.nurturingProgress.currentStepIndex];
+                    if (nextStep.delayDays > 0 || nextStep.delayHours > 0) {
+                        const nextStepTime = await scheduleNextStep(lead, nextStep);
+                        lead.nurturingProgress.nextStepAt = nextStepTime;
+                    }
                 }
+                
+                await lead.save();
+                console.log(`[NurturingWorker] Successfully completed step ${currentStep.stepNumber} for lead ${lead._id}`);
             }
+        } else {
+            console.log(`[NurturingWorker] Step ${currentStep.stepNumber} not ready for lead ${lead._id}, next check in 2 minutes`);
         }
     } catch (error) {
         console.error(`[NurturingWorker] Error processing lead ${lead._id}:`, error);
@@ -82,13 +134,18 @@ async function processLeadNurturing(lead) {
 }
 
 async function shouldExecuteStep(lead, step) {
+    // Check if step was already executed
+    if (lead.nurturingProgress && lead.nurturingProgress.completedSteps.includes(step._id.toString())) {
+        return false;
+    }
+
     // Immediate execution for 0-delay steps
     if (step.delayDays === 0 && step.delayHours === 0) {
         return true;
     }
 
     // Check if enough time has passed since the last step
-    const lastStepTime = lead.lastNurturingStepAt || lead.updatedAt || lead.createdAt;
+    const lastStepTime = lead.nurturingProgress?.lastStepAt || lead.lastNurturingStepAt || lead.updatedAt || lead.createdAt;
     const delayMs = (step.delayDays * 24 * 60 * 60 * 1000) + (step.delayHours * 60 * 60 * 1000);
     const dueTime = new Date(lastStepTime.getTime() + delayMs);
 
@@ -103,7 +160,7 @@ async function executeNurturingStep(lead, step) {
         const eventPayload = {
             leadId: lead._id,
             coachId: lead.coachId,
-            stepIndex: lead.nurturingStepIndex,
+            stepIndex: lead.nurturingProgress?.currentStepIndex || lead.nurturingStepIndex || 0,
             actionType: step.actionType,
             config: step.actionConfig || {},
             leadData: lead.toObject(),
@@ -146,8 +203,10 @@ async function scheduleNextStep(lead, step) {
         });
 
         console.log(`[NurturingWorker] Scheduled step ${step.stepNumber} for lead ${lead._id} at ${scheduledTime}`);
+        return scheduledTime;
     } catch (error) {
         console.error(`[NurturingWorker] Error scheduling next step for lead ${lead._id}:`, error);
+        return null;
     }
 }
 
@@ -156,15 +215,13 @@ async function scheduleNextStep(lead, step) {
  * This function is called by main.js to start the worker
  */
 function initNurturingWorker() {
-    
+    console.log('[NurturingWorker] Initializing nurturing sequence worker...');
     
     // Run every 2 minutes for immediate processing
     setInterval(processNurturingSequences, 2 * 60 * 1000);
 
-    // For immediate run (for testing)
-    processNurturingSequences();
-
-    
+    // Don't run immediately on startup - let it run on the first interval
+    console.log('[NurturingWorker] Worker initialized, will start processing in 2 minutes');
 
     // Handle graceful shutdown
     process.on('SIGTERM', () => {

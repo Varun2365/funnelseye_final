@@ -35,14 +35,9 @@ class ZoomCleanupService {
                 }
             }, 60 * 60 * 1000); // Check every hour
             
-            // Also run immediately if it's past 2 AM
-            const now = new Date();
-            const twoAM = new Date(now);
-            twoAM.setHours(2, 0, 0, 0);
-            
-            if (now >= twoAM) {
-                this.performCleanup(retentionMs);
-            }
+            // Don't run immediately on restart - only schedule for next 2 AM
+            const nextCleanup = this.getNextCleanupTime();
+            // logger.info(`[ZoomCleanup] Scheduled daily cleanup at 2 AM with ${retentionDays} days retention. Next cleanup: ${nextCleanup ? nextCleanup.toLocaleString() : 'Not scheduled'}`);
         } else if (interval === 'weekly') {
             // Run cleanup weekly on Sunday at 2 AM
             this.cleanupInterval = setInterval(() => {
@@ -55,9 +50,12 @@ class ZoomCleanupService {
                     this.performCleanup(retentionMs);
                 }
             }, 24 * 60 * 60 * 1000); // Check daily
+            
+            const nextCleanup = this.getNextCleanupTime();
+            // logger.info(`[ZoomCleanup] Scheduled weekly cleanup on Sundays at 2 AM with ${retentionDays} days retention. Next cleanup: ${nextCleanup ? nextCleanup.toLocaleString() : 'Not scheduled'}`);
         }
 
-        logger.info(`[ZoomCleanup] Started automatic cleanup with ${retentionDays} days retention, interval: ${interval}`);
+        // logger.info(`[ZoomCleanup] Started automatic cleanup with ${retentionDays} days retention, interval: ${interval}`);
     }
 
     /**
@@ -148,6 +146,76 @@ class ZoomCleanupService {
     }
 
     /**
+     * Temporarily disable automatic cleanup
+     * @param {number} hours - Number of hours to disable (default: 24)
+     */
+    disableCleanup(hours = 24) {
+        if (this.cleanupInterval) {
+            this.stopCleanup();
+            logger.info(`[ZoomCleanup] Automatic cleanup disabled for ${hours} hours`);
+            
+            // Re-enable after specified hours
+            setTimeout(() => {
+                this.startCleanup(this.defaultRetentionDays, 'daily');
+                logger.info('[ZoomCleanup] Automatic cleanup re-enabled');
+            }, hours * 60 * 60 * 1000);
+        }
+    }
+
+    /**
+     * Check if cleanup is currently disabled
+     * @returns {boolean} True if cleanup is disabled
+     */
+    isDisabled() {
+        return !this.cleanupInterval;
+    }
+
+    /**
+     * Preview what would be cleaned up without actually doing it
+     * @param {number} retentionDays - Number of days to check
+     * @returns {Object} Preview of what would be cleaned up
+     */
+    async previewCleanup(retentionDays = this.defaultRetentionDays) {
+        try {
+            const retentionMs = retentionDays * 24 * 60 * 60 * 1000;
+            const cutoffDate = new Date(Date.now() - retentionMs);
+            
+            logger.info(`[ZoomCleanup] Previewing cleanup for meetings older than ${cutoffDate.toISOString()}`);
+            
+            // Find appointments with Zoom meetings older than retention period
+            const oldAppointments = await Appointment.find({
+                'zoomMeeting.createdAt': { $lt: cutoffDate },
+                'zoomMeeting.meetingId': { $exists: true }
+            }).select('_id zoomMeeting startTime leadId coachId');
+
+            if (oldAppointments.length === 0) {
+                return {
+                    wouldClean: 0,
+                    cutoffDate: cutoffDate,
+                    message: 'No old Zoom meetings found to clean up'
+                };
+            }
+
+            return {
+                wouldClean: oldAppointments.length,
+                cutoffDate: cutoffDate,
+                appointments: oldAppointments.map(apt => ({
+                    id: apt._id,
+                    startTime: apt.startTime,
+                    leadId: apt.leadId,
+                    coachId: apt.coachId,
+                    meetingId: apt.zoomMeeting?.meetingId
+                })),
+                message: `Found ${oldAppointments.length} appointments with old Zoom meetings that would be cleaned up`
+            };
+
+        } catch (error) {
+            logger.error('[ZoomCleanup] Error during cleanup preview:', error.message);
+            throw error;
+        }
+    }
+
+    /**
      * Get cleanup statistics
      * @returns {Object} Cleanup statistics
      */
@@ -164,7 +232,8 @@ class ZoomCleanupService {
                 meetingsOlderThan1Week: await Appointment.countDocuments({ 'zoomMeeting.createdAt': { $lt: oneWeekAgo } }),
                 meetingsOlderThan1Month: await Appointment.countDocuments({ 'zoomMeeting.createdAt': { $lt: oneMonthAgo } }),
                 lastCleanup: this.lastCleanupTime || null,
-                isRunning: !!this.cleanupInterval
+                isRunning: !!this.cleanupInterval,
+                nextCleanup: this.getNextCleanupTime()
             };
 
             return stats;
@@ -172,6 +241,42 @@ class ZoomCleanupService {
             logger.error('[ZoomCleanup] Error getting cleanup stats:', error.message);
             throw error;
         }
+    }
+
+    /**
+     * Get the current status of the cleanup service
+     * @returns {Object} Current status information
+     */
+    getStatus() {
+        const nextCleanup = this.getNextCleanupTime();
+        return {
+            isRunning: !!this.cleanupInterval,
+            retentionDays: this.defaultRetentionDays,
+            nextCleanup: nextCleanup,
+            nextCleanupFormatted: nextCleanup ? nextCleanup.toLocaleString() : 'Not scheduled',
+            isActive: !!this.cleanupInterval
+        };
+    }
+
+    /**
+     * Get the next scheduled cleanup time
+     * @returns {Date|null} Next cleanup time or null if not scheduled
+     */
+    getNextCleanupTime() {
+        if (!this.cleanupInterval) {
+            return null;
+        }
+
+        const now = new Date();
+        const nextCleanup = new Date(now);
+        nextCleanup.setHours(2, 0, 0, 0);
+        
+        // If it's already past 2 AM today, schedule for tomorrow
+        if (now >= nextCleanup) {
+            nextCleanup.setDate(nextCleanup.getDate() + 1);
+        }
+        
+        return nextCleanup;
     }
 
     /**

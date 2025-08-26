@@ -14,7 +14,7 @@ const ConversationSchema = new mongoose.Schema({
             // This allows flexible lead identification (e.g., by phone number for WhatsApp)
             // You might link this to a full 'Lead' model later if you have one.
             name: { type: String, default: 'Unknown Lead' },
-            phoneNumber: { type: String, unique: true, sparse: true, index: true }, // For WhatsApp/SMS
+            phoneNumber: { type: String, unique: true, sparse: true }, // For WhatsApp/SMS
             email: { type: String, unique: true, sparse: true }, // For Email
             // Add other lead identifiers as needed
         },

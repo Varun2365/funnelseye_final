@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const mongoURI = 'mongodb://localhost:27017/FunnelsEye';
 
 const connectDB = async () => {
-  console.log("Connect DB Called");
+
   try {
     await mongoose.connect(mongoURI, {
       maxPoolSize: 10,             // max concurrent sockets

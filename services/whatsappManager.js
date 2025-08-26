@@ -53,7 +53,7 @@ class WhatsAppManager {
      */
     setIoInstance(io) {
         this.io = io;
-        console.log('[WhatsAppManager] Socket.IO instance set successfully');
+        // console.log('[WhatsAppManager] Socket.IO instance set successfully');
     }
 
     /**

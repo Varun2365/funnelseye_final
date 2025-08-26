@@ -1,5 +1,4 @@
 const AdminNotification = require('../schemas/AdminNotification');
-const { io } = require('../../main'); // We'll need to set this up properly
 
 class AdminNotificationService {
     constructor() {

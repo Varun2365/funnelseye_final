@@ -9,7 +9,7 @@ const INACTIVITY_THRESHOLD_DAYS = 4;
 const CHECK_FREQUENCY = '0 0 * * *'; // Run once every day at midnight
 
 const checkInactiveCoaches = async () => {
-    console.log('Running scheduled task to check for inactive coaches...');
+    // console.log('Running scheduled task to check for inactive coaches...');
     const now = new Date();
     const thresholdDate = new Date(now.setDate(now.getDate() - INACTIVITY_THRESHOLD_DAYS));
 
@@ -50,5 +50,5 @@ exports.start = () => {
         checkInactiveCoaches();
     });
 
-    console.log('Inactive coach checker task scheduled.');
+    // console.log('Inactive coach checker task scheduled.');
 };
