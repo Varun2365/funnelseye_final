@@ -10,7 +10,7 @@ const ACTIONS_EXCHANGE = 'funnelseye_actions';
 const initActionExecutorWorker = async () => {
     try {
         await mongoose.connect('mongodb://localhost:27017/FunnelsEye');
-        console.log('[Action Executor] Connected to MongoDB.');
+
 
         const connection = await amqp.connect(RABBITMQ_URL);
         const channel = await connection.createChannel();
@@ -23,7 +23,7 @@ const initActionExecutorWorker = async () => {
         // Bind the queue to listen for all action types
         await channel.bindQueue(queue, ACTIONS_EXCHANGE, '#');
 
-        console.log('[Action Executor] Waiting for actions...');
+
 
         channel.consume(queue, async (msg) => {
             if (msg.content) {

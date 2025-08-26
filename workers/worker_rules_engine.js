@@ -15,7 +15,7 @@ const SCHEDULED_ACTIONS_QUEUE = 'funnelseye_scheduled_actions';
 const initRulesEngineWorker = async () => {
     try {
         await mongoose.connect('mongodb://localhost:27017/FunnelsEye');
-        console.log('[Rules Engine] Connected to MongoDB.');
+        
 
         const connection = await amqp.connect(RABBITMQ_URL);
         const channel = await connection.createChannel();
@@ -36,7 +36,7 @@ const initRulesEngineWorker = async () => {
         const { queue } = await channel.assertQueue('', { exclusive: true });
         channel.bindQueue(queue, EVENTS_EXCHANGE, '#');
 
-        console.log('[Rules Engine] Waiting for events...');
+    
 
         channel.consume(queue, async (msg) => {
             if (msg.content) {

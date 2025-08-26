@@ -13,7 +13,7 @@ const CONVERTED_LEAD_EVENT = 'lead_converted';
  */
 const initPaymentProcessorWorker = async () => {
     try {
-        console.log(`[Payment Processor Worker] Initializing...`);
+        
 
         const eventHandler = async (msg) => {
             if (!msg || !msg.content) {

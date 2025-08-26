@@ -16,7 +16,7 @@ const CHECK_INTERVAL_MINUTES = 10; // How often to check for due nurturing steps
 const initScheduledExecutorWorker = async () => {
     try {
         await mongoose.connect(MONGODB_URI);
-        console.log('[Scheduled Action Executor] Connected to MongoDB.');
+        
 
         const connection = await amqp.connect(RABBITMQ_URL);
         const channel = await connection.createChannel();
@@ -30,7 +30,7 @@ const initScheduledExecutorWorker = async () => {
         await channel.assertQueue(SCHEDULED_ACTIONS_QUEUE, { durable: true });
         await channel.bindQueue(SCHEDULED_ACTIONS_QUEUE, 'delayed_actions_exchange', SCHEDULED_ACTIONS_QUEUE);
 
-        console.log('[Scheduled Action Executor] Waiting for scheduled actions...');
+        
 
         channel.consume(SCHEDULED_ACTIONS_QUEUE, async (msg) => {
             if (msg.content) {

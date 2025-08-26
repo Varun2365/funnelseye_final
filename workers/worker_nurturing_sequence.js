@@ -11,7 +11,7 @@ const { publishEvent } = require('../services/rabbitmqProducer');
 
 async function processNurturingSequences() {
     try {
-        console.log('[NurturingWorker] Starting nurturing sequence processing...');
+        
         
         // Find leads with active nurturing sequences
         const leads = await Lead.find({ 
@@ -156,7 +156,7 @@ async function scheduleNextStep(lead, step) {
  * This function is called by main.js to start the worker
  */
 function initNurturingWorker() {
-    console.log('[NurturingWorker] Initializing nurturing sequence worker...');
+    
     
     // Run every 2 minutes for immediate processing
     setInterval(processNurturingSequences, 2 * 60 * 1000);
@@ -164,7 +164,7 @@ function initNurturingWorker() {
     // For immediate run (for testing)
     processNurturingSequences();
 
-    console.log('[NurturingWorker] Nurturing sequence worker started. Processing every 2 minutes.');
+    
 
     // Handle graceful shutdown
     process.on('SIGTERM', () => {
