@@ -82,6 +82,55 @@ const io = new Server(server, {
 });
 whatsappManager.setIoInstance(io);
 
+// Set up admin notification service with Socket.IO
+const adminNotificationService = require('./admin/services/adminNotificationService');
+adminNotificationService.setIoInstance(io);
+
+// Socket.IO event handlers for admin notifications
+io.on('connection', (socket) => {
+    console.log('🔌 New client connected:', socket.id);
+
+    // Admin joins admin room
+    socket.on('admin-join', (adminId) => {
+        socket.join('admin-room');
+        socket.join(`admin-${adminId}`);
+        console.log(`👑 Admin ${adminId} joined admin room`);
+    });
+
+    // Coach joins coach room
+    socket.on('coach-join', (coachId) => {
+        socket.join('coach-room');
+        socket.join(`user-${coachId}`);
+        console.log(`👤 Coach ${coachId} joined coach room`);
+    });
+
+    // User joins specific user room
+    socket.on('user-join', (userId) => {
+        socket.join(`user-${userId}`);
+        console.log(`👤 User ${userId} joined user room`);
+    });
+
+    // Handle admin notifications
+    socket.on('admin-notification', (data) => {
+        socket.to('admin-room').emit('admin-notification', data);
+    });
+
+    // Handle coach notifications
+    socket.on('coach-notification', (data) => {
+        socket.to('coach-room').emit('coach-notification', data);
+    });
+
+    // Handle global notifications
+    socket.on('global-notification', (data) => {
+        io.emit('global-notification', data);
+    });
+
+    // Handle disconnection
+    socket.on('disconnect', () => {
+        console.log('🔌 Client disconnected:', socket.id);
+    });
+});
+
 // ✨ Express Middleware Setup
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -176,15 +225,23 @@ app.use('/api/coach-hierarchy', coachHierarchyRoutes);
 // ===== UTILITIES & ADMIN =====
 app.use('/api/files', uploadRoutes);
 app.use('/api/ai', aiRoutes);
-app.use('/api/admin', adminAuthRoutes);
 app.use('/funnels', webpageRenderRoutes);
 
-// Protect admin APIs
+// Import new admin routes
+const adminRoutes = require('./admin/routes');
+
+// Mount admin auth routes first (login, logout, etc.)
+app.use('/api/admin/auth', adminAuthRoutes);
+
+// Protect admin APIs with authentication
 app.use('/api/admin/settings', adminAuth, adminSettingsRoutes);
 app.use('/api/admin/users', adminAuth, adminUserRoutes);
 app.use('/api/admin/domains', customDomainRoutes); // Already imported
 app.use('/api/admin/logs', adminAuth, adminLogsRoutes);
 app.use('/api/admin/analytics', adminAuth, adminAnalyticsRoutes);
+
+// Mount new unified admin routes
+app.use('/api/admin', adminAuth, adminRoutes);
 
 // Serve admin dashboard UI
 app.get('/admin', (req, res) => {

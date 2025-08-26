@@ -3,12 +3,14 @@ const jwt = require('jsonwebtoken'); // For verifying JWT tokens
 
 // @desc    Protect routes - Middleware to check for valid JWT
 const protect = async (req, res, next) => {
+    console.log("🔒 protect middleware executing...");
     
     let token;
 
     // 1) Check if token exists in the Authorization header (Bearer token)
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         token = req.headers.authorization.split(' ')[1]; // Extract token from "Bearer <token>"
+        console.log("🔒 Token found in Authorization header");
     }
     // 2) Alternatively, check if token is in a cookie (if you set it that way)
     // else if (req.cookies.token) {
@@ -17,6 +19,7 @@ const protect = async (req, res, next) => {
 
     // Check if token is provided
     if (!token) {
+        console.log("🔒 No token provided");
         // If no token, the user is not authenticated
         return res.status(401).json({
             success: false,
@@ -25,15 +28,19 @@ const protect = async (req, res, next) => {
     }
 
     try {
+        console.log("🔒 Verifying token...");
         // Verify token
         // This decodes the token using the secret and checks for expiration
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log("🔒 Token verified, decoded ID:", decoded.id);
 
         // Find user by the ID extracted from the token's payload
         // .select('-password') is implicitly handled by `select: false` in User model
         const user = await User.findById(decoded.id);
+        console.log("🔒 User found:", user ? user._id : 'undefined');
 
         if (!user) {
+            console.log("🔒 User not found");
             // If user associated with the token is not found (e.g., user deleted)
             return res.status(401).json({
                 success: false,
@@ -47,12 +54,14 @@ const protect = async (req, res, next) => {
         req.coachId = user.role === 'staff' && user.coachId ? user.coachId : user._id;
         req.role = user.role;
         req.user = user; // Optionally attach the full user object (excluding password)
-
+        
+        console.log("🔒 User authenticated successfully, role:", req.role);
+        console.log("🔒 protect middleware completed, calling next()");
 
         next(); // Proceed to the next middleware or route handler
 
     } catch (error) {
-        console.error('Error in protect middleware:', error.message);
+        console.error('🔒 Error in protect middleware:', error.message);
         // Handle different JWT errors
         if (error.name === 'JsonWebTokenError') {
             return res.status(401).json({
@@ -131,23 +140,22 @@ const authorizeStaff = (...roles) => {
 };
 
 // @desc    Authorize admin access - Middleware to check if user has admin privileges
-const authorizeAdmin = (...roles) => {
-    return (req, res, next) => {
-        // Check if user has admin role
-        if (req.role === 'admin' || req.role === 'super_admin') {
-            return next();
-        }
-        
-        // If specific roles are provided, check if user has those roles
-        if (roles.length > 0 && roles.includes(req.role)) {
-            return next();
-        }
-        
-        return res.status(403).json({
-            success: false,
-            message: `User role (${req.role}) is not authorized to access admin functions. Admin privileges required.`
-        });
-    };
+const authorizeAdmin = (req, res, next) => {
+    console.log("🔐 authorizeAdmin middleware executing...");
+    console.log("🔐 req.role:", req.role);
+    console.log("🔐 req.user:", req.user ? req.user._id : 'undefined');
+    
+    // Check if user has admin role
+    if (req.role == 'admin' || req.role == 'super_admin') {
+        console.log("🔐 User has admin role, proceeding...");
+        return next();
+    }
+    
+    console.log("🔐 User not authorized, sending 403...");
+    return res.status(403).json({
+        success: false,
+        message: `User role (${req.role}) is not authorized to access admin functions. Admin privileges required.`
+    });
 };
 
 

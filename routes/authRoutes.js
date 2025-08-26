@@ -53,5 +53,11 @@ router.get('/me', authController.getMe);
 // Required Body Fields: None (relies on JWT sent in Authorization header, primarily clears server-set cookie)
 router.get('/logout', authController.logout);
 
+// Upgrade existing user to coach route: Convert verified user to coach with MLM hierarchy
+// POST /api/auth/upgrade-to-coach
+// Required Body Fields: { "userId": "string" }
+// Optional Body Fields: { "sponsorId": "string", "externalSponsorId": "string", "teamRankName": "string", "presidentTeamRankName": "string" }
+router.post('/upgrade-to-coach', protect, updateLastActive, authController.upgradeToCoach);
+
 
 module.exports = router;

@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { 
     User, 
     CoachHierarchyLevel, 
@@ -13,27 +14,208 @@ const {
     CoachReport
 } = require('../schema');
 
-// ===== HIERARCHY LEVEL MANAGEMENT =====
+// ===== HIERARCHY SETUP & INITIALIZATION =====
 
-// @desc    Get all hierarchy levels
-// @route   GET /api/advanced-mlm/hierarchy-levels
-// @access  Public
-const getHierarchyLevels = async (req, res) => {
+// @desc    Setup default hierarchy levels (Admin only)
+// @route   POST /api/advanced-mlm/setup-hierarchy
+// @access  Private (Admin)
+const setupHierarchyLevels = async (req, res) => {
+    console.log("🔧 Setting up hierarchy levels...");
+    console.log("User ID:", req.user.id);
+    console.log("User role:", req.role);
+    
+    // Set a timeout for the response
+    const timeout = setTimeout(() => {
+        console.log("⚠️ Request timeout - taking too long");
+        if (!res.headersSent) {
+            res.status(408).json({
+                success: false,
+                message: 'Request timeout - operation taking too long'
+            });
+        }
+    }, 30000); // 30 seconds timeout
+    
     try {
-        const levels = await CoachHierarchyLevel.find({ isActive: true })
-            .sort({ level: 1 })
-            .select('-__v');
+        // First, test database connection
+        console.log("Testing database connection...");
+        const dbState = mongoose.connection.readyState;
+        console.log("Database connection state:", dbState);
+        
+        if (dbState !== 1) {
+            clearTimeout(timeout);
+            return res.status(500).json({
+                success: false,
+                message: 'Database not connected. Please try again.',
+                dbState: dbState
+            });
+        }
+        
+        // Check if levels already exist
+        console.log("Checking for existing levels...");
+        const existingLevels = await CoachHierarchyLevel.find({}).lean().maxTimeMS(10000);
+        console.log("Found existing levels:", existingLevels.length);
+        
+        if (existingLevels.length > 0) {
+            console.log("Levels already exist, returning existing data");
+            clearTimeout(timeout);
+            return res.status(400).json({
+                success: false,
+                message: 'Hierarchy levels already exist. Use update endpoint to modify.',
+                data: existingLevels
+            });
+        }
 
-        res.status(200).json({
-            success: true,
-            message: 'Hierarchy levels retrieved successfully.',
-            data: levels
+        // Default hierarchy levels for MLM system
+        const defaultLevels = [
+            { level: 1, name: 'Bronze', description: 'Entry level coach' },
+            { level: 2, name: 'Silver', description: 'Intermediate coach' },
+            { level: 3, name: 'Gold', description: 'Advanced coach' },
+            { level: 4, name: 'Platinum', description: 'Expert coach' },
+            { level: 5, name: 'Diamond', description: 'Master coach' },
+            { level: 6, name: 'Double Diamond', description: 'Elite coach' },
+            { level: 7, name: 'Triple Diamond', description: 'Premier coach' },
+            { level: 8, name: 'Crown Diamond', description: 'Distinguished coach' },
+            { level: 9, name: 'Crown Ambassador', description: 'Honored coach' },
+            { level: 10, name: 'Royal Crown Ambassador', description: 'Esteemed coach' },
+            { level: 11, name: 'Imperial Crown Ambassador', description: 'Legendary coach' },
+            { level: 12, name: 'Supreme Crown Ambassador', description: 'Ultimate coach' }
+        ];
+
+        console.log("Creating hierarchy levels...");
+        
+        // Prepare documents for bulk insertion
+        const documentsToInsert = defaultLevels.map(levelData => ({
+            ...levelData,
+            createdBy: req.user.id,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        }));
+
+        console.log("Prepared documents for insertion:", documentsToInsert.length);
+        console.log("Attempting bulk insertion...");
+
+        // Use bulk insertion for better performance with timeout
+        const result = await CoachHierarchyLevel.insertMany(documentsToInsert, { 
+            maxTimeMS: 15000 
         });
+        
+        console.log(`✅ Successfully created ${result.length} hierarchy levels`);
+        clearTimeout(timeout);
+
+        res.status(201).json({
+            success: true,
+            message: 'Hierarchy levels setup completed successfully.',
+            data: result
+        });
+
     } catch (err) {
-        console.error('Error getting hierarchy levels:', err);
+        console.error('❌ Error setting up hierarchy levels:', err);
+        clearTimeout(timeout);
+        
+        // Check if it's a timeout error
+        if (err.message && err.message.includes('timeout')) {
+            return res.status(408).json({
+                success: false,
+                message: 'Database operation timed out. Please try again.',
+                error: err.message
+            });
+        }
+        
         res.status(500).json({
             success: false,
-            message: 'Server error while retrieving hierarchy levels'
+            message: 'Server error while setting up hierarchy levels',
+            error: err.message
+        });
+    }
+};
+
+// @desc    Clean up database - Fix users with null selfCoachId (Admin only)
+// @route   POST /api/advanced-mlm/cleanup-database
+// @access  Private (Admin)
+const cleanupDatabase = async (req, res) => {
+    console.log("🧹 Starting database cleanup...");
+    
+    try {
+        // Find all users with null or undefined selfCoachId
+        const usersWithNullCoachId = await User.find({
+            $or: [
+                { selfCoachId: null },
+                { selfCoachId: { $exists: false } }
+            ]
+        });
+        
+        console.log(`Found ${usersWithNullCoachId.length} users with null selfCoachId`);
+        
+        if (usersWithNullCoachId.length === 0) {
+            return res.json({
+                success: true,
+                message: 'No cleanup needed. All users have valid selfCoachId values.',
+                cleanedCount: 0
+            });
+        }
+        
+        // Return information about users that need manual fixing
+        res.json({
+            success: false,
+            message: 'Found users with missing Coach IDs. These need to be fixed manually.',
+            details: 'Coaches must provide their own unique Coach ID when upgrading. Cannot auto-generate IDs.',
+            usersNeedingFix: usersWithNullCoachId.map(user => ({
+                id: user._id,
+                email: user.email,
+                name: user.name,
+                role: user.role
+            })),
+            totalFound: usersWithNullCoachId.length,
+            instructions: [
+                '1. Contact each user to provide their desired Coach ID',
+                '2. Use the upgrade-to-coach endpoint with their chosen ID',
+                '3. Ensure each Coach ID is unique across the system'
+            ]
+        });
+        
+    } catch (err) {
+        console.error('❌ Error during database cleanup:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error during database cleanup',
+            error: err.message
+        });
+    }
+};
+
+// @desc    Health check for MLM system
+// @route   GET /api/advanced-mlm/health
+// @access  Public
+const mlmHealthCheck = async (req, res) => {
+    try {
+        console.log("🏥 MLM Health Check...");
+        
+        // Check database connection
+        const dbState = mongoose.connection.readyState;
+        console.log("Database state:", dbState);
+        
+        // Test basic model operations
+        const levelCount = await CoachHierarchyLevel.countDocuments({}).maxTimeMS(5000);
+        console.log("Current hierarchy levels:", levelCount);
+        
+        res.json({
+            success: true,
+            message: 'MLM system is healthy',
+            database: {
+                connected: dbState === 1,
+                state: dbState,
+                hierarchyLevels: levelCount
+            },
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (err) {
+        console.error('❌ MLM Health Check failed:', err);
+        res.status(500).json({
+            success: false,
+            message: 'MLM system health check failed',
+            error: err.message
         });
     }
 };
@@ -72,6 +254,28 @@ const generateCoachId = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Server error while generating coach ID'
+        });
+    }
+};
+
+// @desc    Get all hierarchy levels
+// @route   GET /api/advanced-mlm/hierarchy-levels
+// @access  Public
+const getHierarchyLevels = async (req, res) => {
+    try {
+        const levels = await CoachHierarchyLevel.find({ isActive: true }).sort({ level: 1 });
+        
+        res.status(200).json({
+            success: true,
+            message: 'Hierarchy levels retrieved successfully.',
+            data: levels
+        });
+
+    } catch (err) {
+        console.error('Error getting hierarchy levels:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while retrieving hierarchy levels'
         });
     }
 };
@@ -185,126 +389,6 @@ const createExternalSponsor = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Server error while creating external sponsor'
-        });
-    }
-};
-
-// ===== COACH SIGNUP WITH HIERARCHY =====
-
-// @desc    Coach signup with hierarchy details
-// @route   POST /api/advanced-mlm/signup
-// @access  Public
-const coachSignupWithHierarchy = async (req, res) => {
-    const { 
-        name, 
-        email, 
-        password, 
-        selfCoachId, 
-        currentLevel, 
-        sponsorId, 
-        externalSponsorId,
-        teamRankName, 
-        presidentTeamRankName 
-    } = req.body;
-
-    if (!name || !email || !password || !selfCoachId || !currentLevel) {
-        return res.status(400).json({
-            success: false,
-            message: 'Please provide all required fields: name, email, password, selfCoachId, and currentLevel.'
-        });
-    }
-
-    try {
-        // Validate hierarchy level
-        const levelExists = await CoachHierarchyLevel.findOne({ 
-            level: currentLevel, 
-            isActive: true 
-        });
-        
-        if (!levelExists) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid hierarchy level selected.'
-            });
-        }
-
-        // Check if coach ID is unique
-        const existingCoachId = await User.findOne({ 
-            'selfCoachId': selfCoachId,
-            role: 'coach'
-        });
-        
-        if (existingCoachId) {
-            return res.status(400).json({
-                success: false,
-                message: 'Coach ID already exists. Please generate a new one.'
-            });
-        }
-
-        // Check if email is unique
-        const existingEmail = await User.findOne({ email });
-        if (existingEmail) {
-            return res.status(400).json({
-                success: false,
-                message: 'Email already registered.'
-            });
-        }
-
-        // Validate sponsor if provided
-        if (sponsorId) {
-            const sponsor = await User.findById(sponsorId);
-            if (!sponsor || sponsor.role !== 'coach') {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid sponsor selected.'
-                });
-            }
-        }
-
-        if (externalSponsorId) {
-            const externalSponsor = await ExternalSponsor.findById(externalSponsorId);
-            if (!externalSponsor || !externalSponsor.isActive) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid external sponsor selected.'
-                });
-            }
-        }
-
-        // Create new coach
-        const newCoach = new User({
-            name,
-            email,
-            password,
-            role: 'coach',
-            selfCoachId,
-            currentLevel,
-            sponsorId: sponsorId || null,
-            externalSponsorId: externalSponsorId || null,
-            teamRankName: teamRankName || '',
-            presidentTeamRankName: presidentTeamRankName || '',
-            hierarchyLocked: false,
-            isVerified: false
-        });
-
-        await newCoach.save();
-
-        res.status(201).json({
-            success: true,
-            message: 'Coach registered successfully with hierarchy details.',
-            data: {
-                coachId: newCoach._id,
-                selfCoachId: newCoach.selfCoachId,
-                currentLevel: newCoach.currentLevel,
-                sponsorId: newCoach.sponsorId,
-                externalSponsorId: newCoach.externalSponsorId
-            }
-        });
-    } catch (err) {
-        console.error('Error in coach signup:', err);
-        res.status(500).json({
-            success: false,
-            message: 'Server error while registering coach'
         });
     }
 };
@@ -1533,16 +1617,18 @@ async function applyHierarchyChanges(request) {
 }
 
 module.exports = {
+    // Health Check
+    mlmHealthCheck,
+    
     // Hierarchy Level Management
+    setupHierarchyLevels,
     getHierarchyLevels,
     generateCoachId,
+    cleanupDatabase,
     
     // Sponsor Management
     searchSponsor,
     createExternalSponsor,
-    
-    // Coach Signup
-    coachSignupWithHierarchy,
     
     // Hierarchy Locking
     lockHierarchy,

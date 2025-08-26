@@ -118,40 +118,270 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/nurturing-sequences/category/:category', desc: 'Get sequences by category' },
         { method: 'POST', path: '/api/nurturing-sequences/:id/test', desc: 'Test sequence execution (dry run)', sample: { leadId: '...' } },
     ],
-    '📊 Advanced MLM Network (Unified)': [
-        // ===== PUBLIC ROUTES (No Authentication Required) =====
-        { method: 'GET', path: '/api/advanced-mlm/hierarchy-levels', desc: 'Get all hierarchy levels (Public)', sample: {} },
-        { method: 'POST', path: '/api/advanced-mlm/generate-coach-id', desc: 'Generate unique coach ID (Public)', sample: {} },
-        { method: 'GET', path: '/api/advanced-mlm/search-sponsor', desc: 'Search for sponsors (Public)', sample: { query: 'John' } },
-        { method: 'POST', path: '/api/advanced-mlm/external-sponsor', desc: 'Create external sponsor (Public)', sample: { name: 'External Sponsor', phone: '+1234567890', email: 'sponsor@example.com', company: 'Company Name', notes: 'Additional notes' } },
-        { method: 'POST', path: '/api/advanced-mlm/signup', desc: 'Coach signup with hierarchy details (Public)', sample: { name: 'Coach Name', email: 'coach@example.com', password: 'Passw0rd!', selfCoachId: 'W2983738', currentLevel: 1, sponsorId: '...', externalSponsorId: '...', teamRankName: 'Team A', presidentTeamRankName: 'President Team' } },
-        
-        // ===== PRIVATE ROUTES (Coach Authentication Required) =====
-        { method: 'POST', path: '/api/advanced-mlm/lock-hierarchy', desc: 'Lock hierarchy after first login (Private)', sample: { coachId: '...' } },
-        { method: 'POST', path: '/api/advanced-mlm/admin-request', desc: 'Submit admin request for hierarchy change (Private)', sample: { requestType: 'level_change', requestedData: { currentLevel: 2 }, reason: 'Promotion to level 2', supportingDocuments: [] } },
-        { method: 'GET', path: '/api/advanced-mlm/admin-requests/:coachId', desc: 'Get coach admin requests (Private)', sample: {} },
-        { method: 'GET', path: '/api/advanced-mlm/commissions/:coachId', desc: 'Get coach commissions (Private)', sample: { status: 'pending', month: 1, year: 2024 } },
-        
-        // ===== DOWNLINE MANAGEMENT =====
-        { method: 'POST', path: '/api/advanced-mlm/downline', desc: 'Add a new coach to downline (verification required on first login)', sample: { name: 'Coach B', email: 'b@ex.com', password: 'Passw0rd!', sponsorId: '...' } },
-        { method: 'GET', path: '/api/advanced-mlm/downline/:sponsorId', desc: 'Get direct downline with performance data', sample: { includePerformance: 'true' } },
-        { method: 'GET', path: '/api/advanced-mlm/hierarchy/:coachId', desc: 'Get full downline hierarchy', sample: { levels: 5, includePerformance: 'true' } },
-        
-        // ===== TEAM PERFORMANCE & REPORTS =====
-        { method: 'GET', path: '/api/advanced-mlm/team-performance/:sponsorId', desc: 'Get comprehensive team performance summary', sample: { period: 'monthly', startDate: '2024-01-01', endDate: '2024-01-31' } },
-        { method: 'POST', path: '/api/advanced-mlm/generate-report', desc: 'Generate comprehensive team report', sample: { sponsorId: '...', reportType: 'team_summary', period: 'monthly', startDate: '2024-01-01', endDate: '2024-01-31', config: {} } },
-        { method: 'GET', path: '/api/advanced-mlm/reports/:sponsorId', desc: 'Get list of generated reports', sample: { status: 'completed', reportType: 'team_summary', limit: 10 } },
-        { method: 'GET', path: '/api/advanced-mlm/reports/detail/:reportId', desc: 'Get specific report details with insights' },
-        
-        // ===== ADMIN ROUTES (Admin Authentication Required) =====
-        { method: 'GET', path: '/api/advanced-mlm/admin/pending-requests', desc: 'Get pending admin requests (Admin)', sample: {} },
-        { method: 'PUT', path: '/api/advanced-mlm/admin/process-request/:requestId', desc: 'Process admin request (Admin)', sample: { status: 'approved', adminNotes: 'Request approved after verification' } },
-        { method: 'PUT', path: '/api/advanced-mlm/admin/change-upline', desc: 'Change coach upline (Admin)', sample: { coachId: '...', newUplineId: '...', newUplineName: 'New Sponsor', isExternalSponsor: false } },
-        { method: 'GET', path: '/api/advanced-mlm/admin/commission-settings', desc: 'Get commission settings (Admin)', sample: {} },
-        { method: 'PUT', path: '/api/advanced-mlm/admin/commission-settings', desc: 'Update commission settings (Admin)', sample: { commissionPercentage: 15, minimumSubscriptionAmount: 100, maximumCommissionAmount: 1000, notes: 'Updated commission structure' } },
-        { method: 'POST', path: '/api/advanced-mlm/admin/calculate-commission', desc: 'Calculate commission for subscription (Admin)', sample: { subscriptionId: '...', referredBy: '...' } },
-        { method: 'POST', path: '/api/advanced-mlm/admin/process-monthly-commissions', desc: 'Process monthly commission payments (Admin)', sample: { month: 1, year: 2024 } },
-    ],
+    '📊 Advanced MLM Network (Unified)': {
+        'GET /api/advanced-mlm/health': {
+            description: 'Health check for MLM system',
+            note: 'Public endpoint to check system health',
+            example: 'GET /api/advanced-mlm/health'
+        },
+        'GET /api/advanced-mlm/test-middleware': {
+            description: 'Test middleware chain (Admin only)',
+            note: 'Admin endpoint to test if middleware chain is working correctly',
+            example: 'GET /api/advanced-mlm/test-middleware (with admin JWT token)'
+        },
+        'POST /api/advanced-mlm/setup-hierarchy': {
+            description: 'Setup default hierarchy levels (Admin only)',
+            body: 'No body required',
+            note: 'Creates 12 default hierarchy levels (Bronze to Supreme Crown Ambassador)',
+            example: 'POST /api/advanced-mlm/setup-hierarchy (with admin JWT token)'
+        },
+        'GET /api/advanced-mlm/hierarchy-levels': {
+            description: 'Get all available hierarchy levels',
+            body: 'No body required',
+            note: 'Returns list of hierarchy levels with names and descriptions',
+            example: 'GET /api/advanced-mlm/hierarchy-levels'
+        },
+        'POST /api/advanced-mlm/generate-coach-id': {
+            description: 'Generate unique coach ID',
+            body: 'No body required',
+            note: 'Generates a unique 8-character coach ID',
+            example: 'POST /api/advanced-mlm/generate-coach-id'
+        },
+        'GET /api/advanced-mlm/search-sponsor': {
+            description: 'Search for sponsors (digital system users and external)',
+            query: {
+                searchTerm: 'string (required)',
+                searchType: 'string (optional: "digital" or "external")'
+            },
+            note: 'Search for potential sponsors by name, email, or coach ID',
+            example: 'GET /api/advanced-mlm/search-sponsor?searchTerm=john&searchType=digital'
+        },
+        'POST /api/advanced-mlm/external-sponsor': {
+            description: 'Create external sponsor',
+            body: {
+                required: ['name', 'email', 'phone', 'company'],
+                optional: ['website', 'address', 'notes']
+            },
+            note: 'Create external sponsor for coaches not in the digital system',
+            example: {
+                name: 'External Company Ltd',
+                email: 'contact@external.com',
+                phone: '+1234567890',
+                company: 'External Company Ltd'
+            }
+        },
+        'POST /api/advanced-mlm/lock-hierarchy': {
+            description: 'Lock hierarchy after first login (Coach only)',
+            body: {
+                required: ['coachId']
+            },
+            note: 'Prevents future hierarchy changes after first login',
+            example: { coachId: '507f1f77bcf86cd799439011' }
+        },
+        'POST /api/advanced-mlm/admin-request': {
+            description: 'Submit admin request for hierarchy changes (Coach only)',
+            body: {
+                required: ['coachId', 'requestType', 'reason'],
+                optional: ['requestedChanges', 'priority']
+            },
+            note: 'Request admin approval for hierarchy modifications',
+            example: {
+                coachId: '507f1f77bcf86cd799439011',
+                requestType: 'changeSponsor',
+                reason: 'Better mentorship opportunity',
+                requestedChanges: { newSponsorId: '507f1f77bcf86cd799439012' }
+            }
+        },
+        'GET /api/advanced-mlm/admin-requests/:coachId': {
+            description: 'Get admin requests for a specific coach (Coach only)',
+            params: {
+                coachId: 'string (required)'
+            },
+            note: 'View all admin requests submitted by a specific coach',
+            example: 'GET /api/advanced-mlm/admin-requests/507f1f77bcf86cd799439011'
+        },
+        'GET /api/advanced-mlm/commissions/:coachId': {
+            description: 'Get coach commissions (Coach only)',
+            params: {
+                coachId: 'string (required)'
+            },
+            query: {
+                month: 'string (optional: YYYY-MM format)',
+                year: 'number (optional)'
+            },
+            note: 'View commission earnings and calculations',
+            example: 'GET /api/advanced-mlm/commissions/507f1f77bcf86cd799439011?month=2024-01'
+        },
+        'GET /api/advanced-mlm/admin/pending-requests': {
+            description: 'Get all pending admin requests (Admin only)',
+            body: 'No body required',
+            note: 'Admin view of all pending hierarchy change requests',
+            example: 'GET /api/advanced-mlm/admin/pending-requests (with admin JWT token)'
+        },
+        'PUT /api/advanced-mlm/admin/process-request/:requestId': {
+            description: 'Process admin request (approve/reject) (Admin only)',
+            params: {
+                requestId: 'string (required)'
+            },
+            body: {
+                required: ['action', 'adminNotes'],
+                optional: ['approvedChanges']
+            },
+            note: 'Approve or reject hierarchy change requests',
+            example: {
+                action: 'approve',
+                adminNotes: 'Request approved after review',
+                approvedChanges: { newSponsorId: '507f1f77bcf86cd799439012' }
+            }
+        },
+        'PUT /api/advanced-mlm/admin/change-upline': {
+            description: 'Change coach upline (Admin only)',
+            body: {
+                required: ['coachId', 'newSponsorId'],
+                optional: ['reason', 'effectiveDate']
+            },
+            note: 'Admin override to change coach sponsor/hierarchy',
+            example: {
+                coachId: '507f1f77bcf86cd799439011',
+                newSponsorId: '507f1f77bcf86cd799439012',
+                reason: 'Performance optimization'
+            }
+        },
+        'GET /api/advanced-mlm/admin/commission-settings': {
+            description: 'Get commission settings (Admin only)',
+            body: 'No body required',
+            note: 'View current commission structure and rates',
+            example: 'GET /api/advanced-mlm/admin/commission-settings (with admin JWT token)'
+        },
+        'PUT /api/advanced-mlm/admin/commission-settings': {
+            description: 'Update commission settings (Admin only)',
+            body: {
+                required: ['commissionStructure'],
+                optional: ['bonusRates', 'thresholds']
+            },
+            note: 'Modify commission calculations and bonus structures',
+            example: {
+                commissionStructure: {
+                    level1: 0.10,
+                    level2: 0.05,
+                    level3: 0.03
+                }
+            }
+        },
+        'POST /api/advanced-mlm/admin/calculate-commission': {
+            description: 'Calculate and create commission for subscription (Admin only)',
+            body: {
+                required: ['subscriptionId', 'coachId', 'amount'],
+                optional: ['commissionType', 'notes']
+            },
+            note: 'Manually calculate commission for specific transactions',
+            example: {
+                subscriptionId: '507f1f77bcf86cd799439011',
+                coachId: '507f1f77bcf86cd799439012',
+                amount: 100.00
+            }
+        },
+        'POST /api/advanced-mlm/admin/process-monthly-commissions': {
+            description: 'Process monthly commission payments (Admin only)',
+            body: {
+                required: ['month', 'year'],
+                optional: ['paymentMethod', 'batchSize']
+            },
+            note: 'Bulk process all pending commissions for a month',
+            example: {
+                month: '01',
+                year: 2024,
+                paymentMethod: 'bank_transfer'
+            }
+        },
+        'POST /api/advanced-mlm/downline': {
+            description: 'Add a new coach to downline (Coach only)',
+            body: {
+                required: ['name', 'email', 'password', 'sponsorId'],
+                optional: ['phone', 'currentLevel', 'teamRankName']
+            },
+            note: 'Add new coach to your downline team',
+            example: {
+                name: 'John Doe',
+                email: 'john@example.com',
+                password: 'Passw0rd!',
+                sponsorId: '507f1f77bcf86cd799439011'
+            }
+        },
+        'GET /api/advanced-mlm/downline/:sponsorId': {
+            description: 'Get direct downline for a specific sponsor (Coach only)',
+            params: {
+                sponsorId: 'string (required)'
+            },
+            query: {
+                includePerformance: 'boolean (optional: true/false)'
+            },
+            note: 'View direct team members under a specific sponsor',
+            example: 'GET /api/advanced-mlm/downline/507f1f77bcf86cd799439011?includePerformance=true'
+        },
+        'GET /api/advanced-mlm/hierarchy/:coachId': {
+            description: 'Get complete downline hierarchy (Coach only)',
+            params: {
+                coachId: 'string (required)'
+            },
+            query: {
+                levels: 'number (optional: default 5)',
+                includePerformance: 'boolean (optional: true/false)'
+            },
+            note: 'View complete team structure with configurable depth',
+            example: 'GET /api/advanced-mlm/hierarchy/507f1f77bcf86cd799439011?levels=10&includePerformance=true'
+        },
+        'GET /api/advanced-mlm/team-performance/:sponsorId': {
+            description: 'Get team performance summary (Coach only)',
+            params: {
+                sponsorId: 'string (required)'
+            },
+            query: {
+                period: 'string (optional: "month", "quarter", "year")',
+                includeInactive: 'boolean (optional: true/false)'
+            },
+            note: 'Comprehensive team performance metrics and analytics',
+            example: 'GET /api/advanced-mlm/team-performance/507f1f77bcf86cd799439011?period=month'
+        },
+        'POST /api/advanced-mlm/generate-report': {
+            description: 'Generate comprehensive team report (Coach only)',
+            body: {
+                required: ['reportType', 'sponsorId'],
+                optional: ['dateRange', 'includeCharts', 'format']
+            },
+            note: 'Create detailed performance reports with charts and insights',
+            example: {
+                reportType: 'team_performance',
+                sponsorId: '507f1f77bcf86cd799439011',
+                dateRange: { start: '2024-01-01', end: '2024-01-31' }
+            }
+        },
+        'GET /api/advanced-mlm/reports/:sponsorId': {
+            description: 'Get list of generated reports (Coach only)',
+            params: {
+                sponsorId: 'string (required)'
+            },
+            query: {
+                reportType: 'string (optional)',
+                limit: 'number (optional: default 20)'
+            },
+            note: 'View all generated reports for a specific sponsor',
+            example: 'GET /api/advanced-mlm/reports/507f1f77bcf86cd799439011?reportType=team_performance'
+        },
+        'GET /api/advanced-mlm/reports/detail/:reportId': {
+            description: 'Get specific report details (Coach only)',
+            params: {
+                reportId: 'string (required)'
+            },
+            note: 'View detailed content and data of a specific report',
+            example: 'GET /api/advanced-mlm/reports/detail/507f1f77bcf86cd799439011'
+        },
+        'POST /api/advanced-mlm/cleanup-database': {
+            description: 'Check for users with missing Coach IDs (Admin only)',
+            note: 'Identifies users needing manual Coach ID assignment. Coaches must provide their own IDs.',
+            example: 'POST /api/advanced-mlm/cleanup-database (with admin JWT token)'
+        },
+    },
     // Note: Coach Hierarchy System has been integrated into Advanced MLM Network (Unified) above
     '👥 Staff Management': [
         { method: 'POST', path: '/api/staff', desc: 'Create staff under coach (verification required on first login)', sample: { name: 'Assistant A', email: 'assistant@ex.com', password: 'Passw0rd!', permissions: ['leads:read', 'leads:update'] } },
@@ -207,11 +437,7 @@ const allApiRoutes = {
             "desc": "Delete Automation Rule"
         }
     ],
-    '💬 WhatsApp Messaging (Meta API)': [
-        { method: 'GET', path: '/api/whatsapp/webhook', desc: 'Webhook Verification (Meta)' },
-        { method: 'POST', path: '/api/whatsapp/webhook', desc: 'Receive Incoming Messages (Meta)', sample: { entry: [{ changes: [{ value: { messages: [{ from: '911234567890', text: { body: 'Hi' }, type: 'text' }], metadata: { phone_number_id: '...' } } }] }] } },
-        { method: 'POST', path: '/api/whatsapp/send-message', desc: 'Send Outbound Message', sample: { coachId: '...', recipientPhoneNumber: '911234567890', messageContent: 'Hello!' } },
-    ],
+
     '📱 WhatsApp Automation (Coach Dashboard)': [
         // ===== WHATSAPP MANAGEMENT =====
         { method: 'POST', path: '/api/coach-whatsapp/initialize', desc: 'Initialize WhatsApp automation for coach' },
@@ -522,7 +748,42 @@ const allApiRoutes = {
         { method: 'INFO', path: '⚡ Automation Engine', desc: 'Event-driven automation with RabbitMQ integration for seamless workflow orchestration' },
         { method: 'INFO', path: '📊 Advanced Analytics', desc: 'Comprehensive dashboard with real-time metrics, performance tracking, and business intelligence' },
         { method: 'INFO', path: '🔗 Integration Hub', desc: 'Seamless integration with existing automation rules, lead nurturing, and marketing campaigns' }
-    ]
+    ],
+    '🔐 Authentication & User Management': {
+        'POST /api/auth/signup': {
+            description: 'Unified user registration supporting all roles including MLM coaches',
+            note: 'For coaches: must provide unique selfCoachId. For other roles: MLM fields are optional.',
+            body: {
+                name: 'Full name (required)',
+                email: 'Email address (required)',
+                password: 'Password (required)',
+                role: 'User role: client, coach, admin, staff (required)',
+                selfCoachId: 'Unique Coach ID - required only for coach role',
+                currentLevel: 'MLM hierarchy level (1-12) - required only for coach role',
+                sponsorId: 'Sponsor coach ID (optional for coach role)',
+                externalSponsorId: 'External sponsor ID (optional for coach role)',
+                teamRankName: 'Team rank name (optional for coach role)',
+                presidentTeamRankName: 'President team rank name (optional for coach role)'
+            },
+            example: 'POST /api/auth/signup\nBody: {"name": "John Doe", "email": "john@example.com", "password": "password123", "role": "coach", "selfCoachId": "COACH123", "currentLevel": 1}'
+        },
+        'POST /api/auth/upgrade-to-coach': {
+            description: 'Convert existing verified user to MLM coach',
+            body: {
+                required: ['userId'],
+                optional: ['sponsorId', 'externalSponsorId', 'teamRankName', 'presidentTeamRankName']
+            },
+            note: 'Allows users to join MLM system later without re-signup'
+        },
+        'POST /api/auth/verify-otp': 'Verify email with OTP',
+        'POST /api/auth/login': 'User login and authentication',
+        'POST /api/auth/forgot-password': 'Request password reset',
+        'POST /api/auth/reset-password': 'Reset password with token',
+        'POST /api/auth/resend-otp': 'Resend OTP for verification',
+        'GET /api/auth/me': 'Get current user profile (protected)',
+        'PUT /api/auth/update-profile': 'Update user profile (protected)',
+        'POST /api/auth/logout': 'User logout'
+    }
 };
 
 // 🏠 Dynamic Homepage Route with new UI
@@ -532,12 +793,48 @@ router.get('/', (req, res) => {
 
     // Group similar sections for better organization
     const groupedSections = {
-        '🔑 Core Services': ['🔑 Authentication', '📈 Funnel Management', '🎯 Lead Management (CRM)', '📱 Unified WhatsApp Integration'],
-        '🤖 AI & Automation': ['🤖 AI Services', '🤖 AI-Powered Features', '⚙️ Automation Rules', '📋 Workflow & Task Management'],
-        '📊 Business Intelligence': ['📊 Coach Dashboard', '👥 Staff Management', '📊 Advanced MLM Network (Unified)'],
-        '💰 E-commerce & Payments': ['💳 Payment Processing', '🛒 E-commerce & Payments (Coach Dashboard)', '💰 Performance & Commissions'],
-        '📢 Marketing & Advertising': ['📢 Marketing & Advertising', '🤖 AI Ads Agent', '🌱 Nurturing Sequences', '🎯 Lead Magnets'],
-        '🔗 Integrations & Utilities': ['🔗 Custom URL Access (Public)', '🌐 Custom Domain Management', '🔗 Zoom Integration', '💬 Message Templates', '📁 File Upload', '💡 Priority Feed & Calendar', '👤 Coach Profile Management']
+        '🔑 Core Services': [
+            '🔐 Authentication & User Management', 
+            '📈 Funnel Management', 
+            '🎯 Lead Management (CRM)', 
+            '🧮 Lead Scoring & Tracking',
+            '📱 Unified WhatsApp Integration',
+            '📱 WhatsApp Automation (Coach Dashboard)'
+        ],
+        '🤖 AI & Automation': [
+            '🤖 AI Services', 
+            '🤖 AI-Powered Features', 
+            '⚙️ Automation Rules', 
+            '📋 Workflow & Task Management'
+        ],
+        '📊 Business Intelligence': [
+            '📊 Coach Dashboard', 
+            '👥 Staff Management',
+            '👥 Staff Dashboard',
+            '🏆 Staff Leaderboard & Scoring',
+            '📊 Advanced MLM Network (Unified)',
+            '💰 Performance & Commissions'
+        ],
+        '💰 E-commerce & Payments': [
+            '💳 Payment Processing', 
+            '🛒 E-commerce & Payments (Coach Dashboard)'
+        ],
+        '📢 Marketing & Advertising': [
+            '📢 Marketing & Advertising', 
+            '🤖 AI Ads Agent', 
+            '🌱 Nurturing Sequences', 
+            '🎯 Lead Magnets',
+            '🌐 Public Funnel Pages'
+        ],
+        '🔗 Integrations & Utilities': [
+            '🔗 Custom URL Access (Public)', 
+            '🌐 Custom Domain Management', 
+            '🔗 Zoom Integration', 
+            '💬 Message Templates', 
+            '📁 File Upload', 
+            '💡 Priority Feed & Calendar', 
+            '👤 Coach Profile Management'
+        ]
     };
 
     // Generate sidebar with grouped sections
@@ -582,18 +879,43 @@ router.get('/', (req, res) => {
                         </thead>
                         <tbody>
         `;
-        allApiRoutes[title].forEach(route => {
-            routeTables += `
-                <tr>
-                    <td class="method method-${route.method.toLowerCase()}">${route.method}</td>
-                    <td>${route.path}</td>
-                    <td>
-                        ${route.desc.replace(/`/g, '\\`')}
-                        ${route.sample ? '<pre style="margin-top:8px;background:#0b1020;color:#d1e9ff;padding:10px;border-radius:6px;white-space:pre-wrap;">' + JSON.stringify(route.sample, null, 2).replace(/`/g, '\\`') + '</pre>' : ''}
-                    </td>
-                </tr>
-            `;
-        });
+        // Handle both array and object formats
+        if (Array.isArray(allApiRoutes[title])) {
+            // Old array format
+            allApiRoutes[title].forEach(route => {
+                routeTables += `
+                    <tr>
+                        <td class="method method-${route.method.toLowerCase()}">${route.method}</td>
+                        <td>${route.path}</td>
+                        <td>
+                            ${route.desc.replace(/`/g, '\\`')}
+                            ${route.sample ? '<pre style="margin-top:8px;background:#0b1020;color:#d1e9ff;padding:10px;border-radius:6px;white-space:pre-wrap;">' + JSON.stringify(route.sample, null, 2).replace(/`/g, '\\`') + '</pre>' : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+        } else {
+            // New object format with detailed route information
+            Object.entries(allApiRoutes[title]).forEach(([endpoint, routeInfo]) => {
+                const method = endpoint.split(' ')[0];
+                const path = endpoint.split(' ')[1];
+                
+                routeTables += `
+                    <tr>
+                        <td class="method method-${method.toLowerCase()}">${method}</td>
+                        <td>${path}</td>
+                        <td>
+                            <strong>${routeInfo.description || 'No description'}</strong><br>
+                            ${routeInfo.note ? `<em>${routeInfo.note}</em><br>` : ''}
+                            ${routeInfo.body ? `<strong>Body:</strong> ${typeof routeInfo.body === 'string' ? routeInfo.body : JSON.stringify(routeInfo.body, null, 2)}<br>` : ''}
+                            ${routeInfo.query ? `<strong>Query:</strong> ${JSON.stringify(routeInfo.query, null, 2)}<br>` : ''}
+                            ${routeInfo.params ? `<strong>Params:</strong> ${JSON.stringify(routeInfo.params, null, 2)}<br>` : ''}
+                            ${routeInfo.example ? `<strong>Example:</strong> <pre style="margin-top:8px;background:#0b1020;color:#d1e9ff;padding:10px;border-radius:6px;white-space:pre-wrap;">${JSON.stringify(routeInfo.example, null, 2)}</pre>` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
         routeTables += `
                         </tbody>
                     </table>

@@ -146,13 +146,35 @@ const sendTokenResponse = (user, statusCode, res) => {
 // --- Authentication Controllers ---
 
 const signup = async (req, res) => {
-    const { name, email, password, role } = req.body;
+    const { 
+        name, 
+        email, 
+        password, 
+        role,
+        // MLM fields - required for coach role
+        selfCoachId,
+        currentLevel,
+        sponsorId,
+        externalSponsorId,
+        teamRankName,
+        presidentTeamRankName
+    } = req.body;
 
     if (!name || !email || !password || !role) {
         return res.status(400).json({ success: false, message: 'Please enter all required fields: name, email, password, and role.' });
     }
     if (!['coach', 'admin', 'client', 'super_admin'].includes(role)) {
         return res.status(400).json({ success: false, message: 'Invalid role specified.' });
+    }
+
+    // For coach role, require selfCoachId and currentLevel
+    if (role === 'coach') {
+        if (!selfCoachId) {
+            return res.status(400).json({ success: false, message: 'Coach ID is required for coach role. Please provide your unique Coach ID.' });
+        }
+        if (!currentLevel || currentLevel < 1 || currentLevel > 12) {
+            return res.status(400).json({ success: false, message: 'Valid hierarchy level (1-12) is required for coach role.' });
+        }
     }
 
     try {
@@ -172,20 +194,41 @@ const signup = async (req, res) => {
             return res.status(400).json({ success: false, message: 'User with this email already exists and is verified.' });
         }
 
-        // Always use User model - the role field will automatically create the right discriminator
-        newUser = await User.create({
+        // Check if coach ID is already taken (only for coach role)
+        if (role === 'coach') {
+            const existingCoach = await User.findOne({ selfCoachId });
+            if (existingCoach) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'This Coach ID is already taken. Please choose a different one.' 
+                });
+            }
+        }
+
+        // Prepare user data
+        const userData = {
             name,
             email,
             password,
             role,
-            isVerified: false,
-            ...(role === 'coach' && { 
-                sponsorId: null,
-                selfCoachId: null, // Will be set during hierarchy setup
-                currentLevel: 1, // Default to level 1
-                hierarchyLocked: false
-            }) // Only add hierarchy fields for coaches
-        });
+            isVerified: false
+        };
+
+        // Add MLM fields only if role is 'coach'
+        if (role === 'coach') {
+            userData.selfCoachId = selfCoachId;
+            userData.currentLevel = currentLevel;
+            userData.hierarchyLocked = false;
+            
+            // Add optional MLM fields if provided
+            if (sponsorId) userData.sponsorId = sponsorId;
+            if (externalSponsorId) userData.externalSponsorId = externalSponsorId;
+            if (teamRankName) userData.teamRankName = teamRankName;
+            if (presidentTeamRankName) userData.presidentTeamRankName = presidentTeamRankName;
+        }
+
+        // Create user with discriminator (Coach if role is 'coach')
+        const newUser = await User.create(userData);
         
         const otp = generateOtp();
         await Otp.create({ email, otp, createdAt: new Date(), expiresAt: new Date(Date.now() + 5 * 60 * 1000) });
@@ -195,10 +238,17 @@ const signup = async (req, res) => {
         if (otpSent) {
             res.status(201).json({
                 success: true,
-                message: 'User registered successfully. An OTP has been sent to your email for verification.',
+                message: role === 'coach' 
+                    ? 'Coach registered successfully with MLM hierarchy. An OTP has been sent to your email for verification.'
+                    : 'User registered successfully. An OTP has been sent to your email for verification.',
                 userId: newUser._id,
                 email: newUser.email,
-                role: newUser.role
+                role: newUser.role,
+                ...(role === 'coach' && { 
+                    selfCoachId: newUser.selfCoachId,
+                    currentLevel: newUser.currentLevel,
+                    message: 'You can now build your downline and earn commissions!'
+                })
             });
         } else {
             res.status(500).json({ success: false, message: 'User registered, but failed to send OTP. Please try logging in and re-requesting OTP.' });
@@ -207,6 +257,12 @@ const signup = async (req, res) => {
     } catch (error) {
         console.error('Error during signup:', error.message);
         if (error.code === 11000) {
+            if (error.keyPattern && error.keyPattern.selfCoachId) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'This Coach ID is already taken. Please choose a different one.' 
+                });
+            }
             return res.status(409).json({ success: false, message: 'User with this email already exists.' });
         }
         res.status(500).json({ success: false, message: 'Server error during signup.' });
@@ -448,6 +504,97 @@ const resendOtp = async (req, res) => {
     }
 };
 
+const upgradeToCoach = async (req, res) => {
+    const { 
+        userId,
+        selfCoachId, // Now required from client
+        sponsorId,
+        externalSponsorId,
+        teamRankName,
+        presidentTeamRankName
+    } = req.body;
+
+    if (!userId) {
+        return res.status(400).json({ success: false, message: 'User ID is required.' });
+    }
+
+    if (!selfCoachId) {
+        return res.status(400).json({ success: false, message: 'Coach ID is required. Please provide your unique coach ID.' });
+    }
+
+    try {
+        // Find the user
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+
+        // Check if user is already a coach
+        if (user.role === 'coach') {
+            return res.status(400).json({ success: false, message: 'User is already a coach.' });
+        }
+
+        // Check if user is verified
+        if (!user.isVerified) {
+            return res.status(400).json({ success: false, message: 'User must be verified before becoming a coach.' });
+        }
+
+        // Check if the provided coach ID is already taken
+        const existingCoach = await User.findOne({ selfCoachId });
+        if (existingCoach) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'This Coach ID is already taken. Please choose a different one.' 
+            });
+        }
+        
+        console.log(`User ${user.email} is upgrading to coach with ID: ${selfCoachId}`);
+        
+        // Update user to coach role with MLM fields
+        user.role = 'coach';
+        user.selfCoachId = selfCoachId;
+        user.currentLevel = 1;
+        user.hierarchyLocked = false;
+        
+        // Add optional MLM fields if provided
+        if (sponsorId) user.sponsorId = sponsorId;
+        if (externalSponsorId) user.externalSponsorId = externalSponsorId;
+        if (teamRankName) user.teamRankName = teamRankName;
+        if (presidentTeamRankName) user.presidentTeamRankName = presidentTeamRankName;
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'User successfully upgraded to coach with MLM hierarchy!',
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                selfCoachId: user.selfCoachId,
+                currentLevel: user.currentLevel
+            },
+            message: 'You can now build your downline and earn commissions!'
+        });
+
+    } catch (error) {
+        console.error('Error upgrading user to coach:', error.message);
+        
+        // Handle specific duplicate key error
+        if (error.code === 11000) {
+            if (error.keyPattern && error.keyPattern.selfCoachId) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'This Coach ID is already taken. Please choose a different one.' 
+                });
+            }
+        }
+        
+        res.status(500).json({ success: false, message: 'Server error during coach upgrade.' });
+    }
+};
+
 
 module.exports = {
     signup,
@@ -458,6 +605,7 @@ module.exports = {
     forgotPassword,
     resetPassword,
     resendOtp,
+    upgradeToCoach,
     // Helper functions for other controllers
     generateOtp,
     sendOtp

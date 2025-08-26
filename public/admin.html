@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FunnelsEye Admin Dashboard</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            color: #666;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .card h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-icon {
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 12px;
+        }
+
+        .metric-label {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .metric-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .notification {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .notification.urgent {
+            background: rgba(220, 53, 69, 0.1);
+            border-color: rgba(220, 53, 69, 0.3);
+        }
+
+        .notification.success {
+            background: rgba(40, 167, 69, 0.1);
+            border-color: rgba(40, 167, 69, 0.3);
+        }
+
+        .notification-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .notification.urgent .notification-icon {
+            background: #dc3545;
+            color: white;
+        }
+
+        .notification.success .notification-icon {
+            background: #28a745;
+            color: white;
+        }
+
+        .notification.warning .notification-icon {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-healthy { background: #28a745; }
+        .status-warning { background: #ffc107; }
+        .status-critical { background: #dc3545; }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .login-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+        
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        
+        .login-container h2 {
+            margin-bottom: 30px;
+            color: #333;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+        
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #c82333, #a71e2a);
+        }
+
+        .error {
+            background: rgba(220, 53, 69, 0.1);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            color: #dc3545;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Section -->
+        <div id="loginSection" class="login-section">
+            <div class="login-container">
+                <h2>🔐 Admin Login</h2>
+                <form onsubmit="event.preventDefault(); handleLogin();">
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" required placeholder="admin@funnelseye.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" name="password" required placeholder="Admin@123">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="dashboardSection" class="dashboard-content" style="display: none;">
+            <div class="header">
+                <h1>🌟 FunnelsEye Admin Dashboard</h1>
+                <p>Real-time platform monitoring and management</p>
+                <button class="btn btn-danger" onclick="logout()" style="margin-top: 10px;">🚪 Logout</button>
+            </div>
+
+        <div class="dashboard-grid">
+            <!-- System Overview Card -->
+            <div class="card">
+                <h3>
+                    <span class="card-icon">📊</span>
+                    System Overview
+                </h3>
+                <div id="system-overview">
+                    <div class="loading">Loading system data...</div>
+                </div>
+            </div>
+
+            <!-- Financial Overview Card -->
+            <div class="card">
+                <h3>
+                    <span class="card-icon">💰</span>
+                    Financial Overview
+                </h3>
+                <div id="financial-overview">
+                    <div class="loading">Loading financial data...</div>
+                </div>
+            </div>
+
+            <!-- Coach Management Card -->
+            <div class="card">
+                <h3>
+                    <span class="card-icon">👥</span>
+                    Coach Management
+                </h3>
+                <div id="coach-management">
+                    <div class="loading">Loading coach data...</div>
+                </div>
+                <button class="btn" onclick="loadCoaches()">Refresh Coaches</button>
+            </div>
+
+            <!-- Real-time Notifications Card -->
+            <div class="card">
+                <h3>
+                    <span class="card-icon">🔔</span>
+                    Real-time Notifications
+                </h3>
+                <div id="notifications">
+                    <div class="loading">Waiting for notifications...</div>
+                </div>
+                <button class="btn btn-secondary" onclick="clearNotifications()">Clear All</button>
+            </div>
+
+            <!-- System Health Card -->
+            <div class="card">
+                <h3>
+                    <span class="card-icon">🏥</span>
+                    System Health
+                </h3>
+                <div id="system-health">
+                    <div class="loading">Checking system health...</div>
+                </div>
+                <button class="btn" onclick="checkSystemHealth()">Check Health</button>
+            </div>
+
+            <!-- Quick Actions Card -->
+            <div class="card">
+                <h3>
+                    <span class="card-icon">⚡</span>
+                    Quick Actions
+                </h3>
+                <div id="quick-actions">
+                    <div class="loading">Loading actions...</div>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Socket.IO
+        const socket = io();
+        let notifications = [];
+        let adminToken = localStorage.getItem('adminToken');
+        
+        // Check if user is logged in
+        function checkAuth() {
+            if (!adminToken) {
+                showLoginForm();
+                return false;
+            }
+            return true;
+        }
+        
+        // Show login form
+        function showLoginForm() {
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('dashboardSection').style.display = 'none';
+        }
+        
+        // Show dashboard
+        function showDashboard() {
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('dashboardSection').style.display = 'block';
+        }
+        
+        // Handle login
+        async function handleLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/api/admin/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    adminToken = data.token;
+                    localStorage.setItem('adminToken', adminToken);
+                    showDashboard();
+                    loadDashboardData();
+                } else {
+                    alert('Login failed: ' + data.message);
+                }
+            } catch (error) {
+                alert('Login error: ' + error.message);
+            }
+        }
+        
+        // Handle logout
+        function logout() {
+            adminToken = null;
+            localStorage.removeItem('adminToken');
+            showLoginForm();
+        }
+        
+        // Load all dashboard data
+        function loadDashboardData() {
+            loadSystemOverview();
+            loadFinancialOverview();
+            loadCoaches();
+            loadSystemHealth();
+            loadQuickActions();
+        }
+
+        // Join admin room
+        socket.emit('admin-join', 'admin-dashboard');
+
+        // Listen for real-time notifications
+        socket.on('admin-notification', (notification) => {
+            addNotification(notification);
+        });
+
+        socket.on('notification-update', (update) => {
+            console.log('Notification update:', update);
+        });
+
+        // Add notification to UI
+        function addNotification(notification) {
+            notifications.unshift(notification);
+            if (notifications.length > 10) {
+                notifications = notifications.slice(0, 10);
+            }
+            displayNotifications();
+        }
+
+        // Display notifications
+        function displayNotifications() {
+            const container = document.getElementById('notifications');
+            if (notifications.length === 0) {
+                container.innerHTML = '<div class="loading">No notifications</div>';
+                return;
+            }
+
+            container.innerHTML = notifications.map(notification => `
+                <div class="notification ${notification.priority === 'urgent' ? 'urgent' : notification.type === 'success' ? 'success' : 'warning'}">
+                    <div class="notification-icon">${notification.priority === 'urgent' ? '!' : notification.type === 'success' ? '✓' : '⚠'}</div>
+                    <div>
+                        <strong>${notification.title}</strong><br>
+                        <small>${notification.message}</small>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Clear notifications
+        function clearNotifications() {
+            notifications = [];
+            displayNotifications();
+        }
+
+        // Load system overview
+        async function loadSystemOverview() {
+            try {
+                const response = await fetch('/api/admin/dashboard', {
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const overview = data.data.overview;
+                    document.getElementById('system-overview').innerHTML = `
+                        <div class="metric">
+                            <span class="metric-label">Total Users</span>
+                            <span class="metric-value">${overview.users.total}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Active Users (7d)</span>
+                            <span class="metric-value">${overview.users.active.last7Days}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Total Leads</span>
+                            <span class="metric-value">${overview.leads.total}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Total Revenue</span>
+                            <span class="metric-value">₹${overview.payments.revenue.total}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Unread Notifications</span>
+                            <span class="metric-value">${overview.notifications.unread}</span>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('system-overview').innerHTML = `
+                    <div class="error">Error loading system overview: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Load financial overview
+        async function loadFinancialOverview() {
+            try {
+                const response = await fetch('/api/admin/dashboard/financial', {
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const financial = data.data;
+                    document.getElementById('financial-overview').innerHTML = `
+                        <div class="metric">
+                            <span class="metric-label">Active Plans</span>
+                            <span class="metric-value">${financial.plans.active}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Credit Packages</span>
+                            <span class="metric-value">${financial.creditPackages.total}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Commission Rates</span>
+                            <span class="metric-value">${financial.commissionRates.active}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Payment Gateways</span>
+                            <span class="metric-value">${financial.paymentGateways.active}</span>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('financial-overview').innerHTML = `
+                    <div class="error">Error loading financial overview: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Load coach management data
+        async function loadCoaches() {
+            try {
+                const response = await fetch('/api/admin/coaches?limit=5', {
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const coaches = data.data.coaches;
+                    document.getElementById('coach-management').innerHTML = `
+                        <div class="metric">
+                            <span class="metric-label">Total Coaches</span>
+                            <span class="metric-value">${data.data.pagination.totalCoaches}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Recent Coaches</span>
+                            <span class="metric-value">${coaches.length}</span>
+                        </div>
+                        ${coaches.map(coach => `
+                            <div class="metric">
+                                <span class="metric-label">${coach.name}</span>
+                                <span class="metric-value">${coach.selfCoachId || 'No ID'}</span>
+                            </div>
+                        `).join('')}
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('coach-management').innerHTML = `
+                    <div class="error">Error loading coach data: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Check system health
+        async function loadSystemHealth() {
+            try {
+                const response = await fetch('/api/admin/dashboard/health', {
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const health = data.data;
+                    const statusClass = `status-${health.status}`;
+                    document.getElementById('system-health').innerHTML = `
+                        <div class="metric">
+                            <span class="metric-label">Status</span>
+                            <span class="metric-value">
+                                <span class="status-indicator ${statusClass}"></span>
+                                ${health.status}
+                            </span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Uptime</span>
+                            <span class="metric-value">${Math.floor(health.uptime / 3600)}h ${Math.floor((health.uptime % 3600) / 60)}m</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Memory Usage</span>
+                            <span class="metric-value">${health.memory.percentage}%</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Errors (24h)</span>
+                            <span class="metric-value">${health.errors.last24Hours}</span>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('system-health').innerHTML = `
+                    <div class="error">Error checking system health: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Load quick actions
+        async function loadQuickActions() {
+            try {
+                const response = await fetch('/api/admin/dashboard/quick-actions', {
+                    headers: {
+                        'Authorization': `Bearer ${adminToken}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const actions = data.data;
+                    document.getElementById('quick-actions').innerHTML = `
+                        <div class="metric">
+                            <span class="metric-label">Pending Coaches</span>
+                            <span class="metric-value">${actions.pendingCoaches.count}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Failed Payments</span>
+                            <span class="metric-value">${actions.failedPayments.count}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Critical Alerts</span>
+                            <span class="metric-value">${actions.criticalAlerts.count}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">System Issues</span>
+                            <span class="metric-value">${actions.systemIssues.count}</span>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('quick-actions').innerHTML = `
+                    <div class="error">Error loading quick actions: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            if (checkAuth()) {
+                loadDashboardData();
+                
+                // Refresh data every 30 seconds
+                setInterval(() => {
+                    loadSystemOverview();
+                    loadQuickActions();
+                }, 30000);
+            }
+        });
+    </script>
+</body>
+</html>
