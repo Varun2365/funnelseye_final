@@ -88,26 +88,21 @@ adminNotificationService.setIoInstance(io);
 
 // Socket.IO event handlers for admin notifications
 io.on('connection', (socket) => {
-    console.log('🔌 New client connected:', socket.id);
-
     // Admin joins admin room
     socket.on('admin-join', (adminId) => {
         socket.join('admin-room');
         socket.join(`admin-${adminId}`);
-        console.log(`👑 Admin ${adminId} joined admin room`);
     });
 
     // Coach joins coach room
     socket.on('coach-join', (coachId) => {
         socket.join('coach-room');
         socket.join(`user-${coachId}`);
-        console.log(`👤 Coach ${coachId} joined coach room`);
     });
 
     // User joins specific user room
     socket.on('user-join', (userId) => {
         socket.join(`user-${userId}`);
-        console.log(`👤 User ${userId} joined user room`);
     });
 
     // Handle admin notifications
@@ -123,11 +118,6 @@ io.on('connection', (socket) => {
     // Handle global notifications
     socket.on('global-notification', (data) => {
         io.emit('global-notification', data);
-    });
-
-    // Handle disconnection
-    socket.on('disconnect', () => {
-        console.log('🔌 Client disconnected:', socket.id);
     });
 });
 
@@ -158,9 +148,6 @@ app.use(async (req, res, next) => {
             // Add domain info to request for use in other middleware/routes
             req.customDomain = customDomain;
             req.coachId = customDomain.coachId; // Set coach context for the request
-
-            // Log domain access
-            console.log(`Custom domain access: ${hostname} -> Coach: ${customDomain.coachId}`);
         }
     } catch (error) {
         console.error('Error resolving custom domain:', error);
@@ -362,13 +349,11 @@ app.use((req, res, next) => {
     `);
 });
 
-
 // ⚠️ IMPORTANT: Error Handling Middleware (This is commented out as requested)
 // app.use(errorHandler);
 
 // 🌍 Define Server Port
 const PORT = process.env.PORT || 8080;
-
 
 // --- Helper function to print API routes in a formatted table ---
 function printApiTable(title, routes, baseUrl) {
@@ -396,7 +381,6 @@ function printApiTable(title, routes, baseUrl) {
 }
 // -----------------------------------------------------------------
 
-
 /**
  * Initializes the server by connecting to the database and starting the Express app.
  * It also starts all necessary worker processes.
@@ -407,9 +391,7 @@ const startServer = async () => {
         await connectDB();
         
         // Then, initialize all models to ensure they're registered
-        // console.log('🔧 Initializing models...');
         const models = require('./schema');
-        // console.log(`✅ All models initialized (${Object.keys(models).length} models)`);
         
         // Now initialize other services
         await init();
@@ -422,15 +404,13 @@ const startServer = async () => {
         await initNurturingWorker();
 
         server.listen(PORT, () => {
-            // console.log(`\n\n✨ Server is soaring on port ${PORT}! ✨`);
             console.log(`Local Development Base URL: http://localhost:${PORT}`);
 
-                    // --- Start the scheduled task ---
-        checkInactiveCoaches.start();
-        
-        // --- Start Zoom cleanup service ---
-        zoomCleanupService.startCleanup(2, 'daily'); // Default: 2 days retention, daily cleanup
-
+            // --- Start the scheduled task ---
+            checkInactiveCoaches.start();
+            
+            // --- Start Zoom cleanup service ---
+            zoomCleanupService.startCleanup(2, 'daily'); // Default: 2 days retention, daily cleanup
         });
     } catch (error) {
         console.error(`\n❌ Server failed to start: ${error.message}\n`);
@@ -440,23 +420,6 @@ const startServer = async () => {
 
 // Import new services for email, SMS, calendar, notification, and AI
 const { emailService, smsService, internalNotificationService, aiService } = require('./services/actionExecutorService');
-
-// Warn if critical environment variables are missing
-// if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-//     console.warn('⚠️ EMAIL_USER or EMAIL_PASS not set. Email service will not work.');
-// }
-// if (!process.env.TWILIO_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
-//     console.warn('⚠️ Twilio credentials not set. SMS service will not work.');
-// }
-// if (!process.env.OPENAI_API_KEY) {
-//     console.warn('⚠️ OPENAI_API_KEY not set. AI features will not work.');
-// }
-// if (!process.env.META_ADS_ACCESS_TOKEN) {
-//     console.warn('⚠️ META_ADS_ACCESS_TOKEN not set. Instagram upload features will not work.');
-// }
-// if (!process.env.EMAIL_SERVICE) {
-//     console.warn('⚠️ EMAIL_SERVICE not set. Nodemailer may not work as expected.');
-// }
 
 // Initiate the server startup process
 startServer();

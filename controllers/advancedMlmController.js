@@ -24,16 +24,7 @@ const setupHierarchyLevels = async (req, res) => {
     console.log("User ID:", req.user.id);
     console.log("User role:", req.role);
     
-    // Set a timeout for the response
-    const timeout = setTimeout(() => {
-        console.log("⚠️ Request timeout - taking too long");
-        if (!res.headersSent) {
-            res.status(408).json({
-                success: false,
-                message: 'Request timeout - operation taking too long'
-            });
-        }
-    }, 30000); // 30 seconds timeout
+
     
     try {
         // First, test database connection
