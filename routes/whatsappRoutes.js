@@ -3,15 +3,6 @@ const router = express.Router();
 const whatsappController = require('../controllers/whatsappController');
 const { protect, authorizeCoach, authorizeStaff } = require('../middleware/auth');
 
-// CORS pre-flight handling for WhatsApp routes
-router.options('*', (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.status(200).end();
-});
-
 // ========================================
 // INTEGRATION MANAGEMENT ROUTES
 // ========================================
@@ -192,21 +183,21 @@ router.get('/admin/all-integrations', protect, authorizeCoach, whatsappControlle
  * @desc    Get all contacts
  * @access  Private (Coach only)
  */
-router.get('/contacts', whatsappController.getContacts);
+router.get('/contacts', protect, authorizeCoach, whatsappController.getContacts);
 
 /**
  * @route   PUT /api/whatsapp/contacts/:contactId
  * @desc    Update contact information
  * @access  Private (Coach only)
  */
-router.put('/contacts/:contactId', whatsappController.updateContact);
+router.put('/contacts/:contactId', protect, authorizeCoach, whatsappController.updateContact);
 
 /**
  * @route   POST /api/whatsapp/contacts/:contactId/block
  * @desc    Block/unblock contact
  * @access  Private (Coach only)
  */
-router.post('/contacts/:contactId/block', whatsappController.toggleContactBlock);
+router.post('/contacts/:contactId/block', protect, authorizeCoach, whatsappController.toggleContactBlock);
 
 // ========================================
 // WEBHOOK ROUTES (for Meta API)
@@ -268,15 +259,6 @@ router.post('/webhook', async (req, res) => {
         console.error('Webhook error:', error);
         res.sendStatus(500);
     }
-});
-
-// CORS headers middleware for all WhatsApp responses
-router.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    next();
 });
 
 module.exports = router;

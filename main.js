@@ -158,7 +158,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Request logging middleware for debugging
+// // Request logging middleware for debugging
 app.use((req, res, next) => {
     // Log WhatsApp API calls specifically
     if (req.path.startsWith('/api/whatsapp')) {
@@ -229,9 +229,9 @@ app.use('/api/coach', dailyPriorityFeedRoutes);
 app.use('/api/coach-profile', coachRoutes);
 
 // ===== E-COMMERCE & PAYMENTS =====
-app.use('/api/payments', require('./routes/paymentRoutes'));
-app.use('/api/subscriptions', require('./routes/subscriptionRoutes'));
-app.use('/api/cart', require('./routes/cartRoutes'));
+app.use('/api/payments', paymentRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/cart', cartRoutes);
 
 // ===== MARKETING & ADVERTISING =====
 app.use('/api/ads', adsRoutes);
@@ -245,15 +245,15 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/staff-dashboard', staffDashboardRoutes);
 app.use('/api/staff-leaderboard', staffLeaderboardRoutes);
 
-// ===== MESSAGE TEMPLATES & ZOOM INTEGRATION =====
-app.use('/api/message-templates', require('./routes/messageTemplateRoutes'));
-app.use('/api/zoom-integration', require('./routes/zoomIntegrationRoutes'));
+// // ===== MESSAGE TEMPLATES & ZOOM INTEGRATION =====
+app.use('/api/message-templates', messageTemplateRoutes);
+app.use('/api/zoom-integration', zoomIntegrationRoutes);
 
-// ===== ADVANCED MLM & PERFORMANCE (Unified) =====
+// // ===== ADVANCED MLM & PERFORMANCE (Unified) =====
 app.use('/api/advanced-mlm', advancedMlmRoutes);
 app.use('/api/coach-hierarchy', coachHierarchyRoutes);
 
-// ===== UTILITIES & ADMIN =====
+// // ===== UTILITIES & ADMIN =====
 app.use('/api/files', uploadRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/funnels', webpageRenderRoutes);
@@ -430,19 +430,19 @@ app.use((err, req, res, next) => {
 });
 
 // 404 handler for unmatched routes
-app.use('*', (req, res) => {
-    // Add CORS headers for 404 responses
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-    res.header('Access-Control-Allow-Credentials', 'true');
+// app.use('*', (req, res) => {
+//     // Add CORS headers for 404 responses
+//     res.header('Access-Control-Allow-Origin', '*');
+//     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+//     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+//     res.header('Access-Control-Allow-Credentials', 'true');
     
-    res.status(404).json({
-        success: false,
-        message: 'Route not found',
-        path: req.originalUrl
-    });
-});
+//     res.status(404).json({
+//         success: false,
+//         message: 'Route not found',
+//         path: req.originalUrl
+//     });
+// });
 
 // 🌍 Define Server Port
 const PORT = process.env.PORT || 8080;
