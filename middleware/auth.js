@@ -79,22 +79,29 @@ const authorizeCoach = (...roles) => {
     return (req, res, next) => {
         // req.role is set by the 'protect' middleware
         // Check if the user's role is included in the allowed roles for this route
-        // If req.coachId is meant to verify *ownership*, this middleware needs to compare req.coachId with req.params.coachId.
-        // The current implementation is for general role-based access control.
-        // If it's for ownership, consider renaming to authorizeOwnership or similar.
-        // For example, to ensure coach only accesses their own funnels:
-        if (req.coachId && req.params.coachId && req.coachId.toString() !== req.params.coachId.toString()) {
-             return res.status(403).json({
-                 success: false,
-                 message: `Forbidden: You are not authorized to access this resource for Coach ID ${req.params.coachId}.`
-             });
-        }
-
+        
         // If you need to restrict by roles (e.g., only 'admin' or 'coach' can access)
         if (roles.length > 0 && !roles.includes(req.role)) {
             return res.status(403).json({
                 success: false,
                 message: `User role (${req.role}) is not authorized to access this route.`
+            });
+        }
+
+        // Ownership check: Only apply to coaches, not admins
+        // Admins can view any coach's data, coaches can only view their own
+        if (req.role === 'coach' && req.coachId && req.params.coachId && req.coachId.toString() !== req.params.coachId.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: `Forbidden: You are not authorized to access this resource for Coach ID ${req.params.coachId}.`
+            });
+        }
+
+        // Additional ownership check for sponsorId parameter (used in downline routes)
+        if (req.role === 'coach' && req.coachId && req.params.sponsorId && req.coachId.toString() !== req.params.sponsorId.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: `Forbidden: You are not authorized to access downline data for Coach ID ${req.params.sponsorId}.`
             });
         }
 

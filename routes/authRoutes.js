@@ -36,6 +36,16 @@ router.post('/reset-password', authController.resetPassword);
 // Required Body Fields: { "email": "string" }
 router.post('/resend-otp', authController.resendOtp);
 
+// Get available sponsors for coach signup dropdown
+// GET /api/auth/available-sponsors
+// Required Body Fields: None
+router.get('/available-sponsors', authController.getAvailableSponsors);
+
+// Get coach ranks for signup dropdown
+// GET /api/auth/coach-ranks
+// Required Body Fields: None
+router.get('/coach-ranks', authController.getCoachRanks);
+
 
 // --- Private Routes (Authentication required via JWT) ---
 
@@ -58,6 +68,11 @@ router.get('/logout', authController.logout);
 // Required Body Fields: { "userId": "string" }
 // Optional Body Fields: { "sponsorId": "string", "externalSponsorId": "string", "teamRankName": "string", "presidentTeamRankName": "string" }
 router.post('/upgrade-to-coach', protect, updateLastActive, authController.upgradeToCoach);
+
+// Lock hierarchy route: Make coach hierarchy non-editable (one-time action)
+// POST /api/auth/lock-hierarchy
+// Required Body Fields: { "coachId": "string" }
+router.post('/lock-hierarchy', protect, updateLastActive, authController.lockHierarchy);
 
 
 module.exports = router;

@@ -32,6 +32,7 @@ const {
     calculateCommission,
     getCoachCommissions,
     processMonthlyCommissions,
+    calculateSubscriptionCommission,
     
     // ===== INTEGRATED EXISTING MLM FUNCTIONALITY =====
     addDownline,
@@ -41,7 +42,7 @@ const {
     generateTeamReport,
     getReports,
     getReportDetail,
-    cleanupDatabase
+    
 } = require('../controllers/advancedMlmController');
 
 const { protect, authorizeCoach, authorizeStaff, authorizeAdmin } = require('../middleware/auth');
@@ -65,7 +66,7 @@ router.get('/test-middleware', protect, updateLastActive, authorizeAdmin, (req, 
 });
 
 // Route 0.2: Clean up database - Fix null selfCoachId values (Admin only)
-router.post('/cleanup-database', protect, updateLastActive, authorizeAdmin, cleanupDatabase);
+// router.post('/cleanup-database', protect, updateLastActive, authorizeAdmin, cleanupDatabase);
 
 // ===== HIERARCHY LEVEL MANAGEMENT =====
 
@@ -97,10 +98,17 @@ router.post('/lock-hierarchy', protect, updateLastActive, authorizeCoach('coach'
 router.post('/admin-request', protect, updateLastActive, authorizeCoach('coach'), submitAdminRequest);
 
 // Route 9: Get admin requests for a specific coach
-router.get('/admin-requests/:coachId', protect, updateLastActive, authorizeCoach('coach'), getCoachAdminRequests);
+// Admins can view any coach's admin requests, coaches can only view their own
+router.get('/admin-requests/:coachId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getCoachAdminRequests);
+
+// ===== COMMISSION SYSTEM =====
+
+// Route 10: Calculate commission only on platform subscriptions (Admin only)
+router.post('/calculate-subscription-commission', protect, updateLastActive, authorizeAdmin, calculateSubscriptionCommission);
 
 // Route 10: Get coach commissions
-router.get('/commissions/:coachId', protect, updateLastActive, authorizeCoach('coach'), getCoachCommissions);
+// Admins can view any coach's commissions, coaches can only view their own
+router.get('/commissions/:coachId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getCoachCommissions);
 
 // ===== ADMIN ROUTES (Admin Authentication Required) =====
 
@@ -131,21 +139,26 @@ router.post('/admin/process-monthly-commissions', protect, updateLastActive, aut
 router.post('/downline', protect, updateLastActive, authorizeCoach('coach'), addDownline);
 
 // Route 19: Get direct downline for a specific sponsor
-router.get('/downline/:sponsorId', protect, updateLastActive, authorizeCoach('coach'), getDownline);
+// Admins can view any coach's downline, coaches can only view their own
+router.get('/downline/:sponsorId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getDownline);
 
 // Route 20: Get complete downline hierarchy
-router.get('/hierarchy/:coachId', protect, updateLastActive, authorizeCoach('coach'), getDownlineHierarchy);
+// Admins can view any coach's hierarchy, coaches can only view their own
+router.get('/hierarchy/:coachId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getDownlineHierarchy);
 
 // Route 21: Get team performance summary
-router.get('/team-performance/:sponsorId', protect, updateLastActive, authorizeCoach('coach'), getTeamPerformance);
+// Admins can view any coach's team performance, coaches can only view their own
+router.get('/team-performance/:sponsorId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getTeamPerformance);
 
 // Route 22: Generate comprehensive team report
 router.post('/generate-report', protect, updateLastActive, authorizeCoach('coach'), generateTeamReport);
 
 // Route 23: Get list of generated reports
-router.get('/reports/:sponsorId', protect, updateLastActive, authorizeCoach('coach'), getReports);
+// Admins can view any coach's reports, coaches can only view their own
+router.get('/reports/:sponsorId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getReports);
 
 // Route 24: Get specific report details
-router.get('/reports/detail/:reportId', protect, updateLastActive, authorizeCoach('coach'), getReportDetail);
+// Admins can view any report, coaches can only view their own reports
+router.get('/reports/detail/:reportId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getReportDetail);
 
 module.exports = router;

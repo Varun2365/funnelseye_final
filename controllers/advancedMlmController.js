@@ -24,8 +24,6 @@ const setupHierarchyLevels = async (req, res) => {
     console.log("User ID:", req.user.id);
     console.log("User role:", req.role);
     
-
-    
     try {
         // First, test database connection
         console.log("Testing database connection...");
@@ -33,7 +31,6 @@ const setupHierarchyLevels = async (req, res) => {
         console.log("Database connection state:", dbState);
         
         if (dbState !== 1) {
-            clearTimeout(timeout);
             return res.status(500).json({
                 success: false,
                 message: 'Database not connected. Please try again.',
@@ -48,7 +45,6 @@ const setupHierarchyLevels = async (req, res) => {
         
         if (existingLevels.length > 0) {
             console.log("Levels already exist, returning existing data");
-            clearTimeout(timeout);
             return res.status(400).json({
                 success: false,
                 message: 'Hierarchy levels already exist. Use update endpoint to modify.',
@@ -58,18 +54,18 @@ const setupHierarchyLevels = async (req, res) => {
 
         // Default hierarchy levels for MLM system
         const defaultLevels = [
-            { level: 1, name: 'Bronze', description: 'Entry level coach' },
-            { level: 2, name: 'Silver', description: 'Intermediate coach' },
-            { level: 3, name: 'Gold', description: 'Advanced coach' },
-            { level: 4, name: 'Platinum', description: 'Expert coach' },
-            { level: 5, name: 'Diamond', description: 'Master coach' },
-            { level: 6, name: 'Double Diamond', description: 'Elite coach' },
-            { level: 7, name: 'Triple Diamond', description: 'Premier coach' },
-            { level: 8, name: 'Crown Diamond', description: 'Distinguished coach' },
-            { level: 9, name: 'Crown Ambassador', description: 'Honored coach' },
-            { level: 10, name: 'Royal Crown Ambassador', description: 'Esteemed coach' },
-            { level: 11, name: 'Imperial Crown Ambassador', description: 'Legendary coach' },
-            { level: 12, name: 'Supreme Crown Ambassador', description: 'Ultimate coach' }
+            { level: 1, name: 'Distributor Coach', description: 'Entry level coach' },
+            { level: 2, name: 'Senior Consultant', description: 'Intermediate coach' },
+            { level: 3, name: 'Success Builder', description: 'Advanced coach' },
+            { level: 4, name: 'Supervisor', description: 'Expert coach' },
+            { level: 5, name: 'World Team', description: 'Master coach' },
+            { level: 6, name: 'G.E.T Team', description: 'Elite coach' },
+            { level: 7, name: 'Get 2500 Team', description: 'Premier coach' },
+            { level: 8, name: 'Millionaire Team', description: 'Distinguished coach' },
+            { level: 9, name: 'Millionaire 7500 Team', description: 'Honored coach' },
+            { level: 10, name: 'President\'s Team', description: 'Esteemed coach' },
+            { level: 11, name: 'Chairman\'s Club', description: 'Legendary coach' },
+            { level: 12, name: 'Founder\'s Circle', description: 'Ultimate coach' }
         ];
 
         console.log("Creating hierarchy levels...");
@@ -92,7 +88,6 @@ const setupHierarchyLevels = async (req, res) => {
         });
         
         console.log(`✅ Successfully created ${result.length} hierarchy levels`);
-        clearTimeout(timeout);
 
         res.status(201).json({
             success: true,
@@ -102,7 +97,6 @@ const setupHierarchyLevels = async (req, res) => {
 
     } catch (err) {
         console.error('❌ Error setting up hierarchy levels:', err);
-        clearTimeout(timeout);
         
         // Check if it's a timeout error
         if (err.message && err.message.includes('timeout')) {
@@ -878,6 +872,104 @@ const calculateCommission = async (req, res) => {
     }
 };
 
+// @desc    Calculate commission only on platform subscriptions
+// @route   POST /api/advanced-mlm/calculate-subscription-commission
+// @access  Private (Admin)
+const calculateSubscriptionCommission = async (req, res) => {
+    try {
+        const { 
+            subscriptionId, 
+            coachId, 
+            subscriptionAmount, 
+            subscriptionType,
+            notes 
+        } = req.body;
+
+        if (!subscriptionId || !coachId || !subscriptionAmount) {
+            return res.status(400).json({
+                success: false,
+                message: 'Subscription ID, coach ID, and subscription amount are required.'
+            });
+        }
+
+        // Find the coach
+        const coach = await User.findById(coachId);
+        if (!coach || coach.role !== 'coach') {
+            return res.status(404).json({
+                success: false,
+                message: 'Coach not found.'
+            });
+        }
+
+        // Get commission settings
+        const commissionSettings = await CommissionSettings.findOne({ isActive: true });
+        if (!commissionSettings) {
+            return res.status(400).json({
+                success: false,
+                message: 'Commission settings not configured.'
+            });
+        }
+
+        // Calculate commission based on subscription type and coach level
+        let commissionPercentage = 0;
+        let commissionAmount = 0;
+
+        // Different commission rates for different subscription types
+        switch (subscriptionType) {
+            case 'monthly':
+                commissionPercentage = commissionSettings.subscriptionCommissions?.monthly || 0.10; // 10%
+                break;
+            case 'yearly':
+                commissionPercentage = commissionSettings.subscriptionCommissions?.yearly || 0.15; // 15%
+                break;
+            case 'lifetime':
+                commissionPercentage = commissionSettings.subscriptionCommissions?.lifetime || 0.20; // 20%
+                break;
+            default:
+                commissionPercentage = commissionSettings.subscriptionCommissions?.default || 0.10; // 10%
+        }
+
+        // Apply level-based multiplier
+        const levelMultiplier = commissionSettings.levelMultipliers?.[coach.currentLevel] || 1.0;
+        commissionPercentage *= levelMultiplier;
+
+        commissionAmount = subscriptionAmount * commissionPercentage;
+
+        // Create commission record
+        const commission = await Commission.create({
+            coachId: coach._id,
+            subscriptionId: subscriptionId,
+            commissionType: 'subscription',
+            subscriptionType: subscriptionType,
+            subscriptionAmount: subscriptionAmount,
+            commissionPercentage: commissionPercentage,
+            commissionAmount: commissionAmount,
+            status: 'pending',
+            notes: notes || `Commission for ${subscriptionType} subscription`,
+            calculatedAt: new Date()
+        });
+
+        res.status(201).json({
+            success: true,
+            message: 'Subscription commission calculated successfully.',
+            data: {
+                commissionId: commission._id,
+                coachId: coach._id,
+                coachName: coach.name,
+                coachLevel: coach.currentLevel,
+                subscriptionAmount: subscriptionAmount,
+                commissionPercentage: commissionPercentage,
+                commissionAmount: commissionAmount,
+                status: commission.status
+            }
+        });
+
+    } catch (error) {
+        console.error('Error calculating subscription commission:', error.message);
+        res.status(500).json({ success: false, message: 'Server error calculating commission.' });
+    }
+};
+
 // @desc    Get coach commissions
 // @route   GET /api/advanced-mlm/commissions/:coachId
 // @access  Private (Coach)
@@ -1611,11 +1703,10 @@ module.exports = {
     // Health Check
     mlmHealthCheck,
     
-    // Hierarchy Level Management
+    // Coach Rank Management
     setupHierarchyLevels,
     getHierarchyLevels,
     generateCoachId,
-    cleanupDatabase,
     
     // Sponsor Management
     searchSponsor,
@@ -1637,6 +1728,7 @@ module.exports = {
     getCommissionSettings,
     updateCommissionSettings,
     calculateCommission,
+    calculateSubscriptionCommission,
     getCoachCommissions,
     processMonthlyCommissions,
     

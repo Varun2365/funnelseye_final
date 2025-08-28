@@ -7,11 +7,16 @@ const WhatsAppConversationSchema = new mongoose.Schema({
         unique: true
     },
     
-    coachId: {
+    // Support both coaches and staff members
+    userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
-        index: true
+        required: true
+    },
+    userType: {
+        type: String,
+        enum: ['coach', 'staff'],
+        required: true
     },
     
     // Contact Information
@@ -32,7 +37,7 @@ const WhatsAppConversationSchema = new mongoose.Schema({
     // Integration Details
     integrationType: {
         type: String,
-        enum: ['meta_official', 'baileys_personal'],
+        enum: ['meta_official', 'baileys_personal', 'central_fallback'],
         required: true
     },
     
@@ -124,11 +129,11 @@ const WhatsAppConversationSchema = new mongoose.Schema({
 });
 
 // Compound indexes for efficient querying
-WhatsAppConversationSchema.index({ coachId: 1, lastMessageAt: -1 });
-WhatsAppConversationSchema.index({ coachId: 1, status: 1 });
-WhatsAppConversationSchema.index({ coachId: 1, contactNumber: 1 }, { unique: true });
-WhatsAppConversationSchema.index({ coachId: 1, category: 1 });
-WhatsAppConversationSchema.index({ coachId: 1, isPinned: 1, lastMessageAt: -1 });
+WhatsAppConversationSchema.index({ userId: 1, userType: 1, lastMessageAt: -1 });
+WhatsAppConversationSchema.index({ userId: 1, userType: 1, status: 1 });
+WhatsAppConversationSchema.index({ userId: 1, userType: 1, contactNumber: 1 }, { unique: true });
+WhatsAppConversationSchema.index({ userId: 1, userType: 1, category: 1 });
+WhatsAppConversationSchema.index({ userId: 1, userType: 1, isPinned: 1, lastMessageAt: -1 });
 
 // Virtual for conversation summary
 WhatsAppConversationSchema.virtual('summary').get(function() {
@@ -178,16 +183,16 @@ WhatsAppConversationSchema.methods.togglePin = function() {
     return this.save();
 };
 
-// Static method to find conversations by coach
-WhatsAppConversationSchema.statics.findByCoach = function(coachId, filters = {}) {
-    const query = { coachId, ...filters };
+// Static method to find conversations by user
+WhatsAppConversationSchema.statics.findByUser = function(userId, userType, filters = {}) {
+    const query = { userId, userType, ...filters };
     return this.find(query).sort({ isPinned: -1, lastMessageAt: -1 });
 };
 
 // Static method to get conversation statistics
-WhatsAppConversationSchema.statics.getStats = function(coachId) {
+WhatsAppConversationSchema.statics.getStats = function(userId, userType) {
     return this.aggregate([
-        { $match: { coachId: mongoose.Types.ObjectId(coachId) } },
+        { $match: { userId: mongoose.Types.ObjectId(userId), userType } },
         {
             $group: {
                 _id: null,

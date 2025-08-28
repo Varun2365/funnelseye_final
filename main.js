@@ -118,11 +118,61 @@ io.on('connection', (socket) => {
 // ✨ Express Middleware Setup
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5000",
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true
-}));
+// Enhanced CORS configuration for development and production
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        // Allow localhost for development
+        if (origin === 'http://localhost:5000' || origin === 'http://localhost:3000') {
+            return callback(null, true);
+        }
+        
+        // Allow your production frontend domain
+        if (origin === 'https://funnelseye.com' || origin === 'https://www.funnelseye.com') {
+            return callback(null, true);
+        }
+        
+        // Allow custom domains (for coach websites)
+        if (origin && origin.includes('funnelseye.com')) {
+            return callback(null, true);
+        }
+        
+        // Allow the specific frontend URL from environment
+        if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
+            return callback(null, true);
+        }
+        
+        // Log blocked origins for debugging
+        console.log(`CORS blocked origin: ${origin}`);
+        
+        // Allow the request (you can change this to false if you want to be more restrictive)
+        callback(null, true);
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    credentials: true,
+    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+};
+
+app.use(cors(corsOptions));
+
+// Request logging middleware for debugging
+app.use((req, res, next) => {
+    // Log WhatsApp API calls specifically
+    if (req.path.startsWith('/api/whatsapp')) {
+        console.log(`[WhatsApp API] ${req.method} ${req.path} - Origin: ${req.headers.origin || 'No origin'} - User-Agent: ${req.headers['user-agent'] || 'No user-agent'}`);
+    }
+    
+    // Log all requests in development
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    }
+    
+    next();
+});
+
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // 🌐 Custom Domain Routing Middleware
@@ -345,6 +395,54 @@ app.use((req, res, next) => {
 
 // ⚠️ IMPORTANT: Error Handling Middleware (This is commented out as requested)
 // app.use(errorHandler);
+
+// Global error handler for unhandled errors
+app.use((err, req, res, next) => {
+    console.error('Global error handler:', err);
+    
+    // Add CORS headers even for errors
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
+    if (err.name === 'ValidationError') {
+        return res.status(400).json({
+            success: false,
+            message: 'Validation Error',
+            error: err.message
+        });
+    }
+    
+    if (err.name === 'UnauthorizedError') {
+        return res.status(401).json({
+            success: false,
+            message: 'Unauthorized',
+            error: err.message
+        });
+    }
+    
+    res.status(500).json({
+        success: false,
+        message: 'Internal Server Error',
+        error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+    });
+});
+
+// 404 handler for unmatched routes
+app.use('*', (req, res) => {
+    // Add CORS headers for 404 responses
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
+    res.status(404).json({
+        success: false,
+        message: 'Route not found',
+        path: req.originalUrl
+    });
+});
 
 // 🌍 Define Server Port
 const PORT = process.env.PORT || 8080;

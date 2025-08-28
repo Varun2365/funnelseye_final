@@ -1,678 +1,327 @@
-const mongoose = require('mongoose');
-const { WhatsAppIntegration, WhatsAppConversation, WhatsAppMessage, WhatsAppContact } = require('../schema');
-const metaWhatsAppService = require('./metaWhatsAppService');
+const { WhatsAppIntegration, WhatsAppMessage, WhatsAppConversation } = require('../schema');
 const baileysWhatsAppService = require('./baileysWhatsAppService');
-const { publishEvent } = require('./rabbitmqProducer');
+const metaWhatsAppService = require('./metaWhatsAppService');
+
+// Central FunnelsEye WhatsApp credentials
+const CENTRAL_WHATSAPP_CONFIG = {
+    apiToken: process.env.WHATSAPP_CENTRAL_API_TOKEN,
+    phoneNumberId: process.env.WHATSAPP_CENTRAL_PHONE_NUMBER_ID,
+    businessAccountId: process.env.WHATSAPP_CENTRAL_BUSINESS_ACCOUNT_ID
+};
 
 class UnifiedWhatsAppService {
     constructor() {
-        this.activeIntegrations = new Map(); // Track active integration per coach
-        this.inboxCache = new Map(); // Cache inbox data for performance
+        this.integrationTypes = ['meta_official', 'baileys_personal', 'central_fallback'];
     }
 
     /**
-     * Get the active integration for a coach
+     * Setup WhatsApp integration for a user (coach or staff)
      */
-    async getActiveIntegration(coachId) {
+    async setupIntegration(userId, userType, integrationData) {
         try {
-            // Check cache first
-            if (this.activeIntegrations.has(coachId)) {
-                return this.activeIntegrations.get(coachId);
+            // Validate user type
+            if (!['coach', 'staff'].includes(userType)) {
+                throw new Error('Invalid user type. Must be coach or staff.');
             }
 
-            // Get active integration from database
-            const integration = await WhatsAppIntegration.findOne({
-                coachId,
-                isActive: true
-            });
+            // Validate integration type
+            if (!this.integrationTypes.includes(integrationData.integrationType)) {
+                throw new Error('Invalid integration type');
+            }
 
+            // Check if integration already exists
+            let integration = await WhatsAppIntegration.findOne({ userId, userType });
+            
             if (integration) {
-                this.activeIntegrations.set(coachId, integration);
+                // Update existing integration
+                integration = await WhatsAppIntegration.findOneAndUpdate(
+                    { userId, userType },
+                    { ...integrationData, isActive: true },
+                    { new: true, runValidators: true }
+                );
+            } else {
+                // Create new integration
+                integration = new WhatsAppIntegration({
+                    userId,
+                    userType,
+                    ...integrationData,
+                    isActive: true
+                });
+                await integration.save();
             }
 
-            return integration;
+            // Initialize integration based on type
+            if (integrationData.integrationType === 'baileys_personal') {
+                await this.initializeBaileysIntegration(userId, userType);
+            }
+
+            return integration.getPublicDetails();
+
         } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error getting active integration:`, error);
+            console.error(`[UnifiedWhatsAppService] Error setting up integration:`, error);
             throw error;
         }
     }
 
     /**
-     * Switch integration type for a coach
+     * Switch between integration types
      */
-    async switchIntegration(coachId, integrationType) {
+    async switchIntegration(userId, userType, newIntegrationType) {
         try {
-            console.log(`[UnifiedWhatsApp] Switching integration for coach ${coachId} to ${integrationType}`);
+            if (!this.integrationTypes.includes(newIntegrationType)) {
+                throw new Error('Invalid integration type');
+            }
 
             // Deactivate current integration
-            await WhatsAppIntegration.updateMany(
-                { coachId, isActive: true },
+            await WhatsAppIntegration.findOneAndUpdate(
+                { userId, userType },
                 { isActive: false }
             );
 
-            // Activate new integration
-            const integration = await WhatsAppIntegration.findOneAndUpdate(
-                { coachId, integrationType },
-                { isActive: true },
-                { new: true }
-            );
-
-            if (!integration) {
-                throw new Error(`Integration of type ${integrationType} not found for this coach`);
+            // Setup new integration
+            const integrationData = { integrationType: newIntegrationType };
+            
+            if (newIntegrationType === 'central_fallback') {
+                integrationData.useCentralFallback = true;
             }
 
-            // Update cache
-            this.activeIntegrations.set(coachId, integration);
-
-            // Initialize Baileys session if switching to personal account
-            if (integrationType === 'baileys_personal') {
-                try {
-                    await baileysWhatsAppService.initializeSession(coachId);
-                } catch (error) {
-                    console.error(`[UnifiedWhatsApp] Error initializing Baileys session:`, error);
-                    // Don't throw error, allow integration switch to complete
-                }
-            }
-
-            // Clear inbox cache
-            this.inboxCache.delete(coachId);
-
-            console.log(`[UnifiedWhatsApp] Integration switched successfully for coach ${coachId}`);
-            return { success: true, integration: integration.getPublicDetails() };
+            return await this.setupIntegration(userId, userType, integrationData);
 
         } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error switching integration:`, error);
+            console.error(`[UnifiedWhatsAppService] Error switching integration:`, error);
             throw error;
         }
     }
 
     /**
-     * Send message through appropriate integration
+     * Get user's WhatsApp integrations
      */
-    async sendMessage(coachId, recipientNumber, content, options = {}) {
+    async getUserIntegrations(userId, userType) {
         try {
-            const integration = await this.getActiveIntegration(coachId);
+            const integration = await WhatsAppIntegration.findOne({ userId, userType });
+            
             if (!integration) {
+                return null;
+            }
+
+            return integration.getPublicDetails();
+
+        } catch (error) {
+            console.error(`[UnifiedWhatsAppService] Error getting user integrations:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get all integrations for coaches (visible to all users)
+     */
+    async getAllCoachIntegrations() {
+        try {
+            const integrations = await WhatsAppIntegration.find({ 
+                userType: 'coach', 
+                isActive: true 
+            }).populate('userId', 'name email selfCoachId currentLevel');
+
+            return integrations.map(integration => ({
+                ...integration.getPublicDetails(),
+                coachName: integration.userId.name,
+                coachEmail: integration.userId.email,
+                selfCoachId: integration.userId.selfCoachId,
+                currentLevel: integration.userId.currentLevel
+            }));
+
+        } catch (error) {
+            console.error(`[UnifiedWhatsAppService] Error getting all coach integrations:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Send WhatsApp message using the best available integration
+     */
+    async sendMessage(userId, userType, recipientPhone, messageContent, options = {}) {
+        try {
+            const integration = await WhatsAppIntegration.findOne({ userId, userType });
+            
+            if (!integration || !integration.isActive) {
                 throw new Error('No active WhatsApp integration found');
             }
 
             let result;
-            if (integration.integrationType === 'meta_official') {
-                // Send via Meta API
-                result = await metaWhatsAppService.sendMessageByCoach(
-                    coachId,
-                    recipientNumber,
-                    content,
-                    options.useTemplate || false
-                );
-            } else {
-                // Send via Baileys
-                result = await baileysWhatsAppService.sendMessage(
-                    coachId,
-                    recipientNumber,
-                    content,
-                    options
-                );
+
+            switch (integration.integrationType) {
+                case 'meta_official':
+                    result = await this.sendViaMetaAPI(userId, userType, recipientPhone, messageContent, options);
+                    break;
+                    
+                case 'baileys_personal':
+                    result = await this.sendViaBaileys(userId, userType, recipientPhone, messageContent, options);
+                    break;
+                    
+                case 'central_fallback':
+                    result = await this.sendViaCentralFallback(userId, userType, recipientPhone, messageContent, options);
+                    break;
+                    
+                default:
+                    throw new Error('Unsupported integration type');
             }
 
-            // Create unified message record
-            await this.createUnifiedMessageRecord(coachId, recipientNumber, content, 'outbound', integration.integrationType, options);
+            // Update message statistics
+            await this.updateMessageStats(userId, userType, 'sent');
 
             return result;
 
         } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error sending message:`, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Send template message
-     */
-    async sendTemplateMessage(coachId, recipientNumber, templateName, language = 'en', components = []) {
-        try {
-            const integration = await this.getActiveIntegration(coachId);
-            if (!integration) {
-                throw new Error('No active WhatsApp integration found');
-            }
-
-            if (integration.integrationType === 'meta_official') {
-                // Meta API supports templates natively
-                return await metaWhatsAppService.sendTemplateMessage(
-                    coachId,
-                    recipientNumber,
-                    templateName,
-                    language,
-                    components
-                );
-            } else {
-                // For Baileys, we'll send a formatted message
-                const templateContent = await this.getTemplateContent(templateName, language, components);
-                return await baileysWhatsAppService.sendMessage(
-                    coachId,
-                    recipientNumber,
-                    templateContent
-                );
-            }
-
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error sending template message:`, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Get inbox conversations for a coach
-     */
-    async getInboxConversations(coachId, filters = {}) {
-        try {
-            // Check cache first
-            const cacheKey = `${coachId}_${JSON.stringify(filters)}`;
-            if (this.inboxCache.has(cacheKey)) {
-                const cached = this.inboxCache.get(cacheKey);
-                if (Date.now() - cached.timestamp < 30000) { // 30 second cache
-                    return cached.data;
-                }
-            }
-
-            // Get conversations from database
-            const conversations = await WhatsAppConversation.findByCoach(coachId, filters);
+            console.error(`[UnifiedWhatsAppService] Error sending message:`, error);
             
-            // Enrich with contact information
-            const enrichedConversations = await Promise.all(
-                conversations.map(async (conv) => {
-                    const contact = await WhatsAppContact.findOne({
-                        coachId,
-                        contactNumber: conv.contactNumber
-                    });
-
-                    return {
-                        ...conv.toObject(),
-                        contact: contact ? contact.summary : null,
-                        integrationType: conv.integrationType
-                    };
-                })
-            );
-
-            // Cache the result
-            this.inboxCache.set(cacheKey, {
-                data: enrichedConversations,
-                timestamp: Date.now()
-            });
-
-            return enrichedConversations;
-
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error getting inbox conversations:`, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Get messages for a conversation
-     */
-    async getConversationMessages(conversationId, options = {}) {
-        try {
-            const messages = await WhatsAppMessage.findByConversation(conversationId, options);
-            return messages.map(msg => msg.summary);
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error getting conversation messages:`, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Mark conversation as read
-     */
-    async markConversationAsRead(conversationId) {
-        try {
-            const conversation = await WhatsAppConversation.findOne({ conversationId });
-            if (!conversation) {
-                throw new Error('Conversation not found');
-            }
-
-            await conversation.markAsRead();
-
-            // Mark all messages as read
-            await WhatsAppMessage.updateMany(
-                { conversationId, readStatus: 'unread' },
-                { readStatus: 'read' }
-            );
-
-            // Clear cache
-            this.clearInboxCache(conversation.coachId);
-
-            return { success: true };
-
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error marking conversation as read:`, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Archive conversation
-     */
-    async archiveConversation(conversationId) {
-        try {
-            const conversation = await WhatsAppConversation.findOne({ conversationId });
-            if (!conversation) {
-                throw new Error('Conversation not found');
-            }
-
-            await conversation.archive();
-
-            // Clear cache
-            this.clearInboxCache(conversation.coachId);
-
-            return { success: true };
-
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error archiving conversation:`, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Pin/unpin conversation
-     */
-    async togglePinConversation(conversationId) {
-        try {
-            const conversation = await WhatsAppConversation.findOne({ conversationId });
-            if (!conversation) {
-                throw new Error('Conversation not found');
-            }
-
-            await conversation.togglePin();
-
-            // Clear cache
-            this.clearInboxCache(conversation.coachId);
-
-            return { success: true, isPinned: conversation.isPinned };
-
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error toggling conversation pin:`, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Search conversations and messages
-     */
-    async searchInbox(coachId, searchTerm, searchType = 'conversations') {
-        try {
-            if (searchType === 'conversations') {
-                // Search conversations
-                const conversations = await WhatsAppConversation.find({
-                    coachId,
-                    $or: [
-                        { contactName: { $regex: searchTerm, $options: 'i' } },
-                        { contactNumber: { $regex: searchTerm, $options: 'i' } },
-                        { lastMessageContent: { $regex: searchTerm, $options: 'i' } }
-                    ]
-                }).sort({ lastMessageAt: -1 });
-
-                return conversations.map(conv => conv.summary);
-
-            } else {
-                // Search messages
-                const messages = await WhatsAppMessage.find({
-                    coachId,
-                    $or: [
-                        { content: { $regex: searchTerm, $options: 'i' } },
-                        { contactNumber: { $regex: searchTerm, $options: 'i' } }
-                    ]
-                }).sort({ timestamp: -1 });
-
-                return messages.map(msg => msg.summary);
-            }
-
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error searching inbox:`, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Get inbox statistics
-     */
-    async getInboxStats(coachId) {
-        try {
-            const [conversationStats, messageStats, contactStats] = await Promise.all([
-                WhatsAppConversation.getStats(coachId),
-                WhatsAppMessage.getStats(coachId),
-                WhatsAppContact.getStats(coachId)
-            ]);
-
-            return {
-                conversations: conversationStats[0] || {},
-                messages: messageStats[0] || {},
-                contacts: contactStats[0] || {}
-            };
-
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error getting inbox stats:`, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Create unified message record
-     */
-    async createUnifiedMessageRecord(coachId, recipientNumber, content, direction, integrationType, options = {}) {
-        try {
-            // Get or create conversation
-            const conversation = await this.getOrCreateConversation(coachId, recipientNumber, integrationType);
-
-            // Create message record
-            const message = new WhatsAppMessage({
-                messageId: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                conversationId: conversation.conversationId,
-                coachId,
-                direction,
-                messageType: options.mediaUrl ? options.mediaType : 'text',
-                content,
-                mediaUrl: options.mediaUrl,
-                mediaType: options.mediaType,
-                timestamp: new Date(),
-                deliveryStatus: 'sent',
-                readStatus: direction === 'outbound' ? 'read' : 'unread',
-                integrationType,
-                leadId: conversation.leadId
-            });
-
-            await message.save();
-
-            // Update conversation
-            await conversation.addMessage({
-                timestamp: message.timestamp,
-                content,
-                direction
-            });
-
-            // Update integration stats
-            await this.updateIntegrationStats(coachId, direction === 'outbound' ? 'sent' : 'received');
-
-            return message;
-
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error creating unified message record:`, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Get or create conversation
-     */
-    async getOrCreateConversation(coachId, contactNumber, integrationType) {
-        try {
-            let conversation = await WhatsAppConversation.findOne({
-                coachId,
-                contactNumber,
-                integrationType
-            });
-
-            if (!conversation) {
-                // Create new conversation
-                const conversationId = `${coachId}_${contactNumber}_${Date.now()}`;
-                
-                conversation = new WhatsAppConversation({
-                    conversationId,
-                    coachId,
-                    contactNumber,
-                    contactName: 'Unknown Contact',
-                    integrationType,
-                    status: 'active',
-                    category: 'general'
-                });
-
-                await conversation.save();
-
-                // Create contact record
-                await this.createOrUpdateContact(coachId, contactNumber, integrationType);
-            }
-
-            return conversation;
-
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error getting/creating conversation:`, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Create or update contact
-     */
-    async createOrUpdateContact(coachId, contactNumber, integrationType) {
-        try {
-            let contact = await WhatsAppContact.findOne({
-                coachId,
-                contactNumber
-            });
-
-            if (!contact) {
-                contact = new WhatsAppContact({
-                    coachId,
-                    contactNumber,
-                    contactName: 'Unknown Contact',
-                    integrationType,
-                    source: 'whatsapp'
-                });
-
-                await contact.save();
-            } else {
-                // Update last interaction
-                await contact.updateInteraction();
-            }
-
-            return contact;
-
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error creating/updating contact:`, error);
-        }
-    }
-
-    /**
-     * Update integration statistics
-     */
-    async updateIntegrationStats(coachId, type) {
-        try {
-            const update = type === 'sent' 
-                ? { $inc: { totalMessagesSent: 1 }, lastMessageAt: new Date() }
-                : { $inc: { totalMessagesReceived: 1 }, lastMessageAt: new Date() };
-
-            await WhatsAppIntegration.findOneAndUpdate(
-                { coachId, isActive: true },
-                update
-            );
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error updating integration stats:`, error);
-        }
-    }
-
-    /**
-     * Get template content (for Baileys when templates aren't supported)
-     */
-    async getTemplateContent(templateName, language, components) {
-        // This would typically fetch from a template database
-        // For now, return a simple formatted message
-        return `[${templateName.toUpperCase()}] ${components.map(c => c.text).join(' ')}`;
-    }
-
-    /**
-     * Clear inbox cache for a coach
-     */
-    clearInboxCache(coachId) {
-        for (const [key] of this.inboxCache) {
-            if (key.startsWith(`${coachId}_`)) {
-                this.inboxCache.delete(key);
-            }
-        }
-    }
-
-    /**
-     * Get integration health status
-     */
-    async getIntegrationHealth(coachId) {
-        try {
-            const integration = await this.getActiveIntegration(coachId);
-            if (!integration) {
-                return { status: 'no_integration', message: 'No WhatsApp integration found' };
-            }
-
-            if (integration.integrationType === 'meta_official') {
-                // Check Meta API health
+            // If primary integration fails, try central fallback
+            if (integration.integrationType !== 'central_fallback') {
+                console.log(`[UnifiedWhatsAppService] Trying central fallback for user ${userId}`);
                 try {
-                    await metaWhatsAppService.testConnection(coachId);
-                    return { status: 'healthy', integration: 'meta_official' };
-                } catch (error) {
-                    return { status: 'unhealthy', integration: 'meta_official', error: error.message };
-                }
-            } else {
-                // Check Baileys health
-                try {
-                    const status = await baileysWhatsAppService.getSessionStatus(coachId);
-                    return {
-                        status: status.isConnected ? 'healthy' : 'unhealthy',
-                        integration: 'baileys_personal',
-                        details: status
-                    };
-                } catch (error) {
-                    return { status: 'unhealthy', integration: 'baileys_personal', error: error.message };
+                    return await this.sendViaCentralFallback(userId, userType, recipientPhone, messageContent, options);
+                } catch (fallbackError) {
+                    console.error(`[UnifiedWhatsAppService] Central fallback also failed:`, fallbackError);
                 }
             }
-
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error getting integration health:`, error);
-            return { status: 'error', message: error.message };
-        }
-    }
-
-    /**
-     * Handle incoming message from any integration
-     */
-    async handleIncomingMessage(coachId, messageData, integrationType) {
-        try {
-            // Create unified message record
-            const message = await this.createUnifiedMessageRecord(
-                coachId,
-                messageData.contactNumber,
-                messageData.content,
-                'inbound',
-                integrationType,
-                messageData
-            );
-
-            // Check for auto-reply
-            await this.checkAutoReply(coachId, message);
-
-            // Trigger automation events
-            await this.triggerAutomationEvents(coachId, message);
-
-            return message;
-
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error handling incoming message:`, error);
+            
             throw error;
         }
     }
 
     /**
-     * Check and send auto-reply
+     * Send message via Meta Official API
      */
-    async checkAutoReply(coachId, message) {
+    async sendViaMetaAPI(userId, userType, recipientPhone, messageContent, options = {}) {
         try {
-            const integration = await this.getActiveIntegration(coachId);
-            if (!integration?.autoReplyEnabled || !integration.autoReplyMessage) {
-                return;
+            const integration = await WhatsAppIntegration.findOne({ userId, userType });
+            
+            if (!integration.metaApiToken || !integration.phoneNumberId) {
+                throw new Error('Meta API credentials not configured');
             }
 
-            // Send auto-reply
-            await this.sendMessage(
-                coachId,
-                message.contactNumber,
-                integration.autoReplyMessage
+            // Use Meta WhatsApp service
+            const result = await metaWhatsAppService.sendMessageByCoach(
+                userId,
+                recipientPhone,
+                messageContent,
+                options.useTemplate || false
             );
 
-            console.log(`[UnifiedWhatsApp] Auto-reply sent for coach ${coachId}`);
+            return result;
 
         } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error sending auto-reply:`, error);
-        }
-    }
-
-    /**
-     * Trigger automation events
-     */
-    async triggerAutomationEvents(coachId, message) {
-        try {
-            // Trigger whatsapp_message_received event
-            await publishEvent('funnelseye_events', 'whatsapp_message_received', {
-                eventName: 'whatsapp_message_received',
-                payload: {
-                    coachId,
-                    messageId: message._id,
-                    conversationId: message.conversationId,
-                    contactNumber: message.contactNumber,
-                    content: message.content,
-                    messageType: message.messageType,
-                    integrationType: message.integrationType
-                },
-                relatedDoc: { messageId: message._id, coachId },
-                timestamp: new Date().toISOString()
-            });
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error triggering automation events:`, error);
-        }
-    }
-
-    /**
-     * Get all integrations for a coach
-     */
-    async getCoachIntegrations(coachId) {
-        try {
-            const integrations = await WhatsAppIntegration.find({ coachId });
-            return integrations.map(integration => integration.getPublicDetails());
-        } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error getting coach integrations:`, error);
+            console.error(`[UnifiedWhatsAppService] Meta API error:`, error);
             throw error;
         }
     }
 
     /**
-     * Setup new integration
+     * Send message via Baileys personal account
      */
-    async setupIntegration(coachId, integrationData) {
+    async sendViaBaileys(userId, userType, recipientPhone, messageContent, options = {}) {
         try {
-            // Deactivate existing integrations
-            await WhatsAppIntegration.updateMany(
-                { coachId, isActive: true },
-                { isActive: false }
-            );
-
-            // Create or update integration
-            const integration = await WhatsAppIntegration.findOneAndUpdate(
-                { coachId, integrationType: integrationData.integrationType },
-                { ...integrationData, isActive: true },
-                { upsert: true, new: true }
-            );
-
-            // Update cache
-            this.activeIntegrations.set(coachId, integration);
-
-            // Initialize Baileys if needed
-            if (integrationData.integrationType === 'baileys_personal') {
-                try {
-                    await baileysWhatsAppService.initializeSession(coachId);
-                } catch (error) {
-                    console.error(`[UnifiedWhatsApp] Error initializing Baileys session:`, error);
-                }
+            const sessionStatus = baileysWhatsAppService.getSessionStatus(userId);
+            
+            if (sessionStatus.status !== 'connected') {
+                throw new Error('Baileys session not connected');
             }
 
-            return { success: true, integration: integration.getPublicDetails() };
+            const result = await baileysWhatsAppService.sendMessage(
+                userId,
+                userType,
+                recipientPhone,
+                messageContent,
+                options.messageType || 'text'
+            );
+
+            return result;
 
         } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error setting up integration:`, error);
+            console.error(`[UnifiedWhatsAppService] Baileys error:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Send message via Central FunnelsEye account
+     */
+    async sendViaCentralFallback(userId, userType, recipientPhone, messageContent, options = {}) {
+        try {
+            if (!CENTRAL_WHATSAPP_CONFIG.apiToken || !CENTRAL_WHATSAPP_CONFIG.phoneNumberId) {
+                throw new Error('Central WhatsApp credentials not configured');
+            }
+
+            // Check if user has central fallback enabled
+            const integration = await WhatsAppIntegration.findOne({ userId, userType });
+            if (!integration?.useCentralFallback) {
+                throw new Error('Central fallback not enabled for this user');
+            }
+
+            // Use central credentials to send message
+            const result = await metaWhatsAppService.sendMessageByCoach(
+                userId,
+                recipientPhone,
+                messageContent,
+                options.useTemplate || false,
+                true // Use central account
+            );
+
+            // Deduct credit from central account
+            await this.deductCentralCredit(userId, userType);
+
+            return result;
+
+        } catch (error) {
+            console.error(`[UnifiedWhatsAppService] Central fallback error:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Initialize Baileys integration
+     */
+    async initializeBaileysIntegration(userId, userType) {
+        try {
+            await baileysWhatsAppService.initializeSession(userId, userType);
+            return { success: true, message: 'Baileys integration initialized' };
+        } catch (error) {
+            console.error(`[UnifiedWhatsAppService] Error initializing Baileys:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get Baileys QR code
+     */
+    async getBaileysQRCode(userId, userType) {
+        try {
+            return await baileysWhatsAppService.getQRCode(userId, userType);
+        } catch (error) {
+            console.error(`[UnifiedWhatsAppService] Error getting QR code:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get Baileys session status
+     */
+    async getBaileysSessionStatus(userId, userType) {
+        try {
+            return baileysWhatsAppService.getSessionStatus(userId);
+        } catch (error) {
+            console.error(`[UnifiedWhatsAppService] Error getting session status:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Disconnect Baileys session
+     */
+    async disconnectBaileysSession(userId, userType) {
+        try {
+            return await baileysWhatsAppService.disconnectSession(userId);
+        } catch (error) {
+            console.error(`[UnifiedWhatsAppService] Error disconnecting session:`, error);
             throw error;
         }
     }
@@ -680,27 +329,257 @@ class UnifiedWhatsAppService {
     /**
      * Test integration connection
      */
-    async testIntegration(coachId) {
+    async testIntegration(userId, userType) {
         try {
-            const integration = await this.getActiveIntegration(coachId);
-            if (!integration) {
+            const integration = await WhatsAppIntegration.findOne({ userId, userType });
+            
+            if (!integration || !integration.isActive) {
                 throw new Error('No active integration found');
             }
 
-            if (integration.integrationType === 'meta_official') {
-                return await metaWhatsAppService.testConnection(coachId);
+            let testResult;
+
+            switch (integration.integrationType) {
+                case 'meta_official':
+                    testResult = await this.testMetaAPI(userId, userType);
+                    break;
+                    
+                case 'baileys_personal':
+                    testResult = await this.testBaileys(userId, userType);
+                    break;
+                    
+                case 'central_fallback':
+                    testResult = await this.testCentralFallback(userId, userType);
+                    break;
+                    
+                default:
+                    throw new Error('Unsupported integration type');
+            }
+
+            // Update health status
+            await WhatsAppIntegration.findOneAndUpdate(
+                { userId, userType },
+                { 
+                    healthStatus: testResult.success ? 'healthy' : 'error',
+                    lastHealthCheck: new Date()
+                }
+            );
+
+            return testResult;
+
+        } catch (error) {
+            console.error(`[UnifiedWhatsAppService] Error testing integration:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Test Meta API integration
+     */
+    async testMetaAPI(userId, userType) {
+        try {
+            const integration = await WhatsAppIntegration.findOne({ userId, userType });
+            
+            if (!integration.metaApiToken || !integration.phoneNumberId) {
+                return { success: false, message: 'Meta API credentials not configured' };
+            }
+
+            // Test API connection by getting templates
+            const templates = await metaWhatsAppService.getAvailableTemplates(
+                integration.metaApiToken,
+                integration.phoneNumberId
+            );
+
+            return { 
+                success: true, 
+                message: 'Meta API connection successful',
+                data: { templatesCount: templates.length }
+            };
+
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
+
+    /**
+     * Test Baileys integration
+     */
+    async testBaileys(userId, userType) {
+        try {
+            const sessionStatus = baileysWhatsAppService.getSessionStatus(userId);
+            
+            if (sessionStatus.status === 'connected') {
+                return { 
+                    success: true, 
+                    message: 'Baileys session connected',
+                    data: { phoneNumber: sessionStatus.phoneNumber }
+                };
+            } else if (sessionStatus.hasQRCode) {
+                return { 
+                    success: false, 
+                    message: 'QR code generated, waiting for scan',
+                    data: { status: 'qr_ready' }
+                };
             } else {
-                const status = await baileysWhatsAppService.getSessionStatus(coachId);
-                return {
-                    success: status.isConnected,
-                    message: status.isConnected ? 'Baileys session connected' : 'Baileys session not connected',
-                    details: status
+                return { 
+                    success: false, 
+                    message: 'Baileys session not connected',
+                    data: { status: sessionStatus.status }
                 };
             }
 
         } catch (error) {
-            console.error(`[UnifiedWhatsApp] Error testing integration:`, error);
+            return { success: false, message: error.message };
+        }
+    }
+
+    /**
+     * Test Central Fallback integration
+     */
+    async testCentralFallback(userId, userType) {
+        try {
+            if (!CENTRAL_WHATSAPP_CONFIG.apiToken || !CENTRAL_WHATSAPP_CONFIG.phoneNumberId) {
+                return { success: false, message: 'Central WhatsApp credentials not configured' };
+            }
+
+            // Test central API connection
+            const templates = await metaWhatsAppService.getAvailableTemplates(
+                CENTRAL_WHATSAPP_CONFIG.apiToken,
+                CENTRAL_WHATSAPP_CONFIG.phoneNumberId
+            );
+
+            return { 
+                success: true, 
+                message: 'Central fallback connection successful',
+                data: { templatesCount: templates.length }
+            };
+
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
+
+    /**
+     * Get integration health status
+     */
+    async getIntegrationHealth(userId, userType) {
+        try {
+            const integration = await WhatsAppIntegration.findOne({ userId, userType });
+            
+            if (!integration) {
+                return { success: false, message: 'Integration not found' };
+            }
+
+            const healthData = {
+                ...integration.getPublicDetails(),
+                lastHealthCheck: integration.lastHealthCheck,
+                errorCount: integration.errorCount,
+                lastError: integration.lastError
+            };
+
+            return { success: true, data: healthData };
+
+        } catch (error) {
+            console.error(`[UnifiedWhatsAppService] Error getting health status:`, error);
             throw error;
+        }
+    }
+
+    /**
+     * Update message statistics
+     */
+    async updateMessageStats(userId, userType, direction) {
+        try {
+            const updateField = direction === 'sent' ? 'totalMessagesSent' : 'totalMessagesReceived';
+            
+            await WhatsAppIntegration.findOneAndUpdate(
+                { userId, userType },
+                {
+                    [updateField]: { $inc: 1 },
+                    lastMessageAt: new Date()
+                }
+            );
+        } catch (error) {
+            console.error(`[UnifiedWhatsAppService] Error updating message stats:`, error);
+        }
+    }
+
+    /**
+     * Deduct credit from central account
+     */
+    async deductCentralCredit(userId, userType) {
+        try {
+            const integration = await WhatsAppIntegration.findOne({ userId, userType });
+            
+            if (integration?.centralAccountCredits > 0) {
+                integration.centralAccountCredits -= 1;
+                await integration.save();
+            }
+        } catch (error) {
+            console.error(`[UnifiedWhatsAppService] Error deducting central credit:`, error);
+        }
+    }
+
+    /**
+     * Get conversation history
+     */
+    async getConversationHistory(userId, userType, contactPhone, limit = 50) {
+        try {
+            const messages = await WhatsAppMessage.find({
+                $or: [
+                    { userId, userType, from: contactPhone },
+                    { userId, userType, to: contactPhone }
+                ]
+            })
+            .sort({ timestamp: -1 })
+            .limit(limit);
+
+            return messages.reverse(); // Return in chronological order
+
+        } catch (error) {
+            console.error(`[UnifiedWhatsAppService] Error getting conversation history:`, error);
+            return [];
+        }
+    }
+
+    /**
+     * Get all conversations for a user
+     */
+    async getUserConversations(userId, userType, limit = 20) {
+        try {
+            const conversations = await WhatsAppMessage.aggregate([
+                {
+                    $match: {
+                        userId: userId,
+                        userType: userType
+                    }
+                },
+                {
+                    $group: {
+                        _id: {
+                            $cond: [
+                                { $eq: ['$direction', 'inbound'] },
+                                '$from',
+                                '$to'
+                            ]
+                        },
+                        lastMessage: { $last: '$$ROOT' },
+                        messageCount: { $sum: 1 }
+                    }
+                },
+                {
+                    $sort: { 'lastMessage.timestamp': -1 }
+                },
+                {
+                    $limit: limit
+                }
+            ]);
+
+            return conversations;
+
+        } catch (error) {
+            console.error(`[UnifiedWhatsAppService] Error getting conversations:`, error);
+            return [];
         }
     }
 }

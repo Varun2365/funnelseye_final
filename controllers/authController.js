@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { User, Coach, Otp } = require('../schema'); // New import for the Coach discriminator model
+const { User, Coach, Otp, CoachHierarchyLevel } = require('../schema'); // Removed ExternalSponsor
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -124,21 +124,19 @@ const sendTokenResponse = (user, statusCode, res) => {
         options.secure = true;
     }
 
+    // Remove password from user object
     user.password = undefined;
+
+    // Convert user to plain object and remove password
+    const userData = user.toObject ? user.toObject() : { ...user };
+    delete userData.password;
 
     res.status(statusCode)
        .cookie('token', token, options)
        .json({
             success: true,
             token,
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                isVerified: user.isVerified,
-                profilePictureUrl: user.profilePictureUrl
-            }
+            user: userData
         });
 };
 
@@ -151,11 +149,10 @@ const signup = async (req, res) => {
         email, 
         password, 
         role,
-        // MLM fields - required for coach role
+        // MLM hierarchy fields - required for coach role
         selfCoachId,
         currentLevel,
-        sponsorId,
-        externalSponsorId,
+        sponsorId, // Only digital coach sponsors allowed
         teamRankName,
         presidentTeamRankName
     } = req.body;
@@ -167,13 +164,16 @@ const signup = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Invalid role specified.' });
     }
 
-    // For coach role, require selfCoachId and currentLevel
+    // For coach role, require all hierarchy fields
     if (role === 'coach') {
         if (!selfCoachId) {
             return res.status(400).json({ success: false, message: 'Coach ID is required for coach role. Please provide your unique Coach ID.' });
         }
         if (!currentLevel || currentLevel < 1 || currentLevel > 12) {
             return res.status(400).json({ success: false, message: 'Valid hierarchy level (1-12) is required for coach role.' });
+        }
+        if (!sponsorId) {
+            return res.status(400).json({ success: false, message: 'Sponsor ID is required for coach role. Please select a digital coach as your sponsor.' });
         }
     }
 
@@ -214,21 +214,27 @@ const signup = async (req, res) => {
             isVerified: false
         };
 
-        // Add MLM fields only if role is 'coach'
+        // Add MLM hierarchy fields only if role is 'coach'
         if (role === 'coach') {
             userData.selfCoachId = selfCoachId;
             userData.currentLevel = currentLevel;
-            userData.hierarchyLocked = false;
+            userData.hierarchyLocked = false; // Will be locked after first save
             
-            // Add optional MLM fields if provided
-            if (sponsorId) userData.sponsorId = sponsorId;
-            if (externalSponsorId) userData.externalSponsorId = externalSponsorId;
+            // Add sponsor information (only digital coach)
+            userData.sponsorId = sponsorId;
+            
+            // Add optional team rank fields
             if (teamRankName) userData.teamRankName = teamRankName;
             if (presidentTeamRankName) userData.presidentTeamRankName = presidentTeamRankName;
         }
 
         // Create user with discriminator (Coach if role is 'coach')
         const newUser = await User.create(userData);
+        
+        // Auto-lock hierarchy for coaches after first save
+        if (role === 'coach') {
+            await autoLockHierarchy(newUser._id);
+        }
         
         const otp = generateOtp();
         await Otp.create({ email, otp, createdAt: new Date(), expiresAt: new Date(Date.now() + 5 * 60 * 1000) });
@@ -247,6 +253,9 @@ const signup = async (req, res) => {
                 ...(role === 'coach' && { 
                     selfCoachId: newUser.selfCoachId,
                     currentLevel: newUser.currentLevel,
+                    sponsorId: newUser.sponsorId,
+                    teamRankName: newUser.teamRankName,
+                    presidentTeamRankName: newUser.presidentTeamRankName,
                     message: 'You can now build your downline and earn commissions!'
                 })
             });
@@ -324,11 +333,18 @@ const login = async (req, res) => {
 
 const getMe = async (req, res) => {
     try {
-        const user = await User.findById(req.coachId);
+        const user = await User.findById(req.coachId)
+            .populate('sponsorId', 'name email selfCoachId currentLevel');
+            
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found.' });
         }
-        res.status(200).json({ success: true, user });
+
+        // Convert user to plain object and remove password
+        const userData = user.toObject();
+        delete userData.password;
+
+        res.status(200).json({ success: true, user: userData });
     } catch (err) {
         console.error("GetMe error:", err);
         res.status(500).json({ success: false, message: 'Server Error fetching user data.' });
@@ -507,9 +523,9 @@ const resendOtp = async (req, res) => {
 const upgradeToCoach = async (req, res) => {
     const { 
         userId,
-        selfCoachId, // Now required from client
-        sponsorId,
-        externalSponsorId,
+        selfCoachId, // Required from client
+        currentLevel, // Required from client
+        sponsorId, // Only digital coach sponsors allowed
         teamRankName,
         presidentTeamRankName
     } = req.body;
@@ -520,6 +536,14 @@ const upgradeToCoach = async (req, res) => {
 
     if (!selfCoachId) {
         return res.status(400).json({ success: false, message: 'Coach ID is required. Please provide your unique coach ID.' });
+    }
+
+    if (!currentLevel || currentLevel < 1 || currentLevel > 12) {
+        return res.status(400).json({ success: false, message: 'Valid hierarchy level (1-12) is required.' });
+    }
+
+    if (!sponsorId) {
+        return res.status(400).json({ success: false, message: 'Sponsor ID is required. Please select a digital coach as your sponsor.' });
     }
 
     try {
@@ -550,19 +574,23 @@ const upgradeToCoach = async (req, res) => {
         
         console.log(`User ${user.email} is upgrading to coach with ID: ${selfCoachId}`);
         
-        // Update user to coach role with MLM fields
+        // Update user to coach role with MLM hierarchy fields
         user.role = 'coach';
         user.selfCoachId = selfCoachId;
-        user.currentLevel = 1;
-        user.hierarchyLocked = false;
+        user.currentLevel = currentLevel;
+        user.hierarchyLocked = false; // Will be locked after first save
         
-        // Add optional MLM fields if provided
-        if (sponsorId) user.sponsorId = sponsorId;
-        if (externalSponsorId) user.externalSponsorId = externalSponsorId;
+        // Add sponsor information (only digital coach)
+        user.sponsorId = sponsorId;
+        
+        // Add optional team rank fields
         if (teamRankName) user.teamRankName = teamRankName;
         if (presidentTeamRankName) user.presidentTeamRankName = presidentTeamRankName;
 
         await user.save();
+
+        // Auto-lock hierarchy after upgrade
+        await autoLockHierarchy(user._id);
 
         res.status(200).json({
             success: true,
@@ -573,7 +601,10 @@ const upgradeToCoach = async (req, res) => {
                 email: user.email,
                 role: user.role,
                 selfCoachId: user.selfCoachId,
-                currentLevel: user.currentLevel
+                currentLevel: user.currentLevel,
+                sponsorId: user.sponsorId,
+                teamRankName: user.teamRankName,
+                presidentTeamRankName: user.presidentTeamRankName
             },
             message: 'You can now build your downline and earn commissions!'
         });
@@ -595,6 +626,118 @@ const upgradeToCoach = async (req, res) => {
     }
 };
 
+// @desc    Lock hierarchy after first save (non-editable)
+// @route   POST /api/auth/lock-hierarchy
+// @access  Private (Coach)
+const lockHierarchy = async (req, res) => {
+    try {
+        const { coachId } = req.body;
+        
+        if (!coachId) {
+            return res.status(400).json({ success: false, message: 'Coach ID is required.' });
+        }
+
+        // Find the coach
+        const coach = await User.findById(coachId);
+        if (!coach) {
+            return res.status(404).json({ success: false, message: 'Coach not found.' });
+        }
+
+        // Check if user is a coach
+        if (coach.role !== 'coach') {
+            return res.status(400).json({ success: false, message: 'User is not a coach.' });
+        }
+
+        // Check if hierarchy is already locked
+        if (coach.hierarchyLocked) {
+            return res.status(400).json({ success: false, message: 'Hierarchy is already locked.' });
+        }
+
+        // Lock the hierarchy
+        coach.hierarchyLocked = true;
+        coach.hierarchyLockedAt = new Date();
+        await coach.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Hierarchy locked successfully. Changes can only be made through admin request.',
+            data: {
+                hierarchyLocked: true,
+                hierarchyLockedAt: coach.hierarchyLockedAt
+            }
+        });
+
+    } catch (error) {
+        console.error('Error locking hierarchy:', error.message);
+        res.status(500).json({ success: false, message: 'Server error during hierarchy lock.' });
+    }
+};
+
+// @desc    Auto-lock hierarchy after first save (called internally)
+// @access  Private
+const autoLockHierarchy = async (coachId) => {
+    try {
+        const coach = await User.findById(coachId);
+        if (coach && coach.role === 'coach' && !coach.hierarchyLocked) {
+            coach.hierarchyLocked = true;
+            coach.hierarchyLockedAt = new Date();
+            await coach.save();
+            console.log(`✅ Hierarchy auto-locked for coach: ${coach.email}`);
+        }
+    } catch (error) {
+        console.error('Error auto-locking hierarchy:', error.message);
+    }
+};
+
+// @desc    Get available sponsors for coach signup dropdown
+// @route   GET /api/auth/available-sponsors
+// @access  Public
+const getAvailableSponsors = async (req, res) => {
+    try {
+        // Get all verified coaches who can be sponsors (only digital coaches)
+        const sponsors = await User.find({ 
+            role: 'coach', 
+            isVerified: true,
+            isActive: true 
+        }).select('name email selfCoachId currentLevel teamRankName');
+
+        res.status(200).json({
+            success: true,
+            message: 'Available sponsors retrieved successfully.',
+            data: {
+                digitalSponsors: sponsors,
+                message: 'Only digital coaches can be sponsors. External sponsors are not supported.'
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting available sponsors:', error.message);
+        res.status(500).json({ success: false, message: 'Server error getting available sponsors.' });
+    }
+};
+
+// @desc    Get coach ranks for signup dropdown
+// @route   GET /api/auth/coach-ranks
+// @access  Public
+const getCoachRanks = async (req, res) => {
+    try {
+        // Get all active coach ranks
+        const ranks = await CoachHierarchyLevel.find({ 
+            isActive: true 
+        }).select('level name description').sort('level');
+
+        res.status(200).json({
+            success: true,
+            message: 'Coach ranks retrieved successfully.',
+            data: ranks
+        });
+
+    } catch (error) {
+        console.error('Error getting coach ranks:', error.message);
+        res.status(500).json({ success: false, message: 'Server error getting coach ranks.' });
+    }
+};
+
 
 module.exports = {
     signup,
@@ -606,7 +749,11 @@ module.exports = {
     resetPassword,
     resendOtp,
     upgradeToCoach,
+    lockHierarchy,
     // Helper functions for other controllers
     generateOtp,
-    sendOtp
+    sendOtp,
+    getAvailableSponsors,
+    getCoachRanks,
+    autoLockHierarchy
 };

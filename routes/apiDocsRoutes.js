@@ -130,15 +130,15 @@ const allApiRoutes = {
             example: 'GET /api/advanced-mlm/test-middleware (with admin JWT token)'
         },
         'POST /api/advanced-mlm/setup-hierarchy': {
-            description: 'Setup default hierarchy levels (Admin only)',
+            description: 'Setup default coach ranks (Admin only)',
             body: 'No body required',
-            note: 'Creates 12 default hierarchy levels (Bronze to Supreme Crown Ambassador)',
+            note: 'Creates 12 default coach ranks (Distributor Coach to Founder\'s Circle)',
             example: 'POST /api/advanced-mlm/setup-hierarchy (with admin JWT token)'
         },
         'GET /api/advanced-mlm/hierarchy-levels': {
-            description: 'Get all available hierarchy levels',
+            description: 'Get all available coach ranks',
             body: 'No body required',
-            note: 'Returns list of hierarchy levels with names and descriptions',
+            note: 'Returns list of coach ranks with names and descriptions',
             example: 'GET /api/advanced-mlm/hierarchy-levels'
         },
         'POST /api/advanced-mlm/generate-coach-id': {
@@ -148,27 +148,22 @@ const allApiRoutes = {
             example: 'POST /api/advanced-mlm/generate-coach-id'
         },
         'GET /api/advanced-mlm/search-sponsor': {
-            description: 'Search for sponsors (digital system users and external)',
+            description: 'Search for sponsors (digital system users only)',
             query: {
                 searchTerm: 'string (required)',
-                searchType: 'string (optional: "digital" or "external")'
+                searchType: 'string (optional: "digital")'
             },
-            note: 'Search for potential sponsors by name, email, or coach ID',
+            note: 'Search for potential sponsors by name, email, or coach ID (external sponsors removed)',
             example: 'GET /api/advanced-mlm/search-sponsor?searchTerm=john&searchType=digital'
         },
         'POST /api/advanced-mlm/external-sponsor': {
-            description: 'Create external sponsor',
+            description: 'Create external sponsor (DEPRECATED)',
             body: {
                 required: ['name', 'email', 'phone', 'company'],
                 optional: ['website', 'address', 'notes']
             },
-            note: 'Create external sponsor for coaches not in the digital system',
-            example: {
-                name: 'External Company Ltd',
-                email: 'contact@external.com',
-                phone: '+1234567890',
-                company: 'External Company Ltd'
-            }
+            note: 'External sponsors are no longer supported. Only digital coaches can be sponsors.',
+            example: 'This endpoint is deprecated - use digital coaches only'
         },
         'POST /api/advanced-mlm/lock-hierarchy': {
             description: 'Lock hierarchy after first login (Coach only)',
@@ -256,15 +251,21 @@ const allApiRoutes = {
         'PUT /api/advanced-mlm/admin/commission-settings': {
             description: 'Update commission settings (Admin only)',
             body: {
-                required: ['commissionStructure'],
-                optional: ['bonusRates', 'thresholds']
+                required: ['subscriptionCommissions'],
+                optional: ['levelMultipliers']
             },
-            note: 'Modify commission calculations and bonus structures',
+            note: 'Modify commission calculations for platform subscriptions only',
             example: {
-                commissionStructure: {
-                    level1: 0.10,
-                    level2: 0.05,
-                    level3: 0.03
+                subscriptionCommissions: {
+                    monthly: 0.10,
+                    yearly: 0.15,
+                    lifetime: 0.20,
+                    default: 0.10
+                },
+                levelMultipliers: {
+                    "1": 1.0,
+                    "2": 1.1,
+                    "3": 1.2
                 }
             }
         },
@@ -279,6 +280,21 @@ const allApiRoutes = {
                 subscriptionId: '507f1f77bcf86cd799439011',
                 coachId: '507f1f77bcf86cd799439012',
                 amount: 100.00
+            }
+        },
+        'POST /api/advanced-mlm/calculate-subscription-commission': {
+            description: 'Calculate commission only on platform subscriptions (Admin only)',
+            body: {
+                required: ['subscriptionId', 'coachId', 'subscriptionAmount'],
+                optional: ['subscriptionType', 'notes']
+            },
+            note: 'NEW: Calculate commission only on platform subscriptions, not all earnings',
+            example: {
+                subscriptionId: 'sub_123',
+                coachId: 'coach_id',
+                subscriptionAmount: 99.99,
+                subscriptionType: 'monthly',
+                notes: 'Monthly subscription commission'
             }
         },
         'POST /api/advanced-mlm/admin/process-monthly-commissions': {
@@ -375,12 +391,7 @@ const allApiRoutes = {
             },
             note: 'View detailed content and data of a specific report',
             example: 'GET /api/advanced-mlm/reports/detail/507f1f77bcf86cd799439011'
-        },
-        'POST /api/advanced-mlm/cleanup-database': {
-            description: 'Check for users with missing Coach IDs (Admin only)',
-            note: 'Identifies users needing manual Coach ID assignment. Coaches must provide their own IDs.',
-            example: 'POST /api/advanced-mlm/cleanup-database (with admin JWT token)'
-        },
+        }
     },
     // Note: Coach Hierarchy System has been integrated into Advanced MLM Network (Unified) above
     '👥 Staff Management': [
@@ -760,20 +771,47 @@ const allApiRoutes = {
                 role: 'User role: client, coach, admin, staff (required)',
                 selfCoachId: 'Unique Coach ID - required only for coach role',
                 currentLevel: 'MLM hierarchy level (1-12) - required only for coach role',
-                sponsorId: 'Sponsor coach ID (optional for coach role)',
-                externalSponsorId: 'External sponsor ID (optional for coach role)',
+                sponsorId: 'Sponsor coach ID (required for coach role)',
                 teamRankName: 'Team rank name (optional for coach role)',
                 presidentTeamRankName: 'President team rank name (optional for coach role)'
             },
-            example: 'POST /api/auth/signup\nBody: {"name": "John Doe", "email": "john@example.com", "password": "password123", "role": "coach", "selfCoachId": "COACH123", "currentLevel": 1}'
+            example: 'POST /api/auth/signup\nBody: {"name": "John Doe", "email": "john@example.com", "password": "password123", "role": "coach", "selfCoachId": "COACH123", "currentLevel": 1, "sponsorId": "sponsor_id"}'
         },
         'POST /api/auth/upgrade-to-coach': {
             description: 'Convert existing verified user to MLM coach',
             body: {
-                required: ['userId'],
-                optional: ['sponsorId', 'externalSponsorId', 'teamRankName', 'presidentTeamRankName']
+                required: ['userId', 'selfCoachId', 'currentLevel', 'sponsorId'],
+                optional: ['teamRankName', 'presidentTeamRankName']
             },
-            note: 'Allows users to join MLM system later without re-signup'
+            note: 'Allows users to join MLM system later without re-signup. All hierarchy fields required.',
+            example: {
+                userId: 'user_id',
+                selfCoachId: 'W1234567',
+                currentLevel: 1,
+                sponsorId: 'sponsor_id',
+                teamRankName: 'Team Alpha',
+                presidentTeamRankName: 'President Team'
+            }
+        },
+        'POST /api/auth/lock-hierarchy': {
+            description: 'Lock coach hierarchy to prevent future changes (one-time action)',
+            body: {
+                required: ['coachId']
+            },
+            note: 'NEW: Lock hierarchy after first save. Changes can only be made through admin request.',
+            example: { coachId: 'coach_id' }
+        },
+        'GET /api/auth/available-sponsors': {
+            description: 'Get list of available digital coaches who can be sponsors',
+            body: 'No body required',
+            note: 'NEW: Only digital coaches can be sponsors. External sponsors removed.',
+            example: 'GET /api/auth/available-sponsors'
+        },
+        'GET /api/auth/coach-ranks': {
+            description: 'Get all available coach ranks for signup dropdown',
+            body: 'No body required',
+            note: 'NEW: Returns 12 MLM coach ranks (Distributor Coach to Founder\'s Circle)',
+            example: 'GET /api/auth/coach-ranks'
         },
         'POST /api/auth/verify-otp': 'Verify email with OTP',
         'POST /api/auth/login': 'User login and authentication',

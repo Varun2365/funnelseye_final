@@ -1,7 +1,7 @@
 // D:\PRJ_YCT_Final\services\metaWhatsAppService.js
 
 const axios = require('axios');
-const { Coach } = require('../schema');
+const { Coach, Staff } = require('../schema');
 const { WhatsAppMessage } = require('../schema');
 const { Lead } = require('../schema');
 
@@ -38,22 +38,18 @@ async function getAvailableTemplates(apiToken, phoneNumberId) {
 
 /**
  * Checks if a contact exists in the database (has received messages before)
- * @param {string} coachId The coach ID
+ * @param {string} userId The user ID (coach or staff)
+ * @param {string} userType The user type ('coach' or 'staff')
  * @param {string} phoneNumber The phone number to check
  * @returns {boolean} True if contact exists, false otherwise
  */
-async function contactExists(coachId, phoneNumber) {
+async function contactExists(userId, userType, phoneNumber) {
     try {
-        const lead = await Lead.findOne({ coachId, phone: phoneNumber });
-        if (!lead) return false;
-        
-        // Check if there are any inbound messages from this contact
-        const inboundMessage = await WhatsAppMessage.findOne({
-            lead: lead._id,
-            direction: 'inbound'
+        const lead = await Lead.findOne({ 
+            [userType === 'coach' ? 'coachId' : 'staffId']: userId, 
+            phone: phoneNumber 
         });
-        
-        return !!inboundMessage;
+        return !!lead;
     } catch (error) {
         console.error('Error checking contact existence:', error);
         return false;
@@ -61,90 +57,88 @@ async function contactExists(coachId, phoneNumber) {
 }
 
 /**
- * Sends a WhatsApp message using either the central or a coach's personal account.
- * This function first checks if the coach has credits, deducts one if they do,
+ * Sends a WhatsApp message using either the central or a user's personal account.
+ * This function first checks if the user has credits, deducts one if they do,
  * and then sends the message via the Meta API. A record of the message is saved
  * to the database upon successful delivery.
- * @param {string} coachId The ID of the coach sending the message.
+ * @param {string} userId The ID of the user sending the message.
+ * @param {string} userType The type of user ('coach' or 'staff').
  * @param {string} recipientPhoneNumber The recipient's phone number.
  * @param {string} messageContent The content of the message.
  * @param {boolean} useTemplate Whether to use a message template (for first-time contacts).
+ * @param {boolean} useCentralAccount Whether to use central account credentials.
  */
-async function sendMessageByCoach(coachId, recipientPhoneNumber, messageContent, useTemplate = false) {
+async function sendMessageByUser(userId, userType, recipientPhoneNumber, messageContent, useTemplate = false, useCentralAccount = false) {
     try {
-        // Fetch the coach document, explicitly selecting the hidden fields needed.
-        const coach = await Coach.findById(coachId).select('+whatsApp.whatsAppApiToken credits whatsApp.useCentralAccount whatsApp.phoneNumberId');
-        if (!coach) {
-            throw new Error('Coach not found.');
-        }
+        let apiToken, phoneNumberId, businessAccountId;
 
-        // 1. Check for available credits
-        if (coach.credits <= 0) {
-            console.warn(`Coach ${coachId} attempted to send a message but has insufficient credits.`);
-            throw new Error('Insufficient credits. Please top up your account.');
-        }
-
-        // 2. Determine which WhatsApp API credentials to use
-        let apiToken, phoneNumberId;
-        if (coach.whatsApp.useCentralAccount) {
-            console.log('Using central account');
+        if (useCentralAccount) {
+            // Use central FunnelsEye account
             apiToken = CENTRAL_API_TOKEN;
             phoneNumberId = CENTRAL_PHONE_NUMBER_ID;
+            businessAccountId = process.env.WHATSAPP_CENTRAL_BUSINESS_ACCOUNT_ID;
+            
+            if (!apiToken || !phoneNumberId) {
+                throw new Error('Central WhatsApp credentials not configured');
+            }
         } else {
-            apiToken = coach.whatsApp.whatsAppApiToken;
-            phoneNumberId = coach.whatsApp.phoneNumberId;
-        }
+            // Get user's personal integration
+            const UserModel = userType === 'coach' ? Coach : Staff;
+            const user = await UserModel.findById(userId).select('+whatsApp.whatsAppApiToken whatsApp.phoneNumberId whatsApp.whatsAppBusinessAccountId credits whatsApp.useCentralAccount');
+            
+            if (!user) {
+                throw new Error('User not found.');
+            }
 
-        if (!apiToken || !phoneNumberId) {
-            throw new Error('WhatsApp API credentials not configured for this coach.');
-        }
+            // Check if user wants to use central fallback
+            if (user.whatsApp?.useCentralAccount) {
+                apiToken = CENTRAL_API_TOKEN;
+                phoneNumberId = CENTRAL_PHONE_NUMBER_ID;
+                businessAccountId = process.env.WHATSAPP_CENTRAL_BUSINESS_ACCOUNT_ID;
+                
+                if (!apiToken || !phoneNumberId) {
+                    throw new Error('Central WhatsApp credentials not configured');
+                }
+            } else {
+                // Use user's personal credentials
+                apiToken = user.whatsApp?.whatsAppApiToken;
+                phoneNumberId = user.whatsApp?.phoneNumberId;
+                businessAccountId = user.whatsApp?.whatsAppBusinessAccountId;
+                
+                if (!apiToken || !phoneNumberId) {
+                    throw new Error('WhatsApp API credentials not configured for this user.');
+                }
+            }
 
-        // 3. Auto-determine if we should use template (if not explicitly set)
-        if (useTemplate === false) {
-            const hasContact = await contactExists(coachId, recipientPhoneNumber);
-            if (!hasContact) {
-                console.log('Contact does not exist, switching to template message');
-                useTemplate = true;
+            // Check for available credits (only for personal accounts)
+            if (!user.whatsApp?.useCentralAccount && user.credits <= 0) {
+                console.warn(`User ${userId} attempted to send a message but has insufficient credits.`);
+                throw new Error('Insufficient credits. Please top up your account or enable central fallback.');
             }
         }
 
-        // 4. Construct the message payload based on whether to use template or text
+        // Auto-determine if we should use template (if not explicitly set)
+        if (useTemplate === undefined) {
+            const contactExists = await contactExists(userId, userType, recipientPhoneNumber);
+            useTemplate = !contactExists;
+        }
+
         let payload;
         if (useTemplate) {
-            // Check available templates first
-            const availableTemplates = await getAvailableTemplates(apiToken, phoneNumberId);
-            console.log('Available templates:', availableTemplates.map(t => t.name));
-            
-            // Find a suitable template
-            let templateName = 'hello_world';
-            const hasHelloWorld = availableTemplates.some(t => t.name === 'hello_world');
-            
-            if (!hasHelloWorld && availableTemplates.length > 0) {
-                // Use the first available template
-                templateName = availableTemplates[0].name;
-                console.log(`hello_world template not found, using ${templateName} instead`);
-            } else if (availableTemplates.length === 0) {
-                console.log('No templates available, falling back to text message');
-                useTemplate = false;
-            }
-            
-            if (useTemplate) {
-                payload = {
-                    messaging_product: 'whatsapp',
-                    to: recipientPhoneNumber,
-                    type: 'template',
-                    template: {
-                        name: templateName,
-                        language: {
-                            code: 'en_US'
-                        }
+            // Use message template for first-time contacts
+            payload = {
+                messaging_product: 'whatsapp',
+                to: recipientPhoneNumber,
+                type: 'template',
+                template: {
+                    name: 'hello_world',
+                    language: {
+                        code: 'en_US'
                     }
-                };
-            }
-        }
-        
-        // If not using template or template failed, use text message
-        if (!useTemplate) {
+                }
+            };
+        } else {
+            // Use text message for existing contacts
             payload = {
                 messaging_product: 'whatsapp',
                 to: recipientPhoneNumber,
@@ -169,97 +163,156 @@ async function sendMessageByCoach(coachId, recipientPhoneNumber, messageContent,
                 { headers }
             );
             
-            // 5. Deduct one credit from the coach's balance
-            coach.credits -= 1;
-            await coach.save();
-            console.log(`Credit deducted. Coach ${coachId} now has ${coach.credits} credits.`);
+            // Deduct credit if using personal account
+            if (!useCentralAccount && userType === 'coach') {
+                const user = await Coach.findById(userId);
+                if (user && user.credits > 0) {
+                    user.credits -= 1;
+                    await user.save();
+                    console.log(`Credit deducted. User ${userId} now has ${user.credits} credits.`);
+                }
+            }
 
-            // 6. Find the lead and save a record of the outbound message
-            const lead = await Lead.findOne({ coachId: coachId, phone: recipientPhoneNumber });
+            // Find or create the lead and save a record of the outbound message
+            const lead = await Lead.findOne({ 
+                [userType === 'coach' ? 'coachId' : 'staffId']: userId, 
+                phone: recipientPhoneNumber 
+            });
+            
             if (lead) {
                 const newMessage = new WhatsAppMessage({
-                    coach: coach._id,
-                    lead: lead._id,
+                    userId,
+                    userType,
                     messageId: response.data.messages[0].id,
-                    from: phoneNumberId, // The sender's phone number ID
+                    from: null,
                     to: recipientPhoneNumber,
-                    content: useTemplate ? 'Template: hello_world' : messageContent,
+                    content: messageContent,
                     direction: 'outbound',
                     timestamp: new Date(),
-                    type: useTemplate ? 'template' : 'text'
-                });
-                await newMessage.save();
-                console.log('Outbound message saved to database.');
-            }
-
-            return response.data;
-
-        } catch (apiError) {
-            console.error('WhatsApp API Error Details:');
-            console.error('Status:', apiError.response?.status);
-            console.error('Status Text:', apiError.response?.statusText);
-            console.error('Error Data:', JSON.stringify(apiError.response?.data, null, 2));
-            console.error('Request URL:', apiError.config?.url);
-            console.error('Request Payload:', JSON.stringify(apiError.config?.data, null, 2));
-            
-            // If template fails, try with text message as fallback
-            if (useTemplate && apiError.response?.status === 400) {
-                console.log('Template message failed, trying with text message as fallback...');
-                
-                const fallbackPayload = {
-                    messaging_product: 'whatsapp',
-                    to: recipientPhoneNumber,
                     type: 'text',
-                    text: { body: messageContent }
-                };
+                    isAutomated: false,
+                    integrationType: 'meta_official'
+                });
 
-                const fallbackResponse = await axios.post(
-                    `${META_API_URL}/${phoneNumberId}/messages`,
-                    fallbackPayload,
-                    { headers }
-                );
-
-                // Save the fallback message
-                const lead = await Lead.findOne({ coachId: coachId, phone: recipientPhoneNumber });
-                if (lead) {
-                    const newMessage = new WhatsAppMessage({
-                        coach: coach._id,
-                        lead: lead._id,
-                        messageId: fallbackResponse.data.messages[0].id,
-                        from: phoneNumberId,
-                        to: recipientPhoneNumber,
-                        content: messageContent,
-                        direction: 'outbound',
-                        timestamp: new Date(),
-                        type: 'text'
-                    });
-                    await newMessage.save();
-                    console.log('Fallback text message saved to database.');
-                }
-
-                return fallbackResponse.data;
+                await newMessage.save();
+                console.log(`Outbound message saved to database for user ${userId}`);
             }
-            
-            throw apiError;
+
+            console.log(`WhatsApp message sent successfully via ${useCentralAccount ? 'central account' : 'personal account'}`);
+            return {
+                success: true,
+                messageId: response.data.messages[0].id,
+                status: 'sent',
+                viaCentralAccount: useCentralAccount
+            };
+
+        } catch (error) {
+            console.error('Error sending WhatsApp message:', error.response?.data || error.message);
+            throw new Error(`Failed to send WhatsApp message: ${error.response?.data?.error?.message || error.message}`);
         }
 
     } catch (error) {
-        // Log the error and re-throw it so it can be handled by the calling function/route.
-        console.error('Error in sendMessageByCoach:', error.response ? error.response.data : error.message);
+        console.error(`Error in sendMessageByUser:`, error);
         throw error;
     }
 }
 
 /**
- * Handles incoming webhook messages from the Meta API.
- * This function is responsible for parsing the webhook payload, identifying the
- * lead and coach, and saving the incoming message to the database.
- * NOTE: The implementation of this function should be from our previous conversations
- * and is not included here for brevity.
+ * Sends a WhatsApp message using a specific template
+ * @param {string} userId The ID of the user sending the message
+ * @param {string} userType The type of user ('coach' or 'staff')
+ * @param {string} recipientPhoneNumber The recipient's phone number
+ * @param {string} templateName The name of the template to use
+ * @param {Array} components Template components (optional)
+ * @param {string} language The language code (default: 'en_US')
+ * @param {boolean} useCentralAccount Whether to use central account
+ */
+async function sendTemplateMessage(userId, userType, recipientPhoneNumber, templateName, components = [], language = 'en_US', useCentralAccount = false) {
+    try {
+        let apiToken, phoneNumberId;
 
+        if (useCentralAccount) {
+            apiToken = CENTRAL_API_TOKEN;
+            phoneNumberId = CENTRAL_PHONE_NUMBER_ID;
+        } else {
+            const UserModel = userType === 'coach' ? Coach : Staff;
+            const user = await UserModel.findById(userId).select('+whatsApp.whatsAppApiToken whatsApp.phoneNumberId whatsApp.useCentralAccount');
+            
+            if (!user) {
+                throw new Error('User not found.');
+            }
+
+            if (user.whatsApp?.useCentralAccount) {
+                apiToken = CENTRAL_API_TOKEN;
+                phoneNumberId = CENTRAL_PHONE_NUMBER_ID;
+            } else {
+                apiToken = user.whatsApp?.whatsAppApiToken;
+                phoneNumberId = user.whatsApp?.phoneNumberId;
+            }
+        }
+
+        if (!apiToken || !phoneNumberId) {
+            throw new Error('WhatsApp API credentials not configured');
+        }
+
+        const payload = {
+            messaging_product: 'whatsapp',
+            to: recipientPhoneNumber,
+            type: 'template',
+            template: {
+                name: templateName,
+                language: {
+                    code: language
+                },
+                components: components
+            }
+        };
+
+        const headers = {
+            'Authorization': `Bearer ${apiToken}`,
+            'Content-Type': 'application/json'
+        };
+
+        const response = await axios.post(
+            `${META_API_URL}/${phoneNumberId}/messages`,
+            payload,
+            { headers }
+        );
+
+        // Save message to database
+        const newMessage = new WhatsAppMessage({
+            userId,
+            userType,
+            messageId: response.data.messages[0].id,
+            from: null,
+            to: recipientPhoneNumber,
+            content: `[Template: ${templateName}]`,
+            direction: 'outbound',
+            timestamp: new Date(),
+            type: 'template',
+            isAutomated: false,
+            integrationType: 'meta_official'
+        });
+
+        await newMessage.save();
+
+        return {
+            success: true,
+            messageId: response.data.messages[0].id,
+            status: 'sent',
+            templateName: templateName
+        };
+
+    } catch (error) {
+        console.error('Error sending template message:', error);
+        throw error;
+    }
+}
 
 /**
- * Handles incoming messages and status updates from the Meta Webhook.
+ * Handles incoming webhook messages from Meta
+ * @param {Object} req Express request object
+ * @param {Object} res Express response object
  */
 async function handleWebhook(req, res) {
     // Webhook verification (GET request from Meta)
@@ -268,77 +321,149 @@ async function handleWebhook(req, res) {
     const challenge = req.query['hub.challenge'];
 
     if (mode === 'subscribe' && token === WEBHOOK_VERIFY_TOKEN) {
-        console.log('Webhook verified!');
-        return res.status(200).send(challenge);
-    } else if (mode === 'subscribe') {
-        console.warn('Webhook verification failed: Invalid token.');
-        return res.sendStatus(403);
+        console.log('Webhook verified successfully');
+        res.status(200).send(challenge);
+        return;
     }
 
-    // Process incoming message payload (POST request)
-    const body = req.body;
-    if (body.object) {
-        if (body.entry && body.entry[0].changes && body.entry[0].changes[0].value.messages) {
-            const messageData = body.entry[0].changes[0].value.messages[0];
-            const senderPhoneNumber = messageData.from; // The user's phone number
-            const recipientPhoneNumberId = body.entry[0].changes[0].value.metadata.phone_number_id; // Your phone number ID
+    // Handle incoming messages (POST request from Meta)
+    if (req.method === 'POST') {
+        const body = req.body;
 
-            // Extract the message content based on its type
-            let messageContent = '';
-            let messageType = messageData.type;
-
-            if (messageData.type === 'text') {
-                messageContent = messageData.text.body;
-            }
-            // Add more cases for other message types (image, video, etc.) as needed
-            // else if (messageData.type === 'image') { ... }
-
-            if (messageContent) {
-                // Find the coach associated with this phone number ID
-                const coach = await Coach.findOne({ 'whatsApp.phoneNumberId': recipientPhoneNumberId });
-
-                if (coach) {
-                    // Find or create the lead based on the sender's phone number
-                    let lead = await Lead.findOne({ coachId: coach._id, phone: senderPhoneNumber });
-                    if (!lead) {
-                        // Create a new lead if one doesn't exist
-                        lead = new Lead({
-                            coachId: coach._id,
-                            phone: senderPhoneNumber,
-                            name: senderPhoneNumber, // Use the number as a temporary name
-                            status: 'New',
-                            source: 'WhatsApp'
-                        });
-                        await lead.save();
+        if (body.object === 'whatsapp_business_account') {
+            for (const entry of body.entry) {
+                for (const change of entry.changes) {
+                    if (change.value.messages && change.value.messages.length > 0) {
+                        for (const messageData of change.value.messages) {
+                            await processIncomingMessage(messageData, change.value.metadata);
+                        }
                     }
-
-                    // Save the incoming message to the database
-                    const newMessage = new WhatsAppMessage({
-                        coach: coach._id,
-                        lead: lead._id,
-                        messageId: messageData.id,
-                        from: senderPhoneNumber,
-                        to: recipientPhoneNumberId,
-                        content: messageContent,
-                        direction: 'inbound',
-                        timestamp: new Date(messageData.timestamp * 1000), // Meta sends a Unix timestamp in seconds
-                        type: messageType
-                    });
-
-                    await newMessage.save();
-                    console.log(`Saved new inbound message from ${senderPhoneNumber}`);
                 }
             }
+            res.status(200).send('EVENT_RECEIVED');
+        } else {
+            res.sendStatus(404);
         }
-        res.status(200).send('EVENT_RECEIVED');
     } else {
         res.sendStatus(404);
     }
 }
 
+/**
+ * Process incoming WhatsApp message
+ * @param {Object} messageData The message data from Meta
+ * @param {Object} metadata The metadata from Meta
+ */
+async function processIncomingMessage(messageData, metadata) {
+    try {
+        const senderPhoneNumber = messageData.from;
+        const recipientPhoneNumberId = metadata.phone_number_id;
+        const messageContent = messageData.text?.body || '[Media Message]';
+        const messageType = messageData.type || 'text';
+        const timestamp = new Date(messageData.timestamp * 1000);
+
+        console.log(`Processing incoming message from ${senderPhoneNumber}`);
+
+        // Find the user associated with this phone number ID
+        let user = await Coach.findOne({ 'whatsApp.phoneNumberId': recipientPhoneNumberId });
+        let userType = 'coach';
+
+        if (!user) {
+            user = await Staff.findOne({ 'whatsApp.phoneNumberId': recipientPhoneNumberId });
+            userType = 'staff';
+        }
+
+        if (user) {
+            // Find or create the lead based on the sender's phone number
+            let lead = await Lead.findOne({ 
+                [userType === 'coach' ? 'coachId' : 'staffId']: user._id, 
+                phone: senderPhoneNumber 
+            });
+            
+            if (!lead) {
+                // Create a new lead if one doesn't exist
+                lead = new Lead({
+                    [userType === 'coach' ? 'coachId' : 'staffId']: user._id,
+                    phone: senderPhoneNumber,
+                    name: senderPhoneNumber, // Use the number as a temporary name
+                    status: 'New',
+                    source: 'WhatsApp'
+                });
+                await lead.save();
+            }
+
+            // Save the incoming message to the database
+            const newMessage = new WhatsAppMessage({
+                userId: user._id,
+                userType: userType,
+                messageId: messageData.id,
+                from: senderPhoneNumber,
+                to: recipientPhoneNumberId,
+                content: messageContent,
+                direction: 'inbound',
+                timestamp: timestamp,
+                type: messageType,
+                isAutomated: false,
+                integrationType: 'meta_official'
+            });
+
+            await newMessage.save();
+            console.log(`Saved new inbound message from ${senderPhoneNumber}`);
+        } else {
+            console.log(`No user found for phone number ID: ${recipientPhoneNumberId}`);
+        }
+
+    } catch (error) {
+        console.error('Error processing incoming message:', error);
+    }
+}
+
+/**
+ * Test Meta API connection
+ * @param {string} userId The user ID
+ * @param {string} userType The user type
+ * @returns {Object} Test result
+ */
+async function testConnection(userId, userType) {
+    try {
+        const UserModel = userType === 'coach' ? Coach : Staff;
+        const user = await UserModel.findById(userId).select('+whatsApp.whatsAppApiToken whatsApp.phoneNumberId');
+
+        if (!user?.whatsApp?.whatsAppApiToken || !user?.whatsApp?.phoneNumberId) {
+            return {
+                success: false,
+                message: 'WhatsApp API credentials not configured'
+            };
+        }
+
+        // Test by getting available templates
+        const templates = await getAvailableTemplates(
+            user.whatsApp.whatsAppApiToken,
+            user.whatsApp.phoneNumberId
+        );
+
+        return {
+            success: true,
+            message: 'Meta API connection successful',
+            data: {
+                templatesCount: templates.length,
+                phoneNumberId: user.whatsApp.phoneNumberId
+            }
+        };
+
+    } catch (error) {
+        return {
+            success: false,
+            message: `Connection test failed: ${error.message}`
+        };
+    }
+}
+
 module.exports = {
-    sendMessageByCoach,
+    sendMessageByUser,
+    sendTemplateMessage,
+    getAvailableTemplates,
     handleWebhook,
-    contactExists,
-    getAvailableTemplates
+    testConnection,
+    contactExists
 };

@@ -1,107 +1,143 @@
-# 📊 Advanced MLM Network Testing Guide
+# 🚀 Advanced MLM Network Testing Guide v2.0
 
-## 🎯 **Overview**
-The Advanced MLM Network is a comprehensive multi-level marketing system that integrates with the **unified signup system**. Users can now:
-- **Sign up as coaches directly** during registration using `/api/auth/signup` with `role: 'coach'`
-- **Upgrade to coaches later** using `/api/auth/upgrade-to-coach`
-- **Access all MLM features** through the advanced MLM routes
-
-## 🚨 **IMPORTANT: Fix for "Invalid hierarchy level selected" Error**
-
-**Problem:** The error occurs because the `CoachHierarchyLevel` collection is empty.
-
-**Solution:** Use the setup endpoint to populate hierarchy levels before testing.
-
-### **Quick Fix - Setup Hierarchy Levels (Admin Only):**
-```http
-POST /api/advanced-mlm/setup-hierarchy
-Authorization: Bearer YOUR_ADMIN_JWT_TOKEN
-```
-
-This creates 12 default levels (Bronze to Supreme Crown Ambassador) and resolves the signup error.
-
-## 🚀 **Testing Phases**
-
-### **Phase 1: Public Routes (No Authentication Required)**
-*Start here - these routes can be tested immediately*
-
-### **Phase 2: Private Routes (Coach Authentication Required)**
-*Requires a coach account and JWT token*
-
-### **Phase 3: Admin Routes (Admin Authentication Required)**
-*Requires admin privileges*
+## 📋 **Table of Contents**
+- [🎯 Quick Start Checklist](#-quick-start-checklist)
+- [⏱️ Time Estimates](#️-time-estimates)
+- [🔧 Prerequisites](#-prerequisites)
+- [🏗️ Hierarchy System Testing](#️-hierarchy-system-testing)
+- [👥 Coach Management Testing](#-coach-management-testing)
+- [💰 Commission System Testing](#-commission-system-testing)
+- [📊 Reporting & Analytics Testing](#-reporting--analytics-testing)
+- [🔒 Security & Access Control Testing](#-security--access-control-testing)
+- [🧪 Integration Testing](#-integration-testing)
+- [🚨 Troubleshooting Guide](#-troubleshooting-guide)
 
 ---
 
-## 🔧 **Phase 1: Public Routes (No Authentication Required)**
+## 🎯 **Quick Start Checklist**
 
-### **1.1 Setup Hierarchy Levels (Admin Only)**
+### **Phase 1: Setup & Configuration (30 mins)**
+- [ ] ✅ Setup coach ranks with new MLM names
+- [ ] ✅ Configure commission settings for subscriptions only
+- [ ] ✅ Verify admin access and permissions
+
+### **Phase 2: Core Functionality (45 mins)**
+- [ ] ✅ Test coach signup with complete hierarchy
+- [ ] ✅ Test sponsor selection (digital coaches only)
+- [ ] ✅ Test hierarchy locking system
+- [ ] ✅ Test subscription commission calculation
+
+### **Phase 3: Advanced Features (30 mins)**
+- [ ] ✅ Test admin request system
+- [ ] ✅ Test reporting and analytics
+- [ ] ✅ Test security and access control
+
+---
+
+## ⏱️ **Time Estimates**
+
+| **Testing Phase** | **Estimated Time** | **Priority** |
+|-------------------|-------------------|--------------|
+| **Setup & Configuration** | 30 minutes | 🔴 High |
+| **Core Functionality** | 45 minutes | 🔴 High |
+| **Advanced Features** | 30 minutes | 🟡 Medium |
+| **Integration Testing** | 20 minutes | 🟡 Medium |
+| **Total Estimated Time** | **2 hours 5 minutes** | - |
+
+---
+
+## 🔧 **Prerequisites**
+
+### **Required Tools:**
+- **API Testing Tool:** Postman, Insomnia, or similar
+- **Database Access:** MongoDB connection (optional)
+- **Admin Account:** Verified admin user with JWT token
+- **Test Data:** Sample coach and subscription data
+
+### **Environment Setup:**
+- **Base URL:** `http://localhost:3000/api` (adjust as needed)
+- **Authentication:** JWT tokens in Authorization header
+- **Database:** MongoDB with MLM schemas
+
+---
+
+## 🏗️ **Coach Rank System Testing**
+
+### **Test 1: Setup Coach Ranks**
+
 **Endpoint:** `POST /api/advanced-mlm/setup-hierarchy`
 
 **Headers:**
-```
-Authorization: Bearer YOUR_ADMIN_JWT_TOKEN
+```http
+Authorization: Bearer ADMIN_JWT_TOKEN
 Content-Type: application/json
 ```
 
-**Body:** No body required
+**Body:** None required
 
 **Expected Response:**
 ```json
 {
   "success": true,
-  "message": "Hierarchy levels setup completed successfully.",
+  "message": "Coach ranks setup completed successfully.",
   "data": [
     {
-      "_id": "...",
       "level": 1,
-      "name": "Bronze",
-      "description": "Entry level coach",
-      "isActive": true
+      "name": "Distributor Coach",
+      "description": "Entry level coach"
+    },
+    {
+      "level": 2,
+      "name": "Senior Consultant", 
+      "description": "Intermediate coach"
     }
-    // ... 11 more levels
+    // ... 10 more ranks
   ]
 }
 ```
 
-**Testing Checklist:**
-- ✅ Admin JWT token is valid
-- ✅ Returns 12 hierarchy levels
-- ✅ All levels are marked as active
-- ✅ Levels have proper names (Bronze, Silver, Gold, etc.)
+**Test Cases:**
+- [ ] ✅ Admin can setup coach ranks
+- [ ] ✅ All 12 ranks created with correct names
+- [ ] ✅ Non-admin users cannot setup ranks
+- [ ] ✅ Duplicate setup returns existing ranks
 
-### **1.2 Get Hierarchy Levels**
-**Endpoint:** `GET /api/advanced-mlm/hierarchy-levels`
+---
 
-**Headers:** No authentication required
+### **Test 2: Get Coach Ranks**
+
+**Endpoint:** `GET /api/auth/coach-ranks`
+
+**Headers:** None required (public endpoint)
 
 **Expected Response:**
 ```json
 {
   "success": true,
-  "message": "Hierarchy levels retrieved successfully.",
+  "message": "Coach ranks retrieved successfully.",
   "data": [
     {
-      "_id": "...",
       "level": 1,
-      "name": "Bronze",
-      "description": "Entry level coach",
-      "isActive": true
+      "name": "Distributor Coach",
+      "description": "Entry level coach"
     }
-    // ... all 12 levels
   ]
 }
 ```
 
-**Testing Checklist:**
-- ✅ Returns all 12 hierarchy levels
-- ✅ Levels are sorted by level number (1-12)
-- ✅ Each level has name, description, and isActive fields
+**Test Cases:**
+- [ ] ✅ Public access to coach ranks
+- [ ] ✅ All 12 ranks returned
+- [ ] ✅ Ranks sorted by level number
+- [ ] ✅ Only active ranks returned
 
-### **1.3 Generate Coach ID**
+---
+
+### **Test 3: Generate Coach ID**
+
 **Endpoint:** `POST /api/advanced-mlm/generate-coach-id`
 
-**Headers:** No authentication required
+**Headers:** None required (public endpoint)
 
 **Expected Response:**
 ```json
@@ -114,114 +150,157 @@ Content-Type: application/json
 }
 ```
 
-**Testing Checklist:**
-- ✅ Returns a unique 8-character coach ID
-- ✅ ID starts with 'W' followed by 7 digits
-- ✅ Each call generates a different ID
-
-### **1.4 Search for Sponsors**
-**Endpoint:** `GET /api/advanced-mlm/search-sponsor?searchTerm=john&searchType=digital`
-
-**Headers:** No authentication required
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Sponsors found successfully.",
-  "data": {
-    "digitalSponsors": [
-      {
-        "_id": "...",
-        "name": "John Smith",
-        "email": "john@example.com",
-        "selfCoachId": "W1234567"
-      }
-    ],
-    "externalSponsors": []
-  }
-}
-```
-
-**Testing Checklist:**
-- ✅ Search by name returns matching results
-- ✅ Search by email returns matching results
-- ✅ Search by coach ID returns matching results
-- ✅ Returns both digital and external sponsors
-- ✅ Empty results handled gracefully
-
-### **1.5 Create External Sponsor**
-**Endpoint:** `POST /api/advanced-mlm/external-sponsor`
-
-**Headers:** No authentication required
-
-**Body:**
-```json
-{
-  "name": "External Company Ltd",
-  "email": "contact@external.com",
-  "phone": "+1234567890",
-  "company": "External Company Ltd",
-  "website": "https://external.com",
-  "notes": "External business partner"
-}
-```
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "External sponsor created successfully.",
-  "data": {
-    "_id": "...",
-    "name": "External Company Ltd",
-    "email": "contact@external.com",
-    "isActive": true
-  }
-}
-```
-
-**Testing Checklist:**
-- ✅ Creates external sponsor with all required fields
-- ✅ Sets isActive to true by default
-- ✅ Returns created sponsor data
-- ✅ Validates required fields (name, email, phone, company)
+**Test Cases:**
+- [ ] ✅ Unique 8-character coach ID generated
+- [ ] ✅ Format: W + 7 digits
+- [ ] ✅ Multiple calls generate different IDs
+- [ ] ✅ ID format validation
 
 ---
 
-## 🔐 **Phase 2: Private Routes (Coach Authentication Required)**
+## 👥 **Coach Management Testing**
 
-### **2.1 Coach Account Setup**
-Before testing these routes, you need a coach account:
+### **Test 4: Coach Signup with Complete Hierarchy**
 
-**Option A: Coach Signup During Registration**
+**Endpoint:** `POST /api/auth/signup`
+
+**Headers:**
 ```http
-POST /api/auth/signup
+Content-Type: application/json
+```
+
+**Body:**
+```json
 {
   "name": "Test Coach",
   "email": "testcoach@example.com",
   "password": "Passw0rd!",
   "role": "coach",
-  "sponsorId": null,
-  "teamRankName": "Test Team"
+  "selfCoachId": "W1234567",
+  "currentLevel": 1,
+  "sponsorId": "existing_sponsor_id",
+  "teamRankName": "Team Alpha",
+  "presidentTeamRankName": "President Team"
 }
 ```
 
-**Option B: Upgrade Existing User**
-```http
-POST /api/auth/upgrade-to-coach
+**Expected Response:**
+```json
 {
-  "userId": "EXISTING_USER_ID",
-  "sponsorId": null,
-  "teamRankName": "Test Team"
+  "success": true,
+  "message": "Coach registered successfully with MLM hierarchy. An OTP has been sent to your email for verification.",
+  "userId": "user_id",
+  "email": "testcoach@example.com",
+  "role": "coach",
+  "selfCoachId": "W1234567",
+  "currentLevel": 1,
+  "sponsorId": "sponsor_id",
+  "teamRankName": "Team Alpha",
+  "presidentTeamRankName": "President Team"
 }
 ```
 
-### **2.2 Lock Hierarchy**
-**Endpoint:** `POST /api/advanced-mlm/lock-hierarchy`
+**Test Cases:**
+- [ ] ✅ Coach created with all hierarchy fields
+- [ ] ✅ Self coach ID is unique
+- [ ] ✅ Current level is valid (1-12)
+- [ ] ✅ Sponsor ID is required and valid
+- [ ] ✅ Optional team rank fields accepted
+- [ ] ✅ OTP sent for verification
+- [ ] ✅ Hierarchy automatically locked after save
+
+---
+
+### **Test 5: Get Available Sponsors**
+
+**Endpoint:** `GET /api/auth/available-sponsors`
+
+**Headers:** None required (public endpoint)
+
+**Expected Response:**
+```json
+{
+  "success": true,
+  "message": "Available sponsors retrieved successfully.",
+  "data": {
+    "digitalSponsors": [
+      {
+        "id": "sponsor_id",
+        "name": "Sponsor Name",
+        "email": "sponsor@example.com",
+        "selfCoachId": "W2345678",
+        "currentLevel": 2,
+        "teamRankName": "Team Beta"
+      }
+    ],
+    "message": "Only digital coaches can be sponsors. External sponsors are not supported."
+  }
+}
+```
+
+**Test Cases:**
+- [ ] ✅ Only digital coaches returned as sponsors
+- [ ] ✅ No external sponsors in response
+- [ ] ✅ Only verified and active coaches
+- [ ] ✅ Clear message about external sponsors removed
+- [ ] ✅ Sponsor details include required fields
+
+---
+
+### **Test 6: Upgrade User to Coach**
+
+**Endpoint:** `POST /api/auth/upgrade-to-coach`
 
 **Headers:**
+```http
+Authorization: Bearer JWT_TOKEN
+Content-Type: application/json
 ```
+
+**Body:**
+```json
+{
+  "userId": "user_id",
+  "selfCoachId": "W1234567",
+  "currentLevel": 1,
+  "sponsorId": "sponsor_id",
+  "teamRankName": "Team Alpha",
+  "presidentTeamRankName": "President Team"
+}
+```
+
+**Expected Response:**
+```json
+{
+  "success": true,
+  "message": "User successfully upgraded to coach with MLM hierarchy!",
+  "user": {
+    "id": "user_id",
+    "name": "Coach Name",
+    "email": "coach@example.com",
+    "role": "coach",
+    "selfCoachId": "W1234567",
+    "currentLevel": 1,
+    "sponsorId": "sponsor_id"
+  }
+}
+```
+
+**Test Cases:**
+- [ ] ✅ User upgraded to coach role
+- [ ] ✅ All hierarchy fields set correctly
+- [ ] ✅ Hierarchy automatically locked
+- [ ] ✅ Only verified users can upgrade
+- [ ] ✅ Duplicate coach ID validation
+
+---
+
+### **Test 7: Lock Hierarchy**
+
+**Endpoint:** `POST /api/auth/lock-hierarchy`
+
+**Headers:**
+```http
 Authorization: Bearer COACH_JWT_TOKEN
 Content-Type: application/json
 ```
@@ -229,7 +308,7 @@ Content-Type: application/json
 **Body:**
 ```json
 {
-  "coachId": "COACH_USER_ID"
+  "coachId": "coach_id"
 }
 ```
 
@@ -237,7 +316,7 @@ Content-Type: application/json
 ```json
 {
   "success": true,
-  "message": "Hierarchy locked successfully.",
+  "message": "Hierarchy locked successfully. Changes can only be made through admin request.",
   "data": {
     "hierarchyLocked": true,
     "hierarchyLockedAt": "2024-01-15T10:30:00Z"
@@ -245,160 +324,172 @@ Content-Type: application/json
 }
 ```
 
-**Testing Checklist:**
-- ✅ Requires valid coach JWT token
-- ✅ Sets hierarchyLocked to true
-- ✅ Records lock timestamp
-- ✅ Should prevent future hierarchy changes
+**Test Cases:**
+- [ ] ✅ Hierarchy locked successfully
+- [ ] ✅ Timestamp recorded
+- [ ] ✅ Only coaches can lock hierarchy
+- [ ] ✅ Already locked hierarchy returns error
+- [ ] ✅ Non-coach users cannot lock hierarchy
 
-### **2.3 Submit Admin Request**
-**Endpoint:** `POST /api/advanced-mlm/admin-request`
+---
+
+### **Test 8: Get Current User (Me Route)**
+
+**Endpoint:** `GET /api/auth/me`
 
 **Headers:**
-```
+```http
 Authorization: Bearer COACH_JWT_TOKEN
+```
+
+**Expected Response:**
+```json
+{
+  "success": true,
+  "user": {
+    "id": "user_id",
+    "name": "Coach Name",
+    "email": "coach@example.com",
+    "role": "coach",
+    "isVerified": true,
+    "selfCoachId": "W1234567",
+    "currentLevel": 1,
+    "sponsorId": {
+      "id": "sponsor_id",
+      "name": "Sponsor Name",
+      "email": "sponsor@example.com",
+      "selfCoachId": "W2345678",
+      "currentLevel": 2
+    },
+    "teamRankName": "Team Alpha",
+    "presidentTeamRankName": "President Team",
+    "hierarchyLocked": true,
+    "hierarchyLockedAt": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+**Test Cases:**
+- [ ] ✅ Complete user data returned
+- [ ] ✅ Sponsor information populated
+- [ ] ✅ No external sponsor data
+- [ ] ✅ Password field excluded
+- [ ] ✅ Hierarchy lock status included
+- [ ] ✅ All MLM fields present
+
+---
+
+## 💰 **Commission System Testing**
+
+### **Test 9: Calculate Subscription Commission**
+
+**Endpoint:** `POST /api/advanced-mlm/calculate-subscription-commission`
+
+**Headers:**
+```http
+Authorization: Bearer ADMIN_JWT_TOKEN
 Content-Type: application/json
 ```
 
 **Body:**
 ```json
 {
-  "coachId": "COACH_USER_ID",
-  "requestType": "changeSponsor",
-  "reason": "Better mentorship opportunity",
-  "requestedChanges": {
-    "newSponsorId": "NEW_SPONSOR_ID"
+  "subscriptionId": "subscription_id",
+  "coachId": "coach_id",
+  "subscriptionAmount": 99.99,
+  "subscriptionType": "monthly",
+  "notes": "Monthly subscription commission"
+}
+```
+
+**Expected Response:**
+```json
+{
+  "success": true,
+  "message": "Subscription commission calculated successfully.",
+  "data": {
+    "commissionId": "commission_id",
+    "coachId": "coach_id",
+    "coachName": "Coach Name",
+    "coachLevel": 1,
+    "subscriptionAmount": 99.99,
+    "commissionPercentage": 0.10,
+    "commissionAmount": 9.99,
+    "status": "pending"
+  }
+}
+```
+
+**Test Cases:**
+- [ ] ✅ Commission calculated only on subscriptions
+- [ ] ✅ Different rates for subscription types
+- [ ] ✅ Level-based multipliers applied
+- [ ] ✅ Commission record created
+- [ ] ✅ Only admins can calculate commissions
+- [ ] ✅ Required fields validation
+
+---
+
+### **Test 10: Commission Settings Management**
+
+**Endpoint:** `PUT /api/advanced-mlm/admin/commission-settings`
+
+**Headers:**
+```http
+Authorization: Bearer ADMIN_JWT_TOKEN
+Content-Type: application/json
+```
+
+**Body:**
+```json
+{
+  "subscriptionCommissions": {
+    "monthly": 0.10,
+    "yearly": 0.15,
+    "lifetime": 0.20,
+    "default": 0.10
   },
-  "priority": "medium"
-}
-```
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Admin request submitted successfully.",
-  "data": {
-    "requestId": "...",
-    "status": "pending",
-    "submittedAt": "2024-01-15T10:30:00Z"
+  "levelMultipliers": {
+    "1": 1.0,
+    "2": 1.1,
+    "3": 1.2
   }
 }
 ```
 
-**Testing Checklist:**
-- ✅ Requires valid coach JWT token
-- ✅ Creates admin request with pending status
-- ✅ Records submission timestamp
-- ✅ Validates required fields
-
-### **2.4 Get Coach Admin Requests**
-**Endpoint:** `GET /api/advanced-mlm/admin-requests/COACH_USER_ID`
-
-**Headers:**
-```
-Authorization: Bearer COACH_JWT_TOKEN
-```
-
 **Expected Response:**
 ```json
 {
   "success": true,
-  "message": "Admin requests retrieved successfully.",
-  "data": [
-    {
-      "_id": "...",
-      "requestType": "changeSponsor",
-      "status": "pending",
-      "reason": "Better mentorship opportunity",
-      "submittedAt": "2024-01-15T10:30:00Z"
+  "message": "Commission settings updated successfully.",
+  "data": {
+    "subscriptionCommissions": {
+      "monthly": 0.10,
+      "yearly": 0.15,
+      "lifetime": 0.20,
+      "default": 0.10
     }
-  ]
-}
-```
-
-**Testing Checklist:**
-- ✅ Returns only requests for the authenticated coach
-- ✅ Shows request status and details
-- ✅ Includes submission timestamp
-
-### **2.5 Get Coach Commissions**
-**Endpoint:** `GET /api/advanced-mlm/commissions/COACH_USER_ID?month=2024-01`
-
-**Headers:**
-```
-Authorization: Bearer COACH_JWT_TOKEN
-```
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Commissions retrieved successfully.",
-  "data": {
-    "monthlyCommissions": [
-      {
-        "month": "2024-01",
-        "totalEarnings": 150.00,
-        "pendingAmount": 50.00,
-        "paidAmount": 100.00
-      }
-    ]
   }
 }
 ```
 
-**Testing Checklist:**
-- ✅ Returns commission data for specified month
-- ✅ Shows total, pending, and paid amounts
-- ✅ Handles month/year query parameters
+**Test Cases:**
+- [ ] ✅ Subscription commission rates updated
+- [ ] ✅ Level multipliers configured
+- [ ] ✅ Only admins can update settings
+- [ ] ✅ Validation of commission percentages
+- [ ] ✅ Settings saved correctly
 
-### **2.6 Add Downline Member**
-**Endpoint:** `POST /api/advanced-mlm/downline`
+---
 
-**Headers:**
-```
-Authorization: Bearer COACH_JWT_TOKEN
-Content-Type: application/json
-```
+## 📊 **Reporting & Analytics Testing**
 
-**Body:**
-```json
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "Passw0rd!",
-  "sponsorId": "COACH_USER_ID",
-  "phone": "+1234567890",
-  "currentLevel": 1,
-  "teamRankName": "Team A"
-}
-```
+### **Test 11: Get Downline**
 
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Downline member added successfully.",
-  "data": {
-    "coachId": "...",
-    "sponsorId": "COACH_USER_ID",
-    "currentLevel": 1
-  }
-}
-```
-
-**Testing Checklist:**
-- ✅ Creates new coach in downline
-- ✅ Sets correct sponsor relationship
-- ✅ Assigns specified hierarchy level
-- ✅ Generates unique coach ID
-
-### **2.7 Get Direct Downline**
-**Endpoint:** `GET /api/advanced-mlm/downline/COACH_USER_ID?includePerformance=true`
+**Endpoint:** `GET /api/advanced-mlm/downline/:coachId?includePerformance=true`
 
 **Headers:**
-```
+```http
 Authorization: Bearer COACH_JWT_TOKEN
 ```
 
@@ -408,108 +499,36 @@ Authorization: Bearer COACH_JWT_TOKEN
   "success": true,
   "message": "Downline retrieved successfully.",
   "data": {
-    "downline": [
+    "directDownline": [
       {
-        "_id": "...",
-        "name": "John Doe",
-        "email": "john@example.com",
-        "isActive": true,
-        "lastActiveAt": "2024-01-15T10:30:00Z"
+        "id": "downline_id",
+        "name": "Downline Name",
+        "email": "downline@example.com",
+        "selfCoachId": "W3456789",
+        "currentLevel": 1,
+        "joinDate": "2024-01-15T10:30:00Z"
       }
     ],
-    "downlineWithPerformance": [
-      {
-        "_id": "...",
-        "name": "John Doe",
-        "performance": {
-          "currentLevel": "Beginner",
-          "performanceScore": 75,
-          "isActive": true
-        }
-      }
-    ]
+    "totalCount": 1,
+    "levels": 1
   }
 }
 ```
 
-**Testing Checklist:**
-- ✅ Returns direct team members only
-- ✅ Includes performance data when requested
-- ✅ Shows active status and last activity
-- ✅ Performance scores are calculated correctly
+**Test Cases:**
+- [ ] ✅ Direct downline members returned
+- [ ] ✅ Performance data included when requested
+- [ ] ✅ Only coach can access their downline
+- [ ] ✅ Proper pagination and filtering
 
-### **2.8 Get Complete Hierarchy**
-**Endpoint:** `GET /api/advanced-mlm/hierarchy/COACH_USER_ID?levels=5&includePerformance=true`
+---
 
-**Headers:**
-```
-Authorization: Bearer COACH_JWT_TOKEN
-```
+### **Test 12: Generate Team Report**
 
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Hierarchy retrieved successfully.",
-  "data": {
-    "_id": "COACH_USER_ID",
-    "name": "Test Coach",
-    "downlineHierarchy": [
-      {
-        "_id": "...",
-        "name": "John Doe",
-        "level": 1,
-        "isActive": true
-      }
-    ]
-  }
-}
-```
-
-**Testing Checklist:**
-- ✅ Returns specified number of levels
-- ✅ Shows hierarchical structure
-- ✅ Includes performance data when requested
-- ✅ Levels are properly numbered
-
-### **2.9 Get Team Performance**
-**Endpoint:** `GET /api/advanced-mlm/team-performance/COACH_USER_ID?period=month`
-
-**Headers:**
-```
-Authorization: Bearer COACH_JWT_TOKEN
-```
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Team performance retrieved successfully.",
-  "data": {
-    "teamSize": 5,
-    "totalSales": 2500.00,
-    "averagePerformance": 78.5,
-    "topPerformers": [
-      {
-        "name": "John Doe",
-        "performanceScore": 85
-      }
-    ]
-  }
-}
-```
-
-**Testing Checklist:**
-- ✅ Returns team performance metrics
-- ✅ Calculates averages correctly
-- ✅ Identifies top performers
-- ✅ Handles different time periods
-
-### **2.10 Generate Team Report**
 **Endpoint:** `POST /api/advanced-mlm/generate-report`
 
 **Headers:**
-```
+```http
 Authorization: Bearer COACH_JWT_TOKEN
 Content-Type: application/json
 ```
@@ -518,7 +537,7 @@ Content-Type: application/json
 ```json
 {
   "reportType": "team_performance",
-  "sponsorId": "COACH_USER_ID",
+  "sponsorId": "coach_id",
   "dateRange": {
     "start": "2024-01-01",
     "end": "2024-01-31"
@@ -532,393 +551,127 @@ Content-Type: application/json
 ```json
 {
   "success": true,
-  "message": "Report generated successfully.",
+  "message": "Team report generated successfully.",
   "data": {
-    "reportId": "...",
-    "reportType": "team_performance",
-    "status": "completed",
-    "downloadUrl": "/reports/download/..."
-  }
-}
-```
-
-**Testing Checklist:**
-- ✅ Generates report with specified parameters
-- ✅ Returns report ID and status
-- ✅ Includes download URL when complete
-- ✅ Handles different report types
-
-### **2.11 Get Reports List**
-**Endpoint:** `GET /api/advanced-mlm/reports/COACH_USER_ID?reportType=team_performance&limit=10`
-
-**Headers:**
-```
-Authorization: Bearer COACH_JWT_TOKEN
-```
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Reports retrieved successfully.",
-  "data": [
-    {
-      "_id": "...",
-      "reportType": "team_performance",
-      "status": "completed",
-      "generatedAt": "2024-01-15T10:30:00Z"
-    }
-  ]
-}
-```
-
-**Testing Checklist:**
-- ✅ Returns list of generated reports
-- ✅ Filters by report type when specified
-- ✅ Respects limit parameter
-- ✅ Shows report status and generation date
-
-### **2.12 Get Report Details**
-**Endpoint:** `GET /api/advanced-mlm/reports/detail/REPORT_ID`
-
-**Headers:**
-```
-Authorization: Bearer COACH_JWT_TOKEN
-```
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Report details retrieved successfully.",
-  "data": {
-    "reportId": "...",
-    "reportType": "team_performance",
-    "content": {
-      "summary": "Team performance for January 2024",
-      "metrics": { ... },
-      "charts": [ ... ]
-    },
+    "reportId": "report_id",
+    "downloadUrl": "download_url",
     "generatedAt": "2024-01-15T10:30:00Z"
   }
 }
 ```
 
-**Testing Checklist:**
-- ✅ Returns complete report content
-- ✅ Includes metrics and charts
-- ✅ Shows generation timestamp
-- ✅ Accessible only to report owner
+**Test Cases:**
+- [ ] ✅ Report generated successfully
+- [ ] ✅ Different report types supported
+- [ ] ✅ Date range filtering works
+- [ ] ✅ Multiple output formats
+- [ ] ✅ Only coach can generate their reports
 
 ---
 
-## 👑 **Phase 3: Admin Routes (Admin Authentication Required)**
+## 🔒 **Security & Access Control Testing**
 
-### **3.1 Get Pending Admin Requests**
-**Endpoint:** `GET /api/advanced-mlm/admin/pending-requests`
+### **Test 13: Hierarchy Security**
 
-**Headers:**
-```
-Authorization: Bearer ADMIN_JWT_TOKEN
-```
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Pending requests retrieved successfully.",
-  "data": [
-    {
-      "_id": "...",
-      "coachId": "COACH_USER_ID",
-      "requestType": "changeSponsor",
-      "status": "pending",
-      "submittedAt": "2024-01-15T10:30:00Z"
-    }
-  ]
-}
-```
-
-**Testing Checklist:**
-- ✅ Requires admin JWT token
-- ✅ Returns only pending requests
-- ✅ Shows request details and timestamps
-- ✅ Includes coach information
-
-### **3.2 Process Admin Request**
-**Endpoint:** `PUT /api/advanced-mlm/admin/process-request/REQUEST_ID`
-
-**Headers:**
-```
-Authorization: Bearer ADMIN_JWT_TOKEN
-Content-Type: application/json
-```
-
-**Body:**
-```json
-{
-  "action": "approve",
-  "adminNotes": "Request approved after review",
-  "approvedChanges": {
-    "newSponsorId": "NEW_SPONSOR_ID"
-  }
-}
-```
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Request processed successfully.",
-  "data": {
-    "requestId": "...",
-    "status": "approved",
-    "processedAt": "2024-01-15T10:30:00Z",
-    "adminNotes": "Request approved after review"
-  }
-}
-```
-
-**Testing Checklist:**
-- ✅ Requires admin JWT token
-- ✅ Updates request status
-- ✅ Records processing timestamp
-- ✅ Applies approved changes
-
-### **3.3 Change Coach Upline**
-**Endpoint:** `PUT /api/advanced-mlm/admin/change-upline`
-
-**Headers:**
-```
-Authorization: Bearer ADMIN_JWT_TOKEN
-Content-Type: application/json
-```
-
-**Body:**
-```json
-{
-  "coachId": "COACH_USER_ID",
-  "newSponsorId": "NEW_SPONSOR_ID",
-  "reason": "Performance optimization",
-  "effectiveDate": "2024-02-01"
-}
-```
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Coach upline changed successfully.",
-  "data": {
-    "coachId": "COACH_USER_ID",
-    "oldSponsorId": "OLD_SPONSOR_ID",
-    "newSponsorId": "NEW_SPONSOR_ID",
-    "changedAt": "2024-01-15T10:30:00Z"
-  }
-}
-```
-
-**Testing Checklist:**
-- ✅ Requires admin JWT token
-- ✅ Updates coach sponsor relationship
-- ✅ Records change timestamp
-- ✅ Validates new sponsor exists
-
-### **3.4 Get Commission Settings**
-**Endpoint:** `GET /api/advanced-mlm/admin/commission-settings`
-
-**Headers:**
-```
-Authorization: Bearer ADMIN_JWT_TOKEN
-```
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Commission settings retrieved successfully.",
-  "data": {
-    "commissionStructure": {
-      "level1": 0.10,
-      "level2": 0.05,
-      "level3": 0.03
-    },
-    "bonusRates": {
-      "performanceBonus": 0.02,
-      "teamBonus": 0.01
-    }
-  }
-}
-```
-
-**Testing Checklist:**
-- ✅ Requires admin JWT token
-- ✅ Returns current commission structure
-- ✅ Shows bonus rates and thresholds
-- ✅ Includes all configuration options
-
-### **3.5 Update Commission Settings**
-**Endpoint:** `PUT /api/advanced-mlm/admin/commission-settings`
-
-**Headers:**
-```
-Authorization: Bearer ADMIN_JWT_TOKEN
-Content-Type: application/json
-```
-
-**Body:**
-```json
-{
-  "commissionStructure": {
-    "level1": 0.12,
-    "level2": 0.06,
-    "level3": 0.04
-  },
-  "bonusRates": {
-    "performanceBonus": 0.03,
-    "teamBonus": 0.015
-  }
-}
-```
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Commission settings updated successfully.",
-  "data": {
-    "commissionStructure": {
-      "level1": 0.12,
-      "level2": 0.06,
-      "level3": 0.04
-    },
-    "updatedAt": "2024-01-15T10:30:00Z"
-  }
-}
-```
-
-**Testing Checklist:**
-- ✅ Requires admin JWT token
-- ✅ Updates commission structure
-- ✅ Records update timestamp
-- ✅ Validates percentage values
-
-### **3.6 Calculate Commission**
-**Endpoint:** `POST /api/advanced-mlm/admin/calculate-commission`
-
-**Headers:**
-```
-Authorization: Bearer ADMIN_JWT_TOKEN
-Content-Type: application/json
-```
-
-**Body:**
-```json
-{
-  "subscriptionId": "SUBSCRIPTION_ID",
-  "coachId": "COACH_USER_ID",
-  "amount": 100.00,
-  "commissionType": "referral",
-  "notes": "Monthly subscription commission"
-}
-```
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Commission calculated successfully.",
-  "data": {
-    "commissionId": "...",
-    "amount": 10.00,
-    "percentage": 0.10,
-    "status": "pending"
-  }
-}
-```
-
-**Testing Checklist:**
-- ✅ Requires admin JWT token
-- ✅ Calculates commission based on structure
-- ✅ Creates commission record
-- ✅ Sets status to pending
-
-### **3.7 Process Monthly Commissions**
-**Endpoint:** `POST /api/advanced-mlm/admin/process-monthly-commissions`
-
-**Headers:**
-```
-Authorization: Bearer ADMIN_JWT_TOKEN
-Content-Type: application/json
-```
-
-**Body:**
-```json
-{
-  "month": "01",
-  "year": 2024,
-  "paymentMethod": "bank_transfer",
-  "batchSize": 100
-}
-```
-
-**Expected Response:**
-```json
-{
-  "success": true,
-  "message": "Monthly commissions processed successfully.",
-  "data": {
-    "totalProcessed": 25,
-    "totalAmount": 1250.00,
-    "processedAt": "2024-01-15T10:30:00Z"
-  }
-}
-```
-
-**Testing Checklist:**
-- ✅ Requires admin JWT token
-- ✅ Processes all pending commissions for month
-- ✅ Updates commission status to paid
-- ✅ Records processing timestamp
+**Test Cases:**
+- [ ] ✅ Hierarchy locked after first save
+- [ ] ✅ Coaches cannot edit hierarchy fields
+- [ ] ✅ Admin requests required for changes
+- [ ] ✅ Support tickets for level/rank changes
+- [ ] ✅ Proper role-based access control
 
 ---
 
-## 🎯 **Testing Summary & Checklist**
+### **Test 14: Authentication & Authorization**
 
-### **✅ Phase 1 Complete (Public Routes)**
-- [ ] Setup hierarchy levels (admin only)
-- [ ] Get hierarchy levels
-- [ ] Generate coach ID
-- [ ] Search for sponsors
-- [ ] Create external sponsor
-
-### **✅ Phase 2 Complete (Coach Routes)**
-- [ ] Coach account setup (signup or upgrade)
-- [ ] Lock hierarchy
-- [ ] Submit admin request
-- [ ] Get coach admin requests
-- [ ] Get coach commissions
-- [ ] Add downline member
-- [ ] Get direct downline
-- [ ] Get complete hierarchy
-- [ ] Get team performance
-- [ ] Generate team report
-- [ ] Get reports list
-- [ ] Get report details
-
-### **✅ Phase 3 Complete (Admin Routes)**
-- [ ] Get pending admin requests
-- [ ] Process admin request
-- [ ] Change coach upline
-- [ ] Get commission settings
-- [ ] Update commission settings
-- [ ] Calculate commission
-- [ ] Process monthly commissions
+**Test Cases:**
+- [ ] ✅ JWT tokens required for protected routes
+- [ ] ✅ Role-based access control working
+- [ ] ✅ Admin-only functions protected
+- [ ] ✅ Coach-only functions protected
+- [ ] ✅ Public endpoints accessible without auth
 
 ---
 
-## 🚀 **Ready to Start Testing!**
+## 🧪 **Integration Testing**
 
-**Begin with Phase 1 (Public Routes) and work your way through each phase systematically.**
+### **Test 15: Complete MLM Flow**
 
-**Remember:** Start with the hierarchy setup to resolve the "Invalid hierarchy level selected" error!
+**Test Scenario:** Complete coach onboarding and commission flow
+
+**Steps:**
+1. ✅ Setup hierarchy levels (admin)
+2. ✅ Coach signup with complete hierarchy
+3. ✅ Verify email with OTP
+4. ✅ Login and get complete user data
+5. ✅ Lock hierarchy (one-time action)
+6. ✅ Admin calculates subscription commission
+7. ✅ Generate team performance report
+8. ✅ Submit admin request for hierarchy change
+
+**Expected Results:**
+- [ ] ✅ All steps complete successfully
+- [ ] ✅ Data consistency across endpoints
+- [ ] ✅ Proper error handling
+- [ ] ✅ Security measures enforced
+
+---
+
+## 🚨 **Troubleshooting Guide**
+
+### **Common Issues & Solutions**
+
+#### **Issue 1: Hierarchy Levels Not Setup**
+**Symptoms:** 404 errors on hierarchy endpoints
+**Solution:** Run `POST /api/advanced-mlm/setup-hierarchy` as admin
+
+#### **Issue 2: External Sponsor Errors**
+**Symptoms:** References to external sponsors
+**Solution:** External sponsors removed - only digital coaches supported
+
+#### **Issue 3: Commission Calculation Fails**
+**Symptoms:** Commission calculation errors
+**Solution:** Verify commission settings configured and subscription data valid
+
+#### **Issue 4: Hierarchy Lock Issues**
+**Symptoms:** Hierarchy not locking after save
+**Solution:** Check auto-lock function and verify coach role
+
+#### **Issue 5: Authentication Errors**
+**Symptoms:** 401/403 errors
+**Solution:** Verify JWT token and user role permissions
+
+---
+
+## 📝 **Testing Notes**
+
+### **Key Changes in v2.0:**
+1. **External Sponsors Removed:** Only digital coaches can be sponsors
+2. **Commission System:** Only applies to platform subscriptions
+3. **Hierarchy Levels:** 12 specific MLM levels with proper names
+4. **Auto-Lock:** Hierarchy automatically locked after first save
+5. **Admin Approval:** All changes require admin verification
+
+### **Testing Priorities:**
+- 🔴 **High Priority:** Core functionality, security, commission system
+- 🟡 **Medium Priority:** Reporting, analytics, integration
+- 🟢 **Low Priority:** Edge cases, performance testing
+
+---
+
+## 🎯 **Success Criteria**
+
+### **All Tests Must Pass:**
+- [ ] ✅ Hierarchy system working correctly
+- [ ] ✅ Coach management complete
+- [ ] ✅ Commission system functional
+- [ ] ✅ Security measures enforced
+- [ ] ✅ Integration flow working
+- [ ] ✅ Error handling proper
+- [ ] ✅ Performance acceptable
+
+---
+
+**Last Updated:** January 2024  
+**Version:** 2.0  
+**Status:** Ready for Testing

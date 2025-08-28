@@ -8,11 +8,16 @@ const WhatsAppContactSchema = new mongoose.Schema({
         index: true
     },
     
-    coachId: {
+    // Support both coaches and staff members
+    userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
-        index: true
+        required: true
+    },
+    userType: {
+        type: String,
+        enum: ['coach', 'staff'],
+        required: true
     },
     
     // Contact Information
@@ -138,11 +143,11 @@ const WhatsAppContactSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient querying
-WhatsAppContactSchema.index({ coachId: 1, contactNumber: 1 }, { unique: true });
-WhatsAppContactSchema.index({ coachId: 1, category: 1 });
-WhatsAppContactSchema.index({ coachId: 1, status: 1 });
-WhatsAppContactSchema.index({ coachId: 1, lastInteractionAt: -1 });
-WhatsAppContactSchema.index({ coachId: 1, engagementScore: -1 });
+WhatsAppContactSchema.index({ userId: 1, userType: 1, contactNumber: 1 }, { unique: true });
+WhatsAppContactSchema.index({ userId: 1, userType: 1, category: 1 });
+WhatsAppContactSchema.index({ userId: 1, userType: 1, status: 1 });
+WhatsAppContactSchema.index({ userId: 1, userType: 1, lastInteractionAt: -1 });
+WhatsAppContactSchema.index({ userId: 1, userType: 1, engagementScore: -1 });
 WhatsAppContactSchema.index({ leadId: 1 });
 
 // Virtual for contact summary
@@ -203,16 +208,16 @@ WhatsAppContactSchema.methods.archive = function() {
     return this.save();
 };
 
-// Static method to find contacts by coach
-WhatsAppContactSchema.statics.findByCoach = function(coachId, filters = {}) {
-    const query = { coachId, ...filters };
+// Static method to find contacts by user
+WhatsAppContactSchema.statics.findByUser = function(userId, userType, filters = {}) {
+    const query = { userId, userType, ...filters };
     return this.find(query).sort({ lastInteractionAt: -1 });
 };
 
 // Static method to get contact statistics
-WhatsAppContactSchema.statics.getStats = function(coachId) {
+WhatsAppContactSchema.statics.getStats = function(userId, userType) {
     return this.aggregate([
-        { $match: { coachId: mongoose.Types.ObjectId(coachId) } },
+        { $match: { userId: mongoose.Types.ObjectId(userId), userType } },
         {
             $group: {
                 _id: null,
@@ -228,9 +233,10 @@ WhatsAppContactSchema.statics.getStats = function(coachId) {
 };
 
 // Static method to search contacts
-WhatsAppContactSchema.statics.searchContacts = function(coachId, searchTerm) {
+WhatsAppContactSchema.statics.searchContacts = function(userId, userType, searchTerm) {
     return this.find({
-        coachId,
+        userId,
+        userType,
         $or: [
             { contactName: { $regex: searchTerm, $options: 'i' } },
             { contactNumber: { $regex: searchTerm, $options: 'i' } },

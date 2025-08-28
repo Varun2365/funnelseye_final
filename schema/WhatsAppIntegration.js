@@ -1,17 +1,23 @@
 const mongoose = require('mongoose');
 
 const WhatsAppIntegrationSchema = new mongoose.Schema({
-    coachId: {
+    // Support both coaches and staff members
+    userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
-        unique: true
+        required: true
+    },
+    
+    userType: {
+        type: String,
+        enum: ['coach', 'staff'],
+        required: true
     },
     
     // Integration Type and Status
     integrationType: {
         type: String,
-        enum: ['meta_official', 'baileys_personal'],
+        enum: ['meta_official', 'baileys_personal', 'central_fallback'],
         required: true,
         default: 'meta_official'
     },
@@ -52,6 +58,16 @@ const WhatsAppIntegrationSchema = new mongoose.Schema({
     },
     lastConnectionAt: {
         type: Date
+    },
+    
+    // Central FunnelsEye Account Fallback
+    useCentralFallback: {
+        type: Boolean,
+        default: false
+    },
+    centralAccountCredits: {
+        type: Number,
+        default: 0
     },
     
     // Common Settings
@@ -129,14 +145,19 @@ const WhatsAppIntegrationSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient querying
+WhatsAppIntegrationSchema.index({ userId: 1, userType: 1 }, { unique: true });
 WhatsAppIntegrationSchema.index({ integrationType: 1, isActive: 1 });
 WhatsAppIntegrationSchema.index({ connectionStatus: 1 });
+WhatsAppIntegrationSchema.index({ userType: 1, isActive: 1 });
 
 // Virtual for integration status summary
 WhatsAppIntegrationSchema.virtual('statusSummary').get(function() {
     if (!this.isActive) return 'inactive';
     if (this.integrationType === 'baileys_personal') {
         return this.connectionStatus === 'connected' ? 'active' : 'connecting';
+    }
+    if (this.integrationType === 'central_fallback') {
+        return this.centralAccountCredits > 0 ? 'active' : 'no_credits';
     }
     return this.healthStatus === 'healthy' ? 'active' : 'error';
 });
@@ -147,15 +168,19 @@ WhatsAppIntegrationSchema.methods.isWorking = function() {
     
     if (this.integrationType === 'meta_official') {
         return this.healthStatus === 'healthy' && this.metaApiToken && this.phoneNumberId;
-    } else {
+    } else if (this.integrationType === 'baileys_personal') {
         return this.connectionStatus === 'connected' && this.personalPhoneNumber;
+    } else if (this.integrationType === 'central_fallback') {
+        return this.useCentralFallback && this.centralAccountCredits > 0;
     }
+    return false;
 };
 
 // Method to get integration details (without sensitive data)
 WhatsAppIntegrationSchema.methods.getPublicDetails = function() {
     const details = {
-        coachId: this.coachId,
+        userId: this.userId,
+        userType: this.userType,
         integrationType: this.integrationType,
         isActive: this.isActive,
         statusSummary: this.statusSummary,
@@ -165,14 +190,17 @@ WhatsAppIntegrationSchema.methods.getPublicDetails = function() {
         totalMessagesReceived: this.totalMessagesReceived,
         lastMessageAt: this.lastMessageAt,
         businessHours: this.businessHours,
-        autoReplyEnabled: this.autoReplyEnabled
+        autoReplyEnabled: this.autoReplyEnabled,
+        useCentralFallback: this.useCentralFallback
     };
     
     if (this.integrationType === 'meta_official') {
         details.phoneNumberId = this.phoneNumberId;
         details.whatsAppBusinessAccountId = this.whatsAppBusinessAccountId;
-    } else {
+    } else if (this.integrationType === 'baileys_personal') {
         details.personalPhoneNumber = this.personalPhoneNumber;
+    } else if (this.integrationType === 'central_fallback') {
+        details.centralAccountCredits = this.centralAccountCredits;
     }
     
     return details;
