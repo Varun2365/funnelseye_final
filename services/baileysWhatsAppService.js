@@ -3,36 +3,44 @@ const {
     useMultiFileAuthState,
     DisconnectReason,
     fetchLatestBaileysVersion,
-    Browsers,
-    downloadMediaMessage,
-    jidDecode
+    Browsers
 } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const qrcode = require('qrcode');
 const fs = require('fs').promises;
 const path = require('path');
-const { Boom } = require('@hapi/boom');
-const mimeTypes = require('mime-types');
-const mongoose = require('mongoose');
 
-const { WhatsAppIntegration, WhatsAppConversation, WhatsAppMessage, WhatsAppContact } = require('../schema');
-const { publishEvent } = require('./rabbitmqProducer');
+const { WhatsAppIntegration } = require('../schema');
 
 class BaileysWhatsAppService {
     constructor() {
-        this.sessions = new Map(); // Store active sessions by userId
-        this.connectionStatus = new Map(); // Track connection status
-        this.messageHandlers = new Map(); // Store message handlers
-        this.autoReplyHandlers = new Map(); // Store auto-reply handlers
-        this.qrCodes = new Map(); // Store QR codes for each user
+        this.sessions = new Map();
+        this.setupGlobalErrorHandlers();
     }
 
     /**
-     * Initialize Baileys session for a user (coach or staff)
+     * Setup global error handlers to prevent server crashes
      */
-    async initializeSession(userId, userType, sessionName = 'default') {
+    setupGlobalErrorHandlers() {
+        // Handle uncaught exceptions
+        process.on('uncaughtException', (error) => {
+            console.error(`[BaileysService] 🚨 UNCAUGHT EXCEPTION:`, error.message);
+            console.error(`[BaileysService] Stack:`, error.stack);
+        });
+
+        // Handle unhandled promise rejections
+        process.on('unhandledRejection', (reason, promise) => {
+            console.error(`[BaileysService] 🚨 UNHANDLED REJECTION at:`, promise);
+            console.error(`[BaileysService] Reason:`, reason);
+        });
+    }
+
+    /**
+     * Initialize Baileys session and get QR code
+     */
+    async initializeSession(userId, userType) {
         try {
-            console.log(`[BaileysService] Initializing session for ${userType} ${userId}`);
+            console.log(`[BaileysService] 🚀 Starting Baileys initialization for ${userType} ${userId}`);
             
             // Check if integration exists
             const integration = await WhatsAppIntegration.findOne({ 
@@ -42,33 +50,44 @@ class BaileysWhatsAppService {
             });
             
             if (!integration) {
-                throw new Error('Baileys integration not found for this user');
+                throw new Error('Baileys integration not found. Please setup integration first.');
+            }
+
+            // Clean up any existing session
+            if (this.sessions.has(userId)) {
+                console.log(`[BaileysService] 🧹 Cleaning up existing session for user ${userId}`);
+                await this.cleanupSession(userId);
             }
 
             // Create session directory
             const sessionDir = path.join(__dirname, '../baileys_auth', userId.toString());
             await fs.mkdir(sessionDir, { recursive: true });
 
+            console.log(`[BaileysService] 📁 Session directory created: ${sessionDir}`);
+
             // Load or create auth state
             const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
 
-            // Create WhatsApp socket
+            // Create WhatsApp socket with minimal configuration
             const { version } = await fetchLatestBaileysVersion();
             const sock = makeWASocket({
                 version,
                 auth: state,
-                printQRInTerminal: false,
-                logger: pino({ level: 'silent' }),
+                logger: pino({ level: 'silent' }), // Use proper pino logger
                 browser: Browsers.ubuntu('Chrome'),
-                connectTimeoutMs: 60_000,
-                keepAliveIntervalMs: 30_000,
+                connectTimeoutMs: 30_000,
+                keepAliveIntervalMs: 15_000,
                 markOnlineOnConnect: false,
-                emitOwnEvents: false,
-                shouldIgnoreJid: jid => jid.includes('@broadcast'),
-                getMessage: async () => {
-                    return { conversation: 'hello' };
-                }
+                emitOwnEvents: false
             });
+
+            // Validate socket creation
+            if (!sock || !sock.ev) {
+                throw new Error('Failed to create WhatsApp socket - invalid socket object');
+            }
+
+            console.log(`[BaileysService] 🔌 WhatsApp socket created successfully for user ${userId}`);
+            console.log(`[BaileysService] 🔌 Socket events available:`, Object.keys(sock.ev));
 
             // Store session data
             const sessionData = {
@@ -80,434 +99,231 @@ class BaileysWhatsAppService {
                 phoneNumber: null,
                 qrCode: null,
                 userId,
-                userType
+                userType,
+                createdAt: new Date()
             };
 
             this.sessions.set(userId, sessionData);
 
-            // Set up event handlers
-            this.setupEventHandlers(userId, sock);
+            // Setup event handlers
+            try {
+                this.setupEventHandlers(userId, sock);
+                console.log(`[BaileysService] ✅ Event handlers setup successfully for user ${userId}`);
+            } catch (error) {
+                console.error(`[BaileysService] ❌ Error setting up event handlers:`, error.message);
+                throw new Error(`Failed to setup event handlers: ${error.message}`);
+            }
 
-            // Update integration status
-            await this.updateIntegrationStatus(userId, userType, 'connecting');
-
-            console.log(`[BaileysService] Session initialized for ${userType} ${userId}`);
-            return { success: true, sessionId: sessionName };
+            // Wait for QR code (max 20 seconds)
+            console.log(`[BaileysService] ⏳ Waiting for QR code generation...`);
+            
+            const qrCode = await this.waitForQRCode(userId, 20000);
+            
+            if (qrCode) {
+                console.log(`[BaileysService] ✅ QR code generated successfully for user ${userId}`);
+                console.log(`[BaileysService] 📱 QR Code Data URL: ${qrCode.substring(0, 100)}...`);
+                
+                // Update integration status
+                await this.updateIntegrationStatus(userId, userType, 'qr_generated');
+                
+                return {
+                    success: true,
+                    qrCode: qrCode,
+                    message: 'QR code generated successfully. Scan with WhatsApp to connect.',
+                    sessionId: `session_${userId}`
+                };
+            } else {
+                throw new Error('QR code generation timeout. Please try again.');
+            }
 
         } catch (error) {
-            console.error(`[BaileysService] Error initializing session for ${userType} ${userId}:`, error);
-            await this.updateIntegrationStatus(userId, userType, 'error', error.message);
+            console.error(`[BaileysService] ❌ Error initializing session for ${userType} ${userId}:`, error.message);
+            console.error(`[BaileysService] ❌ Error stack:`, error.stack);
+            await this.cleanupSession(userId);
             throw error;
         }
     }
 
     /**
-     * Get QR code for WhatsApp Web authentication
+     * Wait for QR code generation with timeout
      */
-    async getQRCode(userId, userType) {
-        try {
-            const sessionData = this.sessions.get(userId);
-            if (!sessionData) {
-                throw new Error('Session not initialized. Please initialize session first.');
-            }
-
-            if (sessionData.qrCode) {
-                return {
-                    success: true,
-                    qrCode: sessionData.qrCode,
-                    status: 'qr_ready'
-                };
-            }
-
-            if (sessionData.isConnected) {
-                return {
-                    success: true,
-                    status: 'already_connected',
-                    phoneNumber: sessionData.phoneNumber
-                };
-            }
-
-            return {
-                success: false,
-                message: 'QR code not generated yet. Please wait for connection event.',
-                status: 'waiting'
-            };
-
-        } catch (error) {
-            console.error(`[BaileysService] Error getting QR code for ${userType} ${userId}:`, error);
-            throw error;
-        }
+    async waitForQRCode(userId, timeoutMs) {
+        return new Promise((resolve) => {
+            const startTime = Date.now();
+            let attempts = 0;
+            
+            const checkInterval = setInterval(() => {
+                attempts++;
+                const session = this.sessions.get(userId);
+                const elapsed = Date.now() - startTime;
+                
+                if (session && session.qrCode) {
+                    clearInterval(checkInterval);
+                    console.log(`[BaileysService] 🎯 QR code found after ${elapsed}ms (${attempts} attempts)`);
+                    resolve(session.qrCode);
+                    return;
+                }
+                
+                if (elapsed > timeoutMs) {
+                    clearInterval(checkInterval);
+                    console.log(`[BaileysService] ⏰ QR code generation timeout after ${elapsed}ms`);
+                    resolve(null);
+                    return;
+                }
+                
+                // Show progress every 2 seconds
+                if (attempts % 4 === 0) {
+                    const remaining = Math.ceil((timeoutMs - elapsed) / 1000);
+                    console.log(`[BaileysService] ⏳ Waiting for QR code... ${remaining}s remaining`);
+                }
+            }, 500);
+        });
     }
 
     /**
      * Setup event handlers for WhatsApp connection
      */
     setupEventHandlers(userId, sock) {
-        const sessionData = this.sessions.get(userId);
-        if (!sessionData) return;
-
-        // Connection update handler
-        sock.ev.on('connection.update', async (update) => {
-            const { connection, lastDisconnect, qr } = update;
-
-            if (qr) {
-                // Generate QR code as data URL
-                try {
-                    const qrDataUrl = await qrcode.toDataURL(qr);
-                    sessionData.qrCode = qrDataUrl;
-                    this.qrCodes.set(userId, qrDataUrl);
-                    
-                    console.log(`[BaileysService] QR code generated for user ${userId}`);
-                    
-                    // Publish QR code event
-                    await publishEvent('whatsapp.qr_generated', {
-                        userId,
-                        userType: sessionData.userType,
-                        qrCode: qrDataUrl
-                    });
-                } catch (error) {
-                    console.error(`[BaileysService] Error generating QR code:`, error);
-                }
-            }
-
-            if (connection === 'close') {
-                const shouldReconnect = (lastDisconnect?.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-                
-                if (shouldReconnect) {
-                    console.log(`[BaileysService] Connection closed for user ${userId}, attempting to reconnect...`);
-                    await this.reconnectSession(userId);
-                } else {
-                    console.log(`[BaileysService] Connection logged out for user ${userId}`);
-                    await this.cleanupSession(userId);
-                }
-            }
-
-            if (connection === 'open') {
-                console.log(`[BaileysService] Connection opened for user ${userId}`);
-                sessionData.isConnected = true;
-                sessionData.qrCode = null; // Clear QR code after connection
-                this.qrCodes.delete(userId);
-                
-                // Get phone number
-                const phoneNumber = sock.user?.id;
-                if (phoneNumber) {
-                    sessionData.phoneNumber = phoneNumber;
-                    await this.updateIntegrationStatus(userId, sessionData.userType, 'connected');
-                    
-                    // Update integration with phone number
-                    await WhatsAppIntegration.findOneAndUpdate(
-                        { userId, userType: sessionData.userType },
-                        { 
-                            personalPhoneNumber: phoneNumber,
-                            connectionStatus: 'connected',
-                            lastConnectionAt: new Date()
-                        }
-                    );
-                }
-
-                // Publish connection event
-                await publishEvent('whatsapp.connected', {
-                    userId,
-                    userType: sessionData.userType,
-                    phoneNumber: sessionData.phoneNumber
-                });
-            }
-        });
-
-        // Message handler
-        sock.ev.on('messages.upsert', async (m) => {
-            const msg = m.messages[0];
-            if (!msg.key.fromMe && msg.message) {
-                await this.handleIncomingMessage(userId, msg);
-            }
-        });
-
-        // Credentials update handler
-        sock.ev.on('creds.update', async () => {
-            if (sessionData.saveCreds) {
-                await sessionData.saveCreds();
-            }
-        });
-    }
-
-    /**
-     * Handle incoming WhatsApp messages
-     */
-    async handleIncomingMessage(userId, msg) {
         try {
             const sessionData = this.sessions.get(userId);
-            if (!sessionData) return;
-
-            const messageContent = this.extractMessageContent(msg);
-            const senderPhone = msg.key.remoteJid;
-            const messageId = msg.key.id;
-            const timestamp = new Date(msg.messageTimestamp * 1000);
-
-            console.log(`[BaileysService] Incoming message from ${senderPhone} to user ${userId}`);
-
-            // Save message to database
-            await this.saveIncomingMessage(userId, sessionData.userType, {
-                messageId,
-                from: senderPhone,
-                content: messageContent,
-                timestamp,
-                type: this.getMessageType(msg)
-            });
-
-            // Handle auto-reply if enabled
-            if (sessionData.integration.autoReplyEnabled) {
-                await this.sendAutoReply(userId, senderPhone, sessionData.integration.autoReplyMessage);
+            if (!sessionData) {
+                console.error(`[BaileysService] ❌ No session data found for user ${userId}`);
+                return;
             }
 
-            // Publish message event
-            await publishEvent('whatsapp.message_received', {
-                userId,
-                userType: sessionData.userType,
-                senderPhone,
-                messageContent,
-                timestamp
+            if (!sock || !sock.ev) {
+                console.error(`[BaileysService] ❌ Invalid socket for user ${userId}`);
+                return;
+            }
+
+            console.log(`[BaileysService] 🔧 Setting up event handlers for user ${userId}`);
+            console.log(`[BaileysService] 🔧 Available events:`, Object.keys(sock.ev));
+
+            // Connection update handler
+            sock.ev.on('connection.update', async (update) => {
+                try {
+                    const { connection, lastDisconnect, qr } = update;
+
+                    if (qr) {
+                        console.log(`[BaileysService] 🔍 QR code received for user ${userId}`);
+                        
+                        try {
+                            const qrDataUrl = await qrcode.toDataURL(qr);
+                            sessionData.qrCode = qrDataUrl;
+                            
+                            console.log(`[BaileysService] 🎯 QR code converted to data URL for user ${userId}`);
+                            console.log(`[BaileysService] 📱 QR Code Length: ${qrDataUrl.length} characters`);
+                            
+                            // Also print QR code in terminal for easy scanning
+                            console.log(`\n[BaileysService] 📱 SCAN THIS QR CODE WITH WHATSAPP:`);
+                            console.log(`[BaileysService] ${qr}`);
+                            console.log(`[BaileysService] 📱 END QR CODE\n`);
+                            
+                        } catch (error) {
+                            console.error(`[BaileysService] ❌ Error converting QR to data URL:`, error.message);
+                        }
+                    }
+
+                    if (connection === 'close') {
+                        console.log(`[BaileysService] 🔌 Connection closed for user ${userId}`);
+                        
+                        const shouldReconnect = (lastDisconnect?.error instanceof Error) && 
+                            lastDisconnect.error.output?.statusCode !== DisconnectReason.loggedOut;
+                        
+                        if (shouldReconnect) {
+                            console.log(`[BaileysService] 🔄 Connection closed unexpectedly, will attempt reconnection`);
+                        } else {
+                            console.log(`[BaileysService] 🚪 User logged out, cleaning up session`);
+                            await this.cleanupSession(userId);
+                        }
+                    }
+
+                    if (connection === 'open') {
+                        console.log(`[BaileysService] 🎉 CONNECTION ESTABLISHED for user ${userId}`);
+                        
+                        sessionData.isConnected = true;
+                        sessionData.qrCode = null; // Clear QR code
+                        
+                        // Get phone number
+                        const phoneNumber = sock.user?.id;
+                        if (phoneNumber) {
+                            sessionData.phoneNumber = phoneNumber;
+                            console.log(`[BaileysService] 📱 Phone number detected: ${phoneNumber}`);
+                            
+                            // Update integration status
+                            await this.updateIntegrationStatus(userId, sessionData.userType, 'connected');
+                            
+                            // Update integration with phone number
+                            await WhatsAppIntegration.findOneAndUpdate(
+                                { userId, userType: sessionData.userType },
+                                { 
+                                    personalPhoneNumber: phoneNumber,
+                                    connectionStatus: 'connected',
+                                    lastConnectionAt: new Date()
+                                }
+                            );
+                            
+                            console.log(`[BaileysService] ✅ Integration updated successfully`);
+                        }
+                        
+                        console.log(`[BaileysService] 🎯 Session ${userId} is now fully connected and ready!`);
+                    }
+                    
+                } catch (error) {
+                    console.error(`[BaileysService] ❌ Error in connection update handler:`, error.message);
+                }
+            });
+
+            // Message handler
+            sock.ev.on('messages.upsert', async (m) => {
+                try {
+                    const msg = m.messages[0];
+                    if (!msg.key.fromMe && msg.message) {
+                        console.log(`[BaileysService] 📨 Incoming message from ${msg.key.remoteJid} to user ${userId}`);
+                    }
+                } catch (error) {
+                    console.error(`[BaileysService] ❌ Error handling message:`, error.message);
+                }
+            });
+
+            // Credentials update handler
+            sock.ev.on('creds.update', async () => {
+                try {
+                    if (sessionData.saveCreds) {
+                        await sessionData.saveCreds();
+                        console.log(`[BaileysService] 💾 Credentials saved for user ${userId}`);
+                    }
+                } catch (error) {
+                    console.error(`[BaileysService] ❌ Error saving credentials:`, error.message);
+                }
             });
 
         } catch (error) {
-            console.error(`[BaileysService] Error handling incoming message:`, error);
+            console.error(`[BaileysService] ❌ Error setting up event handlers:`, error.message);
         }
-    }
-
-    /**
-     * Extract message content from different message types
-     */
-    extractMessageContent(msg) {
-        if (msg.message?.conversation) {
-            return msg.message.conversation;
-        } else if (msg.message?.extendedTextMessage?.text) {
-            return msg.message.extendedTextMessage.text;
-        } else if (msg.message?.imageMessage?.caption) {
-            return msg.message.imageMessage.caption;
-        } else if (msg.message?.videoMessage?.caption) {
-            return msg.message.videoMessage.caption;
-        } else if (msg.message?.audioMessage) {
-            return '[Audio Message]';
-        } else if (msg.message?.documentMessage) {
-            return `[Document: ${msg.message.documentMessage.fileName || 'Unknown'}]`;
-        }
-        return '[Unsupported Message Type]';
-    }
-
-    /**
-     * Get message type
-     */
-    getMessageType(msg) {
-        if (msg.message?.conversation || msg.message?.extendedTextMessage) return 'text';
-        if (msg.message?.imageMessage) return 'image';
-        if (msg.message?.videoMessage) return 'video';
-        if (msg.message?.audioMessage) return 'audio';
-        if (msg.message?.documentMessage) return 'document';
-        return 'unknown';
     }
 
     /**
      * Send WhatsApp message
      */
-    async sendMessage(userId, userType, recipientPhone, messageContent, messageType = 'text') {
+    async sendMessage(userId, userType, recipientPhone, messageContent) {
         try {
             const sessionData = this.sessions.get(userId);
             if (!sessionData || !sessionData.isConnected) {
                 throw new Error('WhatsApp session not connected');
             }
 
-            let messagePayload;
-            const jid = recipientPhone.includes('@s.whatsapp.net') ? recipientPhone : `${recipientPhone}@s.whatsapp.net`;
+            const jid = recipientPhone.includes('@s.whatsapp.net') ? 
+                recipientPhone : `${recipientPhone}@s.whatsapp.net`;
 
-            switch (messageType) {
-                case 'text':
-                    messagePayload = { text: messageContent };
-                    break;
-                case 'image':
-                    // Handle image message
-                    messagePayload = { image: { url: messageContent } };
-                    break;
-                case 'document':
-                    // Handle document message
-                    messagePayload = { document: { url: messageContent } };
-                    break;
-                default:
-                    messagePayload = { text: messageContent };
-            }
-
-            const sentMessage = await sessionData.sock.sendMessage(jid, messagePayload);
+            const sentMessage = await sessionData.sock.sendMessage(jid, { text: messageContent });
             
-            // Save outgoing message to database
-            await this.saveOutgoingMessage(userId, userType, {
-                messageId: sentMessage.key.id,
-                to: recipientPhone,
-                content: messageContent,
-                timestamp: new Date(),
-                type: messageType
-            });
-
-            // Update integration statistics
-            await this.updateMessageStats(userId, userType, 'sent');
-
-            console.log(`[BaileysService] Message sent successfully to ${recipientPhone}`);
+            console.log(`[BaileysService] ✅ Message sent successfully to ${recipientPhone}`);
             return { success: true, messageId: sentMessage.key.id };
 
         } catch (error) {
-            console.error(`[BaileysService] Error sending message:`, error);
+            console.error(`[BaileysService] ❌ Error sending message:`, error.message);
             throw error;
-        }
-    }
-
-    /**
-     * Send auto-reply message
-     */
-    async sendAutoReply(userId, recipientPhone, replyMessage) {
-        try {
-            await this.sendMessage(userId, 'text', recipientPhone, replyMessage);
-            console.log(`[BaileysService] Auto-reply sent to ${recipientPhone}`);
-        } catch (error) {
-            console.error(`[BaileysService] Error sending auto-reply:`, error);
-        }
-    }
-
-    /**
-     * Save incoming message to database
-     */
-    async saveIncomingMessage(userId, userType, messageData) {
-        try {
-            const message = new WhatsAppMessage({
-                userId,
-                userType,
-                messageId: messageData.messageId,
-                from: messageData.from,
-                to: null,
-                content: messageData.content,
-                direction: 'inbound',
-                timestamp: messageData.timestamp,
-                type: messageData.type,
-                isAutomated: false
-            });
-
-            await message.save();
-            console.log(`[BaileysService] Incoming message saved to database`);
-        } catch (error) {
-            console.error(`[BaileysService] Error saving incoming message:`, error);
-        }
-    }
-
-    /**
-     * Save outgoing message to database
-     */
-    async saveOutgoingMessage(userId, userType, messageData) {
-        try {
-            const message = new WhatsAppMessage({
-                userId,
-                userType,
-                messageId: messageData.messageId,
-                from: null,
-                to: messageData.to,
-                content: messageData.content,
-                direction: 'outbound',
-                timestamp: messageData.timestamp,
-                type: messageData.type,
-                isAutomated: false
-            });
-
-            await message.save();
-            console.log(`[BaileysService] Outgoing message saved to database`);
-        } catch (error) {
-            console.error(`[BaileysService] Error saving outgoing message:`, error);
-        }
-    }
-
-    /**
-     * Update integration status
-     */
-    async updateIntegrationStatus(userId, userType, status, errorMessage = null) {
-        try {
-            const updateData = {
-                connectionStatus: status,
-                lastConnectionAt: new Date()
-            };
-
-            if (status === 'error' && errorMessage) {
-                updateData.lastError = {
-                    message: errorMessage,
-                    timestamp: new Date(),
-                    code: 'CONNECTION_ERROR'
-                };
-                updateData.errorCount = { $inc: 1 };
-            }
-
-            await WhatsAppIntegration.findOneAndUpdate(
-                { userId, userType },
-                updateData
-            );
-
-            this.connectionStatus.set(userId, status);
-        } catch (error) {
-            console.error(`[BaileysService] Error updating integration status:`, error);
-        }
-    }
-
-    /**
-     * Update message statistics
-     */
-    async updateMessageStats(userId, userType, direction) {
-        try {
-            const updateField = direction === 'sent' ? 'totalMessagesSent' : 'totalMessagesReceived';
-            const updateData = {
-                [updateField]: { $inc: 1 },
-                lastMessageAt: new Date()
-            };
-
-            await WhatsAppIntegration.findOneAndUpdate(
-                { userId, userType },
-                updateData
-            );
-        } catch (error) {
-            console.error(`[BaileysService] Error updating message stats:`, error);
-        }
-    }
-
-    /**
-     * Reconnect session
-     */
-    async reconnectSession(userId) {
-        try {
-            const sessionData = this.sessions.get(userId);
-            if (!sessionData) return;
-
-            console.log(`[BaileysService] Attempting to reconnect session for user ${userId}`);
-            await this.updateIntegrationStatus(userId, sessionData.userType, 'connecting');
-
-            // Reinitialize session
-            await this.initializeSession(userId, sessionData.userType);
-        } catch (error) {
-            console.error(`[BaileysService] Error reconnecting session:`, error);
-            await this.updateIntegrationStatus(userId, 'error', error.message);
-        }
-    }
-
-    /**
-     * Cleanup session
-     */
-    async cleanupSession(userId) {
-        try {
-            const sessionData = this.sessions.get(userId);
-            if (!sessionData) return;
-
-            if (sessionData.sock) {
-                sessionData.sock.end();
-            }
-
-            await this.updateIntegrationStatus(userId, sessionData.userType, 'disconnected');
-            this.sessions.delete(userId);
-            this.qrCodes.delete(userId);
-            this.connectionStatus.delete(userId);
-
-            console.log(`[BaileysService] Session cleaned up for user ${userId}`);
-        } catch (error) {
-            console.error(`[BaileysService] Error cleaning up session:`, error);
         }
     }
 
@@ -524,8 +340,70 @@ class BaileysWhatsAppService {
             status: sessionData.isConnected ? 'connected' : 'connecting',
             phoneNumber: sessionData.phoneNumber,
             hasQRCode: !!sessionData.qrCode,
-            qrCode: sessionData.qrCode
+            qrCode: sessionData.qrCode,
+            sessionExists: true,
+            timestamp: new Date().toISOString()
         };
+    }
+
+    /**
+     * Update integration status
+     */
+    async updateIntegrationStatus(userId, userType, status) {
+        try {
+            await WhatsAppIntegration.findOneAndUpdate(
+                { userId, userType },
+                { 
+                    connectionStatus: status,
+                    lastConnectionAt: new Date()
+                }
+            );
+            console.log(`[BaileysService] 📊 Integration status updated to: ${status}`);
+        } catch (error) {
+            console.error(`[BaileysService] ❌ Error updating integration status:`, error.message);
+        }
+    }
+
+    /**
+     * Cleanup session
+     */
+    async cleanupSession(userId) {
+        try {
+            const sessionData = this.sessions.get(userId);
+            if (!sessionData) return;
+
+            console.log(`[BaileysService] 🧹 Cleaning up session for user ${userId}`);
+
+            if (sessionData.sock) {
+                try {
+                    sessionData.sock.end();
+                    console.log(`[BaileysService] 🔌 Socket ended for user ${userId}`);
+                } catch (error) {
+                    console.error(`[BaileysService] ❌ Error ending socket:`, error.message);
+                }
+            }
+
+            // Remove from sessions map
+            this.sessions.delete(userId);
+            console.log(`[BaileysService] 🗑️ Session cleaned up for user ${userId}`);
+
+        } catch (error) {
+            console.error(`[BaileysService] ❌ Error cleaning up session:`, error.message);
+        }
+    }
+
+    /**
+     * Disconnect session
+     */
+    async disconnectSession(userId) {
+        try {
+            await this.cleanupSession(userId);
+            await this.updateIntegrationStatus(userId, 'disconnected');
+            return { success: true, message: 'Session disconnected successfully' };
+        } catch (error) {
+            console.error(`[BaileysService] ❌ Error disconnecting session:`, error.message);
+            throw error;
+        }
     }
 
     /**
@@ -539,23 +417,11 @@ class BaileysWhatsAppService {
                 userType: sessionData.userType,
                 status: sessionData.isConnected ? 'connected' : 'connecting',
                 phoneNumber: sessionData.phoneNumber,
-                hasQRCode: !!sessionData.qrCode
+                hasQRCode: !!sessionData.qrCode,
+                createdAt: sessionData.createdAt
             });
         }
         return sessions;
-    }
-
-    /**
-     * Disconnect session
-     */
-    async disconnectSession(userId) {
-        try {
-            await this.cleanupSession(userId);
-            return { success: true, message: 'Session disconnected successfully' };
-        } catch (error) {
-            console.error(`[BaileysService] Error disconnecting session:`, error);
-            throw error;
-        }
     }
 }
 

@@ -29,7 +29,6 @@ const protect = async (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
         // Find user by the ID extracted from the token's payload
-        // .select('-password') is implicitly handled by `select: false` in User model
         const user = await User.findById(decoded.id);
 
         if (!user) {
@@ -38,6 +37,105 @@ const protect = async (req, res, next) => {
                 success: false,
                 message: 'User belonging to this token no longer exists.'
             });
+        }
+
+        // Check subscription status for coaches
+        if (user.role === 'coach') {
+            // Import CoachSubscription model for subscription check
+            const CoachSubscription = require('../schema/CoachSubscription');
+            
+            // Check subscription in CoachSubscription collection (single source of truth)
+            const subscription = await CoachSubscription.findOne({ 
+                coachId: user._id,
+                status: { $in: ['active', 'pending_renewal'] }
+            }).populate('planId');
+
+            console.log(`🔒 [Protect Middleware] Checking subscription for coach ${user._id}:`, {
+                hasSubscription: !!subscription,
+                status: subscription?.status,
+                isEnabled: subscription?.accountStatus?.isEnabled,
+                endDate: subscription?.currentPeriod?.endDate
+            });
+
+            // Allow access to subscription management routes even if subscription is expired
+            const subscriptionRoutes = [
+                '/api/subscriptions/renew',
+                '/api/subscriptions/cancel',
+                '/api/subscriptions/my-subscription',
+                '/api/subscriptions/subscribe',
+                '/api/subscriptions/plans'
+            ];
+            
+            const isSubscriptionRoute = subscriptionRoutes.some(route => 
+                req.originalUrl.includes(route)
+            );
+
+            // Check if coach has any active subscription
+            if (!subscription || subscription.status !== 'active') {
+                // Allow access to subscription routes even without subscription
+                if (isSubscriptionRoute) {
+                    console.log(`⚠️ [Protect Middleware] Coach ${user._id} accessing subscription route without active subscription`);
+                    req.subscription = subscription;
+                    req.subscriptionWarning = {
+                        message: subscription ? `Your subscription is currently ${subscription.status}. Please renew to continue using the platform.` : 'No subscription found. Please set up your subscription to continue.',
+                        code: subscription ? `SUBSCRIPTION_${subscription.status.toUpperCase()}` : 'NO_SUBSCRIPTION'
+                    };
+                } else {
+                    // BLOCK ACCESS TO ALL OTHER ROUTES - This is the key fix!
+                    const status = subscription ? subscription.status : 'none';
+                    const message = subscription ? 
+                        `Your subscription is currently ${status}. Please ensure your subscription is active to continue using the platform.` :
+                        'No subscription found. Please set up your subscription to continue using the platform.';
+                    
+                    console.log(`🚫 [Protect Middleware] Coach ${user._id} blocked from accessing ${req.originalUrl} - Subscription status: ${status}`);
+                    return res.status(403).json({
+                        success: false,
+                        message: message,
+                        code: subscription ? 'SUBSCRIPTION_NOT_ACTIVE' : 'NO_SUBSCRIPTION',
+                        subscriptionStatus: status,
+                        isEnabled: subscription?.accountStatus?.isEnabled || false,
+                        blockedRoute: req.originalUrl
+                    });
+                }
+            } else {
+                // Check if subscription end date has passed
+                if (subscription.currentPeriod && subscription.currentPeriod.endDate) {
+                    const now = new Date();
+                    const endDate = new Date(subscription.currentPeriod.endDate);
+                    
+                    if (endDate < now) {
+                        // Allow access to subscription routes even if period ended
+                        if (isSubscriptionRoute) {
+                            console.log(`⚠️ [Protect Middleware] Coach ${user._id} accessing subscription route with ended subscription period`);
+                            req.subscription = subscription;
+                            req.subscriptionWarning = {
+                                message: 'Your subscription period has ended. Please renew to continue using the platform.',
+                                code: 'SUBSCRIPTION_PERIOD_ENDED',
+                                daysOverdue: Math.ceil((now - endDate) / (1000 * 60 * 60 * 24))
+                            };
+                        } else {
+                            // BLOCK ACCESS TO ALL OTHER ROUTES
+                            console.log(`🚫 [Protect Middleware] Coach ${user._id} blocked from accessing ${req.originalUrl} - Subscription period ended`);
+                            return res.status(403).json({
+                                success: false,
+                                message: 'Your subscription period has ended. Please renew to continue using the platform.',
+                                code: 'SUBSCRIPTION_PERIOD_ENDED',
+                                subscriptionStatus: subscription.status,
+                                endDate: subscription.currentPeriod.endDate,
+                                daysOverdue: Math.ceil((now - endDate) / (1000 * 60 * 60 * 24)),
+                                blockedRoute: req.originalUrl
+                            });
+                        }
+                    }
+                }
+
+                // Add subscription info to request for potential use in routes
+                req.subscription = subscription;
+                console.log(`✅ [Protect Middleware] Subscription check passed for coach ${user._id}. Status: ${subscription.status}`);
+            }
+        } else {
+            // Non-coach roles don't need subscription checks
+            console.log(`🔒 [Protect Middleware] User ${user._id} has role ${user.role}, skipping subscription check`);
         }
 
         // Attach the user's ID and role to the request object

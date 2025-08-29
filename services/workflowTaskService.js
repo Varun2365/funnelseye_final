@@ -123,7 +123,8 @@ class WorkflowTaskService {
             // Find staff with appropriate permissions and skills
             const suitableStaff = workloadData.find(staff => {
                 const hasPermission = staff.permissions.includes('tasks:manage') || 
-                                    staff.permissions.includes('leads:manage');
+                                    staff.permissions.includes('leads:manage') ||
+                                    staff.permissions.includes('tasks:assign');
                 const hasSkills = this.checkTaskSkills(staff.skills, taskData);
                 return hasPermission && hasSkills;
             });

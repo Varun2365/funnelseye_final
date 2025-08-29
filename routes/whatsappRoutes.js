@@ -12,21 +12,21 @@ const { protect, authorizeCoach, authorizeStaff } = require('../middleware/auth'
  * @desc    Setup WhatsApp integration (Meta API, Baileys, or Central Fallback)
  * @access  Private (Coach or Staff)
  */
-router.post('/integration/setup', protect, authorizeCoach, whatsappController.setupIntegration);
+router.post('/integration/setup', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.setupIntegration);
 
 /**
  * @route   POST /api/whatsapp/integration/switch
  * @desc    Switch between integration types
  * @access  Private (Coach or Staff)
  */
-router.post('/integration/switch', protect, authorizeCoach, whatsappController.switchIntegration);
+router.post('/integration/switch', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.switchIntegration);
 
 /**
  * @route   GET /api/whatsapp/integration/list
  * @desc    Get user's WhatsApp integrations
  * @access  Private (Coach or Staff)
  */
-router.get('/integration/list', protect, authorizeCoach, whatsappController.getIntegrations);
+router.get('/integration/list', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.getIntegrations);
 
 /**
  * @route   GET /api/whatsapp/integration/coaches
@@ -40,14 +40,21 @@ router.get('/integration/coaches', whatsappController.getAllCoachIntegrations);
  * @desc    Test integration connection
  * @access  Private (Coach or Staff)
  */
-router.post('/integration/test', protect, authorizeCoach, whatsappController.testIntegration);
+router.post('/integration/test', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.testIntegration);
 
 /**
  * @route   GET /api/whatsapp/integration/health
  * @desc    Get integration health status
  * @access  Private (Coach or Staff)
  */
-router.get('/integration/health', protect, authorizeCoach, whatsappController.getIntegrationHealth);
+router.get('/integration/health', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.getIntegrationHealth);
+
+/**
+ * @route   DELETE /api/whatsapp/integration/delete
+ * @desc    Delete WhatsApp integration
+ * @access  Private (Coach or Staff)
+ */
+router.delete('/integration/delete', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.deleteIntegration);
 
 // ========================================
 // BAILEYS PERSONAL ACCOUNT ROUTES
@@ -58,28 +65,35 @@ router.get('/integration/health', protect, authorizeCoach, whatsappController.ge
  * @desc    Initialize Baileys WhatsApp session
  * @access  Private (Coach or Staff)
  */
-router.post('/baileys/initialize', protect, authorizeCoach, whatsappController.initializeBaileysSession);
+router.post('/baileys/initialize', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.initializeBaileysSession);
 
 /**
  * @route   GET /api/whatsapp/baileys/qr-code
  * @desc    Get QR code for WhatsApp Web authentication
  * @access  Private (Coach or Staff)
  */
-router.get('/baileys/qr-code', protect, authorizeCoach, whatsappController.getBaileysQRCode);
+router.get('/baileys/qr-code', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.getBaileysQRCode);
 
 /**
  * @route   GET /api/whatsapp/baileys/status
  * @desc    Get Baileys session status
  * @access  Private (Coach or Staff)
  */
-router.get('/baileys/status', protect, authorizeCoach, whatsappController.getBaileysSessionStatus);
+router.get('/baileys/status', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.getBaileysSessionStatus);
+
+/**
+ * @route   GET /api/whatsapp/baileys/qr
+ * @desc    Get QR code for WhatsApp Web authentication (alternative endpoint)
+ * @access  Private (Coach or Staff)
+ */
+router.get('/baileys/qr', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.getBaileysQRCode);
 
 /**
  * @route   POST /api/whatsapp/baileys/disconnect
  * @desc    Disconnect Baileys session
  * @access  Private (Coach or Staff)
  */
-router.post('/baileys/disconnect', protect, authorizeCoach, whatsappController.disconnectBaileysSession);
+router.post('/baileys/disconnect', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.disconnectBaileysSession);
 
 // ========================================
 // MESSAGING ROUTES
@@ -90,14 +104,14 @@ router.post('/baileys/disconnect', protect, authorizeCoach, whatsappController.d
  * @desc    Send WhatsApp message
  * @access  Private (Coach or Staff)
  */
-router.post('/message/send', protect, authorizeCoach, whatsappController.sendMessage);
+router.post('/message/send', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.sendMessage);
 
 /**
  * @route   POST /api/whatsapp/message/template
  * @desc    Send template message
  * @access  Private (Coach or Staff)
  */
-router.post('/message/template', protect, authorizeCoach, whatsappController.sendTemplateMessage);
+router.post('/message/template', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.sendTemplateMessage);
 
 // ========================================
 // INBOX MANAGEMENT ROUTES
@@ -108,49 +122,49 @@ router.post('/message/template', protect, authorizeCoach, whatsappController.sen
  * @desc    Get inbox conversations
  * @access  Private (Coach or Staff)
  */
-router.get('/inbox/conversations', protect, authorizeCoach, whatsappController.getInboxConversations);
+router.get('/inbox/conversations', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.getInboxConversations);
 
 /**
  * @route   GET /api/whatsapp/inbox/conversations/:contactPhone/messages
  * @desc    Get messages for a conversation
  * @access  Private (Coach or Staff)
  */
-router.get('/inbox/conversations/:contactPhone/messages', protect, authorizeCoach, whatsappController.getConversationMessages);
+router.get('/inbox/conversations/:contactPhone/messages', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.getConversationMessages);
 
 /**
  * @route   POST /api/whatsapp/inbox/conversations/:conversationId/read
  * @desc    Mark conversation as read
  * @access  Private (Coach or Staff)
  */
-router.post('/inbox/conversations/:conversationId/read', protect, authorizeCoach, whatsappController.markConversationAsRead);
+router.post('/inbox/conversations/:conversationId/read', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.markConversationAsRead);
 
 /**
- * @route   POST /api/whatsapp/inbox/conversations/:conversationId/archive
+ * @route   POST /api/whatsapp/inversations/:conversationId/archive
  * @desc    Archive/unarchive conversation
  * @access  Private (Coach or Staff)
  */
-router.post('/inbox/conversations/:conversationId/archive', protect, authorizeCoach, whatsappController.archiveConversation);
+router.post('/inbox/conversations/:conversationId/archive', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.archiveConversation);
 
 /**
  * @route   POST /api/whatsapp/inbox/conversations/:conversationId/pin
  * @desc    Toggle conversation pin
  * @access  Private (Coach or Staff)
  */
-router.post('/inbox/conversations/:conversationId/pin', protect, authorizeCoach, whatsappController.togglePinConversation);
+router.post('/inbox/conversations/:conversationId/pin', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.togglePinConversation);
 
 /**
  * @route   GET /api/whatsapp/inbox/search
  * @desc    Search conversations and messages
  * @access  Private (Coach or Staff)
  */
-router.get('/inbox/search', protect, authorizeCoach, whatsappController.searchInbox);
+router.get('/inbox/search', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.searchInbox);
 
 /**
  * @route   GET /api/whatsapp/inbox/stats
  * @desc    Get inbox statistics
  * @access  Private (Coach or Staff)
  */
-router.get('/inbox/stats', protect, authorizeCoach, whatsappController.getInboxStats);
+router.get('/inbox/stats', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.getInboxStats);
 
 // ========================================
 // STAFF-SPECIFIC ROUTES
@@ -161,7 +175,7 @@ router.get('/inbox/stats', protect, authorizeCoach, whatsappController.getInboxS
  * @desc    Get all staff WhatsApp integrations (Admin only)
  * @access  Private (Admin only)
  */
-router.get('/staff/integrations', protect, authorizeCoach, whatsappController.getIntegrations);
+router.get('/staff/integrations', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.getIntegrations);
 
 // ========================================
 // ADMIN ROUTES
@@ -172,7 +186,7 @@ router.get('/staff/integrations', protect, authorizeCoach, whatsappController.ge
  * @desc    Get all WhatsApp integrations across the platform (Admin only)
  * @access  Private (Admin only)
  */
-router.get('/admin/all-integrations', protect, authorizeCoach, whatsappController.getAllCoachIntegrations);
+router.get('/admin/all-integrations', protect, authorizeCoach('admin'), whatsappController.getAllCoachIntegrations);
 
 // ========================================
 // CONTACT MANAGEMENT ROUTES
@@ -183,21 +197,21 @@ router.get('/admin/all-integrations', protect, authorizeCoach, whatsappControlle
  * @desc    Get all contacts
  * @access  Private (Coach only)
  */
-router.get('/contacts', protect, authorizeCoach, whatsappController.getContacts);
+router.get('/contacts', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.getContacts);
 
 /**
  * @route   PUT /api/whatsapp/contacts/:contactId
  * @desc    Update contact information
- * @access  Private (Coach only)
+ * @access  Private (Coach or Staff)
  */
-router.put('/contacts/:contactId', protect, authorizeCoach, whatsappController.updateContact);
+router.put('/contacts/:contactId', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.updateContact);
 
 /**
  * @route   POST /api/whatsapp/contacts/:contactId/block
  * @desc    Block/unblock contact
- * @access  Private (Coach only)
+ * @access  Private (Coach or Staff)
  */
-router.post('/contacts/:contactId/block', protect, authorizeCoach, whatsappController.toggleContactBlock);
+router.post('/contacts/:contactId/block', protect, authorizeCoach('coach', 'admin', 'staff'), whatsappController.toggleContactBlock);
 
 // ========================================
 // WEBHOOK ROUTES (for Meta API)

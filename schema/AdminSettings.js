@@ -170,11 +170,8 @@ const adminSettingsSchema = new mongoose.Schema({
             windowMs: { type: Number, default: 900000 }, // 15 minutes
             maxRequests: { type: Number, default: 100 }
         },
-        corsSettings: {
-            allowedOrigins: [{ type: String, default: ['http://localhost:3000'] }],
-            allowedMethods: [{ type: String, default: ['GET', 'POST', 'PUT', 'DELETE'] }],
-            allowedHeaders: [{ type: String, default: ['Content-Type', 'Authorization'] }]
-        },
+        // CORS settings are now centrally managed in config/cors.js
+        // This allows for unified CORS configuration across all routes
         encryption: {
             algorithm: { type: String, default: 'aes-256-gcm' },
             keyRotationDays: { type: Number, default: 90 }

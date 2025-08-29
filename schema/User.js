@@ -80,7 +80,8 @@ const userSchema = new mongoose.Schema({
     },
     resetPasswordExpire: {
         type: Date
-    }
+    },
+    
 }, {
     timestamps: true,
     discriminatorKey: 'role',

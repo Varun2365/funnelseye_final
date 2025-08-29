@@ -8,11 +8,11 @@ const metaWhatsAppService = require('../services/metaWhatsAppService');
  */
 const setupIntegration = async (req, res) => {
     try {
-        const { userId, role } = req.user;
+        const { _id: userId, role } = req.user;
         const integrationData = req.body;
 
-        // Determine user type
-        const userType = role === 'coach' ? 'coach' : 'staff';
+        // Determine user type - admin should keep admin role, not be converted to staff
+        const userType = role;
 
         // Validate required fields
         if (!integrationData.integrationType) {
@@ -56,10 +56,10 @@ const setupIntegration = async (req, res) => {
  */
 const switchIntegration = async (req, res) => {
     try {
-        const { userId, role } = req.user;
+        const { _id: userId, role } = req.user;
         const { integrationType } = req.body;
 
-        const userType = role === 'coach' ? 'coach' : 'staff';
+        const userType = role;
 
         if (!integrationType || !['meta_official', 'baileys_personal', 'central_fallback'].includes(integrationType)) {
             return res.status(400).json({
@@ -91,18 +91,35 @@ const switchIntegration = async (req, res) => {
  */
 const getIntegrations = async (req, res) => {
     try {
-        const { userId, role } = req.user;
-        const userType = role === 'coach' ? 'coach' : 'staff';
+        const { _id: userId, role } = req.user;
+        const userType = role;
+
+
+        // Log the request details
+        console.log(`📋 Request Headers:`, {
+            'user-agent': req.headers['user-agent'],
+            'origin': req.headers['origin'],
+            'authorization': req.headers['authorization'] ? 'Bearer ***' : 'None'
+        });
+
+        console.log(`🔍 [WhatsAppController] Calling unifiedWhatsAppService.getUserIntegrations(${userId}, ${userType})`);
 
         const integrations = await unifiedWhatsAppService.getUserIntegrations(userId, userType);
 
-        res.status(200).json({
+ 
+
+        // Log the response being sent
+        const responseData = {
             success: true,
             data: integrations
-        });
+        };
+        
+ 
+        res.status(200).json(responseData);
 
     } catch (error) {
-        console.error('[WhatsAppController] Error getting integrations:', error);
+        console.error(`❌ [WhatsAppController] Error getting integrations:`, error);
+        console.error(`❌ [WhatsAppController] Error stack:`, error.stack);
         res.status(500).json({
             success: false,
             message: 'Error getting integrations',
@@ -138,8 +155,8 @@ const getAllCoachIntegrations = async (req, res) => {
  */
 const testIntegration = async (req, res) => {
     try {
-        const { userId, role } = req.user;
-        const userType = role === 'coach' ? 'coach' : 'staff';
+        const { _id: userId, role } = req.user;
+        const userType = role;
 
         const result = await unifiedWhatsAppService.testIntegration(userId, userType);
 
@@ -163,8 +180,8 @@ const testIntegration = async (req, res) => {
  */
 const getIntegrationHealth = async (req, res) => {
     try {
-        const { userId, role } = req.user;
-        const userType = role === 'coach' ? 'coach' : 'staff';
+        const { _id: userId, role } = req.user;
+        const userType = role;
 
         const result = await unifiedWhatsAppService.getIntegrationHealth(userId, userType);
 
@@ -188,10 +205,10 @@ const getIntegrationHealth = async (req, res) => {
  */
 const sendMessage = async (req, res) => {
     try {
-        const { userId, role } = req.user;
+        const { _id: userId, role } = req.user;
         const { recipientPhone, messageContent, messageType, useTemplate } = req.body;
 
-        const userType = role === 'coach' ? 'coach' : 'staff';
+        const userType = role;
 
         if (!recipientPhone || !messageContent) {
             return res.status(400).json({
@@ -234,10 +251,10 @@ const sendMessage = async (req, res) => {
  */
 const sendTemplateMessage = async (req, res) => {
     try {
-        const { userId, role } = req.user;
+        const { _id: userId, role } = req.user;
         const { recipientPhone, templateName, language, components } = req.body;
 
-        const userType = role === 'coach' ? 'coach' : 'staff';
+        const userType = role;
 
         if (!recipientPhone || !templateName) {
             return res.status(400).json({
@@ -282,19 +299,37 @@ const sendTemplateMessage = async (req, res) => {
  */
 const initializeBaileysSession = async (req, res) => {
     try {
-        const { userId, role } = req.user;
-        const userType = role === 'coach' ? 'coach' : 'staff';
-
+        const { _id: userId, role } = req.user;
+        const userType = role;
+        console.log(`🚀 [WhatsAppController] Initializing Baileys session for user ${userId} with userType ${userType}`);
+        
+        // Initialize the session and get QR code in one call
         const result = await unifiedWhatsAppService.initializeBaileysIntegration(userId, userType);
 
-        res.status(200).json({
-            success: true,
-            message: 'Baileys session initialized',
-            data: result
-        });
+        if (result.success) {
+            console.log(`✅ [WhatsAppController] Baileys session initialized successfully for user ${userId}`);
+            console.log(`📱 [WhatsAppController] QR Code Status: ${result.qrCode ? 'Generated' : 'Not Generated'}`);
+            
+            res.status(200).json({
+                success: true,
+                message: 'Baileys session initialized successfully',
+                data: {
+                    sessionId: result.sessionId,
+                    qrCode: result.qrCode,
+                    status: result.status || 'initialized',
+                    message: result.message
+                }
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: 'Failed to initialize Baileys session',
+                data: result
+            });
+        }
 
     } catch (error) {
-        console.error('[WhatsAppController] Error initializing Baileys session:', error);
+        console.error('❌ [WhatsAppController] Error initializing Baileys session:', error.message);
         res.status(500).json({
             success: false,
             message: 'Error initializing Baileys session',
@@ -308,8 +343,8 @@ const initializeBaileysSession = async (req, res) => {
  */
 const getBaileysQRCode = async (req, res) => {
     try {
-        const { userId, role } = req.user;
-        const userType = role === 'coach' ? 'coach' : 'staff';
+        const { _id: userId, role } = req.user;
+        const userType = role;
 
         const result = await unifiedWhatsAppService.getBaileysQRCode(userId, userType);
 
@@ -333,8 +368,8 @@ const getBaileysQRCode = async (req, res) => {
  */
 const getBaileysSessionStatus = async (req, res) => {
     try {
-        const { userId, role } = req.user;
-        const userType = role === 'coach' ? 'coach' : 'staff';
+        const { _id: userId, role } = req.user;
+        const userType = role;
 
         const result = await unifiedWhatsAppService.getBaileysSessionStatus(userId, userType);
 
@@ -358,8 +393,8 @@ const getBaileysSessionStatus = async (req, res) => {
  */
 const disconnectBaileysSession = async (req, res) => {
     try {
-        const { userId, role } = req.user;
-        const userType = role === 'coach' ? 'coach' : 'staff';
+        const { _id: userId, role } = req.user;
+        const userType = role;
 
         const result = await unifiedWhatsAppService.disconnectBaileysSession(userId, userType);
 
@@ -384,9 +419,9 @@ const disconnectBaileysSession = async (req, res) => {
  */
 const getInboxConversations = async (req, res) => {
     try {
-        const { userId, role } = req.user;
+        const { _id: userId, role } = req.user;
         const { limit = 20 } = req.query;
-        const userType = role === 'coach' ? 'coach' : 'staff';
+        const userType = role;
 
         const conversations = await unifiedWhatsAppService.getUserConversations(userId, userType, parseInt(limit));
 
@@ -410,10 +445,10 @@ const getInboxConversations = async (req, res) => {
  */
 const getConversationMessages = async (req, res) => {
     try {
-        const { userId, role } = req.user;
+        const { _id: userId, role } = req.user;
         const { contactPhone } = req.params;
         const { limit = 50 } = req.query;
-        const userType = role === 'coach' ? 'coach' : 'staff';
+        const userType = role;
 
         const messages = await unifiedWhatsAppService.getConversationHistory(
             userId, 
@@ -539,9 +574,9 @@ const togglePinConversation = async (req, res) => {
  */
 const searchInbox = async (req, res) => {
     try {
-        const { userId, role } = req.user;
+        const { _id: userId, role } = req.user;
         const { searchTerm, searchType = 'conversations', limit = 20 } = req.query;
-        const userType = role === 'coach' ? 'coach' : 'staff';
+        const userType = role;
 
         if (!searchTerm) {
             return res.status(400).json({
@@ -592,8 +627,8 @@ const searchInbox = async (req, res) => {
  */
 const getInboxStats = async (req, res) => {
     try {
-        const { userId, role } = req.user;
-        const userType = role === 'coach' ? 'coach' : 'staff';
+        const { _id: userId, role } = req.user;
+        const userType = role;
 
         const [conversationCount, messageCount, unreadCount] = await Promise.all([
             WhatsAppConversation.countDocuments({ userId, userType }),
@@ -627,8 +662,8 @@ const getInboxStats = async (req, res) => {
  */
 const getContacts = async (req, res) => {
     try {
-        const { userId, role } = req.user;
-        const userType = role === 'coach' ? 'coach' : 'staff';
+        const { _id: userId, role } = req.user;
+        const userType = role;
 
         const contacts = await WhatsAppContact.find({ userId, userType })
             .sort({ lastInteractionAt: -1 });
@@ -680,6 +715,32 @@ const updateContact = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error updating contact',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Delete WhatsApp integration
+ */
+const deleteIntegration = async (req, res) => {
+    try {
+        const { _id: userId, role } = req.user;
+        const userType = role;
+
+        const result = await unifiedWhatsAppService.deleteIntegration(userId, userType);
+
+        res.status(200).json({
+            success: true,
+            message: 'WhatsApp integration deleted successfully',
+            data: result
+        });
+
+    } catch (error) {
+        console.error('[WhatsAppController] Error deleting integration:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error deleting WhatsApp integration',
             error: error.message
         });
     }
@@ -741,5 +802,6 @@ module.exports = {
     getInboxStats,
     getContacts,
     updateContact,
-    toggleContactBlock
+    toggleContactBlock,
+    deleteIntegration
 };

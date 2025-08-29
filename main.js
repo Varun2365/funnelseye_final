@@ -37,6 +37,7 @@ const coachRoutes = require('./routes/coachRoutes');
 const metaRoutes = require('./routes/metaRoutes.js');
 const paymentRoutes = require('./routes/paymentRoutes.js');
 const staffRoutes = require('./routes/staffRoutes.js');
+const staffCalendarRoutes = require('./routes/staffCalendarRoutes.js');
 const adsRoutes = require('./routes/adsRoutes');
 const aiAdsRoutes = require('./routes/aiAdsRoutes');
 const workflowRoutes = require('./routes/workflowRoutes');
@@ -44,6 +45,8 @@ const staffLeaderboardRoutes = require('./routes/staffLeaderboardRoutes');
 const coachDashboardRoutes = require('./routes/coachDashboardRoutes');
 const staffDashboardRoutes = require('./routes/staffDashboardRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const subscriptionManagementTask = require('./tasks/subscriptionManagement');
+const coachPaymentRoutes = require('./routes/coachPaymentRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const nurturingSequenceRoutes = require('./routes/nurturingSequenceRoutes');
 const leadMagnetsRoutes = require('./routes/leadMagnetsRoutes');
@@ -75,86 +78,52 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: process.env.FRONTEND_URL || "http://localhost:5000",
-        methods: ["GET", "POST"]
+        origin: ["http://localhost:5000", "http://localhost:3000", "https://funnelseye.com"],
+        methods: ["GET", "POST"],
+        credentials: true
     }
 });
 
 // Socket.IO event handlers for admin notifications
-io.on('connection', (socket) => {
-    // Admin joins admin room
-    socket.on('admin-join', (adminId) => {
-        socket.join('admin-room');
-        socket.join(`admin-${adminId}`);
-    });
+// io.on('connection', (socket) => {
+//     // Admin joins admin room
+//     socket.on('admin-join', (adminId) => {
+//         socket.join('admin-room');
+//         socket.join(`admin-${adminId}`);
+//     });
 
-    // Coach joins coach room
-    socket.on('coach-join', (coachId) => {
-        socket.join('coach-room');
-        socket.join(`user-${coachId}`);
-    });
+//     // Coach joins coach room
+//     socket.on('coach-join', (coachId) => {
+//         socket.join('coach-room');
+//         socket.join(`user-${coachId}`);
+//     });
 
-    // User joins specific user room
-    socket.on('user-join', (userId) => {
-        socket.join(`user-${userId}`);
-    });
+//     // User joins specific user room
+//     socket.on('user-join', (userId) => {
+//         socket.join(`user-${userId}`);
+//     });
 
-    // Handle admin notifications
-    socket.on('admin-notification', (data) => {
-        socket.to('admin-room').emit('admin-notification', data);
-    });
+//     // Handle admin notifications
+//     socket.on('admin-notification', (data) => {
+//         socket.to('admin-room').emit('admin-notification', data);
+//     });
 
-    // Handle coach notifications
-    socket.on('coach-notification', (data) => {
-        socket.to('coach-room').emit('coach-notification', data);
-    });
+//     // Handle coach notifications
+//     socket.on('coach-notification', (data) => {
+//         socket.to('coach-room').emit('coach-notification', data);
+//     });
 
-    // Handle global notifications
-    socket.on('global-notification', (data) => {
-        io.emit('global-notification', data);
-    });
-});
+//     // Handle global notifications
+//     socket.on('global-notification', (data) => {
+//         io.emit('global-notification', data);
+//     });
+// });
 
 // ✨ Express Middleware Setup
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-// Enhanced CORS configuration for development and production
-const corsOptions = {
-    origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        
-        // Allow localhost for development
-        if (origin === 'http://localhost:5000' || origin === 'http://localhost:3000') {
-            return callback(null, true);
-        }
-        
-        // Allow your production frontend domain
-        if (origin === 'https://funnelseye.com' || origin === 'https://www.funnelseye.com') {
-            return callback(null, true);
-        }
-        
-        // Allow custom domains (for coach websites)
-        if (origin && origin.includes('funnelseye.com')) {
-            return callback(null, true);
-        }
-        
-        // Allow the specific frontend URL from environment
-        if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
-            return callback(null, true);
-        }
-        
-        // Log blocked origins for debugging
-        console.log(`CORS blocked origin: ${origin}`);
-        
-        // Allow the request (you can change this to false if you want to be more restrictive)
-        callback(null, true);
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-    credentials: true,
-    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
-};
+// Unified CORS configuration - consolidated from scattered pieces
+const { corsOptions } = require('./config/cors');
 
 app.use(cors(corsOptions));
 
@@ -231,6 +200,7 @@ app.use('/api/coach-profile', coachRoutes);
 // ===== E-COMMERCE & PAYMENTS =====
 app.use('/api/payments', paymentRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/coach-payments', coachPaymentRoutes);
 app.use('/api/cart', cartRoutes);
 
 // ===== MARKETING & ADVERTISING =====
@@ -244,6 +214,7 @@ app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/staff-dashboard', staffDashboardRoutes);
 app.use('/api/staff-leaderboard', staffLeaderboardRoutes);
+app.use('/api/staff-calendar', staffCalendarRoutes);
 
 // // ===== MESSAGE TEMPLATES & ZOOM INTEGRATION =====
 app.use('/api/message-templates', messageTemplateRoutes);
@@ -500,6 +471,9 @@ const startServer = async () => {
 
             // --- Start the scheduled task ---
             checkInactiveCoaches.start();
+            
+            // --- Start subscription management tasks ---
+            subscriptionManagementTask.init();
             
             // --- Start Zoom cleanup service ---
             zoomCleanupService.startCleanup(2, 'daily'); // Default: 2 days retention, daily cleanup

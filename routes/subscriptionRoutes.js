@@ -2,115 +2,58 @@
 
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
-const paymentService = require('../services/paymentService');
-const asyncHandler = require('../middleware/async');
+const {
+    // Subscription Plans
+    createPlan,
+    getPlans,
+    updatePlan,
+    deletePlan,
+    
+    // Coach Subscriptions
+    subscribeCoach,
+    renewSubscription,
+    cancelSubscription,
+    getMySubscription,
+    getCoachSubscription,
+    getAllSubscriptions,
+    
+    // Admin Utilities
+    getSubscriptionAnalytics,
+    sendReminders,
+    disableExpiredSubscriptions
+} = require('../controllers/subscriptionController');
 
-// Protect all subscription routes
-router.use(protect);
+const { protect, authorizeCoach, authorizeAdmin } = require('../middleware/auth');
 
-// ===== SUBSCRIPTION MANAGEMENT =====
+// ===== SUBSCRIPTION PLANS =====
 
-/**
- * @route   POST /api/subscriptions
- * @desc    Create a new subscription
- * @access  Private (Coach)
- */
-router.post('/', asyncHandler(async (req, res, next) => {
-    const { coachId, planId, paymentMethod, autoRenew = true } = req.body;
-    
-    const subscription = await paymentService.createSubscription({
-        coachId,
-        planId,
-        paymentMethod,
-        autoRenew
-    });
-    
-    res.status(201).json({
-        success: true,
-        data: subscription
-    });
-}));
+// Public routes
+router.get('/plans', getPlans);
 
-/**
- * @route   GET /api/subscriptions/:subscriptionId
- * @desc    Get subscription details
- * @access  Private (Coach)
- */
-router.get('/:subscriptionId', asyncHandler(async (req, res, next) => {
-    const { subscriptionId } = req.params;
-    
-    // This would typically fetch from a subscription service
-    // For now, return mock data
-    const subscription = {
-        id: subscriptionId,
-        status: 'active',
-        planId: 'professional',
-        nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-    };
-    
-    res.json({
-        success: true,
-        data: subscription
-    });
-}));
+// Admin only routes
+router.post('/plans', protect, authorizeAdmin, createPlan);
+router.put('/plans/:id', protect, authorizeAdmin, updatePlan);
+router.delete('/plans/:id', protect, authorizeAdmin, deletePlan);
 
-/**
- * @route   PUT /api/subscriptions/:subscriptionId/renew
- * @desc    Renew subscription
- * @access  Private (Coach)
- */
-router.put('/:subscriptionId/renew', asyncHandler(async (req, res, next) => {
-    const { subscriptionId } = req.params;
-    
-    const renewedSubscription = await paymentService.renewSubscription(subscriptionId);
-    
-    res.json({
-        success: true,
-        data: renewedSubscription
-    });
-}));
+// ===== COACH SUBSCRIPTIONS =====
 
-/**
- * @route   PUT /api/subscriptions/:subscriptionId/cancel
- * @desc    Cancel subscription
- * @access  Private (Coach)
- */
-router.put('/:subscriptionId/cancel', asyncHandler(async (req, res, next) => {
-    const { subscriptionId } = req.params;
-    const { reason } = req.body;
-    
-    const cancelledSubscription = await paymentService.cancelSubscription(subscriptionId, reason);
-    
-    res.json({
-        success: true,
-        data: cancelledSubscription
-    });
-}));
+// Coach routes
+router.post('/subscribe', protect, authorizeCoach('coach'), subscribeCoach);
+router.post('/renew', protect, authorizeCoach('coach'), renewSubscription);
+router.post('/cancel', protect, authorizeCoach('coach'), cancelSubscription);
+router.get('/my-subscription', protect, authorizeCoach('coach'), getMySubscription);
 
-/**
- * @route   GET /api/subscriptions/coach/:coachId
- * @desc    Get all subscriptions for a coach
- * @access  Private (Coach)
- */
-router.get('/coach/:coachId', asyncHandler(async (req, res, next) => {
-    const { coachId } = req.params;
-    
-    // This would typically fetch from a subscription service
-    // For now, return mock data
-    const subscriptions = [
-        {
-            id: 'sub_1',
-            planId: 'professional',
-            status: 'active',
-            nextBillingDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        }
-    ];
-    
-    res.json({
-        success: true,
-        data: subscriptions
-    });
-}));
+// Admin routes for managing coach subscriptions
+router.post('/subscribe-coach', protect, authorizeAdmin, subscribeCoach);
+router.post('/renew-coach', protect, authorizeAdmin, renewSubscription);
+router.post('/cancel-coach', protect, authorizeAdmin, cancelSubscription);
+router.get('/coach/:coachId', protect, authorizeAdmin, getCoachSubscription);
+router.get('/all', protect, authorizeAdmin, getAllSubscriptions);
+
+// ===== ADMIN UTILITIES =====
+
+router.get('/analytics', protect, authorizeAdmin, getSubscriptionAnalytics);
+router.post('/send-reminders', protect, authorizeAdmin, sendReminders);
+router.post('/disable-expired', protect, authorizeAdmin, disableExpiredSubscriptions);
 
 module.exports = router;

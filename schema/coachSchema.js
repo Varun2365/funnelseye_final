@@ -159,6 +159,56 @@ const coachSchema = new mongoose.Schema({
         default: 100
     },
 
+    // ✅ ADDED: Payment Collection Settings
+    paymentCollection: {
+        upiId: {
+            type: String,
+            trim: true,
+            default: null,
+            match: [/^[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+$/, 'Please enter a valid UPI ID (e.g., username@bank)']
+        },
+        bankAccount: {
+            accountNumber: {
+                type: String,
+                trim: true,
+                default: null
+            },
+            ifscCode: {
+                type: String,
+                trim: true,
+                default: null,
+                match: [/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Please enter a valid IFSC code']
+            },
+            accountHolderName: {
+                type: String,
+                trim: true,
+                default: null
+            }
+        },
+        isPaymentCollectionEnabled: {
+            type: Boolean,
+            default: false
+        },
+        paymentCollectionMethod: {
+            type: String,
+            enum: ['upi', 'bank_transfer', 'both'],
+            default: 'upi'
+        },
+        lastPaymentReceived: {
+            amount: { type: Number, default: 0 },
+            date: { type: Date, default: null },
+            reference: { type: String, default: null }
+        },
+        totalPaymentsReceived: {
+            type: Number,
+            default: 0
+        },
+        pendingPayments: {
+            type: Number,
+            default: 0
+        }
+    },
+
     // --- Lead Magnet Settings ---
     leadMagnets: {
         ai_diet_planner: {

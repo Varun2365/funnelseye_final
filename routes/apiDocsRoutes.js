@@ -6,7 +6,8 @@ const router = express.Router();
 
 // TODO: Add the API documentation route logic here
 const allApiRoutes = {
-    '🔑 Authentication': [
+    // ===== 🔐 CORE AUTHENTICATION & USER MANAGEMENT =====
+    '🔐 Authentication & User Management': [
         { method: 'POST', path: '/api/auth/signup', desc: 'User Registration', sample: { name: 'John Doe', email: 'john@example.com', password: 'Passw0rd!', role: 'coach' } },
         { method: 'POST', path: '/api/auth/verify-otp', desc: 'OTP Verification', sample: { email: 'john@example.com', otp: '123456' } },
         { method: 'POST', path: '/api/auth/login', desc: 'User Login', sample: { email: 'john@example.com', password: 'Passw0rd!' } },
@@ -16,6 +17,7 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/auth/me', desc: 'Get Current User' },
         { method: 'GET', path: '/api/auth/logout', desc: 'Logout User' },
     ],
+    // ===== 📈 FUNNEL & WEBSITE MANAGEMENT =====
     '📈 Funnel Management': [
         { method: 'GET', path: '/api/funnels/coach/:coachId/funnels', desc: 'Get all Funnels for a Coach' },
         { method: 'GET', path: '/api/funnels/coach/:coachId/funnels/:funnelId', desc: 'Get Single Funnel Details' },
@@ -34,10 +36,8 @@ const allApiRoutes = {
         // { method: 'DELETE', path: '/api/funnels/:funnelId/custom-urls/:customSlug', desc: 'Delete Custom URL' },
         // { method: 'GET', path: '/api/funnels/:funnelId/custom-urls/:customSlug/analytics', desc: 'Get Custom URL Analytics' },
     ],
-    '🔗 Custom URL Access (Public)': [
-        { method: 'GET', path: '/api/custom-urls/:customSlug', desc: 'Get Funnel by Custom URL (Public)' },
-        { method: 'POST', path: '/api/custom-urls/:customSlug/visit', desc: 'Track Custom URL Visit (Public)', sample: { converted: true } },
-    ],
+
+    // ===== 🌐 CUSTOM DOMAIN & URL MANAGEMENT =====
     '🌐 Custom Domain Management': [
         { method: 'POST', path: '/api/custom-domains', desc: 'Add Custom Domain', sample: { domain: 'coachvarun.in' } },
         { method: 'GET', path: '/api/custom-domains', desc: 'Get All Custom Domains for Coach' },
@@ -49,6 +49,7 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/custom-domains/:id/dns-instructions', desc: 'Get DNS Setup Instructions' },
         { method: 'GET', path: '/api/custom-domains/resolve/:hostname', desc: 'Resolve Domain by Hostname (Public)' },
     ],
+    // ===== 🎯 LEAD MANAGEMENT & CRM =====
     '🎯 Lead Management (CRM)': [
         { method: 'POST', path: '/api/leads', desc: 'Create New Lead (PUBLIC)', sample: { coachId: '...', funnelId: '...', name: 'Jane', email: 'jane@ex.com', phone: '+11234567890', source: 'Web Form' } },
         { method: 'GET', path: '/api/leads', desc: 'Get All Leads (filters/pagination)' },
@@ -66,17 +67,67 @@ const allApiRoutes = {
         { method: 'POST', path: '/api/leads/:leadId/generate-nurturing-sequence', desc: 'Generate AI-powered nurturing strategy', sample: { leadId: '...', sequenceType: 'warm_lead' } },
         { method: 'POST', path: '/api/leads/:leadId/generate-followup-message', desc: 'Generate AI-powered follow-up message', sample: { leadId: '...', followUpType: 'first_followup', context: 'General follow-up' } },
     ],
+    // ===== 🌱 LEAD NURTURING & SEQUENCES =====
+    '🌱 Lead Nurturing': [
+        { method: 'POST', path: '/api/lead-nurturing/assign-sequence', desc: 'Assign nurturing sequence to lead', sample: { leadId: '...', sequenceId: '...' } },
+        { method: 'POST', path: '/api/lead-nurturing/progress-step', desc: 'Progress lead to next nurturing step', sample: { leadId: '...' } },
+        { method: 'GET', path: '/api/lead-nurturing/status', desc: 'Get nurturing status for leads' },
+    ],
+    // ===== 📊 LEAD SCORING & TRACKING =====
+    '📊 Lead Scoring & Tracking': [
+        { method: 'GET', path: '/api/lead-scoring/email-opened', desc: 'Track email opened event' },
+        { method: 'GET', path: '/api/lead-scoring/link-clicked', desc: 'Track link clicked event' },
+        { method: 'POST', path: '/api/lead-scoring/whatsapp-replied', desc: 'Track WhatsApp reply event', sample: { leadId: '...', message: 'Interested in program' } },
+        { method: 'POST', path: '/api/lead-scoring/form-submitted', desc: 'Track form submission event', sample: { leadId: '...', formData: {} } },
+        { method: 'POST', path: '/api/lead-scoring/call-booked', desc: 'Track call booking event', sample: { leadId: '...', callTime: '2025-01-25T10:00:00Z' } },
+        { method: 'POST', path: '/api/lead-scoring/call-attended', desc: 'Track call attendance event', sample: { leadId: '...', duration: 30 } },
+        { method: 'POST', path: '/api/lead-scoring/profile-completed', desc: 'Track profile completion event', sample: { leadId: '...' } },
+        { method: 'POST', path: '/api/lead-scoring/lead-magnet-converted', desc: 'Track lead magnet conversion', sample: { leadId: '...', magnetId: '...' } },
+        { method: 'POST', path: '/api/lead-scoring/followup-added', desc: 'Track followup addition', sample: { leadId: '...', followupNote: 'Called prospect' } },
+        { method: 'POST', path: '/api/lead-scoring/booking-recovered', desc: 'Track booking recovery', sample: { leadId: '...', originalBookingId: '...' } },
+        { method: 'POST', path: '/api/lead-scoring/inactivity-decay', desc: 'Track inactivity decay', sample: { leadId: '...', daysInactive: 30 } },
+        { method: 'POST', path: '/api/lead-scoring/unsubscribed', desc: 'Track unsubscription event', sample: { leadId: '...', reason: 'No longer interested' } },
+        { method: 'POST', path: '/api/lead-scoring/email-bounced', desc: 'Track email bounce event', sample: { leadId: '...', bounceType: 'hard' } },
+    ],
+    // ===== 📱 WHATSAPP INTEGRATION & AUTOMATION =====
     '📱 Unified WhatsApp Integration': [
         // Integration Management
         { method: 'POST', path: '/api/whatsapp/integration/setup', desc: 'Setup WhatsApp integration (Meta API or Baileys)', sample: { integrationType: 'meta_official', metaApiToken: 'token123', phoneNumberId: 'phone123' } },
         { method: 'POST', path: '/api/whatsapp/integration/switch', desc: 'Switch between integration types', sample: { integrationType: 'baileys_personal' } },
         { method: 'GET', path: '/api/whatsapp/integration/list', desc: 'Get all integrations for a coach' },
+        { method: 'GET', path: '/api/whatsapp/integration/coaches', desc: 'Get all coach integrations (Public)' },
         { method: 'POST', path: '/api/whatsapp/integration/test', desc: 'Test integration connection' },
         { method: 'GET', path: '/api/whatsapp/integration/health', desc: 'Get integration health status' },
+        { method: 'DELETE', path: '/api/whatsapp/integration/delete', desc: 'Delete WhatsApp integration' },
+        
+        // Baileys Personal Account
+        { method: 'POST', path: '/api/whatsapp/baileys/initialize', desc: 'Initialize Baileys WhatsApp session' },
+        { method: 'GET', path: '/api/whatsapp/baileys/qr-code', desc: 'Get QR code for WhatsApp Web authentication' },
+        { method: 'GET', path: '/api/whatsapp/baileys/status', desc: 'Get Baileys session status' },
+        { method: 'GET', path: '/api/whatsapp/baileys/qr', desc: 'Get QR code for WhatsApp Web authentication (alternative)' },
+        { method: 'POST', path: '/api/whatsapp/baileys/disconnect', desc: 'Disconnect Baileys session' },
         
         // Messaging
         { method: 'POST', path: '/api/whatsapp/message/send', desc: 'Send WhatsApp message', sample: { recipientNumber: '+1234567890', content: 'Hello!', options: { mediaUrl: 'https://example.com/image.jpg' } } },
         { method: 'POST', path: '/api/whatsapp/message/template', desc: 'Send template message', sample: { recipientNumber: '+1234567890', templateName: 'welcome_message', language: 'en', components: [] } },
+        
+        // Inbox Management
+        { method: 'GET', path: '/api/whatsapp/inbox/conversations', desc: 'Get inbox conversations' },
+        { method: 'GET', path: '/api/whatsapp/inbox/conversations/:contactPhone/messages', desc: 'Get messages for a conversation' },
+        { method: 'POST', path: '/api/whatsapp/inbox/conversations/:conversationId/read', desc: 'Mark conversation as read' },
+        { method: 'POST', path: '/api/whatsapp/inbox/conversations/:conversationId/archive', desc: 'Archive/unarchive conversation' },
+        { method: 'POST', path: '/api/whatsapp/inbox/conversations/:conversationId/pin', desc: 'Toggle conversation pin' },
+        { method: 'GET', path: '/api/whatsapp/inbox/search', desc: 'Search conversations and messages' },
+        { method: 'GET', path: '/api/whatsapp/inbox/stats', desc: 'Get inbox statistics' },
+        
+        // Contact Management
+        { method: 'GET', path: '/api/whatsapp/contacts', desc: 'Get all contacts' },
+        { method: 'PUT', path: '/api/whatsapp/contacts/:contactId', desc: 'Update contact information' },
+        { method: 'POST', path: '/api/whatsapp/contacts/:contactId/block', desc: 'Block/unblock contact' },
+        
+        // Webhook Routes (Public)
+        { method: 'GET', path: '/api/whatsapp/webhook', desc: 'WhatsApp webhook verification (Public)' },
+        { method: 'POST', path: '/api/whatsapp/webhook', desc: 'Handle incoming WhatsApp messages (Public)' },
         
         // Inbox Management
         { method: 'GET', path: '/api/whatsapp/inbox/conversations', desc: 'Get inbox conversations', sample: { status: 'active', category: 'lead', search: 'john', page: 1, limit: 20 } },
@@ -103,6 +154,7 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/whatsapp/webhook', desc: 'WhatsApp webhook verification (Public)' },
         { method: 'POST', path: '/api/whatsapp/webhook', desc: 'Handle incoming WhatsApp messages (Public)' },
     ],
+    // ===== 🌱 NURTURING SEQUENCES & AUTOMATION =====
     '🌱 Nurturing Sequences': [
         { method: 'POST', path: '/api/nurturing-sequences', desc: 'Create new nurturing sequence', sample: { name: 'Warm Lead Sequence', description: '5-step sequence for warm leads', category: 'warm_lead', steps: [{ stepNumber: 1, name: 'Welcome Message', actionType: 'send_whatsapp_message', actionConfig: { message: 'Hi {{lead.name}}, welcome!' }, delayDays: 0 }] } },
         { method: 'GET', path: '/api/nurturing-sequences', desc: 'Get all nurturing sequences for coach' },
@@ -118,6 +170,7 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/nurturing-sequences/category/:category', desc: 'Get sequences by category' },
         { method: 'POST', path: '/api/nurturing-sequences/:id/test', desc: 'Test sequence execution (dry run)', sample: { leadId: '...' } },
     ],
+    // ===== 📊 ADVANCED MLM NETWORK & HIERARCHY =====
     '📊 Advanced MLM Network (Unified)': {
         'GET /api/advanced-mlm/health': {
             description: 'Health check for MLM system',
@@ -394,17 +447,46 @@ const allApiRoutes = {
         }
     },
     // Note: Coach Hierarchy System has been integrated into Advanced MLM Network (Unified) above
+    // ===== 🏗️ COACH HIERARCHY & TEAM MANAGEMENT =====
+    '🏗️ Coach Hierarchy Management': [
+        { method: 'GET', path: '/api/coach-hierarchy/coach/:coachId', desc: 'Get coach hierarchy information' },
+        { method: 'GET', path: '/api/coach-hierarchy/upline/:coachId', desc: 'Get coach upline structure' },
+        { method: 'GET', path: '/api/coach-hierarchy/downline/:coachId', desc: 'Get coach downline structure' },
+        { method: 'POST', path: '/api/coach-hierarchy/change-sponsor', desc: 'Request sponsor change', sample: { newSponsorId: '...', reason: 'Better mentorship opportunity' } },
+        { method: 'GET', path: '/api/coach-hierarchy/requests', desc: 'Get hierarchy change requests' },
+        { method: 'PUT', path: '/api/coach-hierarchy/requests/:requestId', desc: 'Process hierarchy change request', sample: { action: 'approve', notes: 'Request approved' } },
+    ],
+    // ===== 👥 STAFF MANAGEMENT & TEAM COLLABORATION =====
     '👥 Staff Management': [
         { method: 'POST', path: '/api/staff', desc: 'Create staff under coach (verification required on first login)', sample: { name: 'Assistant A', email: 'assistant@ex.com', password: 'Passw0rd!', permissions: ['leads:read', 'leads:update'] } },
         { method: 'GET', path: '/api/staff', desc: 'List staff of coach (admin can pass ?coachId=...)' },
+        { method: 'GET', path: '/api/staff/:id', desc: 'Get specific staff details' },
         { method: 'PUT', path: '/api/staff/:id', desc: 'Update staff (name, permissions, isActive)', sample: { name: 'Assistant A2', permissions: ['leads:read'] } },
         { method: 'DELETE', path: '/api/staff/:id', desc: 'Deactivate staff' },
+        { method: 'POST', path: '/api/staff/:id/permissions', desc: 'Update staff permissions', sample: { permissions: ['leads:read', 'leads:write', 'funnels:read'] } },
+        { method: 'POST', path: '/api/staff/:id/activate', desc: 'Activate staff account' },
+        { method: 'GET', path: '/api/staff/:id/performance', desc: 'Get staff performance metrics', sample: { startDate: '2025-01-01', endDate: '2025-01-31', includeDetails: 'true' } },
+        { method: 'GET', path: '/api/staff/:id/performance/trends', desc: 'Get staff performance trends over time', sample: { period: 'monthly', months: 6 } },
+        { method: 'GET', path: '/api/staff/performance/comparison', desc: 'Compare performance between staff members', sample: { startDate: '2025-01-01', endDate: '2025-01-31' } },
+        { method: 'POST', path: '/api/staff/bulk-actions', desc: 'Perform bulk actions on staff', sample: { staffIds: ['staff1', 'staff2'], action: 'activate' } },
     ],
+    // ===== 📅 STAFF CALENDAR & SCHEDULING =====
+    '📅 Staff Calendar & Scheduling': [
+        { method: 'POST', path: '/api/staff-calendar', desc: 'Create calendar event for staff', sample: { staffId: 'staff123', eventType: 'task', title: 'Follow up call', startTime: '2025-01-21T09:00Z', endTime: '2025-01-21T09:30Z' } },
+        { method: 'GET', path: '/api/staff-calendar', desc: 'Get calendar events (filtered by permissions)', sample: { staffId: 'staff123', startDate: '2025-01-21', endDate: '2025-01-28' } },
+        { method: 'GET', path: '/api/staff-calendar/:id', desc: 'Get specific calendar event' },
+        { method: 'PUT', path: '/api/staff-calendar/:id', desc: 'Update calendar event' },
+        { method: 'DELETE', path: '/api/staff-calendar/:id', desc: 'Delete calendar event' },
+        { method: 'GET', path: '/api/staff-calendar/staff/:staffId/availability', desc: 'Get staff availability for time range', sample: { startTime: '2025-01-21T09:00Z', endTime: '2025-01-21T17:00Z' } },
+        { method: 'POST', path: '/api/staff-calendar/bulk-create', desc: 'Create multiple calendar events (recurring)', sample: { events: [{ staffId: 'staff123', eventType: 'meeting', title: 'Weekly standup', startTime: '2025-01-21T09:00Z', endTime: '2025-01-21T09:30Z' }] } },
+    ],
+    // ===== 💰 PERFORMANCE & COMMISSIONS =====
     '💰 Performance & Commissions': [
         { method: 'POST', path: '/api/performance/record-sale', desc: 'Record a new sale for a coach', sample: { coachId: '...', amount: 1000, currency: 'USD' } },
         { method: 'GET', path: '/api/performance/downline/:coachId', desc: 'Get total sales for downline coaches' },
         // Note: Advanced MLM commission system is now integrated in the Advanced MLM Network section
     ],
+    // ===== ⚙️ AUTOMATION & WORKFLOW ENGINE =====
     '⚙️ Automation Rules': [
         {
             "method": "POST",
@@ -446,39 +528,29 @@ const allApiRoutes = {
             "method": "DELETE",
             "path": "/api/automation-rules/:id",
             "desc": "Delete Automation Rule"
-        }
+        },
+        { method: 'POST', path: '/api/automation-rules/:id/duplicate', desc: 'Duplicate automation rule' },
+        { method: 'PUT', path: '/api/automation-rules/:id/toggle', desc: 'Toggle automation rule active status' },
+        { method: 'POST', path: '/api/automation-rules/:id/test', desc: 'Test automation rule execution' },
+        { method: 'GET', path: '/api/automation-rules/triggers', desc: 'Get available trigger events' },
+        { method: 'GET', path: '/api/automation-rules/actions', desc: 'Get available action types' },
+        { method: 'GET', path: '/api/automation-rules/analytics', desc: 'Get automation rule analytics' },
     ],
 
-    '📱 WhatsApp Automation (Coach Dashboard)': [
-        // ===== WHATSAPP MANAGEMENT =====
-        { method: 'POST', path: '/api/coach-whatsapp/initialize', desc: 'Initialize WhatsApp automation for coach' },
-        { method: 'GET', path: '/api/coach-whatsapp/conversations', desc: 'Get active conversations' },
-        { method: 'GET', path: '/api/coach-whatsapp/conversations/:leadId/history', desc: 'Get conversation history for lead' },
-        { method: 'GET', path: '/api/coach-whatsapp/escalations', desc: 'Get escalation queue' },
-        { method: 'PUT', path: '/api/coach-whatsapp/escalations/:leadId/resolve', desc: 'Resolve escalation for lead' },
-        // ===== AUTOMATION RULES =====
-        { method: 'GET', path: '/api/coach-whatsapp/automation-rules', desc: 'Get automation rules' },
-        { method: 'POST', path: '/api/coach-whatsapp/automation-rules', desc: 'Create automation rule', sample: { name: 'Welcome Message', trigger: 'first_message', action: 'send_template', templateId: 'welcome_msg' } },
-        { method: 'PUT', path: '/api/coach-whatsapp/automation-rules/:ruleId', desc: 'Update automation rule' },
-        { method: 'DELETE', path: '/api/coach-whatsapp/automation-rules/:ruleId', desc: 'Delete automation rule' },
-        // ===== MESSAGE TEMPLATES =====
-        { method: 'GET', path: '/api/coach-whatsapp/templates', desc: 'Get message templates' },
-        { method: 'POST', path: '/api/coach-whatsapp/templates', desc: 'Create message template', sample: { name: 'Welcome', content: 'Hi {{lead.name}}, welcome to our program!', category: 'welcome' } },
-        // ===== CAMPAIGN MANAGEMENT =====
-        { method: 'GET', path: '/api/coach-whatsapp/campaigns', desc: 'Get WhatsApp campaigns' },
-        { method: 'POST', path: '/api/coach-whatsapp/campaigns', desc: 'Create WhatsApp campaign', sample: { name: 'Welcome Series', targetAudience: 'new_leads', messageTemplate: 'welcome_series' } },
-        { method: 'POST', path: '/api/coach-whatsapp/campaigns/:campaignId/send', desc: 'Send campaign to target audience' },
-        // ===== ANALYTICS =====
-        { method: 'GET', path: '/api/coach-whatsapp/analytics', desc: 'Get WhatsApp analytics' },
-        { method: 'GET', path: '/api/coach-whatsapp/leads/:leadId/engagement-insights', desc: 'Get lead engagement insights' },
-        // ===== SETTINGS =====
-        { method: 'GET', path: '/api/coach-whatsapp/settings', desc: 'Get WhatsApp settings' },
-        { method: 'PUT', path: '/api/coach-whatsapp/settings', desc: 'Update WhatsApp settings' },
-        { method: 'POST', path: '/api/coach-whatsapp/test-integration', desc: 'Test WhatsApp integration' },
-    ],
+
+    // ===== 📁 FILE & MEDIA MANAGEMENT =====
     '📁 File Upload': [
         { method: 'POST', path: '/api/files/upload', desc: 'Upload a file' },
     ],
+    '🤖 AI Services': [
+        { method: 'POST', path: '/api/ai/generate-content', desc: 'Generate AI content', sample: { prompt: 'Write a fitness blog post', contentType: 'blog', tone: 'professional' } },
+        { method: 'POST', path: '/api/ai/analyze-lead', desc: 'AI lead analysis and insights', sample: { leadId: '...', analysisType: 'behavioral' } },
+        { method: 'POST', path: '/api/ai/optimize-funnel', desc: 'AI funnel optimization suggestions', sample: { funnelId: '...', optimizationType: 'conversion' } },
+        { method: 'POST', path: '/api/ai/generate-copy', desc: 'Generate marketing copy', sample: { product: 'Fitness Program', targetAudience: 'Weight loss seekers', copyType: 'ad' } },
+        { method: 'GET', path: '/api/ai/available-models', desc: 'Get available AI models' },
+        { method: 'POST', path: '/api/ai/chat', desc: 'AI chat assistant', sample: { message: 'Help me optimize my funnel', context: 'funnel_optimization' } },
+    ],
+    // ===== 💡 PRIORITY FEED & CALENDAR MANAGEMENT =====
     '💡 Priority Feed & Calendar': [
         { method: 'GET', path: '/api/coach/daily-feed', desc: 'Get daily prioritized suggestions' },
         { method: 'GET', path: '/api/coach/:coachId/availability', desc: 'Get coach availability settings' },
@@ -489,33 +561,80 @@ const allApiRoutes = {
         { method: 'DELETE', path: '/api/coach/appointments/:id', desc: 'Cancel an appointment' },
         { method: 'GET', path: '/api/coach/:coachId/calendar', desc: 'Get Calendar of Coach' },
         { method: 'POST', path: '/api/coach/booking-recovery/initiate', desc: 'Initiate booking recovery session' },
-        { method: 'POST', path: '/api/coach/booking-recovery/cancel', desc: 'Cancel booking recovery session' }
+        { method: 'POST', path: '/api/coach/booking-recovery/cancel', desc: 'Cancel booking recovery session' },
+        { method: 'GET', path: '/api/coach/priority-tasks', desc: 'Get priority tasks for today' },
+        { method: 'GET', path: '/api/coach/performance-insights', desc: 'Get AI-powered performance insights' },
+        { method: 'POST', path: '/api/coach/feedback', desc: 'Submit feedback for priority feed', sample: { taskId: '...', rating: 5, feedback: 'Very helpful suggestion' } },
     ],
+    // ===== 👤 COACH PROFILE & PORTFOLIO MANAGEMENT =====
     '👤 Coach Profile Management': [
         { method: 'GET', path: '/api/coach-profile/me', desc: 'Get my coach information' },
         { method: 'PUT', path: '/api/coach-profile/:id/profile', desc: 'Update a coaches profile' },
         { method: 'PUT', path: '/api/coach-profile/:id/whatsapp-config', desc: 'Update WhatsApp configuration for a coach' },
-        { method: 'POST', path: '/api/coach-profile/add-credits/:id', desc: 'Add credits to a coach account' }
+        { method: 'POST', path: '/api/coach-profile/add-credits/:id', desc: 'Add credits to a coach account' },
+        { method: 'GET', path: '/api/coach-profile/:id/portfolio', desc: 'Get coach portfolio details' },
+        { method: 'PUT', path: '/api/coach-profile/:id/portfolio', desc: 'Update coach portfolio', sample: { headline: 'Fitness Expert', bio: 'Certified personal trainer', specializations: ['Weight Loss', 'Muscle Building'] } },
+        { method: 'GET', path: '/api/coach-profile/:id/appointment-settings', desc: 'Get coach appointment settings' },
+        { method: 'PUT', path: '/api/coach-profile/:id/appointment-settings', desc: 'Update appointment settings', sample: { availableDays: ['Monday', 'Tuesday'], availableFromTime: '09:00', availableToTime: '17:00' } },
+        { method: 'GET', path: '/api/coach-profile/:id/lead-magnets', desc: 'Get coach lead magnet settings' },
+        { method: 'PUT', path: '/api/coach-profile/:id/lead-magnets', desc: 'Update lead magnet settings' },
     ],
+    // ===== 💳 PAYMENT PROCESSING & GATEWAYS =====
     '💳 Payment Processing': [
         { method: 'POST', path: '/api/payments/receive', desc: 'Receive a new payment and trigger automations', sample: { paymentId: 'gw_123', leadId: '...', amount: 4999, currency: 'INR', status: 'successful', paymentMethod: 'card', gatewayResponse: { id: 'gw_123', sig: '...' } } },
     ],
+    // ===== 💰 COACH PAYMENT COLLECTION & COMMISSIONS =====
+    '💰 Coach Payment Collection': [
+        // Payment Collection Setup
+        { method: 'POST', path: '/api/coach-payments/setup-payment-collection', desc: 'Setup payment collection settings for coach', sample: { upiId: 'fitnesscoach@okicici', paymentCollectionMethod: 'upi' } },
+        { method: 'GET', path: '/api/coach-payments/payment-settings', desc: 'Get coach payment collection settings' },
+        { method: 'GET', path: '/api/coach-payments/coach/:coachId/payment-settings', desc: 'Get specific coach payment settings (Admin)' },
+        { method: 'POST', path: '/api/coach-payments/setup-coach-payment-collection', desc: 'Setup payment collection for specific coach (Admin)' },
+        
+        // Payment Management
+        { method: 'POST', path: '/api/coach-payments/create-payment', desc: 'Create payment for coach (Admin only)', sample: { coachId: '...', amount: 2500, paymentType: 'commission', description: 'MLM Commission for January 2024' } },
+        { method: 'GET', path: '/api/coach-payments/my-payments', desc: 'Get coach payment history' },
+        { method: 'GET', path: '/api/coach-payments/coach/:coachId/payments', desc: 'Get specific coach payments (Admin)' },
+        { method: 'PUT', path: '/api/coach-payments/:paymentId/process', desc: 'Process payment status (Admin only)', sample: { action: 'complete', transactionId: 'TXN_123456789' } },
+        
+        // Payment Analytics
+        { method: 'GET', path: '/api/coach-payments/analytics', desc: 'Get payment analytics for coach' },
+        { method: 'GET', path: '/api/coach-payments/admin/analytics', desc: 'Get overall payment analytics (Admin only)' },
+    ],
+    // ===== 🛒 E-COMMERCE & SUBSCRIPTION MANAGEMENT =====
     '🛒 E-commerce & Payments (Coach Dashboard)': [
         // ===== PAYMENT PROCESSING =====
         { method: 'POST', path: '/api/payments/process', desc: 'Process payment with multiple gateways', sample: { amount: 999, currency: 'USD', paymentMethod: 'stripe', leadId: '...', coachId: '...' } },
-        { method: 'POST', path: '/api/payments/stripe', desc: 'Process Stripe payment' },
-        { method: 'POST', path: '/api/payments/paypal', desc: 'Process PayPal payment' },
-        { method: 'POST', path: '/api/payments/razorpay', desc: 'Process Razorpay payment' },
+        { method: 'POST', path: '/api/payments/stripe', desc: 'Process Stripe payment', sample: { amount: 999, currency: 'USD', token: 'tok_123', leadId: '...', coachId: '...' } },
+        { method: 'POST', path: '/api/payments/paypal', desc: 'Process PayPal payment', sample: { amount: 999, currency: 'USD', paypalOrderId: 'PAY-123', leadId: '...', coachId: '...' } },
+        { method: 'POST', path: '/api/payments/razorpay', desc: 'Process Razorpay payment', sample: { amount: 999, currency: 'USD', razorpayPaymentId: 'pay_123', leadId: '...', coachId: '...' } },
+        { method: 'POST', path: '/api/payments/receive', desc: 'Receive payment webhook (Public)', sample: { paymentId: '...', leadId: '...', amount: 999, currency: 'USD', status: 'completed' } },
         // ===== SUBSCRIPTION MANAGEMENT =====
-        { method: 'POST', path: '/api/subscriptions', desc: 'Create subscription', sample: { coachId: '...', planId: 'professional', paymentMethod: 'stripe', autoRenew: true } },
-        { method: 'GET', path: '/api/subscriptions/:subscriptionId', desc: 'Get subscription details' },
-        { method: 'PUT', path: '/api/subscriptions/:subscriptionId/renew', desc: 'Renew subscription' },
-        { method: 'PUT', path: '/api/subscriptions/:subscriptionId/cancel', desc: 'Cancel subscription', sample: { reason: 'User requested cancellation' } },
+        { method: 'GET', path: '/api/subscriptions/plans', desc: 'Get available subscription plans (Public)' },
+        { method: 'POST', path: '/api/subscriptions/subscribe', desc: 'Subscribe to a plan (Coach)', sample: { planId: 'professional', paymentMethod: 'stripe', autoRenew: true } },
+        { method: 'POST', path: '/api/subscriptions/renew', desc: 'Renew subscription (Coach)' },
+        { method: 'POST', path: '/api/subscriptions/cancel', desc: 'Cancel subscription (Coach)', sample: { reason: 'User requested cancellation' } },
+        { method: 'GET', path: '/api/subscriptions/my-subscription', desc: 'Get current user subscription (Coach)' },
+        // Admin subscription management
+        { method: 'POST', path: '/api/subscriptions/plans', desc: 'Create new subscription plan (Admin)', sample: { name: 'Professional Plan', price: 99, features: ['maxFunnels: 10', 'maxLeads: 1000'] } },
+        { method: 'PUT', path: '/api/subscriptions/plans/:id', desc: 'Update subscription plan (Admin)', sample: { name: 'Updated Plan Name', price: 129 } },
+        { method: 'DELETE', path: '/api/subscriptions/plans/:id', desc: 'Delete subscription plan (Admin)' },
+        { method: 'POST', path: '/api/subscriptions/subscribe-coach', desc: 'Subscribe coach to plan (Admin)', sample: { coachId: '...', planId: 'professional' } },
+        { method: 'POST', path: '/api/subscriptions/renew-coach', desc: 'Renew coach subscription (Admin)' },
+        { method: 'POST', path: '/api/subscriptions/cancel-coach', desc: 'Cancel coach subscription (Admin)' },
+        { method: 'GET', path: '/api/subscriptions/coach/:coachId', desc: 'Get specific coach subscription (Admin)' },
+        { method: 'GET', path: '/api/subscriptions/all', desc: 'Get all coach subscriptions (Admin)' },
+        { method: 'GET', path: '/api/subscriptions/analytics', desc: 'Get subscription analytics (Admin)' },
+        { method: 'POST', path: '/api/subscriptions/send-reminders', desc: 'Send subscription reminders (Admin)' },
+        { method: 'POST', path: '/api/subscriptions/disable-expired', desc: 'Disable expired subscriptions (Admin)' },
         // ===== SHOPPING CART =====
-        { method: 'POST', path: '/api/cart', desc: 'Update shopping cart', sample: { coachId: '...', leadId: '...', items: [{ productId: 'prod_123', quantity: 1, price: 99 }] } },
+        { method: 'POST', path: '/api/cart', desc: 'Update shopping cart', sample: { coachId: '...', leadId: '...', items: [{ productId: 'prod_123', quantity: 1, price: 99 }], subtotal: 99, tax: 8.91, discount: 0, total: 107.91 } },
         { method: 'GET', path: '/api/cart/:cartId', desc: 'Get cart details' },
         { method: 'POST', path: '/api/cart/:cartId/recovery', desc: 'Send cart recovery notification' },
         { method: 'POST', path: '/api/cart/:cartId/complete', desc: 'Complete cart purchase', sample: { paymentData: { method: 'stripe', token: 'tok_123' } } },
+        { method: 'GET', path: '/api/cart/coach/:coachId', desc: 'Get all carts for a coach' },
+        { method: 'GET', path: '/api/cart/lead/:leadId', desc: 'Get cart for a specific lead' },
+        { method: 'PUT', path: '/api/cart/:cartId/abandon', desc: 'Mark cart as abandoned' },
         // ===== REVENUE ANALYTICS =====
         { method: 'GET', path: '/api/payments/revenue-analytics', desc: 'Get revenue analytics', sample: { coachId: '...', timeRange: 30 } },
         { method: 'GET', path: '/api/payments/subscription-analytics', desc: 'Get subscription analytics' },
@@ -525,6 +644,7 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/payments/subscription-plans', desc: 'Get available subscription plans' },
         { method: 'GET', path: '/api/payments/payment-methods', desc: 'Get supported payment methods' },
     ],
+    // ===== 🤖 AI ADS & MARKETING AUTOMATION =====
     '🤖 AI Ads Agent': [
         { method: 'POST', path: '/api/ai-ads/generate-copy', desc: 'Generate AI-powered ad copy', sample: { targetAudience: 'Fitness enthusiasts 25-40', productInfo: 'Personal training program', campaignObjective: 'CONVERSIONS' } },
         { method: 'POST', path: '/api/ai-ads/optimize-budget/:campaignId', desc: 'Optimize budget allocation for campaign' },
@@ -542,17 +662,18 @@ const allApiRoutes = {
         { method: 'POST', path: '/api/ai-ads/generate-headlines', desc: 'Generate AI-powered marketing headlines', sample: { coachName: 'John Doe', niche: 'Weight Loss & Nutrition', offer: '12-Week Transformation Program', targetAudience: 'weight_loss', headlineCount: 5 } },
         { method: 'POST', path: '/api/ai-ads/generate-social-post', desc: 'Generate complete social media post content', sample: { coachName: 'John Doe', niche: 'Weight Loss & Nutrition', offer: '12-Week Transformation Program', targetAudience: 'weight_loss' } },
         { method: 'POST', path: '/api/ai-ads/upload-to-instagram', desc: 'Upload generated content to Instagram via Meta Ads', sample: { imageUrl: 'https://example.com/poster.jpg', caption: 'Transform your body!', coachMetaAccountId: 'act_123456789' } },
-        { method: 'POST', path: '/api/ai-ads/generate-campaign', desc: 'Generate complete social media campaign package', sample: { coachName: 'John Doe', niche: 'Weight Loss & Nutrition', offer: '12-Week Transformation Program', targetAudience: 'weight_loss', campaignDuration: 7, dailyBudget: 50 } },
+        { method: 'POST', path: '/api/ai-ads/generate-campaign', desc: 'Generate complete social media campaign package', sample: { coachName: 'John Doe', niche: 'Weight_loss', offer: '12-Week Transformation Program', targetAudience: 'weight_loss', campaignDuration: 7, dailyBudget: 50 } },
         { method: 'GET', path: '/api/ai-ads/social-media-history', desc: 'Get social media content generation history' },
     ],
+    // ===== 📋 WORKFLOW & TASK MANAGEMENT =====
     '📋 Workflow & Task Management': [
         { method: 'GET', path: '/api/workflow/kanban-board', desc: 'Get Kanban board data' },
         { method: 'POST', path: '/api/workflow/tasks', desc: 'Create new task with intelligent assignment', sample: { name: 'Follow up call', description: 'Call prospect', dueDate: '2025-01-25T10:00:00Z', relatedLead: 'leadId', priority: 'HIGH', stage: 'LEAD_QUALIFICATION' } },
-        { method: 'PUT', path: '/api/workflow/tasks/:taskId/move', desc: 'Move task between stages (Kanban)', sample: { newStage: 'PROPOSAL' } },
         { method: 'GET', path: '/api/workflow/tasks', desc: 'Get all tasks with filtering', sample: { status: 'Pending', priority: 'HIGH', page: 1, limit: 10 } },
         { method: 'GET', path: '/api/workflow/tasks/:id', desc: 'Get single task details' },
         { method: 'PUT', path: '/api/workflow/tasks/:id', desc: 'Update task', sample: { status: 'In Progress', priority: 'URGENT' } },
         { method: 'DELETE', path: '/api/workflow/tasks/:id', desc: 'Delete task' },
+        { method: 'PUT', path: '/api/workflow/tasks/:taskId/move', desc: 'Move task between stages (Kanban)', sample: { newStage: 'PROPOSAL' } },
         { method: 'POST', path: '/api/workflow/tasks/:id/comments', desc: 'Add comment to task', sample: { content: 'Called prospect, interested in program' } },
         { method: 'POST', path: '/api/workflow/tasks/:id/time-log', desc: 'Log time to task', sample: { startTime: '2025-01-20T09:00:00Z', endTime: '2025-01-20T10:00:00Z', description: 'Client call' } },
         { method: 'POST', path: '/api/workflow/tasks/:id/subtasks', desc: 'Add subtask', sample: { name: 'Send proposal', description: 'Email proposal to client' } },
@@ -563,11 +684,19 @@ const allApiRoutes = {
         { method: 'POST', path: '/api/workflow/generate-sop', desc: 'Generate SOP for task type', sample: { taskType: 'Lead Follow-up', context: 'Fitness coaching business' } },
         { method: 'GET', path: '/api/workflow/overdue-tasks', desc: 'Get overdue tasks' },
         { method: 'GET', path: '/api/workflow/tasks/stage/:stage', desc: 'Get tasks by stage' },
-        { method: 'POST', path: '/api/workflow/tasks/from-lead/:leadId', desc: 'Create task from lead', sample: { name: 'Follow up', priority: 'HIGH' } },
+        { method: 'POST', path: '/api/workflow/tasks/from-lead/:leadId', desc: 'Create task from lead', sample: { taskName: 'Follow up call', description: 'Follow up on lead inquiry' } },
         { method: 'GET', path: '/api/workflow/tasks/:id/dependencies', desc: 'Get task dependencies' },
+        { method: 'POST', path: '/api/workflow/tasks/:id/dependencies', desc: 'Add task dependency', sample: { dependentTaskId: '...', dependencyType: 'blocks' } },
+        { method: 'DELETE', path: '/api/workflow/tasks/:id/dependencies/:dependencyId', desc: 'Remove task dependency' },
         { method: 'POST', path: '/api/workflow/tasks/:id/dependencies', desc: 'Add task dependency', sample: { dependencyId: 'taskId' } },
         { method: 'DELETE', path: '/api/workflow/tasks/:id/dependencies/:dependencyId', desc: 'Remove task dependency' },
+        { method: 'GET', path: '/api/workflow/stages', desc: 'Get workflow stages configuration' },
+        { method: 'PUT', path: '/api/workflow/stages', desc: 'Update workflow stages configuration' },
+        { method: 'GET', path: '/api/workflow/templates', desc: 'Get workflow templates' },
+        { method: 'POST', path: '/api/workflow/templates', desc: 'Create workflow template' },
+        { method: 'POST', path: '/api/workflow/templates/:templateId/apply', desc: 'Apply workflow template to coach' },
     ],
+    // ===== 🏆 STAFF LEADERBOARD & PERFORMANCE TRACKING =====
     '🏆 Staff Leaderboard & Scoring': [
         { method: 'GET', path: '/api/staff-leaderboard/leaderboard', desc: 'Get staff leaderboard with rankings' },
         { method: 'GET', path: '/api/staff-leaderboard/staff/:staffId/score', desc: 'Get individual staff performance score' },
@@ -582,6 +711,7 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/staff-leaderboard/config/scoring-weights', desc: 'Get scoring weights configuration' },
         { method: 'PUT', path: '/api/staff-leaderboard/config/scoring-weights', desc: 'Update scoring weights', sample: { weights: { taskCompletion: 0.4, qualityRating: 0.3, efficiency: 0.2, leadership: 0.1 } } },
     ],
+    // ===== 👥 STAFF DASHBOARD & PERFORMANCE ANALYTICS =====
     '👥 Staff Dashboard': [
         { method: 'GET', path: '/api/staff-dashboard/data', desc: 'Get complete staff dashboard data', sample: { timeRange: 30 } },
         { method: 'GET', path: '/api/staff-dashboard/overview', desc: 'Get staff overview metrics and quick actions' },
@@ -596,6 +726,7 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/staff-dashboard/notifications', desc: 'Get staff notifications and alerts' },
         { method: 'GET', path: '/api/staff-dashboard/analytics', desc: 'Get staff analytics and insights' },
     ],
+    // ===== 📊 COACH DASHBOARD & ANALYTICS =====
     '📊 Coach Dashboard': [
         { method: 'GET', path: '/api/coach-dashboard/data', desc: 'Get complete dashboard data' },
         { method: 'GET', path: '/api/coach-dashboard/overview', desc: 'Get overview metrics and quick actions' },
@@ -629,6 +760,7 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/coach-dashboard/zoom-meetings', desc: 'Get all Zoom meetings for coach' },
         { method: 'GET', path: '/api/coach-dashboard/zoom-meetings/appointment/:appointmentId', desc: 'Get Zoom meeting details for specific appointment' },
     ],
+    // ===== 💬 MESSAGE TEMPLATES & COMMUNICATION =====
     '💬 Message Templates': [
         { method: 'POST', path: '/api/message-templates', desc: 'Create new message template', sample: { name: 'Welcome Message', type: 'whatsapp', category: 'welcome', content: { body: 'Hi {{lead.name}}, welcome to our program!' } } },
         { method: 'GET', path: '/api/message-templates', desc: 'Get all message templates for coach' },
@@ -643,6 +775,7 @@ const allApiRoutes = {
         { method: 'POST', path: '/api/message-templates/:id/render', desc: 'Render template with variables', sample: { variables: { 'lead.name': 'John', 'coach.name': 'Sarah' } } },
         { method: 'POST', path: '/api/message-templates/seed', desc: 'Seed pre-built templates for coach' },
     ],
+    // ===== 🔗 ZOOM INTEGRATION & MEETING MANAGEMENT =====
     '🔗 Zoom Integration': [
         { method: 'POST', path: '/api/zoom-integration/setup', desc: 'Setup Zoom API integration', sample: { clientId: 'zoom_client_id', clientSecret: 'zoom_client_secret', zoomEmail: 'coach@example.com', zoomAccountId: 'zoom_account_id' } },
         { method: 'GET', path: '/api/zoom-integration', desc: 'Get Zoom integration settings' },
@@ -663,6 +796,7 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/zoom-integration/cleanup/stats', desc: 'Get Zoom cleanup statistics and status' },
         { method: 'PUT', path: '/api/zoom-integration/cleanup/retention', desc: 'Update Zoom cleanup retention period', sample: { retentionDays: 3 } },
     ],
+    // ===== 🎯 LEAD MAGNETS & CONTENT GENERATION =====
     '🎯 Lead Magnets': [
         { method: 'GET', path: '/api/lead-magnets/coach', desc: 'Get coach lead magnet settings' },
         { method: 'PUT', path: '/api/lead-magnets/coach', desc: 'Update coach lead magnet settings' },
@@ -677,9 +811,44 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/lead-magnets/analytics', desc: 'Get lead magnet performance analytics' },
         { method: 'GET', path: '/api/lead-magnets/history/:leadId', desc: 'Get lead magnet interaction history' },
     ],
+    // ===== 🌐 PUBLIC FUNNEL PAGES & ACCESS =====
     '🌐 Public Funnel Pages': [
         { method: 'GET', path: '/funnels/:funnelSlug/:pageSlug', desc: 'Render a public funnel page' },
     ],
+    // ===== 👑 ADMIN MANAGEMENT & PLATFORM CONTROL =====
+    '👑 Admin Management': [
+        // Admin Authentication
+        { method: 'POST', path: '/api/admin/auth/login', desc: 'Admin login' },
+        { method: 'POST', path: '/api/admin/auth/logout', desc: 'Admin logout' },
+        { method: 'GET', path: '/api/admin/auth/me', desc: 'Get current admin user' },
+        
+        // Admin Settings
+        { method: 'GET', path: '/api/admin/settings', desc: 'Get platform settings' },
+        { method: 'PUT', path: '/api/admin/settings', desc: 'Update platform settings' },
+        { method: 'GET', path: '/api/admin/settings/credit-system', desc: 'Get credit system configuration' },
+        { method: 'PUT', path: '/api/admin/settings/credit-system', desc: 'Update credit system configuration' },
+        
+        // Admin User Management
+        { method: 'GET', path: '/api/admin/users', desc: 'Get all users (Admin)' },
+        { method: 'GET', path: '/api/admin/users/:userId', desc: 'Get specific user details (Admin)' },
+        { method: 'PUT', path: '/api/admin/users/:userId', desc: 'Update user (Admin)' },
+        { method: 'DELETE', path: '/api/admin/users/:userId', desc: 'Delete user (Admin)' },
+        { method: 'POST', path: '/api/admin/users/:userId/activate', desc: 'Activate user account (Admin)' },
+        { method: 'POST', path: '/api/admin/users/:userId/deactivate', desc: 'Deactivate user account (Admin)' },
+        
+        // Admin Logs
+        { method: 'GET', path: '/api/admin/logs', desc: 'Get system logs (Admin)' },
+        { method: 'GET', path: '/api/admin/logs/errors', desc: 'Get error logs (Admin)' },
+        { method: 'GET', path: '/api/admin/logs/access', desc: 'Get access logs (Admin)' },
+        { method: 'GET', path: '/api/admin/logs/audit', desc: 'Get audit logs (Admin)' },
+        
+        // Admin Analytics
+        { method: 'GET', path: '/api/admin/analytics/platform', desc: 'Get platform-wide analytics (Admin)' },
+        { method: 'GET', path: '/api/admin/analytics/users', desc: 'Get user analytics (Admin)' },
+        { method: 'GET', path: '/api/admin/analytics/revenue', desc: 'Get revenue analytics (Admin)' },
+        { method: 'GET', path: '/api/admin/analytics/performance', desc: 'Get performance analytics (Admin)' },
+    ],
+    // ===== 📢 MARKETING & ADVERTISING CAMPAIGNS =====
     '📢 Marketing & Advertising': [
         { method: 'GET', path: '/api/ads', desc: 'List all ad campaigns for coach' },
         { method: 'POST', path: '/api/ads/create', desc: 'Create a new ad campaign', sample: { coachMetaAccountId: '123456789', campaignData: { name: 'My Campaign', objective: 'LEAD_GENERATION', budget: 100 } } },
@@ -695,6 +864,10 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/ads/:campaignId/ad-sets', desc: 'List ad sets for a campaign' },
         { method: 'GET', path: '/api/ads/:campaignId/creatives', desc: 'List ad creatives for a campaign' },
         { method: 'GET', path: '/api/ads/:campaignId/ads', desc: 'List ads for a campaign' },
+        { method: 'DELETE', path: '/api/ads/:campaignId', desc: 'Delete ad campaign' },
+        { method: 'GET', path: '/api/ads/coach/:coachId', desc: 'Get all ads for specific coach' },
+        { method: 'GET', path: '/api/ads/analytics/overview', desc: 'Get overall ads analytics' },
+        { method: 'POST', path: '/api/ads/bulk-actions', desc: 'Perform bulk actions on campaigns', sample: { campaignIds: ['camp1', 'camp2'], action: 'pause' } },
         {
             method: 'POST', path: '/api/ads/create-url-campaign', desc: 'Create complete URL campaign (all-in-one)', sample: {
                 coachMetaAccountId: '123456789',
@@ -705,6 +878,7 @@ const allApiRoutes = {
             }
         }
     ],
+    // ===== 🧮 LEAD SCORING & TRACKING (EXTENDED) =====
     '🧮 Lead Scoring & Tracking': [
         { method: 'GET', path: '/api/lead-scoring/email-opened', desc: 'Track email open (tracking pixel, use ?leadId=LEAD_ID)' },
         { method: 'GET', path: '/api/lead-scoring/link-clicked', desc: 'Track link click and redirect (use ?leadId=LEAD_ID&target=URL)' },
@@ -720,6 +894,7 @@ const allApiRoutes = {
         { method: 'POST', path: '/api/lead-scoring/unsubscribed', desc: 'Track unsubscribe event ({ leadId })' },
         { method: 'POST', path: '/api/lead-scoring/email-bounced', desc: 'Track email bounce event ({ leadId })' },
     ],
+    // ===== 🤖 AI SERVICES & INTELLIGENCE (EXTENDED) =====
     '🤖 AI Services': [
       { method: 'GET', path: '/api/ai/test-connection', desc: 'Test AI service connection and API keys' },
       { method: 'GET', path: '/api/ai/models', desc: 'Get available AI models and providers' },
@@ -732,25 +907,11 @@ const allApiRoutes = {
       { method: 'POST', path: '/api/ai/generate-lead-insights', desc: 'Generate AI-powered lead insights', sample: { leadData: { name: 'Jane', email: 'jane@example.com', source: 'Facebook Ad', engagement: 'high' } } },
       { method: 'POST', path: '/api/ai/optimize-content', desc: 'Optimize content for better performance', sample: { content: 'Join our fitness program', targetAudience: 'beginners', goal: 'increase conversions' } },
       { method: 'POST', path: '/api/ai/chat-completion', desc: 'Generic AI chat completion', sample: { messages: [{ role: 'user', content: 'Hello' }], model: 'gpt-3.5-turbo', temperature: 0.7 } },
-    ],
-    '🤖 AI-Powered Features': [
-      // AI Service Endpoints
-      { method: 'GET', path: '/api/ai/test-connection', desc: 'Test AI service connection and API keys' },
-      { method: 'GET', path: '/api/ai/models', desc: 'Get available AI models and providers' },
-      { method: 'POST', path: '/api/ai/generate-marketing-copy', desc: 'Generate marketing copy with AI', sample: { prompt: 'Create compelling copy for a fitness program', temperature: 0.8, maxTokens: 500 } },
-      { method: 'POST', path: '/api/ai/generate-headlines', desc: 'Generate marketing headlines and CTAs', sample: { product: '12-week fitness program', targetAudience: 'busy professionals', count: 5 } },
-      { method: 'POST', path: '/api/ai/generate-social-post', desc: 'Generate social media posts', sample: { coachName: 'John Doe', niche: 'Weight Loss', offer: '12-week program', targetAudience: 'weight loss seekers' } },
-      { method: 'POST', path: '/api/ai/analyze-sentiment', desc: 'Analyze sentiment of WhatsApp messages', sample: { message: 'I am interested in your program' } },
-      { method: 'POST', path: '/api/ai/generate-contextual-response', desc: 'Generate contextual responses based on sentiment', sample: { userMessage: 'How much does it cost?', sentiment: 'interested', context: { leadStage: 'qualified' } } },
-      { method: 'POST', path: '/api/ai/generate-sop', desc: 'Generate Standard Operating Procedures', sample: { taskType: 'Lead Follow-up', context: 'Fitness coaching business' } },
-      { method: 'POST', path: '/api/ai/generate-lead-insights', desc: 'Generate AI-powered lead insights', sample: { leadData: { name: 'Jane', email: 'jane@example.com', source: 'Facebook Ad', engagement: 'high' } } },
-      { method: 'POST', path: '/api/ai/optimize-content', desc: 'Optimize content for better performance', sample: { content: 'Join our fitness program', targetAudience: 'beginners', goal: 'increase conversions' } },
-      { method: 'POST', path: '/api/ai/chat-completion', desc: 'Generic AI chat completion', sample: { messages: [{ role: 'user', content: 'Hello' }], model: 'gpt-3.5-turbo', temperature: 0.7 } },
-      // AI-Powered Lead Management Endpoints
-      { method: 'GET', path: '/api/leads/:leadId/ai-qualify', desc: 'AI-powered lead qualification and insights', sample: { leadId: '...' } },
+ 
       { method: 'POST', path: '/api/leads/:leadId/generate-nurturing-sequence', desc: 'Generate AI-powered nurturing strategy', sample: { leadId: '...', sequenceType: 'warm_lead' } },
       { method: 'POST', path: '/api/leads/:leadId/generate-followup-message', desc: 'Generate AI-powered follow-up message', sample: { leadId: '...', followUpType: 'first_followup', context: 'General follow-up' } },
     ],
+    // ===== 🚀 COMPREHENSIVE COACH DASHBOARD FEATURES =====
     '🚀 NEW: COMPREHENSIVE COACH DASHBOARD FEATURES': [
         { method: 'INFO', path: '📅 Calendar & Appointment System', desc: 'Complete appointment booking, scheduling, and calendar management with conflict detection and reminders' },
         { method: 'INFO', path: '📱 WhatsApp Automation Engine', desc: 'Advanced WhatsApp automation with sentiment analysis, AI-powered responses, human escalation, and campaign management' },
@@ -760,6 +921,7 @@ const allApiRoutes = {
         { method: 'INFO', path: '📊 Advanced Analytics', desc: 'Comprehensive dashboard with real-time metrics, performance tracking, and business intelligence' },
         { method: 'INFO', path: '🔗 Integration Hub', desc: 'Seamless integration with existing automation rules, lead nurturing, and marketing campaigns' }
     ],
+    // ===== 🔐 AUTHENTICATION & USER MANAGEMENT (DETAILED) =====
     '🔐 Authentication & User Management': {
         'POST /api/auth/signup': {
             description: 'Unified user registration supporting all roles including MLM coaches',
@@ -831,47 +993,50 @@ router.get('/', (req, res) => {
 
     // Group similar sections for better organization
     const groupedSections = {
-        '🔑 Core Services': [
+        '🔐 Core Services & Authentication': [
             '🔐 Authentication & User Management', 
+            '🔐 Authentication & User Management (Detailed)',
             '📈 Funnel Management', 
+            '🌐 Custom Domain Management',
             '🎯 Lead Management (CRM)', 
+            '🌱 Lead Nurturing',
             '🧮 Lead Scoring & Tracking',
-            '📱 Unified WhatsApp Integration',
-            '📱 WhatsApp Automation (Coach Dashboard)'
+            '🧮 Lead Scoring & Tracking (EXTENDED)',
+            '📱 Unified WhatsApp Integration'
         ],
         '🤖 AI & Automation': [
             '🤖 AI Services', 
-            '🤖 AI-Powered Features', 
+            '🤖 AI Services (EXTENDED)',
+            '🤖 AI Ads Agent', 
             '⚙️ Automation Rules', 
             '📋 Workflow & Task Management'
         ],
-        '📊 Business Intelligence': [
+        '📊 Business Intelligence & MLM': [
             '📊 Coach Dashboard', 
             '👥 Staff Management',
             '👥 Staff Dashboard',
             '🏆 Staff Leaderboard & Scoring',
             '📊 Advanced MLM Network (Unified)',
-            '💰 Performance & Commissions'
+            '💰 Performance & Commissions',
+            '💰 Coach Payment Collection'
         ],
         '💰 E-commerce & Payments': [
             '💳 Payment Processing', 
             '🛒 E-commerce & Payments (Coach Dashboard)'
         ],
-        '📢 Marketing & Advertising': [
+        '📢 Marketing & Content': [
             '📢 Marketing & Advertising', 
-            '🤖 AI Ads Agent', 
             '🌱 Nurturing Sequences', 
             '🎯 Lead Magnets',
             '🌐 Public Funnel Pages'
         ],
         '🔗 Integrations & Utilities': [
-            '🔗 Custom URL Access (Public)', 
-            '🌐 Custom Domain Management', 
             '🔗 Zoom Integration', 
             '💬 Message Templates', 
             '📁 File Upload', 
             '💡 Priority Feed & Calendar', 
-            '👤 Coach Profile Management'
+            '👤 Coach Profile Management',
+            '🚀 COMPREHENSIVE COACH DASHBOARD FEATURES'
         ]
     };
 

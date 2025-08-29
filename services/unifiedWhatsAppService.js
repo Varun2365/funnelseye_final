@@ -50,9 +50,9 @@ class UnifiedWhatsAppService {
                 await integration.save();
             }
 
-            // Initialize integration based on type
+            // Don't initialize Baileys during setup - user must call /api/whatsapp/baileys/initialize separately
             if (integrationData.integrationType === 'baileys_personal') {
-                await this.initializeBaileysIntegration(userId, userType);
+                console.log(`[UnifiedWhatsAppService] Baileys integration created. Use /api/whatsapp/baileys/initialize to start the service.`);
             }
 
             return integration.getPublicDetails();
@@ -98,16 +98,60 @@ class UnifiedWhatsAppService {
      */
     async getUserIntegrations(userId, userType) {
         try {
-            const integration = await WhatsAppIntegration.findOne({ userId, userType });
+            console.log(`\n🔍 [UnifiedWhatsAppService] ===== GET USER INTEGRATIONS START =====`);
+            console.log(`👤 User ID: ${userId}`);
+            console.log(`🏷️  User Type: ${userType}`);
+            console.log(`📅 Timestamp: ${new Date().toISOString()}`);
+            
+            // Try to find integration with exact userType match first
+            console.log(`🔍 [UnifiedWhatsAppService] Searching for integration with userId: ${userId}, userType: ${userType}`);
+            let integration = await WhatsAppIntegration.findOne({ userId, userType });
+            
+            console.log(`📊 [UnifiedWhatsAppService] Exact match result:`, integration ? 'FOUND' : 'NOT FOUND');
+            if (integration) {
+                console.log(`📋 [UnifiedWhatsAppService] Found integration:`, {
+                    _id: integration._id,
+                    userId: integration.userId,
+                    userType: integration.userType,
+                    integrationType: integration.integrationType,
+                    isActive: integration.isActive
+                });
+            }
+            
+            // If not found, try to find any integration for this user (regardless of userType)
+            if (!integration) {
+                console.log(`🔍 [UnifiedWhatsAppService] No exact match found, searching for ANY integration with userId: ${userId}`);
+                integration = await WhatsAppIntegration.findOne({ userId });
+                
+                if (integration) {
+                    console.log(`✅ [UnifiedWhatsAppService] Found integration with different userType:`, {
+                        _id: integration._id,
+                        userId: integration.userId,
+                        userType: integration.userType,
+                        integrationType: integration.integrationType,
+                        isActive: integration.isActive
+                    });
+                } else {
+                    console.log(`❌ [UnifiedWhatsAppService] No integration found for user ${userId} with any userType`);
+                }
+            }
             
             if (!integration) {
+                console.log(`❌ [UnifiedWhatsAppService] No integration found for user ${userId}`);
+                console.log(`✅ [UnifiedWhatsAppService] ===== GET USER INTEGRATIONS END (NULL) =====\n`);
                 return null;
             }
 
-            return integration.getPublicDetails();
+            console.log(`🔍 [UnifiedWhatsAppService] Calling getPublicDetails() on integration`);
+            const publicDetails = integration.getPublicDetails();
+            console.log(`📦 [UnifiedWhatsAppService] Public details:`, JSON.stringify(publicDetails, null, 2));
+            
+            console.log(`✅ [UnifiedWhatsAppService] ===== GET USER INTEGRATIONS END (SUCCESS) =====\n`);
+            return publicDetails;
 
         } catch (error) {
-            console.error(`[UnifiedWhatsAppService] Error getting user integrations:`, error);
+            console.error(`❌ [UnifiedWhatsAppService] Error getting user integrations:`, error);
+            console.error(`❌ [UnifiedWhatsAppService] Error stack:`, error.stack);
             throw error;
         }
     }
@@ -282,10 +326,42 @@ class UnifiedWhatsAppService {
      */
     async initializeBaileysIntegration(userId, userType) {
         try {
-            await baileysWhatsAppService.initializeSession(userId, userType);
-            return { success: true, message: 'Baileys integration initialized' };
+            console.log(`[UnifiedWhatsAppService] 🚀 Initializing Baileys integration for ${userType} ${userId}`);
+            
+            // Check if session already exists and is active
+            const existingSession = baileysWhatsAppService.getSessionStatus(userId);
+            if (existingSession.status !== 'not_initialized') {
+                console.log(`[UnifiedWhatsAppService] ℹ️ Session already exists for user ${userId}, status: ${existingSession.status}`);
+                
+                if (existingSession.hasQRCode) {
+                    // Return existing QR code
+                    return {
+                        success: true,
+                        sessionId: `session_${userId}`,
+                        qrCode: existingSession.qrCode,
+                        status: 'qr_ready',
+                        message: 'Session already initialized with QR code'
+                    };
+                } else if (existingSession.status === 'connected') {
+                    // Return connected status
+                    return {
+                        success: true,
+                        sessionId: `session_${userId}`,
+                        qrCode: null,
+                        status: 'connected',
+                        message: 'Session already connected'
+                    };
+                }
+            }
+            
+            // Initialize the Baileys session (this now returns QR code directly)
+            const result = await baileysWhatsAppService.initializeSession(userId, userType);
+            
+            console.log(`[UnifiedWhatsAppService] ✅ Baileys integration initialized successfully for ${userType} ${userId}`);
+            return result;
+
         } catch (error) {
-            console.error(`[UnifiedWhatsAppService] Error initializing Baileys:`, error);
+            console.error(`[UnifiedWhatsAppService] ❌ Error initializing Baileys:`, error.message);
             throw error;
         }
     }
@@ -539,6 +615,36 @@ class UnifiedWhatsAppService {
         } catch (error) {
             console.error(`[UnifiedWhatsAppService] Error getting conversation history:`, error);
             return [];
+        }
+    }
+
+    /**
+     * Delete WhatsApp integration
+     */
+    async deleteIntegration(userId, userType) {
+        try {
+            console.log(`[UnifiedWhatsAppService] Deleting integration for ${userType} ${userId}`);
+            
+            // Disconnect Baileys session if active
+            try {
+                await baileysWhatsAppService.disconnectSession(userId);
+            } catch (error) {
+                console.log(`[UnifiedWhatsAppService] No active Baileys session to disconnect`);
+            }
+            
+            // Delete integration from database
+            const result = await WhatsAppIntegration.findOneAndDelete({ userId, userType });
+            
+            if (!result) {
+                throw new Error('Integration not found');
+            }
+            
+            console.log(`[UnifiedWhatsAppService] Integration deleted successfully`);
+            return { success: true, message: 'Integration deleted successfully' };
+            
+        } catch (error) {
+            console.error(`[UnifiedWhatsAppService] Error deleting integration:`, error);
+            throw error;
         }
     }
 
