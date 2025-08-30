@@ -63,6 +63,40 @@ async function testCORS() {
         console.log('❌ localhost:5000 is NOT properly configured');
     }
 
+    // Test the specific staff route that was having CORS issues
+    console.log('\n🔍 Testing Staff Route CORS (the problematic route)...');
+    try {
+        const staffResponse = await axios.options(`${BASE_URL}/api/staff`, {
+            headers: {
+                'Origin': 'http://localhost:5000',
+                'Access-Control-Request-Method': 'GET',
+                'Access-Control-Request-Headers': 'x-coach-id,authorization,content-type'
+            },
+            validateStatus: () => true
+        });
+
+        console.log(`Staff route OPTIONS response: ${staffResponse.status}`);
+        console.log(`CORS Headers:`);
+        console.log(`  Access-Control-Allow-Origin: ${staffResponse.headers['access-control-allow-origin']}`);
+        console.log(`  Access-Control-Allow-Methods: ${staffResponse.headers['access-control-allow-methods']}`);
+        console.log(`  Access-Control-Allow-Headers: ${staffResponse.headers['access-control-allow-headers']}`);
+        console.log(`  Access-Control-Allow-Credentials: ${staffResponse.headers['access-control-allow-credentials']}`);
+
+        if (staffResponse.headers['access-control-allow-headers'] && 
+            staffResponse.headers['access-control-allow-headers'].toLowerCase().includes('x-coach-id')) {
+            console.log('✅ x-coach-id header is properly allowed in CORS');
+        } else {
+            console.log('❌ x-coach-id header is NOT properly allowed in CORS');
+        }
+
+    } catch (error) {
+        console.log(`❌ Staff route OPTIONS test failed: ${error.message}`);
+        if (error.response) {
+            console.log(`  Status: ${error.response.status}`);
+            console.log(`  Headers:`, error.response.headers);
+        }
+    }
+
     console.log('\n🎯 Consolidated CORS Test Complete!');
     console.log('📝 All CORS configuration is now centralized in config/cors.js');
 }

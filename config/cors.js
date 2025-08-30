@@ -54,7 +54,7 @@ const corsOptions = {
     // Allowed HTTP methods
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     
-    // Allowed headers
+    // Allowed headers - comprehensive list for all routes
     allowedHeaders: [
         'Content-Type', 
         'Authorization', 
@@ -65,14 +65,39 @@ const corsOptions = {
         'X-Client-Version',
         'Cache-Control',
         'Pragma',
-        'Expires'
+        'Expires',
+        'x-coach-id',           // Coach identification header
+        'X-Coach-ID',           // Alternative case
+        'x-user-id',            // User identification header
+        'X-User-ID',            // Alternative case
+        'x-session-id',         // Session identification
+        'X-Session-ID',         // Alternative case
+        'x-request-id',         // Request tracking
+        'X-Request-ID',         // Alternative case
+        'x-forwarded-for',      // Proxy forwarding
+        'X-Forwarded-For',      // Alternative case
+        'x-real-ip',            // Real IP address
+        'X-Real-IP',            // Alternative case
+        'x-custom-domain',      // Custom domain header
+        'X-Custom-Domain',      // Alternative case
+        'x-auth-token',         // Auth token header
+        'X-Auth-Token',         // Alternative case
+        'x-refresh-token',      // Refresh token header
+        'X-Refresh-Token',      // Alternative case
+        'x-tenant-id',          // Tenant identification
+        'X-Tenant-ID',          // Alternative case
+        'x-version',            // API version header
+        'X-Version'             // Alternative case
     ],
     
     // Exposed headers (headers that browsers are allowed to access)
     exposedHeaders: [
         'X-Total-Count',
         'X-Page-Count',
-        'X-Current-Page'
+        'X-Current-Page',
+        'X-Coach-ID',
+        'X-User-ID',
+        'X-Session-ID'
     ],
     
     // Allow credentials (cookies, authorization headers, etc.)

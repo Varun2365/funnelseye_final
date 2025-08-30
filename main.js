@@ -127,6 +127,32 @@ const { corsOptions } = require('./config/cors');
 
 app.use(cors(corsOptions));
 
+// CORS debugging middleware - helps troubleshoot CORS issues
+app.use((req, res, next) => {
+    // Log CORS-related information for debugging
+    if (req.method === 'OPTIONS') {
+        console.log(`[CORS DEBUG] Preflight request for: ${req.path}`);
+        console.log(`[CORS DEBUG] Origin: ${req.headers.origin}`);
+        console.log(`[CORS DEBUG] Access-Control-Request-Method: ${req.headers['access-control-request-method']}`);
+        console.log(`[CORS DEBUG] Access-Control-Request-Headers: ${req.headers['access-control-request-headers']}`);
+        
+        // Ensure CORS headers are set for preflight requests
+        res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-API-Key, X-Client-Version, Cache-Control, Pragma, Expires, x-coach-id, X-Coach-ID, x-user-id, X-User-ID, x-session-id, X-Session-ID, x-request-id, X-Request-ID, x-forwarded-for, X-Forwarded-For, x-real-ip, X-Real-IP, x-custom-domain, X-Custom-Domain, x-auth-token, X-Auth-Token, x-refresh-token, X-Refresh-Token, x-tenant-id, X-Tenant-ID, x-version, X-Version');
+        res.header('Access-Control-Allow-Credentials', 'true');
+        res.header('Access-Control-Max-Age', '86400');
+        
+        // Handle preflight requests
+        if (req.method === 'OPTIONS') {
+            res.status(200).end();
+            return;
+        }
+    }
+    
+    next();
+});
+
 // // Request logging middleware for debugging
 app.use((req, res, next) => {
     // Log WhatsApp API calls specifically

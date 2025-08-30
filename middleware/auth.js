@@ -3,6 +3,11 @@ const jwt = require('jsonwebtoken'); // For verifying JWT tokens
 
 // @desc    Protect routes - Middleware to check for valid JWT
 const protect = async (req, res, next) => {
+    // Allow OPTIONS requests (preflight) to pass through for CORS
+    if (req.method === 'OPTIONS') {
+        return next();
+    }
+
     let token;
 
     // 1) Check if token exists in the Authorization header (Bearer token)
