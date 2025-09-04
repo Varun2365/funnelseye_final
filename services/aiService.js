@@ -145,7 +145,7 @@ class AIService {
         return this.generateMarketingCopy(prompt, { maxTokens: 200 });
     }
 
-    // Sentiment Analysis for WhatsApp messages
+            // Sentiment Analysis for messages (WhatsApp functionality moved to dustbin/whatsapp-dump/)
     async analyzeSentiment(message) {
         const messages = [
             {

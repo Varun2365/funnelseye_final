@@ -13,7 +13,7 @@ const TaskSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Pending', 'In Progress', 'Completed', 'Overdue', 'Cancelled'],
+        enum: ['Pending', 'In Progress', 'Completed', 'Overdue', 'Cancelled', 'Paused'],
         default: 'Pending'
     },
     priority: {
@@ -33,7 +33,7 @@ const TaskSchema = new mongoose.Schema({
     assignedTo: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Coach',
-        required: [true, 'A task must be assigned to a coach.']
+        required: [true, 'A task must be assigned to a coach or staff member.']
     },
     relatedLead: {
         type: mongoose.Schema.Types.ObjectId,
@@ -131,6 +131,46 @@ const TaskSchema = new mongoose.Schema({
     },
     completedAt: {
         type: Date
+    },
+    // Staff-specific fields for task completion
+    startedAt: {
+        type: Date
+    },
+    pausedAt: {
+        type: Date
+    },
+    totalPauseTime: {
+        type: Number, // in minutes
+        default: 0
+    },
+    completionNotes: {
+        type: String
+    },
+    outcome: {
+        type: String,
+        enum: ['SUCCESS', 'PARTIAL_SUCCESS', 'FAILED', 'CANCELLED'],
+        default: 'SUCCESS'
+    },
+    qualityRating: {
+        type: Number,
+        min: 1,
+        max: 5
+    },
+    feedback: {
+        type: String
+    },
+    lastActivity: {
+        type: Date,
+        default: Date.now
+    },
+    timeSpent: {
+        type: Number, // in minutes
+        default: 0
+    },
+    efficiency: {
+        type: Number, // percentage
+        min: 0,
+        max: 100
     }
 });
 

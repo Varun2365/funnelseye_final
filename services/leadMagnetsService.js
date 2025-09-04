@@ -2,7 +2,8 @@
 
 const { Lead, Coach } = require('../schema');
 const OpenAI = require('openai');
-const { sendMessageByCoach } = require('./metaWhatsAppService');
+// WhatsApp services moved to dustbin/whatsapp-dump/
+// const { sendMessageByCoach } = require('./metaWhatsAppService');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -11,8 +12,8 @@ class LeadMagnetsService {
         this.availableLeadMagnets = {
             'ai_diet_planner': {
                 name: 'AI Health Diet Planner',
-                description: 'Personalized meal plans via WhatsApp',
-                type: 'whatsapp_chat',
+                description: 'Personalized meal plans via email', // WhatsApp functionality moved to dustbin/whatsapp-dump/
+                type: 'email_chat', // WhatsApp functionality moved to dustbin/whatsapp-dump/
                 isActive: true
             },
             'bmi_calculator': {

@@ -74,12 +74,12 @@ const PERMISSIONS = {
         MANAGE: 'ai:manage'
     },
     
-    // WhatsApp Management
-    WHATSAPP: {
-        READ: 'whatsapp:read',
-        WRITE: 'whatsapp:write',
-        MANAGE: 'whatsapp:manage'
-    },
+    // WhatsApp Management - moved to dustbin/whatsapp-dump/
+    // WHATSAPP: {
+    //     READ: 'whatsapp:read',
+    //     WRITE: 'whatsapp:write',
+    //     MANAGE: 'whatsapp:manage'
+    // },
     
     // Automation Rules
     AUTOMATION: {
@@ -143,9 +143,9 @@ const PERMISSION_GROUPS = {
     ],
     
     'Communication Manager': [
-        PERMISSIONS.WHATSAPP.READ,
-        PERMISSIONS.WHATSAPP.WRITE,
-        PERMISSIONS.WHATSAPP.MANAGE,
+            // PERMISSIONS.WHATSAPP.READ, // WhatsApp functionality moved to dustbin/whatsapp-dump/
+    // PERMISSIONS.WHATSAPP.WRITE, // WhatsApp functionality moved to dustbin/whatsapp-dump/
+    // PERMISSIONS.WHATSAPP.MANAGE, // WhatsApp functionality moved to dustbin/whatsapp-dump/
         PERMISSIONS.AUTOMATION.READ,
         PERMISSIONS.AUTOMATION.WRITE
     ],

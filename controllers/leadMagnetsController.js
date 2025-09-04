@@ -29,7 +29,7 @@ exports.updateCoachLeadMagnets = asyncHandler(async (req, res, next) => {
     });
 });
 
-// Generate AI Diet Plan via WhatsApp
+        // Generate AI Diet Plan via Email (WhatsApp functionality moved to dustbin/whatsapp-dump/)
 exports.generateAIDietPlan = asyncHandler(async (req, res, next) => {
     const coachId = req.user.id;
     const { leadId, userPreferences } = req.body;

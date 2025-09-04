@@ -87,7 +87,6 @@ const AutomationRuleSchema = new mongoose.Schema({
             'appointment_finished',
 
             // Communication
-            'whatsapp_message_received',
             'content_consumed',
 
             // Task & System

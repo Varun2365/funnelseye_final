@@ -21,7 +21,7 @@ const samplePlans = [
         },
         features: {
             aiCredits: { monthly: 100, yearly: 1200 },
-            whatsappCredits: { monthly: 50, yearly: 600 },
+            // whatsappCredits: { monthly: 50, yearly: 600 }, // WhatsApp functionality moved to dustbin/whatsapp-dump/
             emailCredits: { monthly: 200, yearly: 2400 },
             maxLeads: 500,
             maxStaff: 2,
@@ -46,7 +46,7 @@ const samplePlans = [
         },
         features: {
             aiCredits: { monthly: 300, yearly: 3600 },
-            whatsappCredits: { monthly: 150, yearly: 1800 },
+            // whatsappCredits: { monthly: 150, yearly: 1800 }, // WhatsApp functionality moved to dustbin/whatsapp-dump/
             emailCredits: { monthly: 500, yearly: 6000 },
             maxLeads: 2000,
             maxStaff: 5,
@@ -71,7 +71,7 @@ const samplePlans = [
         },
         features: {
             aiCredits: { monthly: 1000, yearly: 12000 },
-            whatsappCredits: { monthly: 500, yearly: 6000 },
+            // whatsappCredits: { monthly: 500, yearly: 6000 }, // WhatsApp functionality moved to dustbin/whatsapp-dump/
             emailCredits: { monthly: 1000, yearly: 12000 },
             maxLeads: 10000,
             maxStaff: 20,
@@ -109,9 +109,9 @@ const sampleCreditPackages = [
         sortOrder: 1
     },
     {
-        name: 'WhatsApp Credits Pro',
-        type: 'whatsapp',
-        description: '500 WhatsApp message credits',
+        // name: 'WhatsApp Credits Pro', // WhatsApp functionality moved to dustbin/whatsapp-dump/
+        // type: 'whatsapp', // WhatsApp functionality moved to dustbin/whatsapp-dump/
+        // description: '500 WhatsApp message credits', // WhatsApp functionality moved to dustbin/whatsapp-dump/
         credits: 500,
         price: {
             amount: 799,

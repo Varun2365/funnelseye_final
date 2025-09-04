@@ -1,7 +1,7 @@
 // D:\PRJ_YCT_Final\services\automationProcessor.js
 const funnelseyeEventEmitter = require('./eventEmitterService');
 const AutomationRule = require('../schema/AutomationRule'); // Needed to find rules
-const { sendCoachMessage, isClientConnected } = require('./whatsappManager'); // Your Baileys integration
+// WhatsApp manager moved to dustbin/whatsapp-dump/
 const { parseTemplateString } = require('../utils/templateParser'); // The utility we just created
 const Lead = require('../schema/Lead'); // Needed for UPDATE_LEAD_STATUS action
 const { emailService, smsService, internalNotificationService, aiService } = require('./actionExecutorService');
@@ -35,62 +35,44 @@ const executeAutomationAction = async (action, eventData) => {
 
         // AI-enhanced action execution
         switch (action.type) {
-            case 'SEND_WHATSAPP': // <-- CORRECTED: This now matches your schema enum
-                // Get the coachId from the eventData. This tells us which coach's WhatsApp to use.
-                const coachId = eventData.coachId;
-                if (!coachId) {
-                    console.warn(`[AutomationProcessor] SEND_WHATSAPP: No 'coachId' found in eventData. Cannot determine which WhatsApp client to use. Skipping.`);
-                    return;
-                }
-
-                // Check if the coach's Baileys client is currently connected and ready.
-                if (!isClientConnected(coachId)) {
-                    console.warn(`[AutomationProcessor] SEND_WHATSAPP: Coach ${coachId}'s WhatsApp client is not connected or ready. Skipping message sending.`);
-                    // You might want to log this as a higher priority or trigger an alert in a real system.
-                    return;
-                }
-
-                // Determine the recipient's phone number. 'recipientField' in config tells us where to find it.
-                // Assuming 'leadData' exists and contains the phone field, defaulting to 'phone'
-                const recipientPhoneField = action.config.recipientField || 'phone';
-                const recipientPhoneNumber = eventData.leadData ? eventData.leadData[recipientPhoneField] : null;
-
-                if (!recipientPhoneNumber) {
-                    console.warn(`[AutomationProcessor] SEND_WHATSAPP: No phone number found in leadData.${recipientPhoneField} for lead ID: ${eventData.leadId}. Skipping.`);
-                    return;
-                }
-
-                // Get the message body from the rule's config.
-                if (!action.config.message) { // Changed from messageBody to message as per recent config
-                    console.warn(`[AutomationProcessor] SEND_WHATSAPP: No 'message' defined in the automation rule's config for action type ${action.type}. Skipping.`);
-                    return;
-                }
-
-                // Use the templateParser to replace variables in the message content.
-                // It uses the full 'eventData' to resolve {{leadData.name}}, {{coachId}}, etc.
-                const messageContent = parseTemplateString(action.config.message, eventData);
-
-                // AI-enhanced message personalization
-                if (action.config.useAI && eventData.aiInsights) {
-                    const personalizedMessage = await aiService.generateContextualResponse(
-                        messageContent,
-                        eventData.aiInsights.sentiment,
-                        {
-                            leadStage: eventData.leadData?.status,
-                            platform: 'whatsapp',
-                            leadScore: eventData.leadData?.score
-                        }
-                    );
+            case 'send_whatsapp_message':
+                console.log(`[AutomationProcessor] Executing WhatsApp message action for lead: ${eventData.leadId}`);
+                try {
+                    const unifiedWhatsAppService = require('../whatsapp/services/unifiedWhatsAppService');
                     
-                    if (personalizedMessage.success) {
-                        messageContent = personalizedMessage.content;
-                    }
-                }
+                    // Get the coach's default device
+                    const WhatsAppDevice = require('../whatsapp/schemas').WhatsAppDevice;
+                    const device = await WhatsAppDevice.findOne({
+                        coachId: eventData.coachId,
+                        isDefault: true,
+                        isActive: true
+                    });
 
-                console.log(`[AutomationProcessor] Attempting to send WhatsApp message via Baileys for coach ${coachId} to ${recipientPhoneNumber}: "${messageContent}"`);
-                // Call the function from your whatsappManager to send the message.
-                await sendCoachMessage(coachId, recipientPhoneNumber, messageContent);
-                console.log(`[AutomationProcessor] Successfully sent WhatsApp message for coach ${coachId} to ${recipientPhoneNumber}.`);
+                    if (!device) {
+                        console.warn(`[AutomationProcessor] No default WhatsApp device found for coach ${eventData.coachId}`);
+                        return;
+                    }
+
+                    // Parse template variables
+                    const messageContent = parseTemplateString(action.config.message, {
+                        name: eventData.name || eventData.leadData?.name,
+                        email: eventData.email || eventData.leadData?.email,
+                        phone: eventData.phone || eventData.leadData?.phone,
+                        company: eventData.company || eventData.leadData?.company
+                    });
+
+                    // Send the message
+                    await unifiedWhatsAppService.sendMessage(
+                        device._id,
+                        eventData.phone || eventData.leadData?.phone,
+                        { text: messageContent },
+                        { isAutomated: true, automationRuleId: eventData.ruleId }
+                    );
+
+                    console.log(`[AutomationProcessor] WhatsApp message sent successfully to ${eventData.phone || eventData.leadData?.phone}`);
+                } catch (error) {
+                    console.error(`[AutomationProcessor] Error sending WhatsApp message:`, error);
+                }
                 break;
 
             case 'CREATE_TASK':

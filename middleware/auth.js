@@ -32,10 +32,10 @@ const protect = async (req, res, next) => {
         // Verify token
         // This decodes the token using the secret and checks for expiration
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
+        console.log('🔑 [Protect Middleware] Decoded token:', decoded);
         // Find user by the ID extracted from the token's payload
         const user = await User.findById(decoded.id);
-
+        console.log('🔑 [Protect Middleware] User:', user);
         if (!user) {
             // If user associated with the token is not found (e.g., user deleted)
             return res.status(401).json({

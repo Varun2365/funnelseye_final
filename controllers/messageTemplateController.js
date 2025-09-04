@@ -176,7 +176,7 @@ const getTemplateCategories = asyncHandler(async (req, res, next) => {
 // @access  Private (Coaches)
 const getTemplateTypes = asyncHandler(async (req, res, next) => {
     const types = [
-        { value: 'whatsapp', label: 'WhatsApp', description: 'WhatsApp Business messages with rich media support' },
+        // { value: 'whatsapp', label: 'WhatsApp', description: 'WhatsApp Business messages with rich media support' }, // WhatsApp functionality moved to dustbin/whatsapp-dump/
         { value: 'email', label: 'Email', description: 'Professional email templates with HTML support' },
         { value: 'sms', label: 'SMS', description: 'Simple text messages for mobile' },
         { value: 'universal', label: 'Universal', description: 'Templates that work across all platforms' }

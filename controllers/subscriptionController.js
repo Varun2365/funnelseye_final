@@ -20,7 +20,7 @@ exports.createPlan = async (req, res) => {
             });
         }
 
-        const result = await subscriptionService.createPlan(req.body, req.user._id);
+        const result = await subscriptionService.createPlan(req.body, req.admin._id);
         
         if (!result.success) {
             return res.status(400).json({
@@ -172,7 +172,7 @@ exports.deletePlan = async (req, res) => {
 exports.subscribeCoach = async (req, res) => {
     try {
         const { planId, paymentData } = req.body;
-        const coachId = req.user.role === 'admin' ? req.body.coachId : req.user._id;
+        const coachId = req.admin ? req.body.coachId : req.user._id;
 
         if (!planId) {
             return res.status(400).json({
@@ -213,7 +213,7 @@ exports.subscribeCoach = async (req, res) => {
 exports.renewSubscription = async (req, res) => {
     try {
         const { planId, paymentData } = req.body;
-        const coachId = req.user.role === 'admin' ? req.body.coachId : req.user._id;
+        const coachId = req.admin ? req.body.coachId : req.user._id;
 
         if (!planId) {
             return res.status(400).json({
@@ -254,7 +254,7 @@ exports.renewSubscription = async (req, res) => {
 exports.cancelSubscription = async (req, res) => {
     try {
         const { reason } = req.body;
-        const coachId = req.user.role === 'admin' ? req.body.coachId : req.user._id;
+        const coachId = req.admin ? req.body.coachId : req.user._id;
 
         if (!reason) {
             return res.status(400).json({
@@ -266,7 +266,7 @@ exports.cancelSubscription = async (req, res) => {
         const result = await subscriptionService.cancelSubscription(
             coachId, 
             reason, 
-            req.user._id
+            req.admin ? req.admin._id : req.user._id
         );
         
         if (!result.success) {
@@ -298,7 +298,7 @@ exports.cancelSubscription = async (req, res) => {
  */
 exports.getMySubscription = async (req, res) => {
     try {
-        const result = await subscriptionService.getCoachSubscription(req.user._id);
+        const result = await subscriptionService.getCoachSubscription(req.admin ? req.admin._id : req.user._id);
         
         if (!result.success) {
             return res.status(404).json({

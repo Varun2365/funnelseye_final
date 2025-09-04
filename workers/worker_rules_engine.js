@@ -51,7 +51,7 @@ const initRulesEngineWorker = async () => {
                     let relatedDoc;
                     let rules;
 
-                    if (eventName.startsWith('lead_') || eventName.startsWith('funnel_') || eventName.startsWith('form_submitted') || eventName.startsWith('content_consumed') || eventName.startsWith('whatsapp_message_received')) {
+                    if (eventName.startsWith('lead_') || eventName.startsWith('funnel_') || eventName.startsWith('form_submitted') || eventName.startsWith('content_consumed')) {
                         const leadId = eventPayload.leadId || eventPayload.payload.leadId;
                         relatedDoc = await Lead.findById(leadId);
                         rules = await AutomationRule.find({ triggerEvent: eventName, isActive: true });

@@ -130,28 +130,29 @@ const coachSchema = new mongoose.Schema({
         default: {}
     },
     // --- Fields for WhatsApp Integration ---
-    whatsApp: {
-        useCentralAccount: {
-            type: Boolean,
-            default: true
-        },
-        phoneNumberId: {
-            type: String,
-            trim: true,
-            default: null
-        },
-        whatsAppBusinessAccountId: {
-            type: String,
-            trim: true,
-            default: null
-        },
-        whatsAppApiToken: {
-            type: String,
-            trim: true,
-            default: null,
-            select: false
-        },
-    },
+    // WhatsApp functionality moved to dustbin/whatsapp-dump/
+    // whatsApp: {
+    //     useCentralAccount: {
+    //         type: Boolean,
+    //         default: true
+    //     },
+    //     phoneNumberId: {
+    //         type: String,
+    //         trim: true,
+    //         default: null
+    //     },
+    //     whatsAppBusinessAccountId: {
+    //         type: String,
+    //         trim: true,
+    //         default: null
+    //     },
+    //     whatsAppApiToken: {
+    //         type: String,
+    //         trim: true,
+    //         default: null,
+    //         select: false
+    //     },
+    // },
     // ✅ ADDED: The new credits field for message-based billing
     credits: {
         type: Number,

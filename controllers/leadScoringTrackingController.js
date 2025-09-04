@@ -21,11 +21,11 @@ exports.linkClicked = async (req, res) => {
   res.json({ success: true });
 };
 
-exports.whatsappReplied = async (req, res) => {
-  const { leadId } = req.body;
-  if (leadId) await leadScoringService.updateLeadScore(leadId, 'whatsapp_replied');
-  res.json({ success: true });
-};
+// exports.whatsappReplied = async (req, res) => { // WhatsApp functionality moved to dustbin/whatsapp-dump/
+//     const { leadId } = req.body;
+//     if (leadId) await leadScoringService.updateLeadScore(leadId, 'whatsapp_replied');
+//   res.json({ success: true });
+// };
 
 exports.formSubmitted = async (req, res) => {
   const { leadId } = req.body;

@@ -84,66 +84,20 @@ exports.addCredits = asyncHandler(async (req, res, next) => {
     });
 });
 
+// WhatsApp functionality moved to dustbin/whatsapp-dump/
 // @desc    Update WhatsApp credentials for a coach
 // @route   PUT /api/coach/:id/whatsapp-config
 // @access  Private (Coach)
 exports.updateWhatsAppConfig = asyncHandler(async (req, res, next) => {
-    const { id } = req.params;
-    const { useCentralAccount, phoneNumberId, whatsAppBusinessAccountId, whatsAppApiToken } = req.body;
-
-    // Validate that the user is updating their own profile or is an admin
-    if (req.user.role !== 'admin' && req.user.role !== 'super_admin' && req.user._id.toString() !== id) {
-        return res.status(403).json({ success: false, message: 'You are not authorized to update this coach\'s WhatsApp configuration.' });
-    }
-
-    const updateData = {};
-    
-    if (typeof useCentralAccount === 'boolean') {
-        updateData['whatsApp.useCentralAccount'] = useCentralAccount;
-    }
-    
-    if (phoneNumberId) {
-        updateData['whatsApp.phoneNumberId'] = phoneNumberId;
-    }
-    
-    if (whatsAppBusinessAccountId) {
-        updateData['whatsApp.whatsAppBusinessAccountId'] = whatsAppBusinessAccountId;
-    }
-    
-    if (whatsAppApiToken) {
-        updateData['whatsApp.whatsAppApiToken'] = whatsAppApiToken;
-    }
-
-    const updatedCoach = await Coach.findByIdAndUpdate(
-        id,
-        { $set: updateData },
-        {
-            new: true,
-            runValidators: true
-        }
-    );
-
-    if (!updatedCoach) {
-        return res.status(404).json({ success: false, message: 'Coach not found.' });
-    }
-
-    res.status(200).json({
-        success: true,
-        message: 'WhatsApp configuration updated successfully.',
-        data: {
-            useCentralAccount: updatedCoach.whatsApp.useCentralAccount,
-            phoneNumberId: updatedCoach.whatsApp.phoneNumberId,
-            whatsAppBusinessAccountId: updatedCoach.whatsApp.whatsAppBusinessAccountId
-            // Note: whatsAppApiToken is not returned for security
-        }
-    });
+    console.log('[CoachController] WhatsApp functionality moved to dustbin/whatsapp-dump/');
+    throw new Error('WhatsApp functionality moved to dustbin/whatsapp-dump/');
 });
 
 // @desc    Get coach information (including ID)
 // @route   GET /api/coach/me
 // @access  Private (Coach)
 exports.getMyInfo = asyncHandler(async (req, res, next) => {
-    const coach = await Coach.findById(req.user._id).select('-whatsApp.whatsAppApiToken');
+    const coach = await Coach.findById(req.user._id);
     
     if (!coach) {
         return res.status(404).json({ success: false, message: 'Coach not found.' });
@@ -155,12 +109,8 @@ exports.getMyInfo = asyncHandler(async (req, res, next) => {
             id: coach._id,
             name: coach.name,
             email: coach.email,
-            credits: coach.credits,
-            whatsApp: {
-                useCentralAccount: coach.whatsApp.useCentralAccount,
-                phoneNumberId: coach.whatsApp.phoneNumberId,
-                whatsAppBusinessAccountId: coach.whatsApp.whatsAppBusinessAccountId
-            }
+            credits: coach.credits
+            // WhatsApp functionality moved to dustbin/whatsapp-dump/
         }
     });
 });

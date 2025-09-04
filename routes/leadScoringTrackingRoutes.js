@@ -4,7 +4,7 @@ const tracking = require('../controllers/leadScoringTrackingController');
 
 router.get('/email-opened', tracking.emailOpened);
 router.get('/link-clicked', tracking.linkClicked);
-router.post('/whatsapp-replied', tracking.whatsappReplied);
+// router.post('/whatsapp-replied', tracking.whatsappReplied); // WhatsApp functionality moved to dustbin/whatsapp-dump/
 router.post('/form-submitted', tracking.formSubmitted);
 router.post('/call-booked', tracking.callBooked);
 router.post('/call-attended', tracking.callAttended);

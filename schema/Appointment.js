@@ -13,6 +13,12 @@ const AppointmentSchema = new mongoose.Schema({
     ref: 'Lead',
     required: true,
   },
+  // NEW: Staff assignment for coach-appointed staff
+  assignedStaffId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Staff',
+    required: false, // Optional - appointments can be coach-only or staff-assigned
+  },
   startTime: {
     type: Date,
     required: true,

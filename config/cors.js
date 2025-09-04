@@ -8,8 +8,12 @@ const corsOptions = {
             // Development & Local Testing
             'http://localhost:3000',
             'http://localhost:5000',        // Primary development port
+            'http://localhost:8080',        // Server port
+            'http://localhost:5173',        // Vite dev server port
             'http://127.0.0.1:3000',
             'http://127.0.0.1:5000',       // Primary development port
+            'http://127.0.0.1:8080',       // Server port
+            'http://127.0.0.1:5173',       // Vite dev server port
             
             // Production domains
             'https://funnelseye.com',
@@ -39,8 +43,9 @@ const corsOptions = {
             return callback(null, true);
         }
 
-        // Allow localhost:5000 for all routes (development priority)
-        if (origin === 'http://localhost:5000' || origin === 'http://127.0.0.1:5000') {
+        // Allow localhost:5000 and localhost:8080 for all routes (development priority)
+        if (origin === 'http://localhost:5000' || origin === 'http://127.0.0.1:5000' ||
+            origin === 'http://localhost:8080' || origin === 'http://127.0.0.1:8080') {
             return callback(null, true);
         }
 
@@ -144,10 +149,13 @@ module.exports = {
         if (!origin) return true;
         
         const allowedOrigins = [
-            'http://localhost:3000',
+            'http://localhost:8080',
             'http://localhost:5000',
+            'http://localhost:5173',        // Vite dev server port
             'http://127.0.0.1:3000',
             'http://127.0.0.1:5000',
+            'http://127.0.0.1:8080',
+            'http://127.0.0.1:5173',       // Vite dev server port
             'https://funnelseye.com',
             'https://www.funnelseye.com',
             'https://app.funnelseye.com',
@@ -158,6 +166,10 @@ module.exports = {
         return allowedOrigins.includes(origin) || 
                origin.includes('funnelseye.com') ||
                origin === 'http://localhost:5000' ||
-               origin === 'http://127.0.0.1:5000';
+               origin === 'http://127.0.0.1:5000' ||
+               origin === 'http://localhost:8080' ||
+               origin === 'http://127.0.0.1:8080' ||
+               origin === 'http://localhost:5173' ||
+               origin === 'http://127.0.0.1:5173';
     }
 };

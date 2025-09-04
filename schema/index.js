@@ -13,7 +13,7 @@ const AdCampaign = require('./AdCampaign');
 const AdSet = require('./AdSet');
 const AdCreative = require('./AdCreative');
 const Ad = require('./Ad');
-const Payment = require('./Payment');
+// const Payment = require('./Payment');
 const Subscription = require('./Subscription');
 const Cart = require('./Cart');
 const Funnel = require('./Funnel');
@@ -28,19 +28,15 @@ const Appointment = require('./Appointment');
 const CustomDomain = require('./CustomDomain');
 const File = require('./File');
 const FormSubmissionMessage = require('./FormSubmissionMessage');
-const Message = require('./Message');
+// const Message = require('./Message');
 const Otp = require('./Otp');
 const ScoreLog = require('./ScoreLog');
 const SequenceLog = require('./SequenceLog');
 const SystemLog = require('./SystemLog');
-const WhatsAppMessage = require('./whatsappMessageSchema');
 const MessageTemplate = require('./MessageTemplate');
 const ZoomIntegration = require('./ZoomIntegration');
 
-// Import new WhatsApp schemas
-const WhatsAppIntegration = require('./WhatsAppIntegration');
-const WhatsAppConversation = require('./WhatsAppConversation');
-const WhatsAppContact = require('./WhatsAppContact');
+// WhatsApp schemas moved to dustbin/whatsapp-dump/
 
 // Import hierarchy schemas
 const CoachHierarchyLevel = require('./CoachHierarchyLevel');
@@ -48,6 +44,23 @@ const AdminRequest = require('./AdminRequest');
 const ExternalSponsor = require('./ExternalSponsor');
 const Commission = require('./Commission');
 const CommissionSettings = require('./CommissionSettings');
+
+// Import new payment and plan schemas
+const CoachPlan = require('./CoachPlan');
+const CentralPayment = require('./CentralPayment');
+// const CentralPaymentHandler = require('./CentralPaymentHandler');
+const MlmCommissionDistribution = require('./MlmCommissionDistribution');
+
+// Import unified payment system schemas
+const GlobalPaymentSettings = require('./GlobalPaymentSettings');
+const UnifiedPaymentTransaction = require('./UnifiedPaymentTransaction');
+const CheckoutPage = require('./CheckoutPage');
+
+
+// Import new admin system schemas
+const AdminSystemSettings = require('./AdminSystemSettings');
+const AdminUser = require('./AdminUser');
+const AdminAuditLog = require('./AdminAuditLog');
 
 // Create discriminator models after base models are loaded
 let Coach;
@@ -79,7 +92,7 @@ const models = {
     AdSet,
     AdCreative,
     Ad,
-    Payment,
+    // Payment,
     Subscription,
     Cart,
     Funnel,
@@ -94,25 +107,36 @@ const models = {
     CustomDomain,
     File,
     FormSubmissionMessage,
-    Message,
+
     Otp,
     ScoreLog,
     SequenceLog,
     SystemLog,
-    WhatsAppMessage,
     MessageTemplate,
     ZoomIntegration,
-    // New WhatsApp models
-    WhatsAppIntegration,
-    WhatsAppConversation,
-    WhatsAppContact,
+    // WhatsApp models moved to dustbin/whatsapp-dump/
     // Hierarchy models
     CoachHierarchyLevel,
     AdminRequest,
     ExternalSponsor,
     // Commission models
     Commission,
-    CommissionSettings
+    CommissionSettings,
+    // New payment and plan models
+    CoachPlan,
+    CentralPayment,
+    // CentralPaymentHandler,
+    MlmCommissionDistribution,
+    
+    // Unified payment system models
+    GlobalPaymentSettings,
+    UnifiedPaymentTransaction,
+    CheckoutPage,
+
+    // New admin system models
+    AdminSystemSettings,
+    AdminUser,
+    AdminAuditLog
 };
 
 // Validate all models are properly loaded

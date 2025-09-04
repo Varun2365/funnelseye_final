@@ -20,7 +20,7 @@ const zoomCleanupService = require('./services/zoomCleanupService');
 
 // 🛡️ Middleware Imports
 const cors = require('cors');
-const adminAuth = require('./middleware/adminAuth');
+// const adminAuth = require('./middleware/adminAuth');
 
 // 🛣️ Route Imports
 const authRoutes = require('./routes/authRoutes.js');
@@ -35,9 +35,11 @@ const dailyPriorityFeedRoutes = require('./routes/dailyPriorityFeedRoutes');
 const advancedMlmRoutes = require('./routes/advancedMlmRoutes');
 const coachRoutes = require('./routes/coachRoutes');
 const metaRoutes = require('./routes/metaRoutes.js');
-const paymentRoutes = require('./routes/paymentRoutes.js');
+// const paymentRoutes = require('./routes/paymentRoutes.js');
 const staffRoutes = require('./routes/staffRoutes.js');
 const staffCalendarRoutes = require('./routes/staffCalendarRoutes.js');
+const staffAppointmentRoutes = require('./routes/staffAppointmentRoutes.js');
+const staffTaskRoutes = require('./routes/staffTaskRoutes.js');
 const adsRoutes = require('./routes/adsRoutes');
 const aiAdsRoutes = require('./routes/aiAdsRoutes');
 const workflowRoutes = require('./routes/workflowRoutes');
@@ -53,14 +55,10 @@ const leadMagnetsRoutes = require('./routes/leadMagnetsRoutes');
 const leadNurturingRoutes = require('./routes/leadNurturingRoutes');
 const leadScoringTrackingRoutes = require('./routes/leadScoringTrackingRoutes');
 const aiRoutes = require('./routes/aiRoutes');
-const adminAnalyticsRoutes = require('./routes/adminAnalyticsRoutes');
-const adminAuthRoutes = require('./routes/adminAuthRoutes');
-const adminLogsRoutes = require('./routes/adminLogsRoutes');
-const adminSettingsRoutes = require('./routes/adminSettingsRoutes');
-const adminUserRoutes = require('./routes/adminUserRoutes');
+
 const zoomIntegrationRoutes = require('./routes/zoomIntegrationRoutes');
 const messageTemplateRoutes = require('./routes/messageTemplateRoutes');
-const whatsappRoutes = require('./routes/whatsappRoutes');
+// WhatsApp routes moved to dustbin/whatsapp-dump/
 const coachHierarchyRoutes = require('./routes/coachHierarchyRoutes');
 const apiDocsRoutes = require('./routes/apiDocsRoutes');
 
@@ -78,7 +76,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: ["http://localhost:5000", "http://localhost:3000", "https://funnelseye.com"],
+        origin: ["http://localhost:5000", "http://localhost:8080", "https://funnelseye.com"],
         methods: ["GET", "POST"],
         credentials: true
     }
@@ -155,10 +153,10 @@ app.use((req, res, next) => {
 
 // // Request logging middleware for debugging
 app.use((req, res, next) => {
-    // Log WhatsApp API calls specifically
-    if (req.path.startsWith('/api/whatsapp')) {
-        console.log(`[WhatsApp API] ${req.method} ${req.path} - Origin: ${req.headers.origin || 'No origin'} - User-Agent: ${req.headers['user-agent'] || 'No user-agent'}`);
-    }
+    // WhatsApp API calls moved to dustbin/whatsapp-dump/
+    // if (req.path.startsWith('/api/whatsapp')) {
+    //     console.log(`[WhatsApp API] ${req.method} ${req.path} - Origin: ${req.headers.origin || 'No origin'} - User-Agent: ${req.headers['user-agent'] || 'No user-agent'}`);
+    // }
     
     // Log all requests in development
     if (process.env.NODE_ENV === 'development') {
@@ -224,23 +222,45 @@ app.use('/api/coach', dailyPriorityFeedRoutes);
 app.use('/api/coach-profile', coachRoutes);
 
 // ===== E-COMMERCE & PAYMENTS =====
-app.use('/api/payments', paymentRoutes);
+// app.use('/api/payments', paymentRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/coach-payments', coachPaymentRoutes);
 app.use('/api/cart', cartRoutes);
+
+// ===== UNIFIED PAYMENT SYSTEM (CONSOLIDATED) =====
+// NOTE: Funnelseye Payments disabled - migrating to Unified Payments
+// const funnelseyePaymentRoutes = require('./routes/funnelseyePaymentRoutes');
+// app.use('/api/funnelseye-payments', funnelseyePaymentRoutes);
+
+// ===== UNIFIED PAYMENT SYSTEM =====
+const unifiedPaymentRoutes = require('./routes/unifiedPaymentRoutes');
+const checkoutPageRoutes = require('./routes/checkoutPageRoutes');
+const coachPlanRoutes = require('./routes/coachPlanRoutes');
+
+// Mount unified payment routes
+app.use('/api/unified-payments', unifiedPaymentRoutes);
+app.use('/api/checkout-pages', checkoutPageRoutes);
+app.use('/api/coach-plans', coachPlanRoutes);
+
 
 // ===== MARKETING & ADVERTISING =====
 app.use('/api/ads', adsRoutes);
 app.use('/api/ai-ads', aiAdsRoutes);
 
 // ===== UNIFIED WHATSAPP INTEGRATION =====
+const whatsappRoutes = require('./whatsapp/routes');
 app.use('/api/whatsapp', whatsappRoutes);
+
+// Serve WhatsApp QR code page
+app.use('/whatsapp', express.static(path.join(__dirname, 'whatsapp/public')));
 
 // ===== STAFF & TEAM MANAGEMENT =====
 app.use('/api/staff', staffRoutes);
 app.use('/api/staff-dashboard', staffDashboardRoutes);
 app.use('/api/staff-leaderboard', staffLeaderboardRoutes);
 app.use('/api/staff-calendar', staffCalendarRoutes);
+app.use('/api/staff-appointments', staffAppointmentRoutes);
+app.use('/api/staff-tasks', staffTaskRoutes);
 
 // // ===== MESSAGE TEMPLATES & ZOOM INTEGRATION =====
 app.use('/api/message-templates', messageTemplateRoutes);
@@ -255,25 +275,45 @@ app.use('/api/files', uploadRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/funnels', webpageRenderRoutes);
 
-// Import new admin routes
-const adminRoutes = require('./admin/routes');
+// ===== NEW ADMIN SYSTEM =====
+const newAdminAuthRoutes = require('./routes/adminAuthRoutes');
+const newAdminSystemRoutes = require('./routes/adminSystemRoutes');
+// const newAdminPaymentRoutes = require('./routes/adminPaymentRoutes');
+const newAdminUserRoutes = require('./routes/adminUserRoutes');
+const newAdminAuditRoutes = require('./routes/adminAuditRoutes');
+// Admin WhatsApp routes moved to dustbin/whatsapp-dump/
+const newAdminMlmRoutes = require('./routes/adminMlmRoutes');
+const newAdminFinancialRoutes = require('./routes/adminFinancialRoutes');
+const newAdminSecurityRoutes = require('./routes/adminSecurityRoutes');
 
-// Mount admin auth routes first (login, logout, etc.)
-app.use('/api/admin/auth', adminAuthRoutes);
+// Mount new admin auth routes first (login, logout, etc.)
+app.use('/api/admin/auth', newAdminAuthRoutes);
 
-// Protect admin APIs with authentication
-app.use('/api/admin/settings', adminAuth, adminSettingsRoutes);
-app.use('/api/admin/users', adminAuth, adminUserRoutes);
-app.use('/api/admin/domains', customDomainRoutes); // Already imported
-app.use('/api/admin/logs', adminAuth, adminLogsRoutes);
-app.use('/api/admin/analytics', adminAuth, adminAnalyticsRoutes);
+// Mount new admin system routes
+app.use('/api/admin/system', newAdminSystemRoutes);
+// app.use('/api/admin/payment', newAdminPaymentRoutes);
+app.use('/api/admin/users', newAdminUserRoutes);
+app.use('/api/admin/audit-logs', newAdminAuditRoutes);
+// Admin WhatsApp routes moved to dustbin/whatsapp-dump/
+app.use('/api/admin/mlm', newAdminMlmRoutes);
+app.use('/api/admin/financial', newAdminFinancialRoutes);
+app.use('/api/admin/security', newAdminSecurityRoutes);
 
-// Mount new unified admin routes
-app.use('/api/admin', adminAuth, adminRoutes);
-
-// Serve admin dashboard UI
+// Serve new admin dashboard UI (React app)
 app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+    res.sendFile(path.join(__dirname, 'dist', 'admin', 'index.html'));
+});
+
+app.get('/admin-dashboard.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'admin', 'index.html'));
+});
+
+// Serve static files for the admin dashboard
+app.use('/admin-assets', express.static(path.join(__dirname, 'dist', 'admin', 'assets')));
+
+// Fallback for old admin login (keep for compatibility)
+app.get('/admin-login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin-login.html'));
 });
 // 🏠 API Documentation Homepage Route
 app.use('/', apiDocsRoutes);
@@ -520,11 +560,8 @@ const { emailService, smsService, internalNotificationService, aiService } = req
 // Initialize Socket.IO dependent services after server starts
 const initializeSocketServices = () => {
     try {
-        const whatsappManager = require('./services/whatsappManager');
-        whatsappManager.setIoInstance(io);
-        
-        const adminNotificationService = require('./admin/services/adminNotificationService');
-        adminNotificationService.setIoInstance(io);
+        // WhatsApp services moved to dustbin/whatsapp-dump/
+
     } catch (error) {
         console.error('Error initializing Socket.IO services:', error.message);
     }

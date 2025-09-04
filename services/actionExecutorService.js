@@ -2,13 +2,15 @@
 
 // --- Imports for your Mongoose Schemas ---
 const { Lead, Coach, Task, Funnel, Payment } = require('../schema');
-const unifiedWhatsAppService = require('./unifiedWhatsAppService');
+// WhatsApp services moved to dustbin/whatsapp-dump/
+// const unifiedWhatsAppService = require('./unifiedWhatsAppService');
 
 const nodemailer = require('nodemailer');
 const twilio = require('twilio');
 const ical = require('ical-generator');
 const { Configuration, OpenAIApi } = require('openai');
-const { getIoInstance } = require('./whatsappManager');
+// WhatsApp manager moved to dustbin/whatsapp-dump/
+// const { getIoInstance } = require('./whatsappManager');
 
 // =======================================================================
 // Section 1: Placeholder External Service Integrations
@@ -63,8 +65,9 @@ const calendarService = {
 
 const internalNotificationService = {
     sendNotification: async ({ recipientId, message }) => {
-        const io = getIoInstance();
-        io.to(recipientId).emit('notification', { message });
+        // WhatsApp manager moved to dustbin/whatsapp-dump/
+        console.log(`[InternalNotificationService] Notification for ${recipientId}: ${message}`);
+        // TODO: Implement alternative notification system
     }
 };
 
@@ -136,8 +139,9 @@ async function sendWhatsAppMessage(config, eventPayload) {
     
     // Send the message
     try {
-        await unifiedWhatsAppService.sendMessage(coachId, recipientNumber, messageContent);
-        console.log(`[ActionExecutor] WhatsApp message sent to ${recipientNumber}: ${messageContent}`);
+        // WhatsApp functionality moved to dustbin/whatsapp-dump/
+        console.log(`[ActionExecutor] WhatsApp functionality moved to dustbin/whatsapp-dump/`);
+        console.log(`[ActionExecutor] Would have sent WhatsApp message to ${recipientNumber}: ${messageContent}`);
     } catch (error) {
         console.error(`[ActionExecutor] Unable to send WhatsApp message to ${recipientNumber}:`, error.message);
         console.log(`[ActionExecutor] WhatsApp message failed but continuing to prevent infinite loops`);
@@ -899,7 +903,8 @@ async function executeAutomationAction(payload) {
     try {
         switch (actionType) {
             case 'send_whatsapp_message':
-                await sendWhatsAppMessage(config, eventPayload);
+                // WhatsApp functionality moved to dustbin/whatsapp-dump/
+                console.log('[ActionExecutor] WhatsApp functionality moved to dustbin/whatsapp-dump/');
                 break;
             case 'send_email':
             case 'create_email_message':

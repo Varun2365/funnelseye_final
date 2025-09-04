@@ -77,7 +77,7 @@ const allApiRoutes = {
     '📊 Lead Scoring & Tracking': [
         { method: 'GET', path: '/api/lead-scoring/email-opened', desc: 'Track email opened event' },
         { method: 'GET', path: '/api/lead-scoring/link-clicked', desc: 'Track link clicked event' },
-        { method: 'POST', path: '/api/lead-scoring/whatsapp-replied', desc: 'Track WhatsApp reply event', sample: { leadId: '...', message: 'Interested in program' } },
+        // WhatsApp scoring moved to dustbin/whatsapp-dump/
         { method: 'POST', path: '/api/lead-scoring/form-submitted', desc: 'Track form submission event', sample: { leadId: '...', formData: {} } },
         { method: 'POST', path: '/api/lead-scoring/call-booked', desc: 'Track call booking event', sample: { leadId: '...', callTime: '2025-01-25T10:00:00Z' } },
         { method: 'POST', path: '/api/lead-scoring/call-attended', desc: 'Track call attendance event', sample: { leadId: '...', duration: 30 } },
@@ -90,73 +90,13 @@ const allApiRoutes = {
         { method: 'POST', path: '/api/lead-scoring/email-bounced', desc: 'Track email bounce event', sample: { leadId: '...', bounceType: 'hard' } },
     ],
     // ===== 📱 WHATSAPP INTEGRATION & AUTOMATION =====
-    '📱 Unified WhatsApp Integration': [
-        // Integration Management
-        { method: 'POST', path: '/api/whatsapp/integration/setup', desc: 'Setup WhatsApp integration (Meta API or Baileys)', sample: { integrationType: 'meta_official', metaApiToken: 'token123', phoneNumberId: 'phone123' } },
-        { method: 'POST', path: '/api/whatsapp/integration/switch', desc: 'Switch between integration types', sample: { integrationType: 'baileys_personal' } },
-        { method: 'GET', path: '/api/whatsapp/integration/list', desc: 'Get all integrations for a coach' },
-        { method: 'GET', path: '/api/whatsapp/integration/coaches', desc: 'Get all coach integrations (Public)' },
-        { method: 'POST', path: '/api/whatsapp/integration/test', desc: 'Test integration connection' },
-        { method: 'GET', path: '/api/whatsapp/integration/health', desc: 'Get integration health status' },
-        { method: 'DELETE', path: '/api/whatsapp/integration/delete', desc: 'Delete WhatsApp integration' },
-        
-        // Baileys Personal Account
-        { method: 'POST', path: '/api/whatsapp/baileys/initialize', desc: 'Initialize Baileys WhatsApp session' },
-        { method: 'GET', path: '/api/whatsapp/baileys/qr-code', desc: 'Get QR code for WhatsApp Web authentication' },
-        { method: 'GET', path: '/api/whatsapp/baileys/status', desc: 'Get Baileys session status' },
-        { method: 'GET', path: '/api/whatsapp/baileys/qr', desc: 'Get QR code for WhatsApp Web authentication (alternative)' },
-        { method: 'POST', path: '/api/whatsapp/baileys/disconnect', desc: 'Disconnect Baileys session' },
-        
-        // Messaging
-        { method: 'POST', path: '/api/whatsapp/message/send', desc: 'Send WhatsApp message', sample: { recipientNumber: '+1234567890', content: 'Hello!', options: { mediaUrl: 'https://example.com/image.jpg' } } },
-        { method: 'POST', path: '/api/whatsapp/message/template', desc: 'Send template message', sample: { recipientNumber: '+1234567890', templateName: 'welcome_message', language: 'en', components: [] } },
-        
-        // Inbox Management
-        { method: 'GET', path: '/api/whatsapp/inbox/conversations', desc: 'Get inbox conversations' },
-        { method: 'GET', path: '/api/whatsapp/inbox/conversations/:contactPhone/messages', desc: 'Get messages for a conversation' },
-        { method: 'POST', path: '/api/whatsapp/inbox/conversations/:conversationId/read', desc: 'Mark conversation as read' },
-        { method: 'POST', path: '/api/whatsapp/inbox/conversations/:conversationId/archive', desc: 'Archive/unarchive conversation' },
-        { method: 'POST', path: '/api/whatsapp/inbox/conversations/:conversationId/pin', desc: 'Toggle conversation pin' },
-        { method: 'GET', path: '/api/whatsapp/inbox/search', desc: 'Search conversations and messages' },
-        { method: 'GET', path: '/api/whatsapp/inbox/stats', desc: 'Get inbox statistics' },
-        
-        // Contact Management
-        { method: 'GET', path: '/api/whatsapp/contacts', desc: 'Get all contacts' },
-        { method: 'PUT', path: '/api/whatsapp/contacts/:contactId', desc: 'Update contact information' },
-        { method: 'POST', path: '/api/whatsapp/contacts/:contactId/block', desc: 'Block/unblock contact' },
-        
-        // Webhook Routes (Public)
-        { method: 'GET', path: '/api/whatsapp/webhook', desc: 'WhatsApp webhook verification (Public)' },
-        { method: 'POST', path: '/api/whatsapp/webhook', desc: 'Handle incoming WhatsApp messages (Public)' },
-        
-        // Inbox Management
-        { method: 'GET', path: '/api/whatsapp/inbox/conversations', desc: 'Get inbox conversations', sample: { status: 'active', category: 'lead', search: 'john', page: 1, limit: 20 } },
-        { method: 'GET', path: '/api/whatsapp/inbox/conversations/:conversationId/messages', desc: 'Get messages for a conversation', sample: { page: 1, limit: 50 } },
-        { method: 'POST', path: '/api/whatsapp/inbox/conversations/:conversationId/read', desc: 'Mark conversation as read' },
-        { method: 'POST', path: '/api/whatsapp/inbox/conversations/:conversationId/archive', desc: 'Archive conversation' },
-        { method: 'POST', path: '/api/whatsapp/inbox/conversations/:conversationId/pin', desc: 'Toggle conversation pin' },
-        { method: 'GET', path: '/api/whatsapp/inbox/stats', desc: 'Get inbox statistics' },
-        { method: 'GET', path: '/api/whatsapp/inbox/search', desc: 'Search inbox', sample: { q: 'search term', type: 'conversations' } },
-        
-        // Contact Management
-        { method: 'GET', path: '/api/whatsapp/contacts', desc: 'Get all contacts', sample: { status: 'active', category: 'lead', search: 'john', page: 1, limit: 20 } },
-        { method: 'PUT', path: '/api/whatsapp/contacts/:contactId', desc: 'Update contact information', sample: { contactName: 'John Doe', notes: 'VIP customer', category: 'client' } },
-        { method: 'POST', path: '/api/whatsapp/contacts/:contactId/block', desc: 'Block/unblock contact', sample: { action: 'block' } },
-        
-        // Baileys Personal Account
-        { method: 'POST', path: '/api/whatsapp/baileys/session/init', desc: 'Initialize Baileys session' },
-        { method: 'GET', path: '/api/whatsapp/baileys/session/qr', desc: 'Get Baileys QR code for scanning' },
-        { method: 'GET', path: '/api/whatsapp/baileys/session/status', desc: 'Get Baileys session status' },
-        { method: 'POST', path: '/api/whatsapp/baileys/session/disconnect', desc: 'Disconnect Baileys session' },
-        { method: 'DELETE', path: '/api/whatsapp/baileys/session', desc: 'Delete Baileys session data' },
-        
-        // Webhooks (Meta API)
-        { method: 'GET', path: '/api/whatsapp/webhook', desc: 'WhatsApp webhook verification (Public)' },
-        { method: 'POST', path: '/api/whatsapp/webhook', desc: 'Handle incoming WhatsApp messages (Public)' },
-    ],
+    // WhatsApp integration moved to dustbin/whatsapp-dump/
+    // '📱 WhatsApp Integration': [
+    //     // WhatsApp integration moved to dustbin/whatsapp-dump/
+    // ],
     // ===== 🌱 NURTURING SEQUENCES & AUTOMATION =====
     '🌱 Nurturing Sequences': [
-        { method: 'POST', path: '/api/nurturing-sequences', desc: 'Create new nurturing sequence', sample: { name: 'Warm Lead Sequence', description: '5-step sequence for warm leads', category: 'warm_lead', steps: [{ stepNumber: 1, name: 'Welcome Message', actionType: 'send_whatsapp_message', actionConfig: { message: 'Hi {{lead.name}}, welcome!' }, delayDays: 0 }] } },
+        { method: 'POST', path: '/api/nurturing-sequences', desc: 'Create new nurturing sequence', sample: { name: 'Warm Lead Sequence', description: '5-step sequence for warm leads', category: 'warm_lead', steps: [{ stepNumber: 1, name: 'Welcome Message', actionType: 'send_email', actionConfig: { message: 'Hi {{lead.name}}, welcome!' }, delayDays: 0 }] } },
         { method: 'GET', path: '/api/nurturing-sequences', desc: 'Get all nurturing sequences for coach' },
         { method: 'GET', path: '/api/nurturing-sequences/:id', desc: 'Get single nurturing sequence details' },
         { method: 'PUT', path: '/api/nurturing-sequences/:id', desc: 'Update nurturing sequence' },
@@ -498,7 +438,7 @@ const allApiRoutes = {
                 "triggerEvent": "lead_temperature_changed",
                 "actions": [
                     {
-                        "type": "send_whatsapp_message",
+                        "type": "send_email",
                         "config": {
                             "message": "Hi {{leadData.name}}"
                         }
@@ -570,7 +510,7 @@ const allApiRoutes = {
     '👤 Coach Profile Management': [
         { method: 'GET', path: '/api/coach-profile/me', desc: 'Get my coach information' },
         { method: 'PUT', path: '/api/coach-profile/:id/profile', desc: 'Update a coaches profile' },
-        { method: 'PUT', path: '/api/coach-profile/:id/whatsapp-config', desc: 'Update WhatsApp configuration for a coach' },
+        // WhatsApp configuration moved to dustbin/whatsapp-dump/
         { method: 'POST', path: '/api/coach-profile/add-credits/:id', desc: 'Add credits to a coach account' },
         { method: 'GET', path: '/api/coach-profile/:id/portfolio', desc: 'Get coach portfolio details' },
         { method: 'PUT', path: '/api/coach-profile/:id/portfolio', desc: 'Update coach portfolio', sample: { headline: 'Fitness Expert', bio: 'Certified personal trainer', specializations: ['Weight Loss', 'Muscle Building'] } },
@@ -579,42 +519,42 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/coach-profile/:id/lead-magnets', desc: 'Get coach lead magnet settings' },
         { method: 'PUT', path: '/api/coach-profile/:id/lead-magnets', desc: 'Update lead magnet settings' },
     ],
-    // ===== 💳 PAYMENT PROCESSING & GATEWAYS =====
-    '💳 Payment Processing': [
-        { method: 'POST', path: '/api/payments/receive', desc: 'Receive a new payment and trigger automations', sample: { paymentId: 'gw_123', leadId: '...', amount: 4999, currency: 'INR', status: 'successful', paymentMethod: 'card', gatewayResponse: { id: 'gw_123', sig: '...' } } },
-    ],
-    // ===== 💰 COACH PAYMENT COLLECTION & COMMISSIONS =====
-    '💰 Coach Payment Collection': [
-        // Payment Collection Setup
-        { method: 'POST', path: '/api/coach-payments/setup-payment-collection', desc: 'Setup payment collection settings for coach', sample: { upiId: 'fitnesscoach@okicici', paymentCollectionMethod: 'upi' } },
-        { method: 'GET', path: '/api/coach-payments/payment-settings', desc: 'Get coach payment collection settings' },
-        { method: 'GET', path: '/api/coach-payments/coach/:coachId/payment-settings', desc: 'Get specific coach payment settings (Admin)' },
-        { method: 'POST', path: '/api/coach-payments/setup-coach-payment-collection', desc: 'Setup payment collection for specific coach (Admin)' },
+    // ===== 💳 FUNNELSEYE CENTRAL PAYMENT SYSTEM =====
+    '💳 Funnelseye Central Payment System': [
+        // Payment Session Management
+        { method: 'POST', path: '/api/funnelseye-payments/create-session', desc: 'Create a new payment session', sample: { amount: 999, currency: 'INR', paymentMethod: 'razorpay', businessType: 'product_purchase', userId: '...', userType: 'customer', productId: '...', productName: 'Fitness Book', productDescription: 'Complete fitness guide' } },
+        { method: 'GET', path: '/api/funnelseye-payments/:paymentId', desc: 'Get payment details by ID' },
+        { method: 'GET', path: '/api/funnelseye-payments/user/:userId', desc: 'Get all payments for a user', sample: { status: 'completed', businessType: 'product_purchase', page: 1, limit: 10 } },
         
-        // Payment Management
-        { method: 'POST', path: '/api/coach-payments/create-payment', desc: 'Create payment for coach (Admin only)', sample: { coachId: '...', amount: 2500, paymentType: 'commission', description: 'MLM Commission for January 2024' } },
-        { method: 'GET', path: '/api/coach-payments/my-payments', desc: 'Get coach payment history' },
-        { method: 'GET', path: '/api/coach-payments/coach/:coachId/payments', desc: 'Get specific coach payments (Admin)' },
-        { method: 'PUT', path: '/api/coach-payments/:paymentId/process', desc: 'Process payment status (Admin only)', sample: { action: 'complete', transactionId: 'TXN_123456789' } },
+        // Payment Processing
+        { method: 'POST', path: '/api/funnelseye-payments/webhook', desc: 'Process payment gateway webhooks (Public)' },
+        { method: 'POST', path: '/api/funnelseye-payments/refund/:paymentId', desc: 'Process payment refund', sample: { amount: 500, reason: 'Customer request' } },
         
-        // Payment Analytics
-        { method: 'GET', path: '/api/coach-payments/analytics', desc: 'Get payment analytics for coach' },
-        { method: 'GET', path: '/api/coach-payments/admin/analytics', desc: 'Get overall payment analytics (Admin only)' },
+        // Analytics & Statistics
+        { method: 'GET', path: '/api/funnelseye-payments/stats', desc: 'Get payment statistics', sample: { startDate: '2024-01-01', endDate: '2024-01-31', businessType: 'product_purchase', status: 'completed' } },
+        { method: 'GET', path: '/api/funnelseye-payments/health', desc: 'Check payment system health status' },
+        { method: 'GET', path: '/api/funnelseye-payments/docs', desc: 'Get detailed API documentation' },
+        
+        // Admin Management
+        { method: 'GET', path: '/api/funnelseye-payments/admin/payments', desc: 'Get all payments (Admin only)', sample: { status: 'pending', businessType: 'commission', page: 1, limit: 20 } },
+        { method: 'PUT', path: '/api/funnelseye-payments/admin/payments/:paymentId/status', desc: 'Update payment status (Admin only)', sample: { status: 'completed', notes: 'Payment processed successfully' } },
+        
+        // Gateway Configuration (Admin)
+        { method: 'GET', path: '/api/funnelseye-payments/admin/gateways', desc: 'Get payment gateway configurations (Admin only)' },
+        { method: 'PUT', path: '/api/funnelseye-payments/admin/gateways/:gatewayName', desc: 'Update gateway configuration (Admin only)', sample: { isEnabled: true, config: { keyId: 'rzp_test_...', keySecret: '...' } } },
+        { method: 'POST', path: '/api/funnelseye-payments/admin/gateways', desc: 'Create new gateway configuration (Admin only)', sample: { gatewayName: 'stripe', isEnabled: false, config: { publishableKey: 'pk_test_...', secretKey: 'sk_test_...' } } },
+        { method: 'DELETE', path: '/api/funnelseye-payments/admin/gateways/:gatewayName', desc: 'Delete gateway configuration (Admin only)' },
+        { method: 'POST', path: '/api/funnelseye-payments/admin/gateways/:gatewayName/test', desc: 'Test gateway connection (Admin only)' },
     ],
-    // ===== 🛒 E-COMMERCE & SUBSCRIPTION MANAGEMENT =====
-    '🛒 E-commerce & Payments (Coach Dashboard)': [
-        // ===== PAYMENT PROCESSING =====
-        { method: 'POST', path: '/api/payments/process', desc: 'Process payment with multiple gateways', sample: { amount: 999, currency: 'USD', paymentMethod: 'stripe', leadId: '...', coachId: '...' } },
-        { method: 'POST', path: '/api/payments/stripe', desc: 'Process Stripe payment', sample: { amount: 999, currency: 'USD', token: 'tok_123', leadId: '...', coachId: '...' } },
-        { method: 'POST', path: '/api/payments/paypal', desc: 'Process PayPal payment', sample: { amount: 999, currency: 'USD', paypalOrderId: 'PAY-123', leadId: '...', coachId: '...' } },
-        { method: 'POST', path: '/api/payments/razorpay', desc: 'Process Razorpay payment', sample: { amount: 999, currency: 'USD', razorpayPaymentId: 'pay_123', leadId: '...', coachId: '...' } },
-        { method: 'POST', path: '/api/payments/receive', desc: 'Receive payment webhook (Public)', sample: { paymentId: '...', leadId: '...', amount: 999, currency: 'USD', status: 'completed' } },
-        // ===== SUBSCRIPTION MANAGEMENT =====
+    // ===== 📦 SUBSCRIPTION MANAGEMENT =====
+    '📦 Subscription Management': [
+        // Public subscription endpoints
         { method: 'GET', path: '/api/subscriptions/plans', desc: 'Get available subscription plans (Public)' },
         { method: 'POST', path: '/api/subscriptions/subscribe', desc: 'Subscribe to a plan (Coach)', sample: { planId: 'professional', paymentMethod: 'stripe', autoRenew: true } },
         { method: 'POST', path: '/api/subscriptions/renew', desc: 'Renew subscription (Coach)' },
         { method: 'POST', path: '/api/subscriptions/cancel', desc: 'Cancel subscription (Coach)', sample: { reason: 'User requested cancellation' } },
         { method: 'GET', path: '/api/subscriptions/my-subscription', desc: 'Get current user subscription (Coach)' },
+        
         // Admin subscription management
         { method: 'POST', path: '/api/subscriptions/plans', desc: 'Create new subscription plan (Admin)', sample: { name: 'Professional Plan', price: 99, features: ['maxFunnels: 10', 'maxLeads: 1000'] } },
         { method: 'PUT', path: '/api/subscriptions/plans/:id', desc: 'Update subscription plan (Admin)', sample: { name: 'Updated Plan Name', price: 129 } },
@@ -627,7 +567,9 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/subscriptions/analytics', desc: 'Get subscription analytics (Admin)' },
         { method: 'POST', path: '/api/subscriptions/send-reminders', desc: 'Send subscription reminders (Admin)' },
         { method: 'POST', path: '/api/subscriptions/disable-expired', desc: 'Disable expired subscriptions (Admin)' },
-        // ===== SHOPPING CART =====
+    ],
+    // ===== 🛒 SHOPPING CART MANAGEMENT =====
+    '🛒 Shopping Cart Management': [
         { method: 'POST', path: '/api/cart', desc: 'Update shopping cart', sample: { coachId: '...', leadId: '...', items: [{ productId: 'prod_123', quantity: 1, price: 99 }], subtotal: 99, tax: 8.91, discount: 0, total: 107.91 } },
         { method: 'GET', path: '/api/cart/:cartId', desc: 'Get cart details' },
         { method: 'POST', path: '/api/cart/:cartId/recovery', desc: 'Send cart recovery notification' },
@@ -635,14 +577,6 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/cart/coach/:coachId', desc: 'Get all carts for a coach' },
         { method: 'GET', path: '/api/cart/lead/:leadId', desc: 'Get cart for a specific lead' },
         { method: 'PUT', path: '/api/cart/:cartId/abandon', desc: 'Mark cart as abandoned' },
-        // ===== REVENUE ANALYTICS =====
-        { method: 'GET', path: '/api/payments/revenue-analytics', desc: 'Get revenue analytics', sample: { coachId: '...', timeRange: 30 } },
-        { method: 'GET', path: '/api/payments/subscription-analytics', desc: 'Get subscription analytics' },
-        // ===== INVOICE GENERATION =====
-        { method: 'POST', path: '/api/payments/:paymentId/invoice', desc: 'Generate invoice for payment' },
-        // ===== UTILITY METHODS =====
-        { method: 'GET', path: '/api/payments/subscription-plans', desc: 'Get available subscription plans' },
-        { method: 'GET', path: '/api/payments/payment-methods', desc: 'Get supported payment methods' },
     ],
     // ===== 🤖 AI ADS & MARKETING AUTOMATION =====
     '🤖 AI Ads Agent': [
@@ -762,7 +696,7 @@ const allApiRoutes = {
     ],
     // ===== 💬 MESSAGE TEMPLATES & COMMUNICATION =====
     '💬 Message Templates': [
-        { method: 'POST', path: '/api/message-templates', desc: 'Create new message template', sample: { name: 'Welcome Message', type: 'whatsapp', category: 'welcome', content: { body: 'Hi {{lead.name}}, welcome to our program!' } } },
+        { method: 'POST', path: '/api/message-templates', desc: 'Create new message template', sample: { name: 'Welcome Message', type: 'email', category: 'welcome', content: { body: 'Hi {{lead.name}}, welcome to our program!' } } },
         { method: 'GET', path: '/api/message-templates', desc: 'Get all message templates for coach' },
         { method: 'GET', path: '/api/message-templates/pre-built', desc: 'Get pre-built message templates' },
         { method: 'GET', path: '/api/message-templates/categories', desc: 'Get available template categories' },
@@ -800,7 +734,7 @@ const allApiRoutes = {
     '🎯 Lead Magnets': [
         { method: 'GET', path: '/api/lead-magnets/coach', desc: 'Get coach lead magnet settings' },
         { method: 'PUT', path: '/api/lead-magnets/coach', desc: 'Update coach lead magnet settings' },
-        { method: 'POST', path: '/api/lead-magnets/ai-diet-plan', desc: 'Generate AI diet plan via WhatsApp' },
+        { method: 'POST', path: '/api/lead-magnets/ai-diet-plan', desc: 'Generate AI diet plan' },
         { method: 'POST', path: '/api/lead-magnets/bmi-calculator', desc: 'Calculate BMI with recommendations' },
         { method: 'POST', path: '/api/lead-magnets/ebook-generator', desc: 'Generate personalized e-book content' },
         { method: 'POST', path: '/api/lead-magnets/workout-calculator', desc: 'Calculate workout metrics (1RM, heart rate)' },
@@ -847,6 +781,25 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/admin/analytics/users', desc: 'Get user analytics (Admin)' },
         { method: 'GET', path: '/api/admin/analytics/revenue', desc: 'Get revenue analytics (Admin)' },
         { method: 'GET', path: '/api/admin/analytics/performance', desc: 'Get performance analytics (Admin)' },
+        
+        // Admin Financial & Payment Management
+        { method: 'GET', path: '/api/admin/financial/credit-system', desc: 'Get credit system configuration (Admin)' },
+        { method: 'PUT', path: '/api/admin/financial/credit-system', desc: 'Update credit system configuration (Admin)' },
+        { method: 'GET', path: '/api/admin/financial/credit-packages', desc: 'Get credit packages (Admin)' },
+        { method: 'GET', path: '/api/admin/financial/revenue-analytics', desc: 'Get revenue analytics (Admin)' },
+        { method: 'GET', path: '/api/admin/financial/payment-failures', desc: 'Get payment failure analytics (Admin)' },
+        { method: 'GET', path: '/api/admin/financial/gateway-markup', desc: 'Get gateway markup analytics (Admin)' },
+        { method: 'GET', path: '/api/admin/financial/credit-usage', desc: 'Get credit usage analytics (Admin)' },
+        
+        // Admin Payment Settings & Commission Payouts
+        { method: 'GET', path: '/api/admin/financial/payment-settings', desc: 'Get payment settings (Admin)' },
+        { method: 'PUT', path: '/api/admin/financial/payment-settings', desc: 'Update payment settings (Admin)' },
+        { method: 'GET', path: '/api/admin/financial/commission-payouts', desc: 'Get commission payouts (Admin)' },
+        { method: 'POST', path: '/api/admin/financial/commission-payouts/:paymentId/process', desc: 'Process commission payout (Admin)' },
+        { method: 'GET', path: '/api/admin/financial/payment-gateways', desc: 'Get payment gateway configurations (Admin)' },
+        { method: 'PUT', path: '/api/admin/financial/payment-gateways/:gatewayName', desc: 'Update payment gateway configuration (Admin)' },
+        { method: 'POST', path: '/api/admin/financial/payment-gateways/:gatewayName/test', desc: 'Test payment gateway (Admin)' },
+        { method: 'GET', path: '/api/admin/financial/payment-analytics', desc: 'Get payment analytics (Admin)' },
     ],
     // ===== 📢 MARKETING & ADVERTISING CAMPAIGNS =====
     '📢 Marketing & Advertising': [
@@ -882,7 +835,7 @@ const allApiRoutes = {
     '🧮 Lead Scoring & Tracking': [
         { method: 'GET', path: '/api/lead-scoring/email-opened', desc: 'Track email open (tracking pixel, use ?leadId=LEAD_ID)' },
         { method: 'GET', path: '/api/lead-scoring/link-clicked', desc: 'Track link click and redirect (use ?leadId=LEAD_ID&target=URL)' },
-        { method: 'POST', path: '/api/lead-scoring/whatsapp-replied', desc: 'Track WhatsApp reply (webhook, { leadId })' },
+        // WhatsApp scoring moved to dustbin/whatsapp-dump/
         { method: 'POST', path: '/api/lead-scoring/form-submitted', desc: 'Track form submission ({ leadId })' },
         { method: 'POST', path: '/api/lead-scoring/call-booked', desc: 'Track call/meeting booking ({ leadId })' },
         { method: 'POST', path: '/api/lead-scoring/call-attended', desc: 'Track attended call ({ leadId })' },
@@ -901,7 +854,7 @@ const allApiRoutes = {
       { method: 'POST', path: '/api/ai/generate-marketing-copy', desc: 'Generate marketing copy with AI', sample: { prompt: 'Create compelling copy for a fitness program', temperature: 0.8, maxTokens: 500 } },
       { method: 'POST', path: '/api/ai/generate-headlines', desc: 'Generate marketing headlines and CTAs', sample: { product: '12-week fitness program', targetAudience: 'busy professionals', count: 5 } },
       { method: 'POST', path: '/api/ai/generate-social-post', desc: 'Generate social media posts', sample: { coachName: 'John Doe', niche: 'Weight Loss', offer: '12-week program', targetAudience: 'weight loss seekers' } },
-      { method: 'POST', path: '/api/ai/analyze-sentiment', desc: 'Analyze sentiment of WhatsApp messages', sample: { message: 'I am interested in your program' } },
+              { method: 'POST', path: '/api/ai/analyze-sentiment', desc: 'Analyze sentiment of messages', sample: { message: 'I am interested in your program' } },
       { method: 'POST', path: '/api/ai/generate-contextual-response', desc: 'Generate contextual responses based on sentiment', sample: { userMessage: 'How much does it cost?', sentiment: 'interested', context: { leadStage: 'qualified' } } },
       { method: 'POST', path: '/api/ai/generate-sop', desc: 'Generate Standard Operating Procedures', sample: { taskType: 'Lead Follow-up', context: 'Fitness coaching business' } },
       { method: 'POST', path: '/api/ai/generate-lead-insights', desc: 'Generate AI-powered lead insights', sample: { leadData: { name: 'Jane', email: 'jane@example.com', source: 'Facebook Ad', engagement: 'high' } } },
@@ -914,7 +867,7 @@ const allApiRoutes = {
     // ===== 🚀 COMPREHENSIVE COACH DASHBOARD FEATURES =====
     '🚀 NEW: COMPREHENSIVE COACH DASHBOARD FEATURES': [
         { method: 'INFO', path: '📅 Calendar & Appointment System', desc: 'Complete appointment booking, scheduling, and calendar management with conflict detection and reminders' },
-        { method: 'INFO', path: '📱 WhatsApp Automation Engine', desc: 'Advanced WhatsApp automation with sentiment analysis, AI-powered responses, human escalation, and campaign management' },
+        // WhatsApp automation moved to dustbin/whatsapp-dump/
         { method: 'INFO', path: '🛒 E-commerce & Payment Processing', desc: 'Multi-gateway payment processing (Stripe, PayPal, Razorpay), subscription management, shopping cart, and revenue analytics' },
         { method: 'INFO', path: '🤖 AI Integration', desc: 'Sentiment analysis, lead qualification, performance insights, and automated content generation' },
         { method: 'INFO', path: '⚡ Automation Engine', desc: 'Event-driven automation with RabbitMQ integration for seamless workflow orchestration' },
@@ -1002,7 +955,7 @@ router.get('/', (req, res) => {
             '🌱 Lead Nurturing',
             '🧮 Lead Scoring & Tracking',
             '🧮 Lead Scoring & Tracking (EXTENDED)',
-            '📱 Unified WhatsApp Integration'
+            // WhatsApp integration moved to dustbin/whatsapp-dump/
         ],
         '🤖 AI & Automation': [
             '🤖 AI Services', 
@@ -1017,12 +970,12 @@ router.get('/', (req, res) => {
             '👥 Staff Dashboard',
             '🏆 Staff Leaderboard & Scoring',
             '📊 Advanced MLM Network (Unified)',
-            '💰 Performance & Commissions',
-            '💰 Coach Payment Collection'
+            '💰 Performance & Commissions'
         ],
         '💰 E-commerce & Payments': [
-            '💳 Payment Processing', 
-            '🛒 E-commerce & Payments (Coach Dashboard)'
+            '💳 Funnelseye Central Payment System',
+            '📦 Subscription Management',
+            '🛒 Shopping Cart Management'
         ],
         '📢 Marketing & Content': [
             '📢 Marketing & Advertising', 

@@ -3,7 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const paymentService = require('../services/paymentService');
+// const paymentService = require('../services/paymentService');
 const asyncHandler = require('../middleware/async');
 
 // Protect all cart routes
