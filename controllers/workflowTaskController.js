@@ -123,7 +123,7 @@ exports.getTasks = asyncHandler(async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     const tasks = await Task.find(filter)
-        .populate('assignedTo', 'name email')
+        .populate('assignedTo', 'name email role')
         .populate('relatedLead', 'name email phone status')
         .sort(sort)
         .skip(skip)
@@ -151,7 +151,7 @@ exports.getTask = asyncHandler(async (req, res, next) => {
     const coachId = req.user.id;
 
     const task = await Task.findOne({ _id: id, coachId })
-        .populate('assignedTo', 'name email')
+        .populate('assignedTo', 'name email role')
         .populate('relatedLead', 'name email phone status')
         .populate('dependencies', 'name status dueDate');
 

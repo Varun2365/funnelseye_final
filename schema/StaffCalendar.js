@@ -7,15 +7,13 @@ const mongoose = require('mongoose');
 const StaffCalendarSchema = new mongoose.Schema({
     staffId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Staff',
-        required: true,
-        index: true
+        ref: 'User',
+        required: true
     },
     coachId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User', // coach user
-        required: true,
-        index: true
+        required: true
     },
     eventType: {
         type: String,
@@ -41,7 +39,7 @@ const StaffCalendarSchema = new mongoose.Schema({
     },
     duration: {
         type: Number, // in minutes
-        required: true
+        required: false
     },
     status: {
         type: String,
@@ -162,6 +160,10 @@ StaffCalendarSchema.virtual('isOverdue').get(function() {
 StaffCalendarSchema.pre('save', function(next) {
     if (this.startTime && this.endTime) {
         this.duration = Math.round((this.endTime - this.startTime) / (1000 * 60)); // Convert to minutes
+    }
+    // Ensure duration is always set
+    if (!this.duration && this.startTime && this.endTime) {
+        this.duration = Math.round((this.endTime - this.startTime) / (1000 * 60));
     }
     next();
 });

@@ -3,10 +3,27 @@
 const OpenAI = require('openai');
 const { AdCampaign, AdSet, AdCreative, Ad } = require('../schema');
 const metaAdsService = require('./metaAdsService');
+const CoachMarketingCredentials = require('../schema/CoachMarketingCredentials');
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
+// Helper function to get coach's OpenAI API key
+async function getCoachOpenAIKey(coachId) {
+    const credentials = await CoachMarketingCredentials.findOne({ coachId })
+        .select('+openAI.apiKey +encryptionKey');
+    
+    if (!credentials || !credentials.openAI.apiKey) {
+        throw new Error('OpenAI API key not found for this coach');
+    }
+    
+    return credentials.getDecryptedOpenAIKey();
+}
+
+// Helper function to get coach's OpenAI model preference
+async function getCoachOpenAIModel(coachId) {
+    const credentials = await CoachMarketingCredentials.findOne({ coachId })
+        .select('openAI.modelPreference');
+    
+    return credentials?.openAI?.modelPreference || 'gpt-4';
+}
 
 class AIAdsAgent {
     constructor() {
@@ -23,6 +40,13 @@ class AIAdsAgent {
      */
     async generateAdCopy(coachId, targetAudience, productInfo, campaignObjective) {
         try {
+            const apiKey = await getCoachOpenAIKey(coachId);
+            const model = await getCoachOpenAIModel(coachId);
+            
+            const openai = new OpenAI({
+                apiKey: apiKey
+            });
+
             const prompt = `
                 Create compelling Facebook ad copy for a fitness coach targeting ${targetAudience}.
                 
@@ -40,7 +64,7 @@ class AIAdsAgent {
             `;
 
             const completion = await openai.chat.completions.create({
-                model: "gpt-4",
+                model: model,
                 messages: [{ role: "user", content: prompt }],
                 max_tokens: 500
             });

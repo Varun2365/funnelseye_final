@@ -1,5 +1,6 @@
 const StaffCalendar = require('../schema/StaffCalendar');
 const Staff = require('../schema/Staff');
+const User = require('../schema/User');
 const { hasPermission } = require('../utils/permissions');
 
 /**
@@ -68,7 +69,7 @@ exports.createCalendarEvent = async (req, res) => {
         }
 
         // Check if staff exists and get coachId
-        const staff = await Staff.findById(staffId);
+        const staff = await User.findOne({ _id: staffId, role: 'staff' });
         if (!staff) {
             return res.status(404).json({
                 success: false,
@@ -176,11 +177,6 @@ exports.getCalendarEvents = async (req, res) => {
             query.coachId = coachId;
         }
 
-        if (startDate && endDate) {
-            query.startTime = { $gte: new Date(startDate) };
-            query.endTime = { $lte: new Date(endDate) };
-        }
-
         if (eventType) {
             query.eventType = eventType;
         }
@@ -209,9 +205,22 @@ exports.getCalendarEvents = async (req, res) => {
             }
         }
 
+        // Date filtering - apply after permission filtering to avoid conflicts
+        if (startDate && endDate) {
+            query.startTime = { $lt: new Date(endDate) }; // Event starts before endDate
+            query.endTime = { $gt: new Date(startDate) };  // Event ends after startDate
+        }
+
+        // Debug: Log the final query
+        console.log('Calendar query:', JSON.stringify(query, null, 2));
+
         const skip = (page - 1) * limit;
         const events = await StaffCalendar.find(query)
-            .populate('staffId', 'name email')
+            .populate({
+                path: 'staffId',
+                select: 'name email role',
+                match: { role: 'staff' }
+            })
             .populate('relatedTask', 'name status')
             .populate('relatedLead', 'name email phone')
             .sort({ startTime: 1 })
@@ -245,7 +254,11 @@ exports.getCalendarEvents = async (req, res) => {
 exports.getCalendarEvent = async (req, res) => {
     try {
         const event = await StaffCalendar.findById(req.params.id)
-            .populate('staffId', 'name email')
+            .populate({
+                path: 'staffId',
+                select: 'name email role',
+                match: { role: 'staff' }
+            })
             .populate('relatedTask', 'name status')
             .populate('relatedLead', 'name email phone');
 
@@ -345,7 +358,11 @@ exports.updateCalendarEvent = async (req, res) => {
             event._id,
             { $set: updates },
             { new: true }
-        ).populate('staffId', 'name email')
+        ).populate({
+            path: 'staffId',
+            select: 'name email role',
+            match: { role: 'staff' }
+        })
          .populate('relatedTask', 'name status')
          .populate('relatedLead', 'name email phone');
 
@@ -490,7 +507,7 @@ exports.bulkCreateEvents = async (req, res) => {
                 }
 
                 // Check if staff exists
-                const staff = await Staff.findById(eventData.staffId);
+                const staff = await User.findOne({ _id: eventData.staffId, role: 'staff' });
                 if (!staff) {
                     errors.push({
                         event: eventData,

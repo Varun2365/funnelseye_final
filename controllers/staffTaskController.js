@@ -44,6 +44,11 @@ exports.getStaffTasks = async (req, res) => {
         const tasks = await Task.find(query)
             .populate('relatedLead', 'name email phone status')
             .populate('coachId', 'name email')
+            .populate({
+                path: 'assignedTo',
+                select: 'name email role',
+                match: { role: { $in: ['coach', 'staff'] } }
+            })
             .sort({ dueDate: 1 })
             .skip(skip)
             .limit(parseInt(limit));
@@ -102,6 +107,11 @@ exports.getStaffTask = async (req, res) => {
         const task = await Task.findOne({ _id: id, assignedTo: staffId })
             .populate('relatedLead', 'name email phone status')
             .populate('coachId', 'name email')
+            .populate({
+                path: 'assignedTo',
+                select: 'name email role',
+                match: { role: { $in: ['coach', 'staff'] } }
+            })
             .populate('dependencies', 'name status dueDate');
 
         if (!task) {
@@ -185,7 +195,12 @@ exports.updateTaskStatus = async (req, res) => {
 
         const populatedTask = await Task.findById(id)
             .populate('relatedLead', 'name email phone status')
-            .populate('coachId', 'name email');
+            .populate('coachId', 'name email')
+            .populate({
+                path: 'assignedTo',
+                select: 'name email role',
+                match: { role: { $in: ['coach', 'staff'] } }
+            });
 
         return res.status(200).json({
             success: true,
@@ -267,7 +282,12 @@ exports.completeTask = async (req, res) => {
 
         const populatedTask = await Task.findById(id)
             .populate('relatedLead', 'name email phone status')
-            .populate('coachId', 'name email');
+            .populate('coachId', 'name email')
+            .populate({
+                path: 'assignedTo',
+                select: 'name email role',
+                match: { role: { $in: ['coach', 'staff'] } }
+            });
 
         return res.status(200).json({
             success: true,
@@ -337,7 +357,12 @@ exports.startTask = async (req, res) => {
 
         const populatedTask = await Task.findById(id)
             .populate('relatedLead', 'name email phone status')
-            .populate('coachId', 'name email');
+            .populate('coachId', 'name email')
+            .populate({
+                path: 'assignedTo',
+                select: 'name email role',
+                match: { role: { $in: ['coach', 'staff'] } }
+            });
 
         return res.status(200).json({
             success: true,
@@ -405,7 +430,12 @@ exports.pauseTask = async (req, res) => {
 
         const populatedTask = await Task.findById(id)
             .populate('relatedLead', 'name email phone status')
-            .populate('coachId', 'name email');
+            .populate('coachId', 'name email')
+            .populate({
+                path: 'assignedTo',
+                select: 'name email role',
+                match: { role: { $in: ['coach', 'staff'] } }
+            });
 
         return res.status(200).json({
             success: true,
@@ -456,7 +486,12 @@ exports.addTaskComment = async (req, res) => {
 
         const populatedTask = await Task.findById(id)
             .populate('relatedLead', 'name email phone status')
-            .populate('coachId', 'name email');
+            .populate('coachId', 'name email')
+            .populate({
+                path: 'assignedTo',
+                select: 'name email role',
+                match: { role: { $in: ['coach', 'staff'] } }
+            });
 
         return res.status(200).json({
             success: true,
@@ -513,7 +548,12 @@ exports.logTaskTime = async (req, res) => {
 
         const populatedTask = await Task.findById(id)
             .populate('relatedLead', 'name email phone status')
-            .populate('coachId', 'name email');
+            .populate('coachId', 'name email')
+            .populate({
+                path: 'assignedTo',
+                select: 'name email role',
+                match: { role: { $in: ['coach', 'staff'] } }
+            });
 
         return res.status(200).json({
             success: true,
@@ -606,6 +646,11 @@ exports.getOverdueTasks = async (req, res) => {
         const tasks = await Task.find(query)
             .populate('relatedLead', 'name email phone status')
             .populate('coachId', 'name email')
+            .populate({
+                path: 'assignedTo',
+                select: 'name email role',
+                match: { role: { $in: ['coach', 'staff'] } }
+            })
             .sort({ dueDate: 1 })
             .skip(skip)
             .limit(parseInt(limit));
@@ -652,6 +697,11 @@ exports.getUpcomingTasks = async (req, res) => {
         const tasks = await Task.find(query)
             .populate('relatedLead', 'name email phone status')
             .populate('coachId', 'name email')
+            .populate({
+                path: 'assignedTo',
+                select: 'name email role',
+                match: { role: { $in: ['coach', 'staff'] } }
+            })
             .sort({ dueDate: 1 })
             .skip(skip)
             .limit(parseInt(limit));

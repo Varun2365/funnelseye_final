@@ -146,6 +146,7 @@ const protect = async (req, res, next) => {
         // Attach the user's ID and role to the request object
         // This makes the user's ID and role available in subsequent route handlers
         // If staff, set coachId to their owning coach for resource scoping
+        req.userId = user._id; // Set userId for staff controllers
         req.coachId = user.role === 'staff' && user.coachId ? user.coachId : user._id;
         req.role = user.role;
         req.user = user; // Optionally attach the full user object (excluding password)

@@ -4,8 +4,7 @@ const coachPaymentSchema = new mongoose.Schema({
     coachId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
-        index: true
+        required: true
     },
     paymentId: {
         type: String,

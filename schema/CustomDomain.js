@@ -6,8 +6,7 @@ const customDomainSchema = new mongoose.Schema({
     coachId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
-        index: true
+        required: true
     },
     
     // Domain information

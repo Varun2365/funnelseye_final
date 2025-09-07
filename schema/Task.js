@@ -32,7 +32,7 @@ const TaskSchema = new mongoose.Schema({
     },
     assignedTo: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Coach',
+        ref: 'User',
         required: [true, 'A task must be assigned to a coach or staff member.']
     },
     relatedLead: {

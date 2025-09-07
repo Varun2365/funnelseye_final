@@ -236,7 +236,7 @@ function requireCoachAccess(requiredPermission) {
  */
 function populateStaffPermissions(req, res, next) {
     try {
-        if (req.role === 'staff' && req.userId) {
+        if (req.role === 'staff') {
             // Staff permissions should already be populated by auth middleware
             // This is a safety check
             if (!req.staffPermissions) {

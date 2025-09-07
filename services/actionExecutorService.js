@@ -229,13 +229,22 @@ async function createNewTask(config, eventPayload) {
         }
     }
     
+    // Use intelligent task assignment instead of direct assignment to coach
+    const workflowTaskService = require('./workflowTaskService');
+    const assignedTo = await workflowTaskService.intelligentTaskAssignment(coachId, {
+        name: taskName,
+        description: taskDescription,
+        relatedLead: leadData._id,
+        dueDate: dueDate
+    });
+
     const task = await Task.create({
         name: taskName,
         description: taskDescription,
-        assignedTo: coachId,
+        assignedTo: assignedTo,
         relatedLead: leadData._id,
         dueDate: dueDate,
-        coachId: coachId // Add coachId field
+        coachId: coachId
     });
     
     console.log(`[ActionExecutor] Task created successfully: ${task.name} for coach ${coachId}`);

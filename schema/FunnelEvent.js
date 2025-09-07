@@ -33,14 +33,12 @@ const FunnelEventSchema = new mongoose.Schema({
     },
     sessionId: { // A unique identifier to track a single user's journey, even if they're not logged in. Stored in browser's local storage.
         type: String,
-        required: true,
-        index: true, // Index this for faster querying of sessions
+        required: true
     },
     userId: { // The ID of the logged-in user (optional, will be null for guest users)
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User', // Assuming your main User model is named 'User'
-        required: false,
-        index: true,
+        required: false
     },
     ipAddress: { // The user's IP address (captured by the backend from req.ip)
         type: String,

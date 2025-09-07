@@ -5,14 +5,12 @@ const performanceSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
-        unique: true,
-        index: true
+        unique: true
     },
     sponsorId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
-        index: true
+        required: true
     },
     // Monthly Performance Tracking
     monthlyStats: [{

@@ -40,8 +40,7 @@ const CartSchema = new mongoose.Schema({
     coachId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
-        index: true
+        required: true
     },
     leadId: {
         type: mongoose.Schema.Types.ObjectId,

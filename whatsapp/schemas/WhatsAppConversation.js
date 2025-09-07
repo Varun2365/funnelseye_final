@@ -4,20 +4,17 @@ const whatsAppConversationSchema = new mongoose.Schema({
     coachId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Coach',
-        required: true,
-        index: true
+        required: true
     },
     deviceId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'WhatsAppDevice',
-        required: true,
-        index: true
+        required: true
     },
     conversationId: {
         type: String,
         required: true,
-        unique: true,
-        index: true
+        unique: true
     },
     participantPhone: {
         type: String,

@@ -246,6 +246,8 @@ app.use('/api/coach-plans', coachPlanRoutes);
 // ===== MARKETING & ADVERTISING =====
 app.use('/api/ads', adsRoutes);
 app.use('/api/ai-ads', aiAdsRoutes);
+const coachMarketingCredentialsRoutes = require('./routes/coachMarketingCredentialsRoutes');
+app.use('/api/coach-marketing-credentials', coachMarketingCredentialsRoutes);
 
 // ===== UNIFIED WHATSAPP INTEGRATION =====
 const whatsappRoutes = require('./whatsapp/routes');

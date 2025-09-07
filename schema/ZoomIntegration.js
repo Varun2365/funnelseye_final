@@ -5,8 +5,7 @@ const zoomIntegrationSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Coach',
         required: true,
-        unique: true,
-        index: true
+        unique: true
     },
     
     // Zoom OAuth credentials (for Server-to-Server OAuth apps)

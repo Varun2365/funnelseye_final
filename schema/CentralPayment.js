@@ -5,13 +5,11 @@ const CentralPaymentSchema = new mongoose.Schema({
     paymentId: {
         type: String,
         required: true,
-        unique: true,
-        index: true
+        unique: true
     },
     orderId: {
         type: String,
-        required: true,
-        index: true
+        required: true
     },
     referenceId: {
         type: String,

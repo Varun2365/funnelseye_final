@@ -4,14 +4,12 @@ const whatsAppMessageSchema = new mongoose.Schema({
     coachId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Coach',
-        required: true,
-        index: true
+        required: true
     },
     deviceId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'WhatsAppDevice',
-        required: true,
-        index: true
+        required: true
     },
     direction: {
         type: String,
@@ -70,8 +68,7 @@ const whatsAppMessageSchema = new mongoose.Schema({
         sparse: true
     },
     conversationId: {
-        type: String,
-        index: true
+        type: String
     },
     status: {
         type: String,

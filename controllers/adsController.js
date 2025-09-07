@@ -42,7 +42,7 @@ async function createCampaign(req, res) {
             };
         }
         
-        const data = await metaAdsService.createCampaign(coachMetaAccountId, enhancedCampaignData);
+        const data = await metaAdsService.createCampaign(coachId, coachMetaAccountId, enhancedCampaignData);
  
         // Save to local database with AI metadata
         const campaign = await AdCampaign.create({
@@ -74,22 +74,25 @@ async function createCampaign(req, res) {
 // Update a campaign
 async function updateCampaign(req, res) {
     const { campaignId } = req.params;
+    const coachId = req.user.id;
     const updateData = req.body;
-    const data = await metaAdsService.updateCampaign(campaignId, updateData);
+    const data = await metaAdsService.updateCampaign(coachId, campaignId, updateData);
     res.json({ success: true, data });
 }
 
 // Pause a campaign
 async function pauseCampaign(req, res) {
     const { campaignId } = req.params;
-    const data = await metaAdsService.pauseCampaign(campaignId);
+    const coachId = req.user.id;
+    const data = await metaAdsService.pauseCampaign(coachId, campaignId);
     res.json({ success: true, data });
 }
 
 // Resume a campaign
 async function resumeCampaign(req, res) {
     const { campaignId } = req.params;
-    const data = await metaAdsService.resumeCampaign(campaignId);
+    const coachId = req.user.id;
+    const data = await metaAdsService.resumeCampaign(coachId, campaignId);
     res.json({ success: true, data });
 }
 
@@ -99,7 +102,7 @@ async function getCampaignAnalytics(req, res) {
     const coachId = req.user.id;
     
     try {
-        const data = await metaAdsService.fetchCampaignInsights(campaignId);
+        const data = await metaAdsService.fetchCampaignInsights(coachId, campaignId);
         
         // Get AI-powered insights and recommendations
         const anomalies = await aiAdsAgentService.detectAnomalies(coachId, campaignId);

@@ -107,8 +107,7 @@ const funnelSchema = new mongoose.Schema({
     coachId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Coach',
-        required: true,
-        index: true
+        required: true
     },
     name: {
         type: String,

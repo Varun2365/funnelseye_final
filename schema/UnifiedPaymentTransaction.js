@@ -5,13 +5,11 @@ const UnifiedPaymentTransactionSchema = new mongoose.Schema({
     transactionId: {
         type: String,
         required: true,
-        unique: true,
-        index: true
+        unique: true
     },
     orderId: {
         type: String,
-        required: true,
-        index: true
+        required: true
     },
     referenceId: {
         type: String,
@@ -39,8 +37,7 @@ const UnifiedPaymentTransactionSchema = new mongoose.Schema({
     checkoutPage: {
         pageId: {
             type: String,
-            required: false,
-            index: true
+            required: false
         },
         configuration: {
             type: mongoose.Schema.Types.Mixed,
