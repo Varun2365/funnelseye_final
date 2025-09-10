@@ -47,8 +47,9 @@ exports.getDashboardData = asyncHandler(async (req, res, next) => {
 exports.getOverviewData = asyncHandler(async (req, res, next) => {
     const { timeRange = 30 } = req.query;
     const staffId = req.user.id;
+    const coachId = req.user.coachId;
 
-    const overview = await getOverviewData(staffId, parseInt(timeRange));
+    const overview = await getOverviewData(staffId, coachId, parseInt(timeRange));
 
     res.json({
         success: true,
@@ -77,8 +78,9 @@ exports.getTasksData = asyncHandler(async (req, res) => {
 exports.getPerformanceData = asyncHandler(async (req, res) => {
     const { timeRange = 30 } = req.query;
     const staffId = req.user.id;
+    const coachId = req.user.coachId;
 
-    const performanceData = await getPerformanceData(staffId, parseInt(timeRange));
+    const performanceData = await getPerformanceData(staffId, coachId, parseInt(timeRange));
 
     res.json({
         success: true,
@@ -92,8 +94,9 @@ exports.getPerformanceData = asyncHandler(async (req, res) => {
 exports.getAchievements = asyncHandler(async (req, res) => {
     const { timeRange = 30 } = req.query;
     const staffId = req.user.id;
+    const coachId = req.user.coachId;
 
-    const achievements = await getAchievementsData(staffId, parseInt(timeRange));
+    const achievements = await getAchievementsData(staffId, coachId, parseInt(timeRange));
 
     res.json({
         success: true,
@@ -107,8 +110,9 @@ exports.getAchievements = asyncHandler(async (req, res) => {
 exports.getTeamData = asyncHandler(async (req, res) => {
     const { timeRange = 30 } = req.query;
     const staffId = req.user.id;
+    const coachId = req.user.coachId;
 
-    const teamData = await getTeamData(staffId, parseInt(timeRange));
+    const teamData = await getTeamData(staffId, coachId, parseInt(timeRange));
 
     res.json({
         success: true,
@@ -260,14 +264,14 @@ exports.getAnalytics = asyncHandler(async (req, res) => {
 
 // ===== HELPER FUNCTIONS =====
 
-async function getOverviewData(staffId, timeRange) {
+async function getOverviewData(staffId, coachId, timeRange) {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - timeRange);
 
     const [tasks, leads, performance] = await Promise.all([
         Task.find({ assignedTo: staffId, createdAt: { $gte: startDate } }),
         Lead.find({ assignedTo: staffId, createdAt: { $gte: startDate } }),
-        staffLeaderboardService.calculateStaffScore(staffId, req.user.coachId, timeRange)
+        staffLeaderboardService.calculateStaffScore(staffId, coachId, timeRange)
     ]);
 
     const completedTasks = tasks.filter(task => task.status === 'Completed');
@@ -337,16 +341,16 @@ async function getTasksData(staffId, timeRange) {
     };
 }
 
-async function getPerformanceData(staffId, timeRange) {
+async function getPerformanceData(staffId, coachId, timeRange) {
     const performance = await staffLeaderboardService.calculateStaffScore(
         staffId, 
-        req.user.coachId, 
+        coachId, 
         timeRange
     );
 
     const progress = await staffLeaderboardService.getStaffProgress(
         staffId, 
-        req.user.coachId, 
+        coachId, 
         timeRange
     );
 
@@ -360,10 +364,10 @@ async function getPerformanceData(staffId, timeRange) {
     };
 }
 
-async function getAchievementsData(staffId, timeRange) {
+async function getAchievementsData(staffId, coachId, timeRange) {
     const achievements = await staffLeaderboardService.getStaffAchievements(
         staffId, 
-        req.user.coachId, 
+        coachId, 
         timeRange
     );
 
@@ -383,16 +387,16 @@ async function getAchievementsData(staffId, timeRange) {
     };
 }
 
-async function getTeamData(staffId, timeRange) {
+async function getTeamData(staffId, coachId, timeRange) {
     const leaderboard = await staffLeaderboardService.getLeaderboard(
-        req.user.coachId, 
+        coachId, 
         timeRange, 
         20
     );
 
     const currentStaff = leaderboard.find(staff => staff.staffId.toString() === staffId.toString());
     const teamAnalytics = await staffLeaderboardService.getTeamAnalytics(
-        req.user.coachId, 
+        coachId, 
         timeRange
     );
 
