@@ -94,7 +94,9 @@ const corsOptions = {
         'x-version',            // API version header
         'X-Version',            // Alternative case
         'x-request-source',     // Request source identification
-        'X-Request-Source'      // Alternative case
+        'X-Request-Source',     // Alternative case
+        'coach-id',             // Coach identification header
+        'Coach-ID'              // Alternative case
     ],
     
     // Exposed headers (headers that browsers are allowed to access)
