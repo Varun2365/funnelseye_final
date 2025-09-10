@@ -163,6 +163,33 @@ const GlobalPaymentSettingsSchema = new mongoose.Schema({
         }
     },
 
+    // Razorpay Configuration
+    razorpay: {
+        keyId: {
+            type: String,
+            trim: true,
+            required: true
+        },
+        keySecret: {
+            type: String,
+            trim: true,
+            required: true
+        },
+        accountNumber: {
+            type: String,
+            trim: true,
+            required: false
+        },
+        isActive: {
+            type: Boolean,
+            default: true
+        },
+        webhookSecret: {
+            type: String,
+            trim: true
+        }
+    },
+
     // Central Account Settings
     centralAccount: {
         // Bank Account Details

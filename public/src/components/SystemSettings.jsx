@@ -4,589 +4,474 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Switch } from './ui/switch';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from './ui/dialog';
-import { 
-  Settings, 
-  Save, 
-  RefreshCw, 
-  Plus, 
-  Trash2, 
-  Edit,
-  Server,
-  Database,
-  Shield,
-  AlertTriangle,
-  CheckCircle,
-  XCircle
-} from 'lucide-react';
+import { Textarea } from './ui/textarea';
+import { Alert, AlertDescription } from './ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import axios from 'axios';
+import { 
+    Settings, 
+    Save, 
+    RefreshCw, 
+    AlertTriangle, 
+    CheckCircle, 
+    Shield, 
+    Database, 
+    Server, 
+    Mail, 
+    Bell,
+    Globe,
+    Activity
+} from 'lucide-react';
+import adminApiService from '../services/adminApiService';
 
 const SystemSettings = () => {
-  const [settings, setSettings] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [envVars, setEnvVars] = useState([]);
-  const [newEnvVar, setNewEnvVar] = useState({ key: '', value: '', description: '' });
-  const [addEnvDialogOpen, setAddEnvDialogOpen] = useState(false);
-  const [editingEnvVar, setEditingEnvVar] = useState(null);
+    const [activeTab, setActiveTab] = useState('general');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
+    const [systemHealth, setSystemHealth] = useState(null);
+    
+    // System Settings State
+    const [settings, setSettings] = useState({
+        general: {
+            siteName: 'FunnelsEye',
+            siteDescription: 'Complete MLM and Coaching Platform',
+            siteUrl: 'https://funnelseye.com',
+            timezone: 'Asia/Kolkata',
+            language: 'en',
+            maintenanceMode: false,
+            debugMode: false
+        },
+        security: {
+            sessionTimeout: 30,
+            maxLoginAttempts: 5,
+            lockoutDuration: 15,
+            requireTwoFactor: false,
+            passwordMinLength: 8,
+            passwordRequireSpecial: true,
+            enableAuditLogs: true,
+            enableSecurityAlerts: true
+        },
+        email: {
+            smtpHost: '',
+            smtpPort: 587,
+            smtpUser: '',
+            smtpPassword: '',
+            fromEmail: 'noreply@funnelseye.com',
+            fromName: 'FunnelsEye',
+            enableEmailNotifications: true,
+            enableEmailMarketing: false
+        }
+    });
 
-  useEffect(() => {
-    fetchSettings();
-    fetchEnvVars();
-  }, []);
+    const fetchSystemSettings = async () => {
+        try {
+            const response = await adminApiService.getSystemSettings();
+            setSettings(response.data);
+        } catch (err) {
+            console.error('Failed to fetch system settings:', err);
+        }
+    };
 
-  const fetchSettings = async () => {
-    try {
-      setLoading(true);
-      console.log('⚙️ [SYSTEM_SETTINGS] Fetching system settings...');
-      
-      const response = await axios.get('/admin/system/settings');
-      console.log('⚙️ [SYSTEM_SETTINGS] Settings received:', response.data);
-      
-      setSettings(response.data.data);
-    } catch (error) {
-      console.error('⚙️ [SYSTEM_SETTINGS] Error fetching settings:', error);
-      setError('Failed to load system settings');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const fetchSystemHealth = async () => {
+        try {
+            const response = await adminApiService.getSystemHealth();
+            setSystemHealth(response.data);
+        } catch (err) {
+            console.error('Failed to fetch system health:', err);
+        }
+    };
 
-  const fetchEnvVars = async () => {
-    try {
-      // This would be a custom endpoint to get environment variables
-      // For now, we'll simulate with common env vars
-      const commonEnvVars = [
-        { key: 'NODE_ENV', value: process.env.NODE_ENV || 'development', description: 'Application environment' },
-        { key: 'PORT', value: process.env.PORT || '8080', description: 'Server port' },
-        { key: 'JWT_SECRET', value: '***hidden***', description: 'JWT secret key' },
-        { key: 'MONGODB_URI', value: '***hidden***', description: 'MongoDB connection string' },
-        { key: 'CORS_ORIGIN', value: process.env.CORS_ORIGIN || '*', description: 'CORS allowed origins' },
-      ];
-      setEnvVars(commonEnvVars);
-    } catch (error) {
-      console.error('Error fetching environment variables:', error);
-    }
-  };
+    useEffect(() => {
+        fetchSystemSettings();
+        fetchSystemHealth();
+    }, []);
 
-  const handleSaveSettings = async (section, data) => {
-    try {
-      setSaving(true);
-      setError('');
-      setSuccess('');
-      
-      console.log('⚙️ [SYSTEM_SETTINGS] Saving settings for section:', section, data);
-      
-      const response = await axios.put('/admin/system/settings', {
-        section,
-        data
-      });
-      
-      console.log('⚙️ [SYSTEM_SETTINGS] Settings saved:', response.data);
-      setSuccess('Settings saved successfully');
-      
-      // Refresh settings
-      fetchSettings();
-    } catch (error) {
-      console.error('⚙️ [SYSTEM_SETTINGS] Error saving settings:', error);
-      setError('Failed to save settings');
-    } finally {
-      setSaving(false);
-    }
-  };
+    const handleSettingsUpdate = async (section = null) => {
+        try {
+            setLoading(true);
+            if (section) {
+                await adminApiService.updateSettingsSection(section, settings[section]);
+            } else {
+                await adminApiService.updateSystemSettings(settings);
+            }
+            setSuccess(section ? `${section} settings updated successfully` : 'All settings updated successfully');
+            await fetchSystemSettings();
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  const handleAddEnvVar = async () => {
-    try {
-      if (!newEnvVar.key || !newEnvVar.value) {
-        setError('Key and value are required');
-        return;
-      }
-
-      // This would be a custom endpoint to add environment variables
-      console.log('⚙️ [SYSTEM_SETTINGS] Adding new env var:', newEnvVar);
-      
-      setEnvVars(prev => [...prev, { ...newEnvVar, id: Date.now() }]);
-      setNewEnvVar({ key: '', value: '', description: '' });
-      setAddEnvDialogOpen(false);
-      setSuccess('Environment variable added successfully');
-    } catch (error) {
-      console.error('Error adding environment variable:', error);
-      setError('Failed to add environment variable');
-    }
-  };
-
-  const handleDeleteEnvVar = async (key) => {
-    if (!confirm(`Are you sure you want to delete the environment variable "${key}"?`)) {
-      return;
-    }
-
-    try {
-      console.log('⚙️ [SYSTEM_SETTINGS] Deleting env var:', key);
-      
-      setEnvVars(prev => prev.filter(env => env.key !== key));
-      setSuccess('Environment variable deleted successfully');
-    } catch (error) {
-      console.error('Error deleting environment variable:', error);
-      setError('Failed to delete environment variable');
-    }
-  };
-
-  const handleEditEnvVar = (envVar) => {
-    setEditingEnvVar(envVar);
-    setNewEnvVar({ ...envVar });
-    setAddEnvDialogOpen(true);
-  };
-
-  const handleUpdateEnvVar = async () => {
-    try {
-      if (!newEnvVar.key || !newEnvVar.value) {
-        setError('Key and value are required');
-        return;
-      }
-
-      console.log('⚙️ [SYSTEM_SETTINGS] Updating env var:', newEnvVar);
-      
-      setEnvVars(prev => prev.map(env => 
-        env.key === editingEnvVar.key ? { ...newEnvVar } : env
-      ));
-      
-      setNewEnvVar({ key: '', value: '', description: '' });
-      setEditingEnvVar(null);
-      setAddEnvDialogOpen(false);
-      setSuccess('Environment variable updated successfully');
-    } catch (error) {
-      console.error('Error updating environment variable:', error);
-      setError('Failed to update environment variable');
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'healthy': return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'warning': return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
-      case 'error': return <XCircle className="h-4 w-4 text-red-600" />;
-      default: return <AlertTriangle className="h-4 w-4 text-gray-600" />;
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">System Settings</h1>
-        </div>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">System Settings</h1>
-          <p className="text-muted-foreground">
-            Configure system-wide settings and environment variables.
-          </p>
-        </div>
-        <Button onClick={fetchSettings} variant="outline" size="sm">
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
-      </div>
-
-      {/* Status Messages */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <div className="flex">
-            <XCircle className="h-5 w-5 text-red-400" />
-            <div className="ml-3">
-              <p className="text-sm text-red-800">{error}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {success && (
-        <div className="bg-green-50 border border-green-200 rounded-md p-4">
-          <div className="flex">
-            <CheckCircle className="h-5 w-5 text-green-400" />
-            <div className="ml-3">
-              <p className="text-sm text-green-800">{success}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <Tabs defaultValue="general" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="environment">Environment</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-        </TabsList>
-
-        {/* General Settings */}
-        <TabsContent value="general" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Settings className="h-5 w-5" />
-                <span>General Settings</span>
-              </CardTitle>
-              <CardDescription>
-                Basic system configuration and preferences.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="appName">Application Name</Label>
-                  <Input
-                    id="appName"
-                    value={settings?.general?.appName || ''}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      general: { ...prev?.general, appName: e.target.value }
-                    }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="appVersion">Application Version</Label>
-                  <Input
-                    id="appVersion"
-                    value={settings?.general?.appVersion || ''}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      general: { ...prev?.general, appVersion: e.target.value }
-                    }))}
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="appDescription">Application Description</Label>
-                <Textarea
-                  id="appDescription"
-                  value={settings?.general?.appDescription || ''}
-                  onChange={(e) => setSettings(prev => ({
-                    ...prev,
-                      general: { ...prev?.general, appDescription: e.target.value }
-                    }))}
-                />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="maintenanceMode"
-                  checked={settings?.general?.maintenanceMode || false}
-                  onCheckedChange={(checked) => setSettings(prev => ({
-                    ...prev,
-                    general: { ...prev?.general, maintenanceMode: checked }
-                  }))}
-                />
-                <Label htmlFor="maintenanceMode">Maintenance Mode</Label>
-              </div>
-
-              <Button 
-                onClick={() => handleSaveSettings('general', settings?.general)}
-                disabled={saving}
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {saving ? 'Saving...' : 'Save General Settings'}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Environment Variables */}
-        <TabsContent value="environment" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Server className="h-5 w-5" />
-                <span>Environment Variables</span>
-              </CardTitle>
-              <CardDescription>
-                Manage environment variables and configuration.
-              </CardDescription>
+    const StatCard = ({ title, value, icon: Icon, color = "blue", status }) => (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{title}</CardTitle>
+                <Icon className={`h-4 w-4 text-${color}-600`} />
             </CardHeader>
             <CardContent>
-              <div className="flex justify-between items-center mb-4">
-                <p className="text-sm text-muted-foreground">
-                  {envVars.length} environment variables configured
-                </p>
-                <Dialog open={addEnvDialogOpen} onOpenChange={setAddEnvDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Variable
+                <div className="text-2xl font-bold">{value}</div>
+                {status && (
+                    <Badge variant={status === 'healthy' ? 'default' : 'destructive'} className="mt-1">
+                        {status}
+                    </Badge>
+                )}
+            </CardContent>
+        </Card>
+    );
+
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold">System Settings</h1>
+                    <p className="text-muted-foreground">Configure system-wide settings and preferences</p>
+                </div>
+                <div className="flex space-x-2">
+                    <Button variant="outline" onClick={() => {
+                        fetchSystemSettings();
+                        fetchSystemHealth();
+                    }}>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Refresh
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>
-                        {editingEnvVar ? 'Edit Environment Variable' : 'Add Environment Variable'}
-                      </DialogTitle>
-                      <DialogDescription>
-                        {editingEnvVar ? 'Update the environment variable.' : 'Add a new environment variable to the system.'}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="envKey">Key</Label>
-                        <Input
-                          id="envKey"
-                          value={newEnvVar.key}
-                          onChange={(e) => setNewEnvVar(prev => ({ ...prev, key: e.target.value }))}
-                          placeholder="e.g., API_KEY"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="envValue">Value</Label>
-                        <Input
-                          id="envValue"
-                          value={newEnvVar.value}
-                          onChange={(e) => setNewEnvVar(prev => ({ ...prev, value: e.target.value }))}
-                          placeholder="e.g., your-secret-value"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="envDescription">Description</Label>
-                        <Textarea
-                          id="envDescription"
-                          value={newEnvVar.description}
-                          onChange={(e) => setNewEnvVar(prev => ({ ...prev, description: e.target.value }))}
-                          placeholder="Describe what this variable is used for"
-                        />
-                      </div>
+                </div>
+            </div>
+
+            {/* Alerts */}
+            {error && (
+                <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                        {error}
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="ml-2"
+                            onClick={() => setError(null)}
+                        >
+                            Dismiss
+                        </Button>
+                    </AlertDescription>
+                </Alert>
+            )}
+
+            {success && (
+                <Alert>
+                    <CheckCircle className="h-4 w-4" />
+                    <AlertDescription>
+                        {success}
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="ml-2"
+                            onClick={() => setSuccess(null)}
+                        >
+                            Dismiss
+                        </Button>
+                    </AlertDescription>
+                </Alert>
+            )}
+
+            {/* System Health Overview */}
+            {systemHealth && (
+                <div className="grid gap-4 md:grid-cols-4">
+                    <StatCard
+                        title="System Status"
+                        value={systemHealth.status === 'healthy' ? 'Online' : 'Issues'}
+                        icon={Activity}
+                        color={systemHealth.status === 'healthy' ? 'green' : 'red'}
+                        status={systemHealth.status}
+                    />
+                    <StatCard
+                        title="Uptime"
+                        value={`${systemHealth.uptime || 0}%`}
+                        icon={Server}
+                        color="blue"
+                    />
+                    <StatCard
+                        title="CPU Usage"
+                        value={`${systemHealth.performance?.cpu || 0}%`}
+                        icon={Activity}
+                        color={systemHealth.performance?.cpu > 80 ? 'red' : 'green'}
+                    />
+                    <StatCard
+                        title="Memory Usage"
+                        value={`${systemHealth.performance?.memory || 0}%`}
+                        icon={Database}
+                        color={systemHealth.performance?.memory > 80 ? 'red' : 'green'}
+                    />
+                </div>
+            )}
+
+            {/* Main Settings Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+                <TabsList>
+                    <TabsTrigger value="general">General</TabsTrigger>
+                    <TabsTrigger value="security">Security</TabsTrigger>
+                    <TabsTrigger value="email">Email</TabsTrigger>
+                </TabsList>
+
+                {/* General Settings */}
+                <TabsContent value="general" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>General Settings</CardTitle>
+                            <CardDescription>Basic system configuration</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="siteName">Site Name</Label>
+                                    <Input
+                                        id="siteName"
+                                        value={settings.general.siteName}
+                                        onChange={(e) => setSettings(prev => ({
+                                            ...prev,
+                                            general: { ...prev.general, siteName: e.target.value }
+                                        }))}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="siteUrl">Site URL</Label>
+                                    <Input
+                                        id="siteUrl"
+                                        value={settings.general.siteUrl}
+                                        onChange={(e) => setSettings(prev => ({
+                                            ...prev,
+                                            general: { ...prev.general, siteUrl: e.target.value }
+                                        }))}
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="siteDescription">Site Description</Label>
+                                <Textarea
+                                    id="siteDescription"
+                                    value={settings.general.siteDescription}
+                                    onChange={(e) => setSettings(prev => ({
+                                        ...prev,
+                                        general: { ...prev.general, siteDescription: e.target.value }
+                                    }))}
+                                />
+                            </div>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="timezone">Timezone</Label>
+                                    <Select
+                                        value={settings.general.timezone}
+                                        onValueChange={(value) => setSettings(prev => ({
+                                            ...prev,
+                                            general: { ...prev.general, timezone: value }
+                                        }))}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Asia/Kolkata">Asia/Kolkata</SelectItem>
+                                            <SelectItem value="America/New_York">America/New_York</SelectItem>
+                                            <SelectItem value="Europe/London">Europe/London</SelectItem>
+                                            <SelectItem value="Asia/Tokyo">Asia/Tokyo</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="language">Language</Label>
+                                    <Select
+                                        value={settings.general.language}
+                                        onValueChange={(value) => setSettings(prev => ({
+                                            ...prev,
+                                            general: { ...prev.general, language: value }
+                                        }))}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="en">English</SelectItem>
+                                            <SelectItem value="hi">Hindi</SelectItem>
+                                            <SelectItem value="es">Spanish</SelectItem>
+                                            <SelectItem value="fr">French</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="maintenanceMode"
+                                        checked={settings.general.maintenanceMode}
+                                        onCheckedChange={(checked) => setSettings(prev => ({
+                                            ...prev,
+                                            general: { ...prev.general, maintenanceMode: checked }
+                                        }))}
+                                    />
+                                    <Label htmlFor="maintenanceMode">Maintenance Mode</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="debugMode"
+                                        checked={settings.general.debugMode}
+                                        onCheckedChange={(checked) => setSettings(prev => ({
+                                            ...prev,
+                                            general: { ...prev.general, debugMode: checked }
+                                        }))}
+                                    />
+                                    <Label htmlFor="debugMode">Debug Mode</Label>
+                                </div>
+                            </div>
+                            <Button onClick={() => handleSettingsUpdate('general')} disabled={loading}>
+                                <Save className="h-4 w-4 mr-2" />
+                                Save General Settings
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* Security Settings */}
+                <TabsContent value="security" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Security Settings</CardTitle>
+                            <CardDescription>Configure security policies and authentication</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="sessionTimeout">Session Timeout (minutes)</Label>
+                                    <Input
+                                        id="sessionTimeout"
+                                        type="number"
+                                        value={settings.security.sessionTimeout}
+                                        onChange={(e) => setSettings(prev => ({
+                                            ...prev,
+                                            security: { ...prev.security, sessionTimeout: parseInt(e.target.value) }
+                                        }))}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="maxLoginAttempts">Max Login Attempts</Label>
+                                    <Input
+                                        id="maxLoginAttempts"
+                                        type="number"
+                                        value={settings.security.maxLoginAttempts}
+                                        onChange={(e) => setSettings(prev => ({
+                                            ...prev,
+                                            security: { ...prev.security, maxLoginAttempts: parseInt(e.target.value) }
+                                        }))}
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="requireTwoFactor"
+                                        checked={settings.security.requireTwoFactor}
+                                        onCheckedChange={(checked) => setSettings(prev => ({
+                                            ...prev,
+                                            security: { ...prev.security, requireTwoFactor: checked }
+                                        }))}
+                                    />
+                                    <Label htmlFor="requireTwoFactor">Require Two-Factor Authentication</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="enableAuditLogs"
+                                        checked={settings.security.enableAuditLogs}
+                                        onCheckedChange={(checked) => setSettings(prev => ({
+                                            ...prev,
+                                            security: { ...prev.security, enableAuditLogs: checked }
+                                        }))}
+                                    />
+                                    <Label htmlFor="enableAuditLogs">Enable Audit Logs</Label>
+                                </div>
+                            </div>
+                            <Button onClick={() => handleSettingsUpdate('security')} disabled={loading}>
+                                <Shield className="h-4 w-4 mr-2" />
+                                Save Security Settings
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* Email Settings */}
+                <TabsContent value="email" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Email Settings</CardTitle>
+                            <CardDescription>Configure SMTP and email notifications</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="smtpHost">SMTP Host</Label>
+                                    <Input
+                                        id="smtpHost"
+                                        value={settings.email.smtpHost}
+                                        onChange={(e) => setSettings(prev => ({
+                                            ...prev,
+                                            email: { ...prev.email, smtpHost: e.target.value }
+                                        }))}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="smtpPort">SMTP Port</Label>
+                                    <Input
+                                        id="smtpPort"
+                                        type="number"
+                                        value={settings.email.smtpPort}
+                                        onChange={(e) => setSettings(prev => ({
+                                            ...prev,
+                                            email: { ...prev.email, smtpPort: parseInt(e.target.value) }
+                                        }))}
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="enableEmailNotifications"
+                                        checked={settings.email.enableEmailNotifications}
+                                        onCheckedChange={(checked) => setSettings(prev => ({
+                                            ...prev,
+                                            email: { ...prev.email, enableEmailNotifications: checked }
+                                        }))}
+                                    />
+                                    <Label htmlFor="enableEmailNotifications">Enable Email Notifications</Label>
+                                </div>
+                            </div>
+                            <Button onClick={() => handleSettingsUpdate('email')} disabled={loading}>
+                                <Mail className="h-4 w-4 mr-2" />
+                                Save Email Settings
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
+
+            {/* Save All Settings */}
+            <Card>
+                <CardContent className="pt-6">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h3 className="text-lg font-medium">Save All Settings</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Save all configuration changes at once
+                            </p>
+                        </div>
+                        <Button onClick={() => handleSettingsUpdate()} disabled={loading}>
+                            <Save className="h-4 w-4 mr-2" />
+                            Save All Settings
+                        </Button>
                     </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => {
-                        setAddEnvDialogOpen(false);
-                        setEditingEnvVar(null);
-                        setNewEnvVar({ key: '', value: '', description: '' });
-                      }}>
-                        Cancel
-                      </Button>
-                      <Button onClick={editingEnvVar ? handleUpdateEnvVar : handleAddEnvVar}>
-                        {editingEnvVar ? 'Update' : 'Add'} Variable
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
-
-              <div className="space-y-2">
-                {envVars.map((envVar, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                          {envVar.key}
-                        </code>
-                        <Badge variant="outline">{envVar.value}</Badge>
-                      </div>
-                      {envVar.description && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {envVar.description}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditEnvVar(envVar)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteEnvVar(envVar.key)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Security Settings */}
-        <TabsContent value="security" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Shield className="h-5 w-5" />
-                <span>Security Settings</span>
-              </CardTitle>
-              <CardDescription>
-                Configure security policies and authentication settings.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="sessionTimeout">Session Timeout (minutes)</Label>
-                  <Input
-                    id="sessionTimeout"
-                    type="number"
-                    value={settings?.security?.sessionTimeout || 30}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      security: { ...prev?.security, sessionTimeout: parseInt(e.target.value) }
-                    }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="maxLoginAttempts">Max Login Attempts</Label>
-                  <Input
-                    id="maxLoginAttempts"
-                    type="number"
-                    value={settings?.security?.maxLoginAttempts || 5}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      security: { ...prev?.security, maxLoginAttempts: parseInt(e.target.value) }
-                    }))}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="requireEmailVerification"
-                  checked={settings?.security?.requireEmailVerification || false}
-                  onCheckedChange={(checked) => setSettings(prev => ({
-                    ...prev,
-                    security: { ...prev?.security, requireEmailVerification: checked }
-                  }))}
-                />
-                <Label htmlFor="requireEmailVerification">Require Email Verification</Label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="enableTwoFactor"
-                  checked={settings?.security?.enableTwoFactor || false}
-                  onCheckedChange={(checked) => setSettings(prev => ({
-                    ...prev,
-                    security: { ...prev?.security, enableTwoFactor: checked }
-                  }))}
-                />
-                <Label htmlFor="enableTwoFactor">Enable Two-Factor Authentication</Label>
-              </div>
-
-              <Button 
-                onClick={() => handleSaveSettings('security', settings?.security)}
-                disabled={saving}
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {saving ? 'Saving...' : 'Save Security Settings'}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Maintenance Settings */}
-        <TabsContent value="maintenance" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Database className="h-5 w-5" />
-                <span>Maintenance Settings</span>
-              </CardTitle>
-              <CardDescription>
-                System maintenance and cleanup operations.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="logRetentionDays">Log Retention (days)</Label>
-                  <Input
-                    id="logRetentionDays"
-                    type="number"
-                    value={settings?.maintenance?.logRetentionDays || 30}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      maintenance: { ...prev?.maintenance, logRetentionDays: parseInt(e.target.value) }
-                    }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="backupFrequency">Backup Frequency (hours)</Label>
-                  <Input
-                    id="backupFrequency"
-                    type="number"
-                    value={settings?.maintenance?.backupFrequency || 24}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      maintenance: { ...prev?.maintenance, backupFrequency: parseInt(e.target.value) }
-                    }))}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="autoCleanup"
-                  checked={settings?.maintenance?.autoCleanup || false}
-                  onCheckedChange={(checked) => setSettings(prev => ({
-                    ...prev,
-                    maintenance: { ...prev?.maintenance, autoCleanup: checked }
-                  }))}
-                />
-                <Label htmlFor="autoCleanup">Enable Auto Cleanup</Label>
-              </div>
-
-              <div className="flex space-x-2">
-                <Button 
-                  onClick={() => handleSaveSettings('maintenance', settings?.maintenance)}
-                  disabled={saving}
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  {saving ? 'Saving...' : 'Save Maintenance Settings'}
-                </Button>
-                <Button variant="outline" onClick={() => {
-                  // This would trigger a manual cleanup
-                  console.log('Manual cleanup triggered');
-                }}>
-                  Run Cleanup Now
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+                </CardContent>
+            </Card>
+        </div>
+    );
 };
 
 export default SystemSettings;

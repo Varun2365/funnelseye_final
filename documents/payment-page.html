@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Your Payment</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .payment-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .payment-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .payment-header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .payment-header .subtitle {
+            opacity: 0.9;
+        }
+        
+        .payment-content {
+            padding: 40px;
+        }
+        
+        .order-details {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .order-details h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #333;
+        }
+        
+        .pay-button {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 20px;
+            font-size: 1.2rem;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+        
+        .pay-button:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255,107,107,0.3);
+        }
+        
+        .pay-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .payment-info {
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
+        .payment-info p {
+            margin-bottom: 8px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .back-button {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+        }
+        
+        .back-button:hover {
+            background: #5a6268;
+        }
+        
+        @media (max-width: 768px) {
+            .payment-container {
+                margin: 10px;
+            }
+            
+            .payment-header {
+                padding: 30px 20px;
+            }
+            
+            .payment-content {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="payment-container">
+        <div class="payment-header">
+            <h1>Complete Your Payment</h1>
+            <p class="subtitle">Secure payment powered by Razorpay</p>
+        </div>
+        
+        <div class="payment-content">
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Loading payment details...</p>
+            </div>
+            
+            <div id="error" class="error" style="display: none;">
+                <h3>Payment Error</h3>
+                <p id="error-message"></p>
+                <button class="back-button" onclick="goBack()">Go Back</button>
+            </div>
+            
+            <div id="payment-content" style="display: none;">
+                <div class="order-details">
+                    <h3>Order Summary</h3>
+                    <div class="detail-row">
+                        <span>Order ID:</span>
+                        <span id="order-id"></span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Product:</span>
+                        <span id="product-name">Premium Fitness Program</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Coach:</span>
+                        <span id="coach-name">John Doe</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Amount:</span>
+                        <span id="amount-display"></span>
+                    </div>
+                </div>
+
+                <button class="pay-button" id="pay-button" onclick="handlePayment()">
+                    Pay ₹<span id="pay-amount"></span>
+                </button>
+
+                <div class="payment-info">
+                    <p>🔒 Your payment is secured with 256-bit SSL encryption</p>
+                    <p>💳 Accepts cards, UPI, net banking, and wallets</p>
+                    <p>⚡ Instant confirmation after successful payment</p>
+                </div>
+                
+                <button class="back-button" onclick="goBack()">← Back to Product</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            razorpayKey: 'rzp_test_...', // Replace with your Razorpay key
+            apiUrl: 'http://localhost:3000/api/paymentsv1' // Your backend API URL
+        };
+
+        let orderData = null;
+
+        // Extract URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('orderId');
+        const planId = urlParams.get('planId');
+        const amount = urlParams.get('amount');
+        const currency = urlParams.get('currency');
+
+        function initPage() {
+            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            const paymentDiv = document.getElementById('payment-content');
+            const errorMessage = document.getElementById('error-message');
+
+            if (!orderId || !planId || !amount || !currency) {
+                showError('Missing required payment parameters');
+                return;
+            }
+
+            // Set order data
+            orderData = {
+                orderId,
+                planId,
+                amount: parseInt(amount),
+                currency
+            };
+
+            // Update UI
+            document.getElementById('order-id').textContent = orderId;
+            document.getElementById('amount-display').textContent = `₹${(amount / 100).toFixed(2)}`;
+            document.getElementById('pay-amount').textContent = (amount / 100).toFixed(2);
+
+            // Hide loading, show payment content
+            loadingDiv.style.display = 'none';
+            paymentDiv.style.display = 'block';
+        }
+
+        function showError(message) {
+            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            const errorMessage = document.getElementById('error-message');
+
+            loadingDiv.style.display = 'none';
+            errorDiv.style.display = 'block';
+            errorMessage.textContent = message;
+        }
+
+        function handlePayment() {
+            if (!orderData) return;
+
+            const payButton = document.getElementById('pay-button');
+            payButton.disabled = true;
+            payButton.textContent = 'Processing...';
+
+            // Initialize Razorpay checkout
+            const options = {
+                key: CONFIG.razorpayKey,
+                amount: orderData.amount,
+                currency: orderData.currency,
+                name: "Your Company Name",
+                description: "Premium Fitness Program",
+                order_id: orderData.orderId,
+                handler: async function (response) {
+                    // Handle successful payment
+                    try {
+                        const verifyResponse = await fetch(`${CONFIG.apiUrl}/razorpay/verify-payment`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_signature: response.razorpay_signature
+                            })
+                        });
+
+                        const result = await verifyResponse.json();
+                        
+                        if (result.success) {
+                            // Redirect to success page with payment details
+                            const successUrl = `/payment/success?paymentId=${response.razorpay_payment_id}&orderId=${orderData.orderId}&amount=${orderData.amount}&currency=${orderData.currency}`;
+                            window.location.href = successUrl;
+                        } else {
+                            // Redirect to failure page
+                            window.location.href = `/payment/failure?error=${encodeURIComponent(result.message)}`;
+                        }
+                    } catch (error) {
+                        console.error('Payment verification failed:', error);
+                        window.location.href = `/payment/failure?error=${encodeURIComponent('Payment verification failed')}`;
+                    }
+                },
+                prefill: {
+                    name: "Customer Name",
+                    email: "customer@example.com",
+                    contact: "+919876543210"
+                },
+                theme: {
+                    color: "#667eea"
+                },
+                modal: {
+                    ondismiss: function() {
+                        // Re-enable button if user closes modal
+                        payButton.disabled = false;
+                        payButton.textContent = `Pay ₹${(orderData.amount / 100).toFixed(2)}`;
+                    }
+                }
+            };
+
+            const rzp = new Razorpay(options);
+            rzp.open();
+        }
+
+        function goBack() {
+            // Go back to landing page or previous page
+            window.history.back();
+        }
+
+        // Initialize page when loaded
+        document.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+</html>

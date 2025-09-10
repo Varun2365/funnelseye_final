@@ -62,6 +62,11 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
+    status: {
+        type: String,
+        enum: ['active', 'inactive', 'suspended', 'pending'],
+        default: 'active'
+    },
     isVerified: {
         type: Boolean,
         default: false
@@ -80,6 +85,11 @@ const userSchema = new mongoose.Schema({
     },
     resetPasswordExpire: {
         type: Date
+    },
+    // Soft delete field
+    deletedAt: {
+        type: Date,
+        default: null
     },
     
 }, {

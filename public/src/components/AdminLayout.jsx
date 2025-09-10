@@ -20,7 +20,23 @@ import {
   TrendingUp,
   Lock,
   DollarSign,
-  HelpCircle
+  HelpCircle,
+  Bot,
+  Brain,
+  Calendar,
+  Mail,
+  Target,
+  Zap,
+  Database,
+  Server,
+  UserCheck,
+  AlertTriangle,
+  Activity,
+  PieChart,
+  Globe,
+  Layers,
+  Cog,
+  Monitor
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -32,19 +48,15 @@ const AdminLayout = () => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Users', href: '/users', icon: Users },
-    { name: 'System Settings', href: '/system-settings', icon: Settings },
-    { name: 'Payment Settings', href: '/payment-settings', icon: CreditCard },
-    { name: 'Payment Management', href: '/payment-management', icon: CreditCard },
-    { name: 'Financial Dashboard', href: '/financial', icon: DollarSign },
-    { name: 'MLM Management', href: '/mlm-management', icon: TrendingUp },
-    { name: 'Central WhatsApp', href: '/central-whatsapp', icon: MessageCircle },
-    { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-    { name: 'Subscription Management', href: '/subscription', icon: Package },
-    { name: 'Courses Management', href: '/courses', icon: BookOpen },
-    { name: 'Support & Tickets', href: '/support', icon: HelpCircle },
-    { name: 'Security', href: '/security', icon: Lock },
-    { name: 'Audit Logs', href: '/audit-logs', icon: FileText },
+    { name: 'User Management', href: '/users', icon: Users },
+    { name: 'Financial & MLM', href: '/financial', icon: DollarSign },
+    { name: 'Platform Configuration', href: '/platform-config', icon: Cog },
+    { name: 'Content Management', href: '/courses', icon: BookOpen },
+    { name: 'Support Center', href: '/support', icon: HelpCircle },
+    { name: 'Analytics & Reports', href: '/analytics', icon: BarChart3 },
+    { name: 'Messaging', href: '/messaging', icon: MessageCircle },
+    { name: 'Admin Staff', href: '/admin-staff', icon: UserCheck },
+    { name: 'Security & Compliance', href: '/security', icon: Shield }
   ];
 
   const handleLogout = async () => {
@@ -64,7 +76,7 @@ const AdminLayout = () => {
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 lg:inset-0",
+        "fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 lg:inset-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
@@ -87,7 +99,7 @@ const AdminLayout = () => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
+          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
               return (
@@ -112,30 +124,27 @@ const AdminLayout = () => {
 
           {/* User info and logout */}
           <div className="p-4 border-t">
-            <Card className="p-3">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-primary rounded-full">
-                  <Shield className="h-4 w-4 text-primary-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {admin?.firstName} {admin?.lastName}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {admin?.email}
-                  </p>
-                </div>
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-muted rounded-full">
+                <Shield className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {admin?.firstName} {admin?.lastName}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {admin?.email}
+                </p>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full mt-3"
                 onClick={handleLogout}
+                className="text-muted-foreground hover:text-foreground"
               >
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
+                <LogOut className="h-4 w-4" />
               </Button>
-            </Card>
+            </div>
           </div>
         </div>
       </div>

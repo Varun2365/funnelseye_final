@@ -242,6 +242,16 @@ app.use('/api/unified-payments', unifiedPaymentRoutes);
 app.use('/api/checkout-pages', checkoutPageRoutes);
 app.use('/api/coach-plans', coachPlanRoutes);
 
+// ===== NEW PAYMENT SYSTEM V1 =====
+const paymentsv1Routes = require('./routes/paymentsv1Routes');
+app.use('/api/paymentsv1', paymentsv1Routes);
+
+// ===== COACH TRANSACTION ROUTES =====
+const coachTransactionRoutes = require('./routes/coachTransactionRoutes');
+
+// Mount coach transaction routes
+app.use('/api/coach-transactions', coachTransactionRoutes);
+
 
 // ===== MARKETING & ADVERTISING =====
 app.use('/api/ads', adsRoutes);
@@ -287,6 +297,7 @@ const newAdminAuditRoutes = require('./routes/adminAuditRoutes');
 const newAdminMlmRoutes = require('./routes/adminMlmRoutes');
 const newAdminFinancialRoutes = require('./routes/adminFinancialRoutes');
 const newAdminSecurityRoutes = require('./routes/adminSecurityRoutes');
+const platformConfigRoutes = require('./routes/platformConfigRoutes');
 
 // Mount new admin auth routes first (login, logout, etc.)
 app.use('/api/admin/auth', newAdminAuthRoutes);
@@ -300,6 +311,7 @@ app.use('/api/admin/audit-logs', newAdminAuditRoutes);
 app.use('/api/admin/mlm', newAdminMlmRoutes);
 app.use('/api/admin/financial', newAdminFinancialRoutes);
 app.use('/api/admin/security', newAdminSecurityRoutes);
+app.use('/api/admin/platform-config', platformConfigRoutes);
 
 // Serve new admin dashboard UI (React app)
 app.get('/admin', (req, res) => {
@@ -316,6 +328,69 @@ app.use('/admin-assets', express.static(path.join(__dirname, 'dist', 'admin', 'a
 // Fallback for old admin login (keep for compatibility)
 app.get('/admin-login', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin-login.html'));
+});
+
+// ===== PAYMENT PAGES =====
+// Serve professional checkout page
+app.get('/checkout/payment', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'checkout.html'));
+});
+
+// Serve checkout page directly
+app.get('/checkout.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'checkout.html'));
+});
+
+// Serve payment success page
+app.get('/payment-success', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'payment-success.html'));
+});
+
+// Serve payment failure page (optional)
+app.get('/payment-failed', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'payment-failed.html'));
+});
+
+// Serve test payment page
+app.get('/test-payment', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'test-payment.html'));
+});
+
+// Serve subscription page
+app.get('/subscription', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'subscription.html'));
+});
+
+// Serve store pages
+app.get('/store/:planId', (req, res) => {
+    const planId = req.params.planId;
+    const storeFilePath = path.join(__dirname, 'public', 'store', `${planId}.html`);
+    
+    // Check if store page exists
+    if (require('fs').existsSync(storeFilePath)) {
+        res.sendFile(storeFilePath);
+    } else {
+        res.status(404).send(`
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Store Not Found - FunnelsEye</title>
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                    .error { color: #dc2626; font-size: 1.2rem; }
+                </style>
+            </head>
+            <body>
+                <h1>Store Not Found</h1>
+                <p class="error">The requested store page does not exist.</p>
+                <p>Plan ID: ${planId}</p>
+                <a href="/">Go to Home</a>
+            </body>
+            </html>
+        `);
+    }
 });
 // 🏠 API Documentation Homepage Route
 app.use('/', apiDocsRoutes);

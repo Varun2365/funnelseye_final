@@ -92,7 +92,9 @@ const corsOptions = {
         'x-tenant-id',          // Tenant identification
         'X-Tenant-ID',          // Alternative case
         'x-version',            // API version header
-        'X-Version'             // Alternative case
+        'X-Version',            // Alternative case
+        'x-request-source',     // Request source identification
+        'X-Request-Source'      // Alternative case
     ],
     
     // Exposed headers (headers that browsers are allowed to access)

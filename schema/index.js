@@ -48,13 +48,24 @@ const CommissionSettings = require('./CommissionSettings');
 // Import new payment and plan schemas
 const CoachPlan = require('./CoachPlan');
 const CentralPayment = require('./CentralPayment');
+const CoachTransaction = require('./CoachTransaction');
 // const CentralPaymentHandler = require('./CentralPaymentHandler');
 const MlmCommissionDistribution = require('./MlmCommissionDistribution');
 
 // Import unified payment system schemas
 const GlobalPaymentSettings = require('./GlobalPaymentSettings');
+const PaymentGatewayConfig = require('./PaymentGatewayConfig');
 const UnifiedPaymentTransaction = require('./UnifiedPaymentTransaction');
 const CheckoutPage = require('./CheckoutPage');
+
+// Import new payment system v1 schemas
+const AdminProduct = require('./AdminProduct');
+const CoachSellablePlan = require('./CoachSellablePlan');
+const RazorpayPayment = require('./RazorpayPayment');
+
+// Import subscription schemas
+const SubscriptionPlan = require('./SubscriptionPlan');
+const CoachSubscription = require('./CoachSubscription');
 
 
 // Import new admin system schemas
@@ -63,29 +74,38 @@ const AdminUser = require('./AdminUser');
 const AdminAuditLog = require('./AdminAuditLog');
 
 // Create discriminator models after base models are loaded
-let Coach;
+let CoachDiscriminator, ClientDiscriminator, AdminDiscriminator;
 
 try {
-    // Create Coach as discriminator of User
+    // Create discriminators of User
     if (User && mongoose.models.User) {
-        // console.log('Creating Coach as discriminator of User model');
-        Coach = User.discriminator('coach', coachSchema);
-        // console.log('✅ Coach discriminator model created successfully');
+        // console.log('Creating discriminators of User model');
+        CoachDiscriminator = User.discriminator('coach', coachSchema);
+        ClientDiscriminator = User.discriminator('client', new mongoose.Schema({}));
+        AdminDiscriminator = User.discriminator('admin', new mongoose.Schema({}));
+        // Staff discriminator is already created in Staff.js
+        // console.log('✅ All discriminators created successfully');
     } else {
-        // console.warn('⚠️ User model not available, creating standalone Coach model');
-        Coach = mongoose.model('Coach', coachSchema);
+        // console.warn('⚠️ User model not available, creating standalone models');
+        CoachDiscriminator = mongoose.model('Coach', coachSchema);
+        ClientDiscriminator = mongoose.model('Client', new mongoose.Schema({}));
+        AdminDiscriminator = mongoose.model('Admin', new mongoose.Schema({}));
     }
 } catch (error) {
-    // console.error('❌ Error creating Coach model:', error.message);
-    // Fallback to standalone model
-    Coach = mongoose.model('Coach', coachSchema);
+    // console.error('❌ Error creating discriminator models:', error.message);
+    // Fallback to standalone models
+    CoachDiscriminator = mongoose.model('Coach', coachSchema);
+    ClientDiscriminator = mongoose.model('Client', new mongoose.Schema({}));
+    AdminDiscriminator = mongoose.model('Admin', new mongoose.Schema({}));
 }
 
 // Export all models
 const models = {
     User,
-    Coach,
-    Staff,
+    Coach: CoachDiscriminator,
+    Client: ClientDiscriminator,
+    Admin: AdminDiscriminator,
+    Staff, // Keep original Staff discriminator from Staff.js
     Lead,
     Task,
     AdCampaign,
@@ -130,8 +150,18 @@ const models = {
     
     // Unified payment system models
     GlobalPaymentSettings,
+    PaymentGatewayConfig,
     UnifiedPaymentTransaction,
     CheckoutPage,
+    
+    // New payment system v1 models
+    AdminProduct,
+    CoachSellablePlan,
+    RazorpayPayment,
+
+    // Subscription models
+    SubscriptionPlan,
+    CoachSubscription,
 
     // New admin system models
     AdminSystemSettings,

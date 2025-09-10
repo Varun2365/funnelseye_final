@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Choose Your Plan - FunnelsEye</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            color: white;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .description {
+            font-size: 1.1rem;
+            opacity: 0.8;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+
+        .plan-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .plan-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .plan-card.popular {
+            border: 3px solid #4f46e5;
+            transform: scale(1.05);
+        }
+
+        .plan-card.popular::before {
+            content: 'Most Popular';
+            position: absolute;
+            top: 20px;
+            right: -30px;
+            background: #4f46e5;
+            color: white;
+            padding: 5px 40px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            transform: rotate(45deg);
+        }
+
+        .plan-name {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 15px;
+        }
+
+        .plan-description {
+            color: #6b7280;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .plan-price {
+            margin-bottom: 30px;
+        }
+
+        .price-amount {
+            font-size: 4rem;
+            font-weight: bold;
+            color: #4f46e5;
+            line-height: 1;
+        }
+
+        .price-currency {
+            font-size: 1.5rem;
+            color: #6b7280;
+            vertical-align: top;
+        }
+
+        .price-period {
+            color: #6b7280;
+            font-size: 1.1rem;
+            margin-top: 5px;
+        }
+
+        .plan-features {
+            list-style: none;
+            margin-bottom: 40px;
+            text-align: left;
+        }
+
+        .plan-features li {
+            padding: 12px 0;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            align-items: center;
+        }
+
+        .plan-features li:last-child {
+            border-bottom: none;
+        }
+
+        .feature-icon {
+            width: 20px;
+            height: 20px;
+            background: #10b981;
+            border-radius: 50%;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .feature-text {
+            color: #374151;
+            font-size: 1rem;
+        }
+
+        .subscribe-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 18px 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(79, 70, 229, 0.3);
+        }
+
+        .subscribe-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(79, 70, 229, 0.4);
+        }
+
+        .subscribe-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .login-section {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin-bottom: 40px;
+        }
+
+        .login-title {
+            font-size: 2rem;
+            color: #1f2937;
+            margin-bottom: 20px;
+        }
+
+        .login-form {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #374151;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+
+        .login-btn {
+            width: 100%;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .login-btn:hover {
+            background: #4338ca;
+        }
+
+        .current-subscription {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin-bottom: 40px;
+        }
+
+        .subscription-status {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .status-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-trial {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .subscription-details {
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+
+        .cancel-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .cancel-btn:hover {
+            background: #b91c1c;
+        }
+
+        .error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .success {
+            background: #f0fdf4;
+            color: #059669;
+            border: 1px solid #bbf7d0;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .loading {
+            display: none;
+            color: #6b7280;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 768px) {
+            .plans-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .plan-card.popular {
+                transform: none;
+            }
+            
+            .logo {
+                font-size: 2rem;
+            }
+            
+            .price-amount {
+                font-size: 3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">FunnelsEye</div>
+            <div class="subtitle">Choose Your Perfect Plan</div>
+            <div class="description">
+                Unlock the full potential of your coaching business with our powerful platform
+            </div>
+        </div>
+
+        <!-- Login Section -->
+        <div class="login-section" id="loginSection">
+            <h2 class="login-title">Login to Continue</h2>
+            <p style="color: #6b7280; margin-bottom: 30px;">
+                Please login to subscribe to a plan
+            </p>
+            <form class="login-form" id="loginForm">
+                <div class="form-group">
+                    <label class="form-label" for="email">Email</label>
+                    <input type="email" id="email" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" id="password" class="form-input" required>
+                </div>
+                <button type="submit" class="login-btn">Login</button>
+            </form>
+        </div>
+
+        <!-- Current Subscription Section -->
+        <div class="current-subscription" id="currentSubscription" style="display: none;">
+            <div class="subscription-status status-active" id="subscriptionStatus">Active</div>
+            <h3 id="currentPlanName">Current Plan</h3>
+            <div class="subscription-details" id="subscriptionDetails">
+                <p>Your subscription is active until <span id="endDate"></span></p>
+            </div>
+            <button class="cancel-btn" onclick="cancelSubscription()">Cancel Subscription</button>
+        </div>
+
+        <!-- Plans Section -->
+        <div class="plans-grid" id="plansSection" style="display: none;">
+            <!-- Plans will be loaded here -->
+        </div>
+
+        <div class="error" id="errorMessage"></div>
+        <div class="success" id="successMessage"></div>
+        <div class="loading" id="loading">Processing...</div>
+    </div>
+
+    <script>
+        let authToken = null;
+        let currentUser = null;
+
+        // DOM elements
+        const loginSection = document.getElementById('loginSection');
+        const currentSubscription = document.getElementById('currentSubscription');
+        const plansSection = document.getElementById('plansSection');
+        const loginForm = document.getElementById('loginForm');
+        const errorDiv = document.getElementById('errorMessage');
+        const successDiv = document.getElementById('successMessage');
+        const loadingDiv = document.getElementById('loading');
+
+        // Event listeners
+        loginForm.addEventListener('submit', handleLogin);
+
+        // Check if user is already logged in
+        window.addEventListener('load', function() {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                authToken = token;
+                checkCurrentSubscription();
+            }
+        });
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                showLoading();
+                hideMessages();
+                
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    localStorage.setItem('authToken', authToken);
+                    showSuccess('Login successful!');
+                    checkCurrentSubscription();
+                } else {
+                    showError(data.message || 'Login failed');
+                }
+            } catch (error) {
+                showError('Login failed: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function checkCurrentSubscription() {
+            try {
+                // First get current user info
+                await getCurrentUser();
+                
+                const response = await fetch('/api/subscriptions/current', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    // User has active subscription
+                    showCurrentSubscription(data.data);
+                } else {
+                    // User has no subscription, show plans
+                    loadPlans();
+                }
+            } catch (error) {
+                console.error('Error checking subscription:', error);
+                loadPlans();
+            }
+        }
+
+        async function getCurrentUser() {
+            try {
+                const response = await fetch('/api/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentUser = data.user;
+                }
+            } catch (error) {
+                console.error('Error getting current user:', error);
+            }
+        }
+
+        function showCurrentSubscription(subscription) {
+            loginSection.style.display = 'none';
+            plansSection.style.display = 'none';
+            currentSubscription.style.display = 'block';
+            
+            document.getElementById('currentPlanName').textContent = subscription.planId.name;
+            document.getElementById('endDate').textContent = new Date(subscription.endDate).toLocaleDateString();
+            
+            const status = subscription.status === 'trial' ? 'Trial' : 'Active';
+            const statusClass = subscription.status === 'trial' ? 'status-trial' : 'status-active';
+            
+            const statusDiv = document.getElementById('subscriptionStatus');
+            statusDiv.textContent = status;
+            statusDiv.className = `subscription-status ${statusClass}`;
+        }
+
+        async function loadPlans() {
+            try {
+                const response = await fetch('/api/subscriptions/plans');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayPlans(data.data);
+                    loginSection.style.display = 'none';
+                    currentSubscription.style.display = 'none';
+                    plansSection.style.display = 'grid';
+                } else {
+                    showError('Failed to load subscription plans');
+                }
+            } catch (error) {
+                showError('Failed to load subscription plans: ' + error.message);
+            }
+        }
+
+        function displayPlans(plans) {
+            const plansContainer = document.getElementById('plansSection');
+            
+            plansContainer.innerHTML = plans.map(plan => `
+                <div class="plan-card ${plan.isPopular ? 'popular' : ''}">
+                    <h3 class="plan-name">${plan.name}</h3>
+                    <p class="plan-description">${plan.description}</p>
+                    <div class="plan-price">
+                        <span class="price-currency">${plan.currency === 'INR' ? '₹' : '$'}</span>
+                        <span class="price-amount">${plan.price.toLocaleString()}</span>
+                        <div class="price-period">per ${plan.billingCycle}</div>
+                    </div>
+                    <ul class="plan-features">
+                        ${plan.features.map(feature => `
+                            <li>
+                                <div class="feature-icon">✓</div>
+                                <span class="feature-text">${feature.title}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                    <button class="subscribe-btn" onclick="subscribeToPlan('${plan._id}')">
+                        Subscribe Now
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function subscribeToPlan(planId) {
+            try {
+                showLoading();
+                hideMessages();
+                
+                const response = await fetch('/api/subscriptions/create-order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ planId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Process payment directly with Razorpay popup
+                    await processPayment(data.data.paymentOrder, data.data.subscription._id);
+                } else {
+                    showError(data.message || 'Failed to create subscription order');
+                }
+            } catch (error) {
+                showError('Subscription failed: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function processPayment(paymentOrder, subscriptionId) {
+            try {
+                if (typeof Razorpay === 'undefined') {
+                    throw new Error('Razorpay SDK not loaded');
+                }
+
+                // Ensure we have current user data
+                if (!currentUser) {
+                    await getCurrentUser();
+                }
+
+                const options = {
+                    key: 'rzp_test_REx4pinstkpCf5',
+                    amount: paymentOrder.amount,
+                    currency: paymentOrder.currency,
+                    name: 'FunnelsEye',
+                    description: 'Platform Subscription',
+                    order_id: paymentOrder.orderId,
+                    handler: function (response) {
+                        verifyPayment(response, subscriptionId);
+                    },
+                    prefill: {
+                        name: currentUser?.name || '',
+                        email: currentUser?.email || ''
+                    },
+                    theme: {
+                        color: '#4f46e5'
+                    },
+                    modal: {
+                        ondismiss: function() {
+                            hideLoading();
+                        }
+                    }
+                };
+
+                const rzp = new Razorpay(options);
+                rzp.on('payment.failed', function (response) {
+                    showError('Payment failed: ' + response.error.description);
+                    hideLoading();
+                });
+                rzp.open();
+
+            } catch (error) {
+                showError('Payment processing failed: ' + error.message);
+                hideLoading();
+            }
+        }
+
+        async function verifyPayment(response, subscriptionId) {
+            try {
+                const verifyResponse = await fetch('/api/subscriptions/verify-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                        subscription_id: subscriptionId
+                    })
+                });
+
+                const result = await verifyResponse.json();
+
+                if (result.success) {
+                    // Redirect to payment success page
+                    window.location.href = '/payment-success?type=subscription&plan=' + encodeURIComponent(result.data.planName);
+                } else {
+                    showError('Payment verification failed: ' + result.message);
+                }
+            } catch (error) {
+                showError('Payment verification failed: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function cancelSubscription() {
+            if (!confirm('Are you sure you want to cancel your subscription?')) {
+                return;
+            }
+
+            try {
+                showLoading();
+                
+                const response = await fetch('/api/subscriptions/cancel', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        reason: 'User requested cancellation'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess('Subscription cancelled successfully');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    showError(data.message || 'Failed to cancel subscription');
+                }
+            } catch (error) {
+                showError('Cancellation failed: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            successDiv.style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            errorDiv.style.display = 'none';
+        }
+
+        function hideMessages() {
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+        }
+
+        function showLoading() {
+            loadingDiv.style.display = 'block';
+        }
+
+        function hideLoading() {
+            loadingDiv.style.display = 'none';
+        }
+    </script>
+</body>
+</html>

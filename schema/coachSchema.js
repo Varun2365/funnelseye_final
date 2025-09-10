@@ -210,6 +210,32 @@ const coachSchema = new mongoose.Schema({
         }
     },
 
+    // Razorpay Payout Details
+    razorpayDetails: {
+        contactId: {
+            type: String,
+            trim: true
+        },
+        fundAccountId: {
+            type: String,
+            trim: true
+        },
+        setupDate: {
+            type: Date
+        },
+        isActive: {
+            type: Boolean,
+            default: false
+        },
+        lastPayoutDate: {
+            type: Date
+        },
+        totalPayouts: {
+            type: Number,
+            default: 0
+        }
+    },
+
     // --- Lead Magnet Settings ---
     leadMagnets: {
         ai_diet_planner: {

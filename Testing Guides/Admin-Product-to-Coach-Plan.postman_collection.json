@@ -1,0 +1,398 @@
+{
+  "info": {
+    "name": "Admin Product → Coach Plan Creation",
+    "description": "Complete workflow: Admin creates product → Coach creates plan based on that product",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "coach_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_product_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "coach_plan_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Admin Authentication",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@funnelseye.com\",\n  \"password\": \"Admin@123\",\n  \"rememberMe\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success) {",
+                  "        pm.environment.set('admin_token', response.data.token);",
+                  "        console.log('✅ Admin token saved:', response.data.token);",
+                  "    } else {",
+                  "        console.log('❌ Admin login failed:', response.message);",
+                  "    }",
+                  "} else {",
+                  "    console.log('❌ Admin login request failed:', pm.response.status);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Admin Product Management",
+      "item": [
+        {
+          "name": "Create Admin Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Premium Fitness Transformation Program\",\n  \"description\": \"A comprehensive 12-week fitness program designed for complete body transformation. Includes workout plans, nutrition guides, and progress tracking.\",\n  \"shortDescription\": \"Complete fitness transformation in 12 weeks\",\n  \"category\": \"fitness_training\",\n  \"productType\": \"digital\",\n  \"basePrice\": 2999,\n  \"currency\": \"INR\",\n  \"pricingRules\": {\n    \"allowCustomPricing\": true,\n    \"minPrice\": 1999,\n    \"maxPrice\": 4999,\n    \"suggestedMarkup\": 20\n  },\n  \"features\": [\n    {\n      \"title\": \"12-Week Structured Program\",\n      \"description\": \"Progressive workout plans for all fitness levels\",\n      \"icon\": \"calendar\"\n    },\n    {\n      \"title\": \"Nutrition Guidance\",\n      \"description\": \"Complete meal plans and recipes\",\n      \"icon\": \"food\"\n    },\n    {\n      \"title\": \"Video Demonstrations\",\n      \"description\": \"HD video tutorials for all exercises\",\n      \"icon\": \"play\"\n    },\n    {\n      \"title\": \"Progress Tracking\",\n      \"description\": \"Built-in tools to track your transformation\",\n      \"icon\": \"chart\"\n    }\n  ],\n  \"contentFiles\": [\n    {\n      \"fileName\": \"workout-plan.pdf\",\n      \"fileUrl\": \"/uploads/workout-plan.pdf\",\n      \"fileSize\": 2048000,\n      \"fileType\": \"application/pdf\",\n      \"isDownloadable\": true\n    }\n  ],\n  \"videoContent\": [\n    {\n      \"title\": \"Program Introduction\",\n      \"videoUrl\": \"/uploads/intro-video.mp4\",\n      \"duration\": 300,\n      \"thumbnail\": \"/uploads/intro-thumbnail.jpg\"\n    }\n  ],\n  \"termsAndConditions\": \"By purchasing this program, you agree to follow the workout plans safely and consult a healthcare provider if needed.\",\n  \"refundPolicy\": \"Full refund available within 7 days of purchase.\",\n  \"commissionSettings\": {\n    \"platformCommissionPercentage\": 10,\n    \"coachCommissionPercentage\": 80\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/paymentsv1/admin/products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymentsv1", "admin", "products"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success) {",
+                  "        pm.environment.set('admin_product_id', response.data._id);",
+                  "        console.log('✅ Admin product created:', response.data.name);",
+                  "        console.log('🆔 Product ID:', response.data._id);",
+                  "    } else {",
+                  "        console.log('❌ Product creation failed:', response.message);",
+                  "    }",
+                  "} else {",
+                  "    console.log('❌ Product creation request failed:', pm.response.status);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Activate Admin Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/paymentsv1/admin/products/{{admin_product_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymentsv1", "admin", "products", "{{admin_product_id}}", "status"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success) {",
+                  "        console.log('✅ Admin product activated:', response.data.status);",
+                  "    } else {",
+                  "        console.log('❌ Product activation failed:', response.message);",
+                  "    }",
+                  "} else {",
+                  "    console.log('❌ Product activation request failed:', pm.response.status);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Admin Products",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/paymentsv1/admin/products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymentsv1", "admin", "products"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Coach Authentication",
+      "item": [
+        {
+          "name": "Register Test Coach",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Coach\",\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"coach\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 409) {",
+                  "    console.log('✅ Coach registration completed (may already exist)');",
+                  "} else {",
+                  "    console.log('❌ Coach registration failed:', pm.response.status);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Coach Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success) {",
+                  "        pm.environment.set('coach_token', response.token);",
+                  "        console.log('✅ Coach token saved:', response.token);",
+                  "    } else {",
+                  "        console.log('❌ Coach login failed:', response.message);",
+                  "    }",
+                  "} else {",
+                  "    console.log('❌ Coach login request failed:', pm.response.status);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Coach Plan Management",
+      "item": [
+        {
+          "name": "Create Coach Sellable Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminProductId\": \"{{admin_product_id}}\",\n  \"title\": \"My Custom Fitness Transformation\",\n  \"description\": \"A personalized version of the premium fitness program, tailored for busy professionals who want to transform their body in just 12 weeks.\",\n  \"shortDescription\": \"12-week fitness transformation for busy professionals\",\n  \"price\": 3500,\n  \"currency\": \"INR\",\n  \"originalPrice\": 3999,\n  \"discountPercentage\": 12,\n  \"additionalFeatures\": [\n    {\n      \"title\": \"Personal Consultation\",\n      \"description\": \"One-on-one consultation with the coach\"\n    }\n  ],\n  \"additionalContentFiles\": [\n    {\n      \"fileName\": \"bonus-nutrition-guide.pdf\",\n      \"fileUrl\": \"/uploads/bonus-nutrition-guide.pdf\",\n      \"fileSize\": 1024000,\n      \"fileType\": \"application/pdf\",\n      \"isDownloadable\": true\n    }\n  ],\n  \"customTermsAndConditions\": \"This plan includes personalized coaching support. Refunds available within 14 days.\",\n  \"customRefundPolicy\": \"Extended 14-day refund policy with personalized support.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/paymentsv1/coach/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymentsv1", "coach", "plans"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.success) {",
+                  "        pm.environment.set('coach_plan_id', response.data._id);",
+                  "        console.log('✅ Coach plan created:', response.data.title);",
+                  "        console.log('🆔 Plan ID:', response.data._id);",
+                  "        console.log('💰 Price:', response.data.price);",
+                  "    } else {",
+                  "        console.log('❌ Coach plan creation failed:', response.message);",
+                  "    }",
+                  "} else {",
+                  "    console.log('❌ Coach plan creation request failed:', pm.response.status);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Coach Plans",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/paymentsv1/coach/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymentsv1", "coach", "plans"]
+            }
+          }
+        },
+        {
+          "name": "Activate Coach Plan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"active\",\n  \"isPublic\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/paymentsv1/coach/plans/{{coach_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymentsv1", "coach", "plans", "{{coach_plan_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Verification",
+      "item": [
+        {
+          "name": "Get Public Plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/paymentsv1/public/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymentsv1", "public", "plans"]
+            }
+          }
+        },
+        {
+          "name": "Get Checkout Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/paymentsv1/checkout/coach-plan/{{coach_plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "paymentsv1", "checkout", "coach-plan", "{{coach_plan_id}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

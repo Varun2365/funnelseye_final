@@ -4,81 +4,82 @@ const subscriptionPlanSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
-        trim: true,
-        unique: true
+        trim: true
     },
     description: {
         type: String,
-        required: true,
-        trim: true
+        required: true
     },
     price: {
-        amount: {
-            type: Number,
-            required: true,
-            min: 0
-        },
-        currency: {
-            type: String,
-            default: 'USD',
-            enum: ['USD', 'EUR', 'GBP', 'INR']
-        },
-        billingCycle: {
-            type: String,
-            required: true,
-            enum: ['monthly', 'quarterly', 'yearly']
-        }
+        type: Number,
+        required: true,
+        min: 0
     },
-    features: {
-        maxFunnels: {
-            type: Number,
-            default: 5
-        },
-        maxLeads: {
-            type: Number,
-            default: 1000
-        },
-        maxStaff: {
-            type: Number,
-            default: 3
-        },
-        maxAutomationRules: {
-            type: Number,
-            default: 10
-        },
-        aiFeatures: {
-            type: Boolean,
-            default: false
-        },
-        advancedAnalytics: {
-            type: Boolean,
-            default: false
-        },
-        prioritySupport: {
-            type: Boolean,
-            default: false
-        },
-        customDomain: {
-            type: Boolean,
-            default: false
-        }
+    currency: {
+        type: String,
+        required: true,
+        default: 'INR'
     },
-    isActive: {
-        type: Boolean,
-        default: true
+    billingCycle: {
+        type: String,
+        enum: ['monthly', 'quarterly', 'yearly'],
+        required: true
+    },
+    duration: {
+        type: Number, // in months
+        required: true
+    },
+    features: [{
+        title: {
+            type: String,
+            required: true
+        },
+        description: {
+            type: String,
+            required: true
+        },
+        included: {
+            type: Boolean,
+            default: true
+        }
+    }],
+    limits: {
+        maxCoaches: {
+            type: Number,
+            default: -1 // -1 means unlimited
+        },
+        maxStudents: {
+            type: Number,
+            default: -1
+        },
+        maxPlans: {
+            type: Number,
+            default: -1
+        },
+        maxStorage: {
+            type: Number, // in GB
+            default: -1
+        }
     },
     isPopular: {
         type: Boolean,
         default: false
     },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
     sortOrder: {
         type: Number,
         default: 0
     },
-    createdBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'AdminUser',
-        required: true
+    trialDays: {
+        type: Number,
+        default: 0
+    },
+    setupFee: {
+        type: Number,
+        default: 0
     }
 }, {
     timestamps: true
@@ -86,6 +87,6 @@ const subscriptionPlanSchema = new mongoose.Schema({
 
 // Indexes
 subscriptionPlanSchema.index({ isActive: 1, sortOrder: 1 });
-subscriptionPlanSchema.index({ 'price.billingCycle': 1, 'price.amount': 1 });
+subscriptionPlanSchema.index({ billingCycle: 1 });
 
 module.exports = mongoose.model('SubscriptionPlan', subscriptionPlanSchema);

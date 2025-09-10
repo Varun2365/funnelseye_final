@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Fitness Program - Coach John Doe</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .landing-page {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .hero-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+        }
+        
+        .hero-section h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        
+        .hero-section .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+        
+        .price-tag {
+            background: rgba(255,255,255,0.2);
+            padding: 15px 30px;
+            border-radius: 50px;
+            display: inline-block;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+        
+        .buy-now-btn {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 20px 50px;
+            font-size: 1.3rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .buy-now-btn:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255,107,107,0.3);
+        }
+        
+        .content-section {
+            padding: 60px 40px;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+        
+        .feature-card {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+        
+        .coach-section {
+            background: #f8f9fa;
+            padding: 40px;
+            border-radius: 10px;
+            margin: 40px 0;
+            text-align: center;
+        }
+        
+        .coach-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: #667eea;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        
+        .testimonials {
+            margin: 40px 0;
+        }
+        
+        .testimonial {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 5px solid #667eea;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .error {
+            display: none;
+            background: #ffebee;
+            color: #c62828;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            .hero-section h1 {
+                font-size: 2rem;
+            }
+            
+            .hero-section {
+                padding: 40px 20px;
+            }
+            
+            .content-section {
+                padding: 40px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="landing-page">
+            <!-- Hero Section -->
+            <div class="hero-section">
+                <h1>Premium Fitness Transformation Program</h1>
+                <p class="subtitle">Transform your body in just 12 weeks with personalized coaching</p>
+                <div class="price-tag">₹3,500</div>
+                <button class="buy-now-btn" onclick="buyNow()">
+                    🚀 Buy Now - Start Your Journey
+                </button>
+            </div>
+            
+            <!-- Content Section -->
+            <div class="content-section">
+                <h2 style="text-align: center; margin-bottom: 40px; color: #333;">What You'll Get</h2>
+                
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">💪</div>
+                        <h3>12-Week Program</h3>
+                        <p>Structured workout plans designed for all fitness levels with progressive difficulty</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">🥗</div>
+                        <h3>Nutrition Guidance</h3>
+                        <p>Complete meal plans, recipes, and dietary guidelines for optimal results</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">📱</div>
+                        <h3>Video Demonstrations</h3>
+                        <p>HD video tutorials for all exercises with proper form instructions</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h3>Progress Tracking</h3>
+                        <p>Built-in tools to track your transformation journey and celebrate milestones</p>
+                    </div>
+                </div>
+                
+                <!-- Coach Section -->
+                <div class="coach-section">
+                    <h3>Meet Your Coach</h3>
+                    <div class="coach-avatar">JD</div>
+                    <h4>John Doe</h4>
+                    <p>Certified Fitness Trainer with 8+ years of experience</p>
+                    <p>Helped 500+ clients achieve their fitness goals</p>
+                </div>
+                
+                <!-- Testimonials -->
+                <div class="testimonials">
+                    <h3 style="text-align: center; margin-bottom: 30px;">What Our Clients Say</h3>
+                    
+                    <div class="testimonial">
+                        <p><strong>"Amazing transformation!"</strong></p>
+                        <p>"I lost 15kg in 12 weeks following John's program. The nutrition guidance was spot on!"</p>
+                        <p><em>- Sarah M.</em></p>
+                    </div>
+                    
+                    <div class="testimonial">
+                        <p><strong>"Best investment ever!"</strong></p>
+                        <p>"The video demonstrations made it so easy to follow. I've never been more confident in the gym."</p>
+                        <p><em>- Mike R.</em></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Loading and Error States -->
+        <div class="loading" id="loading">
+            <p>🔄 Creating your order...</p>
+        </div>
+        
+        <div class="error" id="error">
+            <p id="error-message"></p>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - Replace with your actual values
+        const CONFIG = {
+            planId: '68bf0641c89e4507d10888f6', // Replace with actual plan ID
+            baseUrl: 'http://localhost:8080', // Your frontend URL
+            apiUrl: 'http://localhost:3000/api/paymentsv1' // Your backend API URL
+        };
+
+        async function buyNow() {
+            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            const errorMessage = document.getElementById('error-message');
+            
+            // Show loading
+            loadingDiv.style.display = 'block';
+            errorDiv.style.display = 'none';
+            
+            try {
+                // Create coach plan order
+                const response = await fetch(`${CONFIG.apiUrl}/razorpay/create-coach-plan-order`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        planId: CONFIG.planId,
+                        customerId: 'customer_' + Date.now(), // Generate unique customer ID
+                        customerEmail: 'customer@example.com',
+                        customerPhone: '+919876543210'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Hide loading
+                    loadingDiv.style.display = 'none';
+                    
+                    // Redirect to payment page
+                    window.location.href = data.data.redirectUrl;
+                } else {
+                    throw new Error(data.message || 'Failed to create order');
+                }
+                
+            } catch (error) {
+                console.error('Order creation failed:', error);
+                
+                // Hide loading, show error
+                loadingDiv.style.display = 'none';
+                errorDiv.style.display = 'block';
+                errorMessage.textContent = `Order creation failed: ${error.message}`;
+            }
+        }
+
+        // Add some interactive effects
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate feature cards on scroll
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+
+            const observer = new IntersectionObserver(function(entries) {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            }, observerOptions);
+
+            // Set initial state for animation
+            document.querySelectorAll('.feature-card').forEach(card => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                observer.observe(card);
+            });
+        });
+    </script>
+</body>
+</html>

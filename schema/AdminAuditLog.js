@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const adminAuditLogSchema = new mongoose.Schema({
-    logId: { type: String, required: true, unique: true },
+    logId: { type: String, required: false, unique: true },
     adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'AdminUser', required: false },
     adminEmail: { type: String, required: true },
     adminRole: { type: String, required: true },
@@ -12,7 +12,7 @@ const adminAuditLogSchema = new mongoose.Schema({
         required: true,
         enum: [
             'LOGIN', 'LOGOUT', 'LOGIN_FAILED',
-            'CREATE_USER', 'UPDATE_USER', 'DELETE_USER', 'SUSPEND_USER', 'VIEW_USERS', 'VIEW_USER_DETAILS', 'UPDATE_USER_STATUS', 'BULK_UPDATE_USERS',
+            'CREATE_USER', 'UPDATE_USER', 'DELETE_USER', 'RESTORE_USER', 'SUSPEND_USER', 'VIEW_USERS', 'VIEW_USER_DETAILS', 'UPDATE_USER_STATUS', 'BULK_UPDATE_USERS', 'BULK_DELETE_USERS',
             'CREATE_COACH', 'UPDATE_COACH', 'DELETE_COACH', 'APPROVE_COACH',
             'CREATE_PLAN', 'UPDATE_PLAN', 'DELETE_PLAN', 'APPROVE_PLAN',
             'UPDATE_PAYMENT_SETTINGS', 'UPDATE_MLM_SETTINGS', 'UPDATE_SYSTEM_SETTINGS',

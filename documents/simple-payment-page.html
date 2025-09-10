@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment - Complete Your Purchase</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .payment-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .payment-details {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .pay-button {
+            background: #3399cc;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 20px 0;
+            width: 100%;
+        }
+        
+        .pay-button:hover {
+            background: #2980b9;
+        }
+        
+        .payment-info {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .error {
+            color: #e74c3c;
+            text-align: center;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="payment-container">
+        <h1>Complete Your Payment</h1>
+        
+        <div id="loading" class="loading">
+            Loading payment details...
+        </div>
+        
+        <div id="error" class="error" style="display: none;">
+            <h2>Payment Error</h2>
+            <p id="error-message"></p>
+            <button onclick="goHome()">Go Home</button>
+        </div>
+        
+        <div id="payment-content" style="display: none;">
+            <div class="payment-details">
+                <h3>Order Details</h3>
+                <p><strong>Order ID:</strong> <span id="order-id"></span></p>
+                <p><strong>Amount:</strong> ₹<span id="amount"></span></p>
+                <p><strong>Currency:</strong> <span id="currency"></span></p>
+            </div>
+
+            <button class="pay-button" onclick="handlePayment()">
+                Pay ₹<span id="pay-amount"></span>
+            </button>
+
+            <div class="payment-info">
+                <p>🔒 Secure payment powered by Razorpay</p>
+                <p>💳 Accepts cards, UPI, net banking, and wallets</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Extract URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('orderId');
+        const planId = urlParams.get('planId');
+        const amount = urlParams.get('amount');
+        const currency = urlParams.get('currency');
+
+        // Your Razorpay key (replace with your actual key)
+        const RAZORPAY_KEY_ID = 'rzp_test_...'; // Replace with your key
+
+        function initPage() {
+            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            const paymentDiv = document.getElementById('payment-content');
+            const errorMessage = document.getElementById('error-message');
+
+            if (!orderId || !planId || !amount || !currency) {
+                loadingDiv.style.display = 'none';
+                errorDiv.style.display = 'block';
+                errorMessage.textContent = 'Missing required payment parameters';
+                return;
+            }
+
+            // Set order data
+            document.getElementById('order-id').textContent = orderId;
+            document.getElementById('amount').textContent = (amount / 100).toFixed(2);
+            document.getElementById('currency').textContent = currency;
+            document.getElementById('pay-amount').textContent = (amount / 100).toFixed(2);
+
+            loadingDiv.style.display = 'none';
+            paymentDiv.style.display = 'block';
+        }
+
+        function handlePayment() {
+            const options = {
+                key: RAZORPAY_KEY_ID,
+                amount: amount,
+                currency: currency,
+                name: "Your Company Name",
+                description: "Coach Plan Purchase",
+                order_id: orderId,
+                handler: async function (response) {
+                    // Handle successful payment
+                    try {
+                        const verifyResponse = await fetch('/api/paymentsv1/razorpay/verify-payment', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_signature: response.razorpay_signature
+                            })
+                        });
+
+                        const result = await verifyResponse.json();
+                        
+                        if (result.success) {
+                            // Redirect to success page
+                            window.location.href = '/payment/success';
+                        } else {
+                            // Redirect to failure page
+                            window.location.href = '/payment/failure';
+                        }
+                    } catch (error) {
+                        console.error('Payment verification failed:', error);
+                        window.location.href = '/payment/failure';
+                    }
+                },
+                prefill: {
+                    name: "Customer Name",
+                    email: "customer@example.com",
+                    contact: "+919876543210"
+                },
+                theme: {
+                    color: "#3399cc"
+                }
+            };
+
+            const rzp = new Razorpay(options);
+            rzp.open();
+        }
+
+        function goHome() {
+            window.location.href = '/';
+        }
+
+        // Initialize page when loaded
+        document.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+</html>

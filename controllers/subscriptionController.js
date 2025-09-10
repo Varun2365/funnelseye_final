@@ -1,492 +1,388 @@
-const subscriptionService = require('../services/subscriptionService');
+const mongoose = require('mongoose');
 const SubscriptionPlan = require('../schema/SubscriptionPlan');
 const CoachSubscription = require('../schema/CoachSubscription');
+const User = require('../schema/User');
+const logger = require('../utils/logger');
 
-// ===== SUBSCRIPTION PLANS (Admin Only) =====
-
-/**
- * @route   POST /api/subscription/plans
- * @desc    Create a new subscription plan (Admin only)
- * @access  Private (Admin)
- */
-exports.createPlan = async (req, res) => {
-    try {
-        const { name, description, price, features, isPopular, sortOrder } = req.body;
-
-        if (!name || !description || !price || !price.amount || !price.billingCycle) {
-            return res.status(400).json({
+class SubscriptionController {
+    
+    /**
+     * Get all available subscription plans
+     * GET /api/subscriptions/plans
+     */
+    async getPlans(req, res) {
+        try {
+            logger.info('[SubscriptionController] Getting subscription plans');
+            
+            const plans = await SubscriptionPlan.find({ isActive: true })
+                .sort({ sortOrder: 1, price: 1 });
+            
+            res.json({
+                success: true,
+                data: plans
+            });
+            
+        } catch (error) {
+            logger.error('[SubscriptionController] Error getting plans:', error);
+            res.status(500).json({
                 success: false,
-                message: 'Missing required fields: name, description, price.amount, price.billingCycle'
+                message: 'Error getting subscription plans',
+                error: error.message
             });
         }
-
-        const result = await subscriptionService.createPlan(req.body, req.admin._id);
-        
-        if (!result.success) {
-            return res.status(400).json({
-                success: false,
-                message: result.error
-            });
-        }
-
-        res.status(201).json({
-            success: true,
-            message: 'Subscription plan created successfully',
-            data: result.data
-        });
-    } catch (error) {
-        console.error('Error creating subscription plan:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error creating subscription plan',
-            error: error.message
-        });
     }
-};
-
-/**
- * @route   GET /api/subscription/plans
- * @desc    Get all active subscription plans
- * @access  Public
- */
-exports.getPlans = async (req, res) => {
-    try {
-        const result = await subscriptionService.getActivePlans();
-        
-        if (!result.success) {
-            return res.status(500).json({
+    
+    /**
+     * Get coach's current subscription
+     * GET /api/subscriptions/current
+     */
+    async getCurrentSubscription(req, res) {
+        try {
+            const coachId = req.user._id;
+            
+            logger.info(`[SubscriptionController] Getting current subscription for coach: ${coachId}`);
+            
+            const subscription = await CoachSubscription.findOne({ 
+                coachId, 
+                status: { $in: ['active', 'trial'] }
+            }).populate('planId');
+            
+            if (!subscription) {
+                return res.json({
+                    success: true,
+                    data: null,
+                    message: 'No active subscription found'
+                });
+            }
+            
+            res.json({
+                success: true,
+                data: subscription
+            });
+            
+        } catch (error) {
+            logger.error('[SubscriptionController] Error getting current subscription:', error);
+            res.status(500).json({
                 success: false,
-                message: result.error
+                message: 'Error getting current subscription',
+                error: error.message
             });
         }
-
-        res.status(200).json({
-            success: true,
-            count: result.data.length,
-            data: result.data
-        });
-    } catch (error) {
-        console.error('Error fetching subscription plans:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching subscription plans',
-            error: error.message
-        });
     }
-};
-
-/**
- * @route   PUT /api/subscription/plans/:id
- * @desc    Update a subscription plan (Admin only)
- * @access  Private (Admin)
- */
-exports.updatePlan = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const updateData = req.body;
-
-        // Remove fields that shouldn't be updated
-        delete updateData.createdBy;
-        delete updateData._id;
-
-        const plan = await SubscriptionPlan.findByIdAndUpdate(
-            id,
-            updateData,
-            { new: true, runValidators: true }
-        );
-
-        if (!plan) {
-            return res.status(404).json({
+    
+    /**
+     * Create subscription order
+     * POST /api/subscriptions/create-order
+     */
+    async createOrder(req, res) {
+        try {
+            const { planId, paymentMethod = 'razorpay' } = req.body;
+            const coachId = req.user._id;
+            
+            logger.info(`[SubscriptionController] Creating subscription order for plan: ${planId}`);
+            
+            // Validate plan exists and is active
+            const plan = await SubscriptionPlan.findOne({ 
+                _id: planId, 
+                isActive: true 
+            });
+            
+            if (!plan) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Subscription plan not found or not available'
+                });
+            }
+            
+            // Check if coach already has a subscription (any status)
+            const existingSubscription = await CoachSubscription.findOne({
+                coachId
+            });
+            
+            if (existingSubscription && existingSubscription.status === 'active') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'You already have an active subscription. Please cancel it before subscribing to a new plan.'
+                });
+            }
+            
+            // Calculate dates
+            const startDate = new Date();
+            const endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + plan.duration);
+            
+            let subscription;
+            
+            if (existingSubscription) {
+                // Update existing subscription
+                subscription = existingSubscription;
+                subscription.planId = plan._id;
+                subscription.status = 'active';
+                subscription.startDate = startDate;
+                subscription.endDate = endDate;
+                subscription.nextBillingDate = endDate;
+                subscription.autoRenew = true;
+                subscription.cancellationDate = null;
+                subscription.cancellationReason = null;
+                
+                await subscription.save();
+            } else {
+                // Create new subscription record
+                subscription = new CoachSubscription({
+                    coachId,
+                    planId: plan._id,
+                    status: 'active',
+                    startDate,
+                    endDate,
+                    nextBillingDate: endDate,
+                    autoRenew: true
+                });
+                
+                await subscription.save();
+            }
+            
+            // Create payment order for all subscriptions
+            const paymentOrder = await this.createPaymentOrder(plan, subscription);
+            
+            res.json({
+                success: true,
+                message: 'Subscription order created successfully',
+                data: {
+                    subscription: subscription,
+                    plan: plan,
+                    paymentOrder: paymentOrder
+                }
+            });
+            
+        } catch (error) {
+            logger.error('[SubscriptionController] Error creating subscription order:', error);
+            res.status(500).json({
                 success: false,
-                message: 'Subscription plan not found'
+                message: 'Error creating subscription order',
+                error: error.message
             });
         }
-
-        res.status(200).json({
-            success: true,
-            message: 'Subscription plan updated successfully',
-            data: plan
-        });
-    } catch (error) {
-        console.error('Error updating subscription plan:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error updating subscription plan',
-            error: error.message
-        });
     }
-};
-
-/**
- * @route   DELETE /api/subscription/plans/:id
- * @desc    Delete a subscription plan (Admin only)
- * @access  Private (Admin)
- */
-exports.deletePlan = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        // Check if any coaches are subscribed to this plan
-        const activeSubscriptions = await CoachSubscription.countDocuments({
-            planId: id,
-            status: { $in: ['active', 'pending_renewal'] }
-        });
-
-        if (activeSubscriptions > 0) {
-            return res.status(400).json({
-                success: false,
-                message: `Cannot delete plan. ${activeSubscriptions} active subscriptions found.`
+    
+    /**
+     * Create Razorpay payment order for subscription
+     */
+    async createPaymentOrder(plan, subscription) {
+        try {
+            const Razorpay = require('razorpay');
+            const razorpay = new Razorpay({
+                key_id: process.env.RAZORPAY_KEY_ID,
+                key_secret: process.env.RAZORPAY_KEY_SECRET
             });
+            
+            // Create a short receipt (max 40 characters for Razorpay)
+            const receipt = `sub_${Date.now()}`.substring(0, 40);
+            
+            const orderOptions = {
+                amount: (plan.price + plan.setupFee) * 100, // Convert to paise
+                currency: plan.currency,
+                receipt: receipt,
+                notes: {
+                    subscription_id: subscription._id.toString(),
+                    plan_id: plan._id.toString(),
+                    coach_id: subscription.coachId.toString(),
+                    billing_cycle: plan.billingCycle
+                }
+            };
+            
+            const razorpayOrder = await razorpay.orders.create(orderOptions);
+            
+            return {
+                orderId: razorpayOrder.id,
+                amount: razorpayOrder.amount,
+                currency: razorpayOrder.currency,
+                receipt: razorpayOrder.receipt
+            };
+            
+        } catch (error) {
+            logger.error('[SubscriptionController] Error creating payment order:', error);
+            throw error;
         }
-
-        const plan = await SubscriptionPlan.findByIdAndDelete(id);
-
-        if (!plan) {
-            return res.status(404).json({
-                success: false,
-                message: 'Subscription plan not found'
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: 'Subscription plan deleted successfully'
-        });
-    } catch (error) {
-        console.error('Error deleting subscription plan:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error deleting subscription plan',
-            error: error.message
-        });
     }
-};
-
-// ===== COACH SUBSCRIPTIONS =====
-
-/**
- * @route   POST /api/subscription/subscribe
- * @desc    Subscribe a coach to a plan
- * @access  Private (Coach/Admin)
- */
-exports.subscribeCoach = async (req, res) => {
-    try {
-        const { planId, paymentData } = req.body;
-        const coachId = req.admin ? req.body.coachId : req.user._id;
-
-        if (!planId) {
-            return res.status(400).json({
+    
+    /**
+     * Verify subscription payment
+     * POST /api/subscriptions/verify-payment
+     */
+    async verifyPayment(req, res) {
+        try {
+            const { 
+                razorpay_order_id, 
+                razorpay_payment_id, 
+                razorpay_signature,
+                subscription_id 
+            } = req.body;
+            
+            logger.info(`[SubscriptionController] Verifying payment for subscription: ${subscription_id}`);
+            
+            // Verify Razorpay signature
+            const crypto = require('crypto');
+            const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET);
+            hmac.update(razorpay_order_id + '|' + razorpay_payment_id);
+            const generatedSignature = hmac.digest('hex');
+            
+            if (generatedSignature !== razorpay_signature) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid payment signature'
+                });
+            }
+            
+            // Update subscription
+            const subscription = await CoachSubscription.findById(subscription_id);
+            if (!subscription) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Subscription not found'
+                });
+            }
+            
+            // Add payment to history
+            subscription.paymentHistory.push({
+                paymentId: razorpay_payment_id,
+                amount: subscription.planId.price,
+                currency: subscription.planId.currency,
+                paymentMethod: 'razorpay',
+                paymentDate: new Date(),
+                status: 'success',
+                razorpayOrderId: razorpay_order_id,
+                razorpayPaymentId: razorpay_payment_id,
+                razorpaySignature: razorpay_signature
+            });
+            
+            // Activate subscription
+            subscription.status = 'active';
+            subscription.startDate = new Date();
+            subscription.endDate = new Date();
+            subscription.endDate.setMonth(subscription.endDate.getMonth() + subscription.planId.duration);
+            subscription.nextBillingDate = subscription.endDate;
+            
+            await subscription.save();
+            
+            // Populate plan details for response
+            await subscription.populate('planId', 'name price currency billingCycle');
+            
+            res.json({
+                success: true,
+                message: 'Payment verified and subscription activated successfully',
+                data: {
+                    subscription,
+                    planName: subscription.planId.name
+                }
+            });
+            
+        } catch (error) {
+            logger.error('[SubscriptionController] Error verifying payment:', error);
+            res.status(500).json({
                 success: false,
-                message: 'Plan ID is required'
+                message: 'Error verifying payment',
+                error: error.message
             });
         }
-
-        const result = await subscriptionService.subscribeCoach(coachId, planId, paymentData);
-        
-        if (!result.success) {
-            return res.status(400).json({
-                success: false,
-                message: result.error
-            });
-        }
-
-        res.status(201).json({
-            success: true,
-            message: 'Subscription created successfully',
-            data: result.data
-        });
-    } catch (error) {
-        console.error('Error subscribing coach:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error creating subscription',
-            error: error.message
-        });
     }
-};
-
-/**
- * @route   POST /api/subscription/renew
- * @desc    Renew a coach's subscription
- * @access  Private (Coach/Admin)
- */
-exports.renewSubscription = async (req, res) => {
-    try {
-        const { planId, paymentData } = req.body;
-        const coachId = req.admin ? req.body.coachId : req.user._id;
-
-        if (!planId) {
-            return res.status(400).json({
+    
+    /**
+     * Cancel subscription
+     * POST /api/subscriptions/cancel
+     */
+    async cancelSubscription(req, res) {
+        try {
+            const { reason } = req.body;
+            const coachId = req.user._id;
+            
+            logger.info(`[SubscriptionController] Cancelling subscription for coach: ${coachId}`);
+            
+            const subscription = await CoachSubscription.findOne({
+                coachId,
+                status: { $in: ['active', 'trial'] }
+            });
+            
+            if (!subscription) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'No active subscription found'
+                });
+            }
+            
+            subscription.status = 'cancelled';
+            subscription.cancellationDate = new Date();
+            subscription.cancellationReason = reason;
+            subscription.autoRenew = false;
+            
+            await subscription.save();
+            
+            res.json({
+                success: true,
+                message: 'Subscription cancelled successfully',
+                data: subscription
+            });
+            
+        } catch (error) {
+            logger.error('[SubscriptionController] Error cancelling subscription:', error);
+            res.status(500).json({
                 success: false,
-                message: 'Plan ID is required'
+                message: 'Error cancelling subscription',
+                error: error.message
             });
         }
-
-        const result = await subscriptionService.renewSubscription(coachId, planId, paymentData);
-        
-        if (!result.success) {
-            return res.status(400).json({
-                success: false,
-                message: result.error
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: 'Subscription renewed successfully',
-            data: result.data
-        });
-    } catch (error) {
-        console.error('Error renewing subscription:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error renewing subscription',
-            error: error.message
-        });
     }
-};
-
-/**
- * @route   POST /api/subscription/cancel
- * @desc    Cancel a coach's subscription
- * @access  Private (Coach/Admin)
- */
-exports.cancelSubscription = async (req, res) => {
-    try {
-        const { reason } = req.body;
-        const coachId = req.admin ? req.body.coachId : req.user._id;
-
-        if (!reason) {
-            return res.status(400).json({
+    
+    /**
+     * Get subscription history
+     * GET /api/subscriptions/history
+     */
+    async getSubscriptionHistory(req, res) {
+        try {
+            const coachId = req.user._id;
+            const { page = 1, limit = 10 } = req.query;
+            
+            logger.info(`[SubscriptionController] Getting subscription history for coach: ${coachId}`);
+            
+            const skip = (page - 1) * limit;
+            const subscriptions = await CoachSubscription.find({ coachId })
+                .populate('planId', 'name price currency billingCycle')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(parseInt(limit));
+            
+            const total = await CoachSubscription.countDocuments({ coachId });
+            
+            res.json({
+                success: true,
+                data: subscriptions,
+                pagination: {
+                    currentPage: parseInt(page),
+                    totalPages: Math.ceil(total / limit),
+                    totalSubscriptions: total,
+                    hasNextPage: skip + subscriptions.length < total,
+                    hasPrevPage: page > 1
+                }
+            });
+            
+        } catch (error) {
+            logger.error('[SubscriptionController] Error getting subscription history:', error);
+            res.status(500).json({
                 success: false,
-                message: 'Cancellation reason is required'
+                message: 'Error getting subscription history',
+                error: error.message
             });
         }
-
-        const result = await subscriptionService.cancelSubscription(
-            coachId, 
-            reason, 
-            req.admin ? req.admin._id : req.user._id
-        );
-        
-        if (!result.success) {
-            return res.status(400).json({
-                success: false,
-                message: result.error
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: 'Subscription cancelled successfully',
-            data: result.data
-        });
-    } catch (error) {
-        console.error('Error cancelling subscription:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error cancelling subscription',
-            error: error.message
-        });
     }
-};
+}
 
-/**
- * @route   GET /api/subscription/my-subscription
- * @desc    Get coach's current subscription details
- * @access  Private (Coach)
- */
-exports.getMySubscription = async (req, res) => {
-    try {
-        const result = await subscriptionService.getCoachSubscription(req.admin ? req.admin._id : req.user._id);
-        
-        if (!result.success) {
-            return res.status(404).json({
-                success: false,
-                message: result.error
-            });
-        }
+// Create controller instance and bind all methods
+const controller = new SubscriptionController();
 
-        res.status(200).json({
-            success: true,
-            data: result.data
-        });
-    } catch (error) {
-        console.error('Error fetching subscription:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching subscription',
-            error: error.message
-        });
-    }
-};
-
-/**
- * @route   GET /api/subscription/coach/:coachId
- * @desc    Get specific coach's subscription (Admin only)
- * @access  Private (Admin)
- */
-exports.getCoachSubscription = async (req, res) => {
-    try {
-        const { coachId } = req.params;
-
-        const result = await subscriptionService.getCoachSubscription(coachId);
-        
-        if (!result.success) {
-            return res.status(404).json({
-                success: false,
-                message: result.error
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            data: result.data
-        });
-    } catch (error) {
-        console.error('Error fetching coach subscription:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching coach subscription',
-            error: error.message
-        });
-    }
-};
-
-/**
- * @route   GET /api/subscription/all
- * @desc    Get all coach subscriptions (Admin only)
- * @access  Private (Admin)
- */
-exports.getAllSubscriptions = async (req, res) => {
-    try {
-        const { status, page = 1, limit = 20 } = req.query;
-        
-        let query = {};
-        if (status) {
-            query.status = status;
-        }
-
-        const skip = (page - 1) * limit;
-        
-        const subscriptions = await CoachSubscription.find(query)
-            .populate('coachId', 'name email company')
-            .populate('planId', 'name price features')
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(parseInt(limit));
-
-        const total = await CoachSubscription.countDocuments(query);
-
-        res.status(200).json({
-            success: true,
-            count: subscriptions.length,
-            total,
-            page: parseInt(page),
-            totalPages: Math.ceil(total / limit),
-            data: subscriptions
-        });
-    } catch (error) {
-        console.error('Error fetching all subscriptions:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching subscriptions',
-            error: error.message
-        });
-    }
-};
-
-
-
-/**
- * @route   GET /api/subscription/analytics
- * @desc    Get subscription analytics (Admin only)
- * @access  Private (Admin)
- */
-exports.getSubscriptionAnalytics = async (req, res) => {
-    try {
-        const result = await subscriptionService.getSubscriptionAnalytics();
-        
-        if (!result.success) {
-            return res.status(500).json({
-                success: false,
-                message: result.error
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            data: result.data
-        });
-    } catch (error) {
-        console.error('Error fetching subscription analytics:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching subscription analytics',
-            error: error.message
-        });
-    }
-};
-
-// ===== ADMIN UTILITIES =====
-
-/**
- * @route   POST /api/subscription/send-reminders
- * @desc    Manually trigger reminder sending (Admin only)
- * @access  Private (Admin)
- */
-exports.sendReminders = async (req, res) => {
-    try {
-        const result = await subscriptionService.checkAndSendReminders();
-        
-        if (!result.success) {
-            return res.status(500).json({
-                success: false,
-                message: result.error
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: result.message
-        });
-    } catch (error) {
-        console.error('Error sending reminders:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error sending reminders',
-            error: error.message
-        });
-    }
-};
-
-/**
- * @route   POST /api/subscription/disable-expired
- * @desc    Manually disable expired subscriptions (Admin only)
- * @access  Private (Admin)
- */
-exports.disableExpiredSubscriptions = async (req, res) => {
-    try {
-        const result = await subscriptionService.disableExpiredSubscriptions();
-        
-        if (!result.success) {
-            return res.status(500).json({
-                success: false,
-                message: result.error
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: `Disabled ${result.disabledCount} expired subscriptions`,
-            disabledCount: result.disabledCount
-        });
-    } catch (error) {
-        console.error('Error disabling expired subscriptions:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error disabling expired subscriptions',
-            error: error.message
-        });
-    }
+module.exports = {
+    getPlans: controller.getPlans.bind(controller),
+    getCurrentSubscription: controller.getCurrentSubscription.bind(controller),
+    createOrder: controller.createOrder.bind(controller),
+    verifyPayment: controller.verifyPayment.bind(controller),
+    cancelSubscription: controller.cancelSubscription.bind(controller),
+    getSubscriptionHistory: controller.getSubscriptionHistory.bind(controller)
 };

@@ -15,6 +15,16 @@ router.get('/',
     adminUserController.getUsers
 );
 
+// @route   GET /api/admin/users/analytics
+// @desc    Get user analytics
+// @access  Private (Admin)
+router.get('/analytics', 
+    verifyAdminToken, 
+    checkAdminPermission('viewAnalytics'),
+    logAdminActivity('VIEW_USER_ANALYTICS'),
+    adminUserController.getUserAnalytics
+);
+
 // @route   GET /api/admin/users/:id
 // @desc    Get user by ID
 // @access  Private (Admin)
@@ -58,14 +68,15 @@ router.delete('/:id',
     adminUserController.deleteUser
 );
 
-// @route   GET /api/admin/users/analytics
-// @desc    Get user analytics
+// @route   PATCH /api/admin/users/:id/restore
+// @desc    Restore soft-deleted user
 // @access  Private (Admin)
-router.get('/analytics', 
+router.patch('/:id/restore', 
     verifyAdminToken, 
-    checkAdminPermission('viewAnalytics'),
-    logAdminActivity('VIEW_USER_ANALYTICS'),
-    adminUserController.getUserAnalytics
+    checkAdminPermission('userManagement'),
+    adminRateLimit(5, 15 * 60 * 1000), // 5 requests per 15 minutes
+    logAdminActivity('RESTORE_USER'),
+    adminUserController.restoreUser
 );
 
 // @route   POST /api/admin/users/bulk-update
@@ -88,6 +99,28 @@ router.get('/export',
     adminRateLimit(5, 60 * 60 * 1000), // 5 requests per hour
     logAdminActivity('EXPORT_USERS'),
     adminUserController.exportUsers
+);
+
+// @route   POST /api/admin/users
+// @desc    Create new user
+// @access  Private (Admin)
+router.post('/', 
+    verifyAdminToken, 
+    checkAdminPermission('userManagement'),
+    adminRateLimit(10, 5 * 60 * 1000), // 10 requests per 5 minutes
+    logAdminActivity('CREATE_USER'),
+    adminUserController.createUser
+);
+
+// @route   POST /api/admin/users/bulk-delete
+// @desc    Bulk delete users
+// @access  Private (Admin)
+router.post('/bulk-delete', 
+    verifyAdminToken, 
+    checkAdminPermission('userManagement'),
+    adminRateLimit(3, 15 * 60 * 1000), // 3 requests per 15 minutes
+    logAdminActivity('BULK_DELETE_USERS'),
+    adminUserController.bulkDeleteUsers
 );
 
 module.exports = router;

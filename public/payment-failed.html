@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Failed - Try Again</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        /* Animated background particles */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="40" r="1.5" fill="rgba(255,255,255,0.1)"/><circle cx="40" cy="80" r="1" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
+            animation: float 20s linear infinite;
+            z-index: 0;
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            100% { transform: translateY(-100px); }
+        }
+        
+        .failure-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+            max-width: 600px;
+            width: 100%;
+            overflow: hidden;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .failure-header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: white;
+            padding: 60px 40px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .failure-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        .failure-icon {
+            font-size: 5rem;
+            margin-bottom: 20px;
+            animation: failureShake 1s ease-in-out;
+            position: relative;
+            z-index: 2;
+        }
+        
+        @keyframes failureShake {
+            0%, 100% { transform: translateX(0) rotate(0deg); }
+            25% { transform: translateX(-10px) rotate(-5deg); }
+            75% { transform: translateX(10px) rotate(5deg); }
+        }
+        
+        .failure-header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            font-weight: 700;
+            position: relative;
+            z-index: 2;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .failure-header .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.95;
+            font-weight: 400;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .failure-content {
+            padding: 50px 40px;
+        }
+        
+        .error-details {
+            background: linear-gradient(135deg, #ffeaea 0%, #fff0f0 100%);
+            padding: 35px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            border-left: 6px solid #ff6b6b;
+            animation: slideInUp 0.8s ease-out;
+        }
+        
+        @keyframes slideInUp {
+            0% { transform: translateY(30px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        
+        .error-details h3 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+        
+        .error-message {
+            color: #e53e3e;
+            font-style: italic;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            background: rgba(255, 107, 107, 0.1);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 107, 107, 0.2);
+        }
+        
+        .help-section {
+            background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+            padding: 35px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            text-align: left;
+            border: 1px solid rgba(102, 126, 234, 0.1);
+            animation: slideInUp 0.8s ease-out 0.2s both;
+        }
+        
+        .help-section h3 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+        
+        .help-section ul {
+            color: #4a5568;
+            list-style: none;
+        }
+        
+        .help-section li {
+            margin-bottom: 12px;
+            padding: 8px 0;
+            position: relative;
+            padding-left: 30px;
+            transition: all 0.3s ease;
+        }
+        
+        .help-section li:hover {
+            color: #2d3748;
+            transform: translateX(5px);
+        }
+        
+        .help-section li::before {
+            content: "💡";
+            position: absolute;
+            left: 0;
+            top: 8px;
+            font-size: 1.2rem;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+            animation: slideInUp 0.8s ease-out 0.4s both;
+        }
+        
+        .btn {
+            padding: 18px 35px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            min-width: 160px;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn:hover::before {
+            left: 100%;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: white;
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(255, 107, 107, 0.4);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            color: #ff6b6b;
+            border: 2px solid #ff6b6b;
+        }
+        
+        .btn-outline:hover {
+            background: #ff6b6b;
+            color: white;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+        }
+        
+        .support-info {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f0f8ff 100%);
+            padding: 30px;
+            border-radius: 20px;
+            color: #1976d2;
+            border: 1px solid rgba(25, 118, 210, 0.1);
+            animation: slideInUp 0.8s ease-out 0.6s both;
+        }
+        
+        .support-info h4 {
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1565c0;
+        }
+        
+        .support-info p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        
+        .support-contact {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .contact-item {
+            background: rgba(25, 118, 210, 0.1);
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(25, 118, 210, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .contact-item:hover {
+            background: rgba(25, 118, 210, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        .contact-item strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #1565c0;
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+        
+        @media (max-width: 768px) {
+            .failure-container {
+                margin: 10px;
+                border-radius: 20px;
+            }
+            
+            .failure-header {
+                padding: 50px 30px;
+            }
+            
+            .failure-header h1 {
+                font-size: 2.2rem;
+            }
+            
+            .failure-content {
+                padding: 40px 30px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .btn {
+                width: 100%;
+                min-width: auto;
+            }
+            
+            .support-contact {
+                flex-direction: column;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .failure-header {
+                padding: 40px 20px;
+            }
+            
+            .failure-content {
+                padding: 30px 20px;
+            }
+            
+            .failure-header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .error-details,
+            .help-section,
+            .support-info {
+                padding: 25px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="failure-container">
+        <div class="failure-header">
+            <div class="failure-icon">❌</div>
+            <h1>Payment Failed</h1>
+            <p class="subtitle">Don't worry, you can try again</p>
+        </div>
+        
+        <div class="failure-content">
+            <div class="error-details">
+                <h3>What Happened?</h3>
+                <p class="error-message" id="error-message">
+                    Payment could not be processed. This might be due to insufficient funds, network issues, or payment gateway problems.
+                </p>
+            </div>
+            
+            <div class="help-section">
+                <h3>Common Solutions</h3>
+                <ul>
+                    <li>💳 Check if your card has sufficient balance</li>
+                    <li>🔒 Ensure your card is not blocked or expired</li>
+                    <li>📱 Try using a different payment method (UPI, net banking)</li>
+                    <li>🌐 Check your internet connection</li>
+                    <li>🔄 Refresh the page and try again</li>
+                </ul>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="retryPayment()">🔄 Try Again</button>
+                <a href="/contact" class="btn btn-outline">📞 Contact Support</a>
+            </div>
+            
+            <div class="support-info">
+                <h4>Need Help?</h4>
+                <p>If you continue to experience issues, please contact our support team:</p>
+                
+                <div class="support-contact">
+                    <div class="contact-item">
+                        <strong>📧 Email</strong>
+                        support@funnelseye.com
+                    </div>
+                    <div class="contact-item">
+                        <strong>📱 Phone</strong>
+                        +91 98765 43210
+                    </div>
+                    <div class="contact-item">
+                        <strong>💬 WhatsApp</strong>
+                        +91 98765 43210
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Extract URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get('error');
+        const type = urlParams.get('type');
+        const plan = urlParams.get('plan');
+
+        function initPage() {
+            // Update error message if provided
+            if (error) {
+                const errorMessage = document.getElementById('error-message');
+                errorMessage.textContent = decodeURIComponent(error);
+            }
+
+            // Update content based on payment type
+            if (type === 'subscription') {
+                document.querySelector('.failure-header h1').textContent = 'Subscription Failed';
+                document.querySelector('.failure-header .subtitle').textContent = 'Your subscription could not be activated';
+            } else if (type === 'coach-plan') {
+                document.querySelector('.failure-header h1').textContent = 'Purchase Failed';
+                document.querySelector('.failure-header .subtitle').textContent = `Failed to purchase ${plan || 'this product'}`;
+            }
+        }
+
+        function retryPayment() {
+            // Get the plan ID from URL or localStorage
+            const planId = urlParams.get('planId') || localStorage.getItem('lastPlanId');
+            if (planId) {
+                window.location.href = `/checkout?planId=${planId}`;
+            } else {
+                window.history.back();
+            }
+        }
+
+        // Store plan ID for retry
+        const planId = urlParams.get('planId');
+        if (planId) {
+            localStorage.setItem('lastPlanId', planId);
+        }
+
+        // Initialize page when loaded
+        document.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+</html>

@@ -68,7 +68,11 @@ const protect = async (req, res, next) => {
                 '/api/subscriptions/cancel',
                 '/api/subscriptions/my-subscription',
                 '/api/subscriptions/subscribe',
-                '/api/subscriptions/plans'
+                '/api/subscriptions/plans',
+                '/api/subscriptions/current',
+                '/api/subscriptions/create-order',
+                '/api/subscriptions/verify-payment',
+                '/api/subscriptions/history'
             ];
             
             const isSubscriptionRoute = subscriptionRoutes.some(route => 

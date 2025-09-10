@@ -12,11 +12,11 @@ import SubscriptionManagement from './components/SubscriptionManagement';
 import CoursesManagement from './components/CoursesManagement';
 import SupportTickets from './components/SupportTickets';
 import PaymentManagement from './components/PaymentManagement';
-import CentralWhatsapp from './components/CentralWhatsapp';
 import MlmManagement from './components/MlmManagement';
 import AuditLogs from './components/AuditLogs';
 import SecurityDashboard from './components/SecurityDashboard';
 import FinancialDashboard from './components/FinancialDashboard';
+import PlatformConfiguration from './components/PlatformConfiguration';
 import { Toaster } from 'sonner';
 import { ToastProvider } from './contexts/ToastContext';
 
@@ -73,10 +73,10 @@ function AppContent() {
             <Route path="subscription" element={<SubscriptionManagement />} />
             <Route path="courses" element={<CoursesManagement />} />
             <Route path="support" element={<SupportTickets />} />
-            <Route path="central-whatsapp" element={<CentralWhatsapp />} />
             <Route path="mlm-management" element={<MlmManagement />} />
             <Route path="security" element={<SecurityDashboard />} />
             <Route path="audit-logs" element={<AuditLogs />} />
+            <Route path="platform-config" element={<PlatformConfiguration />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -31,7 +31,7 @@ import {
   Wallet
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import axios from 'axios';
+import adminApiService from '../services/adminApiService';
 
 const PaymentSettings = () => {
   const [settings, setSettings] = useState(null);
@@ -53,24 +53,32 @@ const PaymentSettings = () => {
   const fetchSettings = async () => {
     try {
       setLoading(true);
+      setError('');
       console.log('💳 [PAYMENT_SETTINGS] Fetching payment settings...');
       
       // Fetch payment settings from admin financial routes
-      const settingsResponse = await axios.get('/admin/financial/payment-settings');
-      console.log('💳 [PAYMENT_SETTINGS] Settings received:', settingsResponse.data);
+      const settingsResponse = await adminApiService.getPaymentSettings();
+      console.log('💳 [PAYMENT_SETTINGS] Settings received:', settingsResponse);
       
-          // Fetch gateway configurations from unified-payments
-    const gatewaysResponse = await axios.get('/api/unified-payments/settings');
-      console.log('💳 [PAYMENT_SETTINGS] Gateways received:', gatewaysResponse.data);
+      // Fetch gateway configurations from unified-payments
+      const gatewaysResponse = await adminApiService.getUnifiedPaymentSettings();
+      console.log('💳 [PAYMENT_SETTINGS] Gateways received:', gatewaysResponse);
       
       // Combine the data
       setSettings({
-        ...settingsResponse.data.data,
-        gateways: gatewaysResponse.data.data
+        ...settingsResponse,
+        gateways: gatewaysResponse?.gateways || []
       });
     } catch (error) {
       console.error('💳 [PAYMENT_SETTINGS] Error fetching settings:', error);
-      setError('Failed to load payment settings');
+      setError(`Failed to load payment settings: ${error.message || 'Unknown error'}`);
+      // Set default settings to prevent infinite loading
+      setSettings({
+        fees: { platformFeePercentage: 0, minimumFee: 0, transactionFee: 0, refundFee: 0, feeInclusive: false },
+        commissions: { bronze: 0, silver: 0, gold: 0, platinum: 0, diamond: 0, maxLevels: 5, cap: 0, autoDistribute: false },
+        payouts: { frequency: 'weekly', minimumAmount: 0, method: 'bank_transfer', delayDays: 0, autoProcess: false },
+        gateways: []
+      });
     } finally {
       setLoading(false);
     }
@@ -80,12 +88,13 @@ const PaymentSettings = () => {
     try {
       console.log('💳 [PAYMENT_SETTINGS] Fetching commission payouts...');
       
-      const response = await axios.get('/admin/financial/commission-payouts');
-      console.log('💳 [PAYMENT_SETTINGS] Commission payouts received:', response.data);
+      const response = await adminApiService.getCommissionPayouts();
+      console.log('💳 [PAYMENT_SETTINGS] Commission payouts received:', response);
       
-      setCommissionPayouts(response.data.data || []);
+      setCommissionPayouts(response || []);
     } catch (error) {
       console.error('💳 [PAYMENT_SETTINGS] Error fetching commission payouts:', error);
+      setCommissionPayouts([]);
     }
   };
 
@@ -93,12 +102,13 @@ const PaymentSettings = () => {
     try {
       console.log('💳 [PAYMENT_SETTINGS] Fetching payment analytics...');
       
-      const response = await axios.get('/admin/financial/payment-analytics');
-      console.log('💳 [PAYMENT_SETTINGS] Payment analytics received:', response.data);
+      const response = await adminApiService.getPaymentAnalytics();
+      console.log('💳 [PAYMENT_SETTINGS] Payment analytics received:', response);
       
-      setPaymentAnalytics(response.data.data);
+      setPaymentAnalytics(response);
     } catch (error) {
       console.error('💳 [PAYMENT_SETTINGS] Error fetching payment analytics:', error);
+      setPaymentAnalytics(null);
     }
   };
 
@@ -112,25 +122,21 @@ const PaymentSettings = () => {
       
       if (section === 'gateways') {
         // Save gateway settings to unified-payments
-        for (const gateway of data) {
-          if (gateway.gatewayName) {
-            const response = await axios.put(`/api/unified-payments/settings`, {
-              centralAccount: {
-                gatewayAccounts: {
-                  [gateway.gatewayName]: gateway
-                }
+        await adminApiService.updateUnifiedPaymentSettings({
+          centralAccount: {
+            gatewayAccounts: data.reduce((acc, gateway) => {
+              if (gateway.gatewayName) {
+                acc[gateway.gatewayName] = gateway;
               }
-            });
-            console.log(`💳 [PAYMENT_SETTINGS] ${gateway.gatewayName} settings saved:`, response.data);
+              return acc;
+            }, {})
           }
-        }
+        });
+        console.log('💳 [PAYMENT_SETTINGS] Gateway settings saved');
       } else {
         // Save other settings to admin financial routes
-        const response = await axios.put('/admin/financial/payment-settings', {
-          section,
-          data
-        });
-        console.log('💳 [PAYMENT_SETTINGS] Settings saved:', response.data);
+        await adminApiService.updatePaymentSettings(section, data);
+        console.log('💳 [PAYMENT_SETTINGS] Settings saved');
       }
       
       setSuccess('Settings saved successfully');
@@ -139,7 +145,7 @@ const PaymentSettings = () => {
       fetchSettings();
     } catch (error) {
       console.error('💳 [PAYMENT_SETTINGS] Error saving settings:', error);
-      setError('Failed to save settings');
+      setError(`Failed to save settings: ${error.message || 'Unknown error'}`);
     } finally {
       setSaving(false);
     }
@@ -153,13 +159,13 @@ const PaymentSettings = () => {
       
       console.log('💳 [PAYMENT_SETTINGS] Testing gateway:', gatewayName);
       
-              const response = await axios.get(`/api/unified-payments/health`);
+      const response = await adminApiService.testPaymentGateway(gatewayName);
       
-      console.log('💳 [PAYMENT_SETTINGS] Gateway test result:', response.data);
-      setSuccess(`Gateway test successful: ${response.data.message}`);
+      console.log('💳 [PAYMENT_SETTINGS] Gateway test result:', response);
+      setSuccess(`Gateway test successful: ${response.message || 'Connection established'}`);
     } catch (error) {
       console.error('💳 [PAYMENT_SETTINGS] Error testing gateway:', error);
-      setError(`Gateway test failed: ${error.response?.data?.message || error.message}`);
+      setError(`Gateway test failed: ${error.message || 'Unknown error'}`);
     } finally {
       setTesting(false);
     }
@@ -173,16 +179,16 @@ const PaymentSettings = () => {
       
       console.log('💳 [PAYMENT_SETTINGS] Processing payout for payment:', paymentId);
       
-      const response = await axios.post(`/admin/financial/commission-payouts/${paymentId}/process`);
+      const response = await adminApiService.processCommissionPayout(paymentId);
       
-      console.log('💳 [PAYMENT_SETTINGS] Payout processed:', response.data);
+      console.log('💳 [PAYMENT_SETTINGS] Payout processed:', response);
       setSuccess('Commission payout processed successfully');
       
       // Refresh payouts
       fetchCommissionPayouts();
     } catch (error) {
       console.error('💳 [PAYMENT_SETTINGS] Error processing payout:', error);
-      setError(`Failed to process payout: ${error.response?.data?.message || error.message}`);
+      setError(`Failed to process payout: ${error.message || 'Unknown error'}`);
     } finally {
       setProcessingPayout(false);
     }
