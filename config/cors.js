@@ -96,7 +96,9 @@ const corsOptions = {
         'x-request-source',     // Request source identification
         'X-Request-Source',     // Alternative case
         'coach-id',             // Coach identification header
-        'Coach-ID'              // Alternative case
+        'Coach-ID',             // Alternative case
+        'staff-id',             // Staff identification header
+        'Staff-ID'              // Alternative case
     ],
     
     // Exposed headers (headers that browsers are allowed to access)
