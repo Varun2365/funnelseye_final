@@ -100,7 +100,9 @@ const corsOptions = {
         'staff-id',             // Staff identification header
         'Staff-ID',             // Alternative case
         'x-staff-id',           // Staff identification header with x- prefix
-        'X-Staff-ID'            // Alternative case
+        'X-Staff-ID',           // Alternative case
+        'token_staff',          // Staff authentication token
+        'Token_Staff'           // Alternative case
     ],
     
     // Exposed headers (headers that browsers are allowed to access)

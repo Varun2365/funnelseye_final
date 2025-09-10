@@ -137,7 +137,7 @@ app.use((req, res, next) => {
         // Ensure CORS headers are set for preflight requests
         res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-API-Key, X-Client-Version, Cache-Control, Pragma, Expires, x-coach-id, X-Coach-ID, coach-id, Coach-ID, staff-id, Staff-ID, x-staff-id, X-Staff-ID, x-user-id, X-User-ID, x-session-id, X-Session-ID, x-request-id, X-Request-ID, x-forwarded-for, X-Forwarded-For, x-real-ip, X-Real-IP, x-custom-domain, X-Custom-Domain, x-auth-token, X-Auth-Token, x-refresh-token, X-Refresh-Token, x-tenant-id, X-Tenant-ID, x-version, X-Version, x-request-source, X-Request-Source');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-API-Key, X-Client-Version, Cache-Control, Pragma, Expires, x-coach-id, X-Coach-ID, coach-id, Coach-ID, staff-id, Staff-ID, x-staff-id, X-Staff-ID, token_staff, Token_Staff, x-user-id, X-User-ID, x-session-id, X-Session-ID, x-request-id, X-Request-ID, x-forwarded-for, X-Forwarded-For, x-real-ip, X-Real-IP, x-custom-domain, X-Custom-Domain, x-auth-token, X-Auth-Token, x-refresh-token, X-Refresh-Token, x-tenant-id, X-Tenant-ID, x-version, X-Version, x-request-source, X-Request-Source');
         res.header('Access-Control-Allow-Credentials', 'true');
         res.header('Access-Control-Max-Age', '86400');
         
