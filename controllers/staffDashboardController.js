@@ -59,9 +59,20 @@ exports.getOverviewData = asyncHandler(async (req, res, next) => {
 
     // Validate coachId
     if (!coachId) {
+        console.error('❌ [Staff Dashboard] Coach ID missing for staff user:', {
+            staffId: staffId,
+            userRole: req.user.role,
+            userObject: req.user
+        });
+        
         return res.status(400).json({
             success: false,
-            message: 'Coach ID not found for staff user'
+            message: 'Coach ID not found for staff user. Please ensure the staff user is properly linked to a coach.',
+            debug: {
+                staffId: staffId,
+                userRole: req.user.role,
+                hasCoachId: !!coachId
+            }
         });
     }
 

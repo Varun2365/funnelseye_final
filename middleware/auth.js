@@ -34,8 +34,19 @@ const protect = async (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         //console.log('🔑 [Protect Middleware] Decoded token:', decoded);
         // Find user by the ID extracted from the token's payload
+        // For staff users, we need to ensure discriminator fields are loaded
         const user = await User.findById(decoded.id);
         //console.log('🔑 [Protect Middleware] User:', user);
+        
+        // Debug logging for staff users
+        if (user && user.role === 'staff') {
+            console.log('🔍 [Protect Middleware] Staff user debug:', {
+                id: user._id,
+                role: user.role,
+                coachId: user.coachId,
+                hasCoachId: !!user.coachId
+            });
+        }
         if (!user) {
             // If user associated with the token is not found (e.g., user deleted)
             return res.status(401).json({
