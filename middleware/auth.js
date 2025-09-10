@@ -32,10 +32,10 @@ const protect = async (req, res, next) => {
         // Verify token
         // This decodes the token using the secret and checks for expiration
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        console.log('🔑 [Protect Middleware] Decoded token:', decoded);
+        //console.log('🔑 [Protect Middleware] Decoded token:', decoded);
         // Find user by the ID extracted from the token's payload
         const user = await User.findById(decoded.id);
-        console.log('🔑 [Protect Middleware] User:', user);
+        //console.log('🔑 [Protect Middleware] User:', user);
         if (!user) {
             // If user associated with the token is not found (e.g., user deleted)
             return res.status(401).json({
@@ -55,12 +55,7 @@ const protect = async (req, res, next) => {
                 status: { $in: ['active', 'pending_renewal'] }
             }).populate('planId');
 
-            console.log(`🔒 [Protect Middleware] Checking subscription for coach ${user._id}:`, {
-                hasSubscription: !!subscription,
-                status: subscription?.status,
-                isEnabled: subscription?.accountStatus?.isEnabled,
-                endDate: subscription?.currentPeriod?.endDate
-            });
+       
 
             // Allow access to subscription management routes even if subscription is expired
             const subscriptionRoutes = [
@@ -83,7 +78,7 @@ const protect = async (req, res, next) => {
             if (!subscription || subscription.status !== 'active') {
                 // Allow access to subscription routes even without subscription
                 if (isSubscriptionRoute) {
-                    console.log(`⚠️ [Protect Middleware] Coach ${user._id} accessing subscription route without active subscription`);
+                    //console.log(`⚠️ [Protect Middleware] Coach ${user._id} accessing subscription route without active subscription`);
                     req.subscription = subscription;
                     req.subscriptionWarning = {
                         message: subscription ? `Your subscription is currently ${subscription.status}. Please renew to continue using the platform.` : 'No subscription found. Please set up your subscription to continue.',
@@ -96,7 +91,7 @@ const protect = async (req, res, next) => {
                         `Your subscription is currently ${status}. Please ensure your subscription is active to continue using the platform.` :
                         'No subscription found. Please set up your subscription to continue using the platform.';
                     
-                    console.log(`🚫 [Protect Middleware] Coach ${user._id} blocked from accessing ${req.originalUrl} - Subscription status: ${status}`);
+                    //console.log(`🚫 [Protect Middleware] Coach ${user._id} blocked from accessing ${req.originalUrl} - Subscription status: ${status}`);
                     return res.status(403).json({
                         success: false,
                         message: message,
@@ -115,7 +110,7 @@ const protect = async (req, res, next) => {
                     if (endDate < now) {
                         // Allow access to subscription routes even if period ended
                         if (isSubscriptionRoute) {
-                            console.log(`⚠️ [Protect Middleware] Coach ${user._id} accessing subscription route with ended subscription period`);
+                            //console.log(`⚠️ [Protect Middleware] Coach ${user._id} accessing subscription route with ended subscription period`);
                             req.subscription = subscription;
                             req.subscriptionWarning = {
                                 message: 'Your subscription period has ended. Please renew to continue using the platform.',
@@ -124,7 +119,7 @@ const protect = async (req, res, next) => {
                             };
                         } else {
                             // BLOCK ACCESS TO ALL OTHER ROUTES
-                            console.log(`🚫 [Protect Middleware] Coach ${user._id} blocked from accessing ${req.originalUrl} - Subscription period ended`);
+                            //console.log(`🚫 [Protect Middleware] Coach ${user._id} blocked from accessing ${req.originalUrl} - Subscription period ended`);
                             return res.status(403).json({
                                 success: false,
                                 message: 'Your subscription period has ended. Please renew to continue using the platform.',
@@ -144,7 +139,7 @@ const protect = async (req, res, next) => {
             }
         } else {
             // Non-coach roles don't need subscription checks
-            console.log(`🔒 [Protect Middleware] User ${user._id} has role ${user.role}, skipping subscription check`);
+            //console.log(`🔒 [Protect Middleware] User ${user._id} has role ${user.role}, skipping subscription check`);
         }
 
         // Attach the user's ID and role to the request object
