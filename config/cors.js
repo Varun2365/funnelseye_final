@@ -98,7 +98,9 @@ const corsOptions = {
         'coach-id',             // Coach identification header
         'Coach-ID',             // Alternative case
         'staff-id',             // Staff identification header
-        'Staff-ID'              // Alternative case
+        'Staff-ID',             // Alternative case
+        'x-staff-id',           // Staff identification header with x- prefix
+        'X-Staff-ID'            // Alternative case
     ],
     
     // Exposed headers (headers that browsers are allowed to access)
