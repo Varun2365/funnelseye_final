@@ -49,6 +49,22 @@ exports.getOverviewData = asyncHandler(async (req, res, next) => {
     const staffId = req.user.id;
     const coachId = req.user.coachId;
 
+    // Debug logging
+    console.log('🔍 [Staff Dashboard] Debug info:', {
+        staffId: staffId,
+        coachId: coachId,
+        timeRange: timeRange,
+        userRole: req.user.role
+    });
+
+    // Validate coachId
+    if (!coachId) {
+        return res.status(400).json({
+            success: false,
+            message: 'Coach ID not found for staff user'
+        });
+    }
+
     const overview = await getOverviewData(staffId, coachId, parseInt(timeRange));
 
     res.json({
@@ -80,6 +96,14 @@ exports.getPerformanceData = asyncHandler(async (req, res) => {
     const staffId = req.user.id;
     const coachId = req.user.coachId;
 
+    // Validate coachId
+    if (!coachId) {
+        return res.status(400).json({
+            success: false,
+            message: 'Coach ID not found for staff user'
+        });
+    }
+
     const performanceData = await getPerformanceData(staffId, coachId, parseInt(timeRange));
 
     res.json({
@@ -96,6 +120,14 @@ exports.getAchievements = asyncHandler(async (req, res) => {
     const staffId = req.user.id;
     const coachId = req.user.coachId;
 
+    // Validate coachId
+    if (!coachId) {
+        return res.status(400).json({
+            success: false,
+            message: 'Coach ID not found for staff user'
+        });
+    }
+
     const achievements = await getAchievementsData(staffId, coachId, parseInt(timeRange));
 
     res.json({
@@ -111,6 +143,14 @@ exports.getTeamData = asyncHandler(async (req, res) => {
     const { timeRange = 30 } = req.query;
     const staffId = req.user.id;
     const coachId = req.user.coachId;
+
+    // Validate coachId
+    if (!coachId) {
+        return res.status(400).json({
+            success: false,
+            message: 'Coach ID not found for staff user'
+        });
+    }
 
     const teamData = await getTeamData(staffId, coachId, parseInt(timeRange));
 
