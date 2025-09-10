@@ -265,13 +265,16 @@ exports.getAnalytics = asyncHandler(async (req, res) => {
 // ===== HELPER FUNCTIONS =====
 
 async function getOverviewData(staffId, coachId, timeRange) {
+    // Validate timeRange to prevent invalid dates
+    const validTimeRange = Math.max(1, Math.min(365, parseInt(timeRange) || 30));
+    
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - timeRange);
+    startDate.setDate(startDate.getDate() - validTimeRange);
 
     const [tasks, leads, performance] = await Promise.all([
         Task.find({ assignedTo: staffId, createdAt: { $gte: startDate } }),
         Lead.find({ assignedTo: staffId, createdAt: { $gte: startDate } }),
-        staffLeaderboardService.calculateStaffScore(staffId, coachId, timeRange)
+        staffLeaderboardService.calculateStaffScore(staffId, coachId, validTimeRange)
     ]);
 
     const completedTasks = tasks.filter(task => task.status === 'Completed');
@@ -292,7 +295,7 @@ async function getOverviewData(staffId, coachId, timeRange) {
             convertedLeads: convertedLeads.length,
             conversionRate: Math.round(conversionRate * 100) / 100,
             currentScore: performance.scores.total,
-            rank: await getStaffRank(staffId, timeRange)
+            rank: await getStaffRank(staffId, coachId, validTimeRange)
         },
         quickActions: [
             { name: 'View Tasks', action: 'view_tasks', icon: '📋' },
@@ -683,9 +686,9 @@ function calculateAchievementProgress(achievements, allAchievements) {
     };
 }
 
-async function getStaffRank(staffId, timeRange) {
+async function getStaffRank(staffId, coachId, timeRange) {
     const leaderboard = await staffLeaderboardService.getLeaderboard(
-        req.user.coachId, 
+        coachId, 
         timeRange, 
         100
     );
