@@ -26,10 +26,14 @@ class UnifiedStaffDashboardController {
      */
     async validateStaffAccess(req, res, next) {
         try {
-            const staffId = req.user.id;
+            console.log('🔍 [ValidateStaffAccess] Starting validation...');
+            const staffId = req.userId || req.user.id;
+            console.log('🔍 [ValidateStaffAccess] Staff ID:', staffId);
             
-            // Get staff details
-            const staff = await Staff.findById(staffId).select('isActive coachId permissions');
+            // Get staff details from User collection (discriminator pattern)
+            console.log('🔍 [ValidateStaffAccess] Fetching staff details...');
+            const staff = await User.findById(staffId).select('isActive coachId permissions role');
+            console.log('🔍 [ValidateStaffAccess] Staff found:', !!staff);
             
             if (!staff) {
                 return res.status(404).json({
@@ -38,8 +42,17 @@ class UnifiedStaffDashboardController {
                 });
             }
             
-            // Check if staff is active
-            if (!staff.isActive) {
+            // Check if user has staff role
+            if (staff.role !== 'staff') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Access denied. This account is not a staff account.',
+                    code: 'INVALID_ROLE'
+                });
+            }
+            
+            // Check if staff is active (default to true if not set)
+            if (staff.isActive === false) {
                 return res.status(403).json({
                     success: false,
                     message: 'Your staff account has been deactivated. Please contact your coach or administrator.',
@@ -48,7 +61,9 @@ class UnifiedStaffDashboardController {
             }
             
             // Check global system settings
+            console.log('🔍 [ValidateStaffAccess] Fetching global settings...');
             const globalSettings = await globalSettingsService.getSettings();
+            console.log('🔍 [ValidateStaffAccess] Global settings fetched:', !!globalSettings);
             
             // Check maintenance mode
             if (globalSettings.platformConfig.maintenanceMode) {
@@ -67,6 +82,7 @@ class UnifiedStaffDashboardController {
                 isActive: staff.isActive
             };
             
+            console.log('✅ [ValidateStaffAccess] Validation complete, calling next()');
             next();
         } catch (error) {
             console.error('Staff access validation error:', error);
@@ -107,7 +123,7 @@ class UnifiedStaffDashboardController {
         
         if (requestedSections.includes('overview')) {
             sectionPromises.push(
-                this.getOverviewData(staffId, coachId, parseInt(timeRange))
+                this.getOverviewDataInternal(staffId, coachId, parseInt(timeRange))
                     .then(data => ({ section: 'overview', data }))
             );
         }
@@ -156,7 +172,7 @@ class UnifiedStaffDashboardController {
         
         if (requestedSections.includes('analytics')) {
             sectionPromises.push(
-                this.getAnalyticsData(staffId, parseInt(timeRange))
+                this.getAnalyticsDataInternal(staffId, parseInt(timeRange))
                     .then(data => ({ section: 'analytics', data }))
             );
         }
@@ -184,9 +200,27 @@ class UnifiedStaffDashboardController {
     });
 
     /**
-     * Get overview data with key metrics
+     * Get overview data endpoint
+     * @route GET /api/staff-dashboard/unified/overview
+     * @access Private (Staff)
      */
-    async getOverviewData(staffId, coachId, timeRange) {
+    getOverviewData = asyncHandler(async (req, res) => {
+        const { timeRange = 30 } = req.query;
+        const staffId = req.staffInfo.staffId;
+        const coachId = req.staffInfo.coachId;
+
+        const overviewData = await this.getOverviewDataInternal(staffId, coachId, parseInt(timeRange));
+
+        res.json({
+            success: true,
+            data: overviewData
+        });
+    });
+
+    /**
+     * Get overview data with key metrics (internal method)
+     */
+    async getOverviewDataInternal(staffId, coachId, timeRange) {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - timeRange);
 
@@ -432,9 +466,26 @@ class UnifiedStaffDashboardController {
     }
 
     /**
-     * Get analytics data
+     * Get analytics data endpoint
+     * @route GET /api/staff-dashboard/unified/analytics
+     * @access Private (Staff)
      */
-    async getAnalyticsData(staffId, timeRange) {
+    getAnalyticsData = asyncHandler(async (req, res) => {
+        const { timeRange = 30 } = req.query;
+        const staffId = req.staffInfo.staffId;
+
+        const analyticsData = await this.getAnalyticsDataInternal(staffId, parseInt(timeRange));
+
+        res.json({
+            success: true,
+            data: analyticsData
+        });
+    });
+
+    /**
+     * Get analytics data (internal method)
+     */
+    async getAnalyticsDataInternal(staffId, timeRange) {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - timeRange);
 
@@ -818,21 +869,16 @@ class UnifiedStaffDashboardController {
      * @access Private (Staff)
      */
     getStaffPerformance = asyncHandler(async (req, res) => {
+        console.log('🔍 [getStaffPerformance] Controller method called');
         const { timeRange = 30 } = req.query;
         const staffId = req.staffInfo.staffId;
         const coachId = req.staffInfo.coachId;
+        console.log('🔍 [getStaffPerformance] Staff ID:', staffId, 'Coach ID:', coachId);
 
-        const performance = await staffLeaderboardService.calculateStaffScore(
-            staffId, 
-            coachId, 
-            parseInt(timeRange)
-        );
-
-        const progress = await staffLeaderboardService.getStaffProgress(
-            staffId, 
-            coachId, 
-            parseInt(timeRange)
-        );
+        // Calculate real performance data
+        const performance = await this.calculateRealStaffPerformance(staffId, coachId, parseInt(timeRange));
+        const trends = await this.calculateTrends(staffId, parseInt(timeRange));
+        const recommendations = this.generateRecommendations(performance);
 
         res.json({
             success: true,
@@ -840,9 +886,11 @@ class UnifiedStaffDashboardController {
                 currentScore: performance.scores.total,
                 scoreBreakdown: performance.scores,
                 metrics: performance.metrics,
-                progress: progress,
-                trends: await this.calculateTrends(staffId, parseInt(timeRange)),
-                recommendations: this.generateRecommendations(performance)
+                progress: performance.progress,
+                trends: trends,
+                recommendations: recommendations,
+                timeRange: parseInt(timeRange),
+                lastUpdated: new Date().toISOString()
             }
         });
     });
@@ -970,13 +1018,120 @@ class UnifiedStaffDashboardController {
     }
 
     async calculateTrends(staffId, timeRange) {
-        // This would calculate performance trends over time
-        // For now, return mock data
-        return {
-            scoreTrend: [65, 68, 72, 75, 78, 82, 85],
-            taskTrend: [12, 15, 18, 14, 20, 22, 19],
-            conversionTrend: [45, 52, 48, 58, 62, 67, 71]
+        try {
+            const trends = {
+                scoreTrend: [],
+                taskTrend: [],
+                conversionTrend: [],
+                efficiencyTrend: [],
+                qualityTrend: []
+            };
+
+            // Calculate trends for the last 7 periods (weekly if timeRange is 30+ days, daily if less)
+            const periodLength = timeRange >= 30 ? 7 : 1; // Weekly or daily periods
+            const periodDays = Math.floor(timeRange / 7);
+
+            for (let i = 6; i >= 0; i--) {
+                const periodStart = new Date();
+                periodStart.setDate(periodStart.getDate() - ((i + 1) * periodDays));
+                
+                const periodEnd = new Date();
+                periodEnd.setDate(periodEnd.getDate() - (i * periodDays));
+
+                // Get tasks for this period
+                const periodTasks = await Task.find({
+                    assignedTo: staffId,
+                    createdAt: { $gte: periodStart, $lt: periodEnd }
+                });
+
+                // Get leads for this period
+                const periodLeads = await Lead.find({
+                    assignedTo: staffId,
+                    createdAt: { $gte: periodStart, $lt: periodEnd }
+                });
+
+                // Calculate metrics for this period
+                const completedTasks = periodTasks.filter(task => task.status === 'Completed');
+                const convertedLeads = periodLeads.filter(lead => lead.status === 'Converted');
+                
+                // Task trend
+                trends.taskTrend.push(completedTasks.length);
+                
+                // Conversion trend
+                const conversionRate = periodLeads.length > 0 ? 
+                    Math.round((convertedLeads.length / periodLeads.length) * 100) : 0;
+                trends.conversionTrend.push(conversionRate);
+
+                // Calculate efficiency trend
+                const tasksWithTime = completedTasks.filter(task => 
+                    task.estimatedHours && task.actualHours
+                );
+                const avgEfficiency = tasksWithTime.length > 0 ? 
+                    tasksWithTime.reduce((sum, task) => {
+                        const efficiency = (task.estimatedHours / task.actualHours) * 100;
+                        return sum + Math.min(efficiency, 200); // Cap at 200%
+                    }, 0) / tasksWithTime.length : 0;
+                trends.efficiencyTrend.push(Math.round(avgEfficiency));
+
+                // Calculate quality trend (based on task quality ratings)
+                const tasksWithQuality = completedTasks.filter(task => task.qualityRating);
+                const avgQuality = tasksWithQuality.length > 0 ? 
+                    tasksWithQuality.reduce((sum, task) => sum + task.qualityRating, 0) / tasksWithQuality.length : 0;
+                trends.qualityTrend.push(Math.round(avgQuality));
+
+                // Calculate overall score for this period
+                const periodScore = this.calculatePeriodScore({
+                    completedTasks: completedTasks.length,
+                    totalTasks: periodTasks.length,
+                    convertedLeads: convertedLeads.length,
+                    totalLeads: periodLeads.length,
+                    avgEfficiency,
+                    avgQuality
+                });
+                trends.scoreTrend.push(Math.round(periodScore));
+            }
+
+            return trends;
+        } catch (error) {
+            console.error('Error calculating trends:', error);
+            // Return empty trends if calculation fails
+            return {
+                scoreTrend: [0, 0, 0, 0, 0, 0, 0],
+                taskTrend: [0, 0, 0, 0, 0, 0, 0],
+                conversionTrend: [0, 0, 0, 0, 0, 0, 0],
+                efficiencyTrend: [0, 0, 0, 0, 0, 0, 0],
+                qualityTrend: [0, 0, 0, 0, 0, 0, 0]
+            };
+        }
+    }
+
+    calculatePeriodScore(metrics) {
+        const weights = {
+            taskCompletion: 0.35,
+            leadConversion: 0.25,
+            efficiency: 0.20,
+            quality: 0.20
         };
+
+        let score = 0;
+
+        // Task completion score
+        if (metrics.totalTasks > 0) {
+            score += (metrics.completedTasks / metrics.totalTasks) * weights.taskCompletion * 100;
+        }
+
+        // Lead conversion score
+        if (metrics.totalLeads > 0) {
+            score += (metrics.convertedLeads / metrics.totalLeads) * weights.leadConversion * 100;
+        }
+
+        // Efficiency score
+        score += (metrics.avgEfficiency / 100) * weights.efficiency * 100;
+
+        // Quality score
+        score += (metrics.avgQuality / 10) * weights.quality * 100;
+
+        return Math.min(score, 100); // Cap at 100
     }
 
     generateInsights(tasks, leads) {
@@ -985,74 +1140,361 @@ class UnifiedStaffDashboardController {
         // Task insights
         if (tasks.length > 0) {
             const completedTasks = tasks.filter(task => task.status === 'Completed');
-            if (completedTasks.length / tasks.length < 0.8) {
+            const completionRate = completedTasks.length / tasks.length;
+            
+            if (completionRate < 0.8) {
                 insights.push({
                     type: 'warning',
-                    message: 'Task completion rate is below 80%. Consider reviewing your workflow.',
-                    action: 'review_workflow'
+                    message: `Task completion rate is ${Math.round(completionRate * 100)}%. Consider reviewing your workflow and prioritizing tasks.`,
+                    action: 'review_workflow',
+                    priority: 'HIGH',
+                    metric: 'task_completion',
+                    currentValue: Math.round(completionRate * 100),
+                    targetValue: 80
                 });
+            } else if (completionRate >= 0.95) {
+                insights.push({
+                    type: 'success',
+                    message: `Excellent task completion rate of ${Math.round(completionRate * 100)}%! Keep up the great work.`,
+                    action: 'maintain_performance',
+                    priority: 'LOW',
+                    metric: 'task_completion',
+                    currentValue: Math.round(completionRate * 100),
+                    targetValue: 80
+                });
+            }
+
+            // Check for overdue tasks
+            const overdueTasks = tasks.filter(task => 
+                task.status !== 'Completed' && 
+                task.dueDate && 
+                new Date(task.dueDate) < new Date()
+            );
+            
+            if (overdueTasks.length > 0) {
+                insights.push({
+                    type: 'warning',
+                    message: `You have ${overdueTasks.length} overdue task(s). Consider updating priorities or requesting deadline extensions.`,
+                    action: 'address_overdue',
+                    priority: 'HIGH',
+                    metric: 'overdue_tasks',
+                    currentValue: overdueTasks.length,
+                    targetValue: 0
+                });
+            }
+
+            // Check task efficiency
+            const tasksWithTime = completedTasks.filter(task => 
+                task.estimatedHours && task.actualHours
+            );
+            
+            if (tasksWithTime.length > 0) {
+                const avgEfficiency = tasksWithTime.reduce((sum, task) => {
+                    const efficiency = (task.estimatedHours / task.actualHours) * 100;
+                    return sum + Math.min(efficiency, 200);
+                }, 0) / tasksWithTime.length;
+
+                if (avgEfficiency < 80) {
+                    insights.push({
+                        type: 'info',
+                        message: `Task efficiency is ${Math.round(avgEfficiency)}%. Consider improving time estimation or workflow optimization.`,
+                        action: 'improve_efficiency',
+                        priority: 'MEDIUM',
+                        metric: 'efficiency',
+                        currentValue: Math.round(avgEfficiency),
+                        targetValue: 100
+                    });
+                }
             }
         }
 
         // Lead insights
         if (leads.length > 0) {
             const convertedLeads = leads.filter(lead => lead.status === 'Converted');
-            if (convertedLeads.length / leads.length < 0.5) {
+            const conversionRate = convertedLeads.length / leads.length;
+            
+            if (conversionRate < 0.5) {
                 insights.push({
                     type: 'info',
-                    message: 'Lead conversion rate could be improved. Focus on qualification and follow-up.',
-                    action: 'improve_conversion'
+                    message: `Lead conversion rate is ${Math.round(conversionRate * 100)}%. Focus on lead qualification and follow-up strategies.`,
+                    action: 'improve_conversion',
+                    priority: 'MEDIUM',
+                    metric: 'lead_conversion',
+                    currentValue: Math.round(conversionRate * 100),
+                    targetValue: 50
                 });
+            } else if (conversionRate >= 0.8) {
+                insights.push({
+                    type: 'success',
+                    message: `Outstanding lead conversion rate of ${Math.round(conversionRate * 100)}%! Your lead management skills are excellent.`,
+                    action: 'maintain_conversion',
+                    priority: 'LOW',
+                    metric: 'lead_conversion',
+                    currentValue: Math.round(conversionRate * 100),
+                    targetValue: 50
+                });
+            }
+
+            // Check lead response time
+            const leadsWithResponseTime = leads.filter(lead => 
+                lead.firstResponseTime && lead.createdAt
+            );
+            
+            if (leadsWithResponseTime.length > 0) {
+                const avgResponseTime = leadsWithResponseTime.reduce((sum, lead) => {
+                    const responseTime = (new Date(lead.firstResponseTime) - new Date(lead.createdAt)) / (1000 * 60); // minutes
+                    return sum + responseTime;
+                }, 0) / leadsWithResponseTime.length;
+
+                if (avgResponseTime > 60) { // More than 1 hour
+                    insights.push({
+                        type: 'warning',
+                        message: `Average lead response time is ${Math.round(avgResponseTime)} minutes. Faster responses typically improve conversion rates.`,
+                        action: 'improve_response_time',
+                        priority: 'MEDIUM',
+                        metric: 'response_time',
+                        currentValue: Math.round(avgResponseTime),
+                        targetValue: 30
+                    });
+                }
             }
         }
 
-        return insights;
+        // Performance insights based on recent activity
+        const recentTasks = tasks.filter(task => 
+            new Date(task.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+        );
+        
+        if (recentTasks.length === 0 && tasks.length > 0) {
+            insights.push({
+                type: 'info',
+                message: 'No new tasks assigned in the last 7 days. Consider reaching out to your coach for new assignments.',
+                action: 'request_tasks',
+                priority: 'LOW',
+                metric: 'recent_activity',
+                currentValue: 0,
+                targetValue: 1
+            });
+        }
+
+        // Sort insights by priority
+        const priorityOrder = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
+        insights.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]);
+
+        return insights.slice(0, 5); // Return top 5 insights
     }
 
     generateRecommendations(performance) {
         const recommendations = [];
         const scores = performance.scores;
 
+        // Task completion recommendations
         if (scores.taskCompletion < 80) {
             recommendations.push({
                 type: 'task_management',
-                title: 'Improve Task Completion',
-                description: 'Focus on completing tasks on time and maintaining quality standards',
-                priority: 'HIGH'
+                title: 'Improve Task Completion Rate',
+                description: `Your task completion rate is ${Math.round(scores.taskCompletion)}%. Focus on completing tasks on time and maintaining quality standards. Consider breaking down large tasks into smaller, manageable pieces.`,
+                priority: 'HIGH',
+                currentScore: Math.round(scores.taskCompletion),
+                targetScore: 80,
+                actionItems: [
+                    'Review your current task priorities',
+                    'Break down complex tasks into smaller steps',
+                    'Set realistic deadlines for each task',
+                    'Use time-blocking techniques'
+                ]
+            });
+        } else if (scores.taskCompletion >= 95) {
+            recommendations.push({
+                type: 'task_management',
+                title: 'Maintain Excellent Task Completion',
+                description: `Outstanding task completion rate of ${Math.round(scores.taskCompletion)}%! Continue your excellent work and consider mentoring other team members.`,
+                priority: 'LOW',
+                currentScore: Math.round(scores.taskCompletion),
+                targetScore: 80,
+                actionItems: [
+                    'Share your productivity techniques with the team',
+                    'Consider taking on additional responsibilities',
+                    'Mentor newer team members'
+                ]
             });
         }
 
+        // Quality recommendations
         if (scores.qualityRating < 75) {
             recommendations.push({
                 type: 'quality_improvement',
-                title: 'Enhance Quality',
-                description: 'Work on improving client satisfaction and task quality ratings',
-                priority: 'MEDIUM'
+                title: 'Enhance Quality Standards',
+                description: `Your quality rating is ${Math.round(scores.qualityRating)}%. Focus on improving client satisfaction and task quality ratings through better attention to detail and communication.`,
+                priority: 'MEDIUM',
+                currentScore: Math.round(scores.qualityRating),
+                targetScore: 85,
+                actionItems: [
+                    'Double-check work before submission',
+                    'Ask for feedback from clients and colleagues',
+                    'Improve communication clarity',
+                    'Follow up on completed tasks'
+                ]
             });
         }
 
+        // Efficiency recommendations
         if (scores.efficiency < 70) {
             recommendations.push({
                 type: 'efficiency',
-                title: 'Improve Efficiency',
-                description: 'Work on completing tasks within estimated timeframes',
-                priority: 'MEDIUM'
+                title: 'Improve Time Management',
+                description: `Your efficiency score is ${Math.round(scores.efficiency)}%. Work on completing tasks within estimated timeframes and improving your time management skills.`,
+                priority: 'MEDIUM',
+                currentScore: Math.round(scores.efficiency),
+                targetScore: 85,
+                actionItems: [
+                    'Improve time estimation skills',
+                    'Use productivity tools and techniques',
+                    'Minimize distractions during work',
+                    'Track time spent on different activities'
+                ]
             });
         }
 
-        return recommendations;
+        // Leadership recommendations
+        if (scores.leadership < 60) {
+            recommendations.push({
+                type: 'leadership',
+                title: 'Develop Leadership Skills',
+                description: `Your leadership score is ${Math.round(scores.leadership)}%. Consider taking initiative to help team members and contribute to team success.`,
+                priority: 'LOW',
+                currentScore: Math.round(scores.leadership),
+                targetScore: 70,
+                actionItems: [
+                    'Offer to help colleagues with their tasks',
+                    'Share knowledge and best practices',
+                    'Participate in team meetings and discussions',
+                    'Take on mentoring opportunities'
+                ]
+            });
+        }
+
+        // Innovation recommendations
+        if (scores.innovation < 50) {
+            recommendations.push({
+                type: 'innovation',
+                title: 'Contribute to Process Improvement',
+                description: `Your innovation score is ${Math.round(scores.innovation)}%. Consider suggesting process improvements and innovative solutions to enhance team productivity.`,
+                priority: 'LOW',
+                currentScore: Math.round(scores.innovation),
+                targetScore: 60,
+                actionItems: [
+                    'Identify bottlenecks in current processes',
+                    'Suggest automation opportunities',
+                    'Propose workflow improvements',
+                    'Share ideas in team meetings'
+                ]
+            });
+        }
+
+        // Overall performance recommendations
+        const overallScore = performance.scores.total;
+        if (overallScore < 70) {
+            recommendations.push({
+                type: 'overall_performance',
+                title: 'Focus on Overall Performance Improvement',
+                description: `Your overall performance score is ${Math.round(overallScore)}%. Focus on the areas with the lowest scores to improve your overall performance.`,
+                priority: 'HIGH',
+                currentScore: Math.round(overallScore),
+                targetScore: 80,
+                actionItems: [
+                    'Review your performance metrics regularly',
+                    'Set specific goals for improvement',
+                    'Seek feedback from your coach',
+                    'Create a personal development plan'
+                ]
+            });
+        } else if (overallScore >= 90) {
+            recommendations.push({
+                type: 'overall_performance',
+                title: 'Maintain Excellence and Grow',
+                description: `Excellent overall performance score of ${Math.round(overallScore)}%! Continue your outstanding work and consider taking on leadership roles or advanced responsibilities.`,
+                priority: 'LOW',
+                currentScore: Math.round(overallScore),
+                targetScore: 80,
+                actionItems: [
+                    'Consider leadership opportunities',
+                    'Mentor other team members',
+                    'Take on advanced projects',
+                    'Share your success strategies'
+                ]
+            });
+        }
+
+        // Sort recommendations by priority
+        const priorityOrder = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
+        recommendations.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]);
+
+        return recommendations.slice(0, 5); // Return top 5 recommendations
     }
 
     calculateAchievementProgress(achievements, allAchievements) {
         const earned = achievements.filter(a => a.earned).length;
         const total = Object.keys(allAchievements).length;
         
+        // Find the next closest achievement to earn
+        const nextAchievement = achievements.find(a => !a.earned && a.progress > 0);
+        
+        // Calculate progress towards next achievement
+        const nextProgress = nextAchievement ? nextAchievement.progress : 0;
+        
+        // Get recent achievements (earned in last 30 days)
+        const recentAchievements = achievements.filter(a => 
+            a.earned && a.earnedAt && 
+            new Date(a.earnedAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        );
+
         return {
             earned,
             total,
             percentage: Math.round((earned / total) * 100),
-            nextAchievement: achievements.find(a => !a.earned && a.progress > 50)
+            nextAchievement: nextAchievement ? {
+                key: nextAchievement.achievement,
+                name: allAchievements[nextAchievement.achievement]?.name || 'Unknown Achievement',
+                description: allAchievements[nextAchievement.achievement]?.description || 'Complete this achievement',
+                progress: Math.round(nextProgress),
+                threshold: allAchievements[nextAchievement.achievement]?.threshold || 0
+            } : null,
+            recentAchievements: recentAchievements.slice(0, 3),
+            achievementStats: {
+                totalEarned: earned,
+                totalAvailable: total,
+                completionRate: Math.round((earned / total) * 100),
+                recentCount: recentAchievements.length,
+                streak: this.calculateAchievementStreak(achievements)
+            }
         };
+    }
+
+    calculateAchievementStreak(achievements) {
+        // Calculate consecutive days with achievements
+        const earnedAchievements = achievements.filter(a => a.earned && a.earnedAt)
+            .sort((a, b) => new Date(b.earnedAt) - new Date(a.earnedAt));
+
+        if (earnedAchievements.length === 0) return 0;
+
+        let streak = 0;
+        let currentDate = new Date();
+        currentDate.setHours(0, 0, 0, 0);
+
+        for (const achievement of earnedAchievements) {
+            const achievementDate = new Date(achievement.earnedAt);
+            achievementDate.setHours(0, 0, 0, 0);
+
+            if (achievementDate.getTime() === currentDate.getTime()) {
+                streak++;
+                currentDate.setDate(currentDate.getDate() - 1);
+            } else {
+                break;
+            }
+        }
+
+        return streak;
     }
 
     // ===== ADDITIONAL METHODS FROM OTHER CONTROLLERS =====
@@ -1062,7 +1504,7 @@ class UnifiedStaffDashboardController {
      */
     async getNotifications(req, res) {
         try {
-            const staffId = req.user.id;
+            const staffId = req.userId || req.user.id;
             const notifications = await this.generateStaffNotifications(staffId);
             
             res.json({
@@ -1195,7 +1637,7 @@ class UnifiedStaffDashboardController {
                     });
                 }
                 // Staff can only create events for themselves
-                if (String(staffId) !== String(req.user.id)) {
+                if (String(staffId) !== String(req.userId || req.user.id)) {
                     return res.status(403).json({
                         success: false,
                         message: 'Staff can only create events for themselves'
@@ -1239,8 +1681,8 @@ class UnifiedStaffDashboardController {
                 isPublic,
                 reminder,
                 metadata: {
-                    createdBy: req.user.id,
-                    lastModifiedBy: req.user.id,
+                    createdBy: req.userId || req.user.id,
+                    lastModifiedBy: req.userId || req.user.id,
                     source: 'manual'
                 }
             });
@@ -1326,7 +1768,7 @@ class UnifiedStaffDashboardController {
             // Update metadata
             updates.metadata = {
                 ...event.metadata,
-                lastModifiedBy: req.user.id
+                lastModifiedBy: req.userId || req.user.id
             };
 
             const updatedEvent = await StaffCalendar.findByIdAndUpdate(
@@ -1422,7 +1864,7 @@ class UnifiedStaffDashboardController {
                     });
                 }
                 // Staff can only see their own availability
-                if (String(staffId) !== String(req.user.id)) {
+                if (String(staffId) !== String(req.userId || req.user.id)) {
                     return res.status(403).json({
                         success: false,
                         message: 'Staff can only view their own availability'
@@ -1488,8 +1930,8 @@ class UnifiedStaffDashboardController {
             }
 
             // Verify staff member exists and belongs to the coach
-            const staff = await Staff.findById(staffId);
-            if (!staff) {
+            const staff = await User.findById(staffId);
+            if (!staff || staff.role !== 'staff') {
                 return res.status(404).json({
                     success: false,
                     message: 'Staff member not found'
@@ -1552,8 +1994,8 @@ class UnifiedStaffDashboardController {
                 }
 
                 // Verify staff belongs to coach
-                const staff = await Staff.findById(staffId);
-                if (!staff || String(staff.coachId) !== String(req.user.coachId)) {
+                const staff = await User.findById(staffId);
+                if (!staff || staff.role !== 'staff' || String(staff.coachId) !== String(req.user.coachId)) {
                     return res.status(403).json({
                         success: false,
                         message: 'Access denied'
@@ -1561,7 +2003,7 @@ class UnifiedStaffDashboardController {
                 }
             } else if (req.user.role === 'staff') {
                 // Staff can only view their own appointments
-                if (String(staffId) !== String(req.user.id)) {
+                if (String(staffId) !== String(req.userId || req.user.id)) {
                     return res.status(403).json({
                         success: false,
                         message: 'You can only view your own appointments'
@@ -1615,100 +2057,93 @@ class UnifiedStaffDashboardController {
 
     /**
      * Get available staff members for appointment assignment
+     * @route GET /api/staff-dashboard/unified/appointments/available-staff
+     * @access Private (Staff)
      */
-    async getAvailableStaff(req, res) {
-        try {
-            const { appointmentDate, appointmentTime, duration = 30 } = req.query;
+    getAvailableStaff = asyncHandler(async (req, res) => {
+        const { appointmentDate, appointmentTime, duration = 30 } = req.query;
 
-            if (!appointmentDate || !appointmentTime) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'appointmentDate and appointmentTime are required'
-                });
-            }
+        if (!appointmentDate || !appointmentTime) {
+            return res.status(400).json({
+                success: false,
+                message: 'appointmentDate and appointmentTime are required'
+            });
+        }
 
-            // Verify coach permissions
-            if (req.user.role === 'coach' && !hasPermission(req.staffPermissions, 'calendar:read')) {
-                return res.status(403).json({
-                    success: false,
-                    message: 'Insufficient permissions to view staff availability'
-                });
-            }
+        // Verify coach permissions
+        if (req.user.role === 'coach' && !hasPermission(req.staffPermissions, 'calendar:read')) {
+            return res.status(403).json({
+                success: false,
+                message: 'Insufficient permissions to view staff availability'
+            });
+        }
 
-            const filterCoachId = (req.user.role === 'admin' || req.user.role === 'super_admin') && req.query.coachId ? req.query.coachId : req.user.coachId;
+        const filterCoachId = (req.user.role === 'admin' || req.user.role === 'super_admin') && req.query.coachId ? req.query.coachId : req.user.coachId;
 
-            // Get all active staff members
-            const staff = await Staff.find({ 
-                coachId: filterCoachId, 
-                isActive: true 
-            }).select('name email permissions');
+        // Get all active staff members
+        const staff = await User.find({ 
+            coachId: filterCoachId, 
+            role: 'staff',
+            isActive: { $ne: false }
+        }).select('name email permissions');
 
-            // Filter staff with calendar permissions
-            const availableStaff = staff.filter(member => 
-                hasPermission(member.permissions, 'calendar:read')
-            );
+        // Filter staff with calendar permissions
+        const availableStaff = staff.filter(member => 
+            hasPermission(member.permissions, 'calendar:read')
+        );
 
-            // If specific time is provided, check for conflicts
-            if (appointmentDate && appointmentTime) {
-                const appointmentStart = new Date(`${appointmentDate}T${appointmentTime}`);
-                const appointmentEnd = new Date(appointmentStart.getTime() + duration * 60000);
+        // If specific time is provided, check for conflicts
+        if (appointmentDate && appointmentTime) {
+            const appointmentStart = new Date(`${appointmentDate}T${appointmentTime}`);
+            const appointmentEnd = new Date(appointmentStart.getTime() + duration * 60000);
 
-                const availableWithConflicts = await Promise.all(
-                    availableStaff.map(async (member) => {
-                        // Check for conflicting appointments
-                        const conflicts = await Appointment.find({
-                            assignedStaffId: member._id,
-                            startTime: { $lt: appointmentEnd },
-                            $or: [
-                                { 
-                                    startTime: { $gte: appointmentStart },
-                                    startTime: { $lt: appointmentEnd }
-                                },
-                                {
-                                    startTime: { $lte: appointmentStart },
-                                    $expr: {
-                                        $gte: {
-                                            $add: ['$startTime', { $multiply: ['$duration', 60000] }],
-                                            appointmentStart
-                                        }
-                                    }
+            const availableWithConflicts = await Promise.all(
+                availableStaff.map(async (member) => {
+                    // Check for conflicting appointments
+                    const conflicts = await Appointment.find({
+                        assignedStaffId: member._id,
+                        $or: [
+                            { 
+                                startTime: { $gte: appointmentStart, $lt: appointmentEnd }
+                            },
+                            {
+                                startTime: { $lte: appointmentStart },
+                                $expr: {
+                                    $gte: [
+                                        { $add: ['$startTime', { $multiply: ['$duration', 60000] }] },
+                                        appointmentStart
+                                    ]
                                 }
-                            ],
-                            status: { $nin: ['cancelled'] }
-                        });
+                            }
+                        ],
+                        status: { $nin: ['cancelled'] }
+                    });
 
-                        return {
-                            ...member.toObject(),
-                            hasConflicts: conflicts.length > 0,
-                            conflictCount: conflicts.length
-                        };
-                    })
-                );
-
-                return res.status(200).json({
-                    success: true,
-                    data: availableWithConflicts,
-                    appointmentTime: {
-                        start: appointmentStart,
-                        end: appointmentEnd,
-                        duration
-                    }
-                });
-            }
+                    return {
+                        ...member.toObject(),
+                        hasConflicts: conflicts.length > 0,
+                        conflictCount: conflicts.length
+                    };
+                })
+            );
 
             return res.status(200).json({
                 success: true,
-                data: availableStaff
-            });
-
-        } catch (err) {
-            console.error('getAvailableStaff error:', err.message);
-            return res.status(500).json({
-                success: false,
-                message: 'Server Error'
+                data: availableWithConflicts,
+                appointmentTime: {
+                    start: appointmentStart,
+                    end: appointmentEnd,
+                    duration
+                }
             });
         }
-    }
+
+        return res.status(200).json({
+            success: true,
+            data: availableStaff
+        });
+
+    });
 
     /**
      * Unassign an appointment from staff
@@ -1768,7 +2203,7 @@ class UnifiedStaffDashboardController {
     async getStaffTasks(req, res) {
         try {
             const { status, priority, stage, page = 1, limit = 20 } = req.query;
-            const staffId = req.user.id;
+            const staffId = req.userId || req.user.id;
 
             const query = { assignedTo: staffId };
             
@@ -1823,7 +2258,7 @@ class UnifiedStaffDashboardController {
             }
 
             // Check if staff can access this task
-            if (req.user.role === 'staff' && String(task.assignedTo._id) !== String(req.user.id)) {
+            if (req.user.role === 'staff' && String(task.assignedTo._id) !== String(req.userId || req.user.id)) {
                 return res.status(403).json({
                     success: false,
                     message: 'Access denied'
@@ -1859,7 +2294,7 @@ class UnifiedStaffDashboardController {
             }
 
             // Check if staff can start this task
-            if (req.user.role === 'staff' && String(task.assignedTo) !== String(req.user.id)) {
+            if (req.user.role === 'staff' && String(task.assignedTo) !== String(req.userId || req.user.id)) {
                 return res.status(403).json({
                     success: false,
                     message: 'Access denied'
@@ -1902,7 +2337,7 @@ class UnifiedStaffDashboardController {
             }
 
             // Check if staff can pause this task
-            if (req.user.role === 'staff' && String(task.assignedTo) !== String(req.user.id)) {
+            if (req.user.role === 'staff' && String(task.assignedTo) !== String(req.userId || req.user.id)) {
                 return res.status(403).json({
                     success: false,
                     message: 'Access denied'
@@ -1953,7 +2388,7 @@ class UnifiedStaffDashboardController {
             }
 
             // Check if staff can comment on this task
-            if (req.user.role === 'staff' && String(task.assignedTo) !== String(req.user.id)) {
+            if (req.user.role === 'staff' && String(task.assignedTo) !== String(req.userId || req.user.id)) {
                 return res.status(403).json({
                     success: false,
                     message: 'Access denied'
@@ -1963,7 +2398,7 @@ class UnifiedStaffDashboardController {
             // Add comment
             if (!task.comments) task.comments = [];
             task.comments.push({
-                user: req.user.id,
+                user: req.userId || req.user.id,
                 userName: req.user.name,
                 comment: comment,
                 timestamp: new Date()
@@ -2009,7 +2444,7 @@ class UnifiedStaffDashboardController {
             }
 
             // Check if staff can log time to this task
-            if (req.user.role === 'staff' && String(task.assignedTo) !== String(req.user.id)) {
+            if (req.user.role === 'staff' && String(task.assignedTo) !== String(req.userId || req.user.id)) {
                 return res.status(403).json({
                     success: false,
                     message: 'Access denied'
@@ -2019,7 +2454,7 @@ class UnifiedStaffDashboardController {
             // Log time
             if (!task.timeLogs) task.timeLogs = [];
             task.timeLogs.push({
-                user: req.user.id,
+                user: req.userId || req.user.id,
                 userName: req.user.name,
                 hours: hours,
                 description: description,
@@ -2050,7 +2485,7 @@ class UnifiedStaffDashboardController {
      */
     async getMyTasks(req, res) {
         try {
-            const staffId = req.user.id;
+            const staffId = req.userId || req.user.id;
             const { timeRange = 30 } = req.query;
 
             const startDate = new Date();
@@ -2098,7 +2533,7 @@ class UnifiedStaffDashboardController {
      */
     async getOverdueTasks(req, res) {
         try {
-            const staffId = req.user.id;
+            const staffId = req.userId || req.user.id;
 
             const overdueTasks = await Task.find({
                 assignedTo: staffId,
@@ -2125,7 +2560,7 @@ class UnifiedStaffDashboardController {
      */
     async getUpcomingTasks(req, res) {
         try {
-            const staffId = req.user.id;
+            const staffId = req.userId || req.user.id;
             const { days = 7 } = req.query;
 
             const endDate = new Date();
@@ -2157,7 +2592,7 @@ class UnifiedStaffDashboardController {
     async bulkUpdateTasks(req, res) {
         try {
             const { taskIds, updates } = req.body;
-            const staffId = req.user.id;
+            const staffId = req.userId || req.user.id;
 
             if (!taskIds || !Array.isArray(taskIds) || taskIds.length === 0) {
                 return res.status(400).json({
@@ -2210,7 +2645,7 @@ class UnifiedStaffDashboardController {
     async getPerformanceMetrics(req, res) {
         try {
             const { timeRange = 30, includeDetails = false } = req.query;
-            const staffId = req.user.id;
+            const staffId = req.userId || req.user.id;
 
             const performance = await staffPerformanceService.calculateStaffPerformance(staffId, {
                 timeRange: parseInt(timeRange),
@@ -2261,7 +2696,7 @@ class UnifiedStaffDashboardController {
     async getPerformanceTrends(req, res) {
         try {
             const { period = 'monthly', months = 6 } = req.query;
-            const staffId = req.user.id;
+            const staffId = req.userId || req.user.id;
 
             const trends = await staffPerformanceService.getPerformanceTrends(
                 staffId, 
@@ -2297,7 +2732,7 @@ class UnifiedStaffDashboardController {
         
         if (req.user.role === 'staff') {
             // Staff can only access their own calendar
-            if (String(calendarDoc.staffId) === String(req.user.id)) return true;
+            if (String(calendarDoc.staffId) === String(req.userId || req.user.id)) return true;
         }
         
         const err = new Error('Access denied');
@@ -2325,6 +2760,460 @@ class UnifiedStaffDashboardController {
         err.statusCode = 403;
         throw err;
     }
+
+    // ===== REAL PERFORMANCE CALCULATION METHODS =====
+
+    /**
+     * Calculate real staff performance data from database
+     */
+    async calculateRealStaffPerformance(staffId, coachId, timeRange) {
+        console.log('🔍 [calculateRealStaffPerformance] Starting calculation');
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - timeRange);
+        console.log('🔍 [calculateRealStaffPerformance] Start date:', startDate);
+
+        // Get all tasks for this staff member
+        console.log('🔍 [calculateRealStaffPerformance] Fetching tasks...');
+        const tasks = await Task.find({
+            assignedTo: staffId,
+            coachId: coachId,
+            createdAt: { $gte: startDate }
+        });
+        console.log('🔍 [calculateRealStaffPerformance] Tasks found:', tasks.length);
+
+        // Get leads handled by this staff member
+        console.log('🔍 [calculateRealStaffPerformance] Fetching leads...');
+        const leads = await Lead.find({
+            assignedTo: staffId,
+            coachId: coachId,
+            createdAt: { $gte: startDate }
+        });
+        console.log('🔍 [calculateRealStaffPerformance] Leads found:', leads.length);
+
+        // Calculate task completion score
+        const completedTasks = tasks.filter(task => task.status === 'Completed');
+        const onTimeTasks = completedTasks.filter(task => 
+            task.completedAt && task.completedAt <= task.dueDate
+        );
+        const taskCompletionScore = completedTasks.length > 0 ? 
+            (onTimeTasks.length / completedTasks.length) * 100 : 0;
+
+        // Calculate quality rating
+        const qualityScore = await this.calculateRealQualityScore(tasks, leads);
+
+        // Calculate efficiency score
+        const efficiencyScore = await this.calculateRealEfficiencyScore(tasks);
+
+        // Calculate lead conversion score
+        const convertedLeads = leads.filter(lead => lead.status === 'Converted');
+        const leadConversionScore = leads.length > 0 ? 
+            (convertedLeads.length / leads.length) * 100 : 0;
+
+        // Calculate response time score
+        const responseTimeScore = await this.calculateRealResponseTimeScore(leads);
+
+        // Calculate leadership score
+        const leadershipScore = await this.calculateRealLeadershipScore(staffId, coachId, startDate);
+
+        // Calculate innovation score
+        const innovationScore = await this.calculateRealInnovationScore(staffId, coachId, startDate);
+
+        // Calculate total score using weights
+        const weights = {
+            taskCompletion: 0.35,
+            qualityRating: 0.25,
+            efficiency: 0.20,
+            leadConversion: 0.10,
+            responseTime: 0.05,
+            leadership: 0.03,
+            innovation: 0.02
+        };
+
+        const totalScore = 
+            (taskCompletionScore * weights.taskCompletion) +
+            (qualityScore * weights.qualityRating) +
+            (efficiencyScore * weights.efficiency) +
+            (leadConversionScore * weights.leadConversion) +
+            (responseTimeScore * weights.responseTime) +
+            (leadershipScore * weights.leadership) +
+            (innovationScore * weights.innovation);
+
+        return {
+            scores: {
+                total: Math.round(totalScore),
+                taskCompletion: Math.round(taskCompletionScore),
+                qualityRating: Math.round(qualityScore),
+                efficiency: Math.round(efficiencyScore),
+                leadConversion: Math.round(leadConversionScore),
+                responseTime: Math.round(responseTimeScore),
+                leadership: Math.round(leadershipScore),
+                innovation: Math.round(innovationScore)
+            },
+            metrics: {
+                taskMetrics: {
+                    totalTasks: tasks.length,
+                    completedTasks: completedTasks.length,
+                    onTimeTasks: onTimeTasks.length,
+                    overdueTasks: tasks.filter(task => 
+                        task.status !== 'Completed' && 
+                        task.dueDate && 
+                        new Date(task.dueDate) < new Date()
+                    ).length
+                },
+                leadMetrics: {
+                    totalLeads: leads.length,
+                    convertedLeads: convertedLeads.length,
+                    conversionRate: Math.round(leadConversionScore)
+                },
+                qualityMetrics: {
+                    averageQuality: Math.round(qualityScore),
+                    tasksWithQuality: tasks.filter(task => task.qualityRating).length
+                },
+                efficiencyMetrics: {
+                    averageEfficiency: Math.round(efficiencyScore),
+                    tasksWithTimeTracking: tasks.filter(task => 
+                        task.estimatedHours && task.actualHours
+                    ).length
+                },
+                responseMetrics: {
+                    averageResponseTime: Math.round(responseTimeScore),
+                    leadsWithResponseTime: leads.filter(lead => 
+                        lead.firstResponseTime && lead.createdAt
+                    ).length
+                }
+            },
+            progress: await this.calculateRealProgress(staffId, coachId, timeRange, {
+                scores: {
+                    taskCompletion: taskCompletionScore,
+                    leadConversion: leadConversionScore,
+                    total: totalScore
+                }
+            })
+        };
+    }
+
+    /**
+     * Calculate real quality score from task ratings and lead feedback
+     */
+    async calculateRealQualityScore(tasks, leads) {
+        let totalQuality = 0;
+        let qualityCount = 0;
+
+        // Get quality from task ratings
+        const tasksWithQuality = tasks.filter(task => task.qualityRating);
+        if (tasksWithQuality.length > 0) {
+            const avgTaskQuality = tasksWithQuality.reduce((sum, task) => sum + task.qualityRating, 0) / tasksWithQuality.length;
+            totalQuality += avgTaskQuality * 10; // Convert 1-10 scale to 0-100
+            qualityCount++;
+        }
+
+        // Get quality from lead feedback (if available)
+        const leadsWithFeedback = leads.filter(lead => lead.satisfactionRating);
+        if (leadsWithFeedback.length > 0) {
+            const avgLeadQuality = leadsWithFeedback.reduce((sum, lead) => sum + lead.satisfactionRating, 0) / leadsWithFeedback.length;
+            totalQuality += avgLeadQuality * 10; // Convert 1-10 scale to 0-100
+            qualityCount++;
+        }
+
+        return qualityCount > 0 ? totalQuality / qualityCount : 75; // Default to 75 if no data
+    }
+
+    /**
+     * Calculate real efficiency score from time tracking
+     */
+    async calculateRealEfficiencyScore(tasks) {
+        const tasksWithTime = tasks.filter(task => 
+            task.status === 'Completed' && 
+            task.estimatedHours && 
+            task.actualHours
+        );
+
+        if (tasksWithTime.length === 0) return 80; // Default if no time data
+
+        const efficiencyScores = tasksWithTime.map(task => {
+            const efficiency = (task.estimatedHours / task.actualHours) * 100;
+            return Math.min(efficiency, 200); // Cap at 200%
+        });
+
+        const avgEfficiency = efficiencyScores.reduce((sum, score) => sum + score, 0) / efficiencyScores.length;
+        return Math.min(avgEfficiency, 100); // Cap at 100%
+    }
+
+    /**
+     * Calculate real response time score
+     */
+    async calculateRealResponseTimeScore(leads) {
+        const leadsWithResponseTime = leads.filter(lead => 
+            lead.firstResponseTime && lead.createdAt
+        );
+
+        if (leadsWithResponseTime.length === 0) return 85; // Default if no response time data
+
+        const responseTimes = leadsWithResponseTime.map(lead => {
+            const responseTimeMinutes = (new Date(lead.firstResponseTime) - new Date(lead.createdAt)) / (1000 * 60);
+            return responseTimeMinutes;
+        });
+
+        const avgResponseTime = responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length;
+        
+        // Score based on response time (lower is better)
+        // 0-30 minutes = 100, 30-60 minutes = 90, 60-120 minutes = 80, etc.
+        if (avgResponseTime <= 30) return 100;
+        if (avgResponseTime <= 60) return 90;
+        if (avgResponseTime <= 120) return 80;
+        if (avgResponseTime <= 240) return 70;
+        if (avgResponseTime <= 480) return 60;
+        return Math.max(50, 100 - (avgResponseTime / 10)); // Minimum 50
+    }
+
+    /**
+     * Calculate real leadership score
+     */
+    async calculateRealLeadershipScore(staffId, coachId, startDate) {
+        // This would be based on helping other staff members, mentoring, etc.
+        // For now, return a base score that could be enhanced with more data
+        const helpingTasks = await Task.find({
+            createdBy: staffId,
+            assignedTo: { $ne: staffId },
+            createdAt: { $gte: startDate }
+        });
+
+        const leadershipScore = Math.min(100, helpingTasks.length * 10); // 10 points per helping task
+        return leadershipScore;
+    }
+
+    /**
+     * Calculate real innovation score
+     */
+    async calculateRealInnovationScore(staffId, coachId, startDate) {
+        // This would be based on process improvements, suggestions, etc.
+        // For now, return a base score that could be enhanced with more data
+        const innovativeTasks = await Task.find({
+            assignedTo: staffId,
+            tags: { $in: ['innovation', 'improvement', 'optimization'] },
+            createdAt: { $gte: startDate }
+        });
+
+        const innovationScore = Math.min(100, innovativeTasks.length * 15); // 15 points per innovative task
+        return innovationScore;
+    }
+
+    /**
+     * Calculate real progress over time
+     */
+    async calculateRealProgress(staffId, coachId, timeRange, currentPerformance = null) {
+        // If currentPerformance is not provided, calculate it separately to avoid infinite loop
+        if (!currentPerformance) {
+            currentPerformance = await this.calculateRealStaffPerformance(staffId, coachId, timeRange);
+        }
+        
+        // Calculate previous period performance for comparison
+        const previousStartDate = new Date();
+        previousStartDate.setDate(previousStartDate.getDate() - (timeRange * 2));
+        const previousEndDate = new Date();
+        previousEndDate.setDate(previousEndDate.getDate() - timeRange);
+
+        const previousTasks = await Task.find({
+            assignedTo: staffId,
+            coachId: coachId,
+            createdAt: { $gte: previousStartDate, $lt: previousEndDate }
+        });
+
+        const previousLeads = await Lead.find({
+            assignedTo: staffId,
+            coachId: coachId,
+            createdAt: { $gte: previousStartDate, $lt: previousEndDate }
+        });
+
+        const previousCompletedTasks = previousTasks.filter(task => task.status === 'Completed');
+        const previousConvertedLeads = previousLeads.filter(lead => lead.status === 'Converted');
+
+        const previousTaskCompletion = previousTasks.length > 0 ? 
+            (previousCompletedTasks.length / previousTasks.length) * 100 : 0;
+        const previousLeadConversion = previousLeads.length > 0 ? 
+            (previousConvertedLeads.length / previousLeads.length) * 100 : 0;
+
+        return {
+            taskCompletion: {
+                current: currentPerformance.scores.taskCompletion,
+                previous: Math.round(previousTaskCompletion),
+                change: currentPerformance.scores.taskCompletion - Math.round(previousTaskCompletion),
+                trend: currentPerformance.scores.taskCompletion > Math.round(previousTaskCompletion) ? 'up' : 'down'
+            },
+            leadConversion: {
+                current: currentPerformance.scores.leadConversion,
+                previous: Math.round(previousLeadConversion),
+                change: currentPerformance.scores.leadConversion - Math.round(previousLeadConversion),
+                trend: currentPerformance.scores.leadConversion > Math.round(previousLeadConversion) ? 'up' : 'down'
+            },
+            overall: {
+                current: currentPerformance.scores.total,
+                previous: Math.round((previousTaskCompletion + previousLeadConversion) / 2),
+                change: currentPerformance.scores.total - Math.round((previousTaskCompletion + previousLeadConversion) / 2),
+                trend: currentPerformance.scores.total > Math.round((previousTaskCompletion + previousLeadConversion) / 2) ? 'up' : 'down'
+            }
+        };
+    }
+
+    // ===== ADDITIONAL MISSING METHODS =====
+
+    /**
+     * Get notifications endpoint
+     * @route GET /api/staff-dashboard/unified/notifications
+     * @access Private (Staff)
+     */
+    getNotifications = asyncHandler(async (req, res) => {
+        const staffId = req.staffInfo.staffId;
+        const notifications = await this.getNotificationsData(staffId, 30);
+
+        res.json({
+            success: true,
+            data: notifications
+        });
+    });
+
+    /**
+     * Get performance metrics endpoint
+     * @route GET /api/staff-dashboard/unified/performance/metrics
+     * @access Private (Staff)
+     */
+    getPerformanceMetrics = asyncHandler(async (req, res) => {
+        console.log('🔍 [getPerformanceMetrics] Controller method called');
+        const { timeRange = 30, includeDetails = false } = req.query;
+        const staffId = req.staffInfo.staffId;
+        const coachId = req.staffInfo.coachId;
+        console.log('🔍 [getPerformanceMetrics] Staff ID:', staffId, 'Coach ID:', coachId);
+
+        // Calculate real performance data
+        const performance = await this.calculateRealStaffPerformance(staffId, coachId, parseInt(timeRange));
+
+        const metrics = {
+            currentScore: performance.scores.total,
+            scoreBreakdown: performance.scores,
+            metrics: performance.metrics,
+            timeRange: parseInt(timeRange),
+            includeDetails: includeDetails === 'true',
+            lastUpdated: new Date().toISOString()
+        };
+
+        if (includeDetails === 'true') {
+            metrics.detailedMetrics = {
+                taskCompletion: {
+                    score: performance.scores.taskCompletion,
+                    breakdown: performance.metrics.taskMetrics
+                },
+                qualityRating: {
+                    score: performance.scores.qualityRating,
+                    breakdown: performance.metrics.qualityMetrics
+                },
+                efficiency: {
+                    score: performance.scores.efficiency,
+                    breakdown: performance.metrics.efficiencyMetrics
+                },
+                leadConversion: {
+                    score: performance.scores.leadConversion,
+                    breakdown: performance.metrics.leadMetrics
+                },
+                responseTime: {
+                    score: performance.scores.responseTime,
+                    breakdown: performance.metrics.responseMetrics
+                }
+            };
+        }
+
+        res.json({
+            success: true,
+            data: metrics
+        });
+    });
+
+    /**
+     * Get performance comparison endpoint
+     * @route GET /api/staff-dashboard/unified/performance/comparison
+     * @access Private (Staff)
+     */
+    getPerformanceComparison = asyncHandler(async (req, res) => {
+        const { timeRange = 30 } = req.query;
+        const staffId = req.staffInfo.staffId;
+        const coachId = req.staffInfo.coachId;
+
+        // Get all staff members for this coach
+        const allStaff = await User.find({ 
+            coachId: coachId, 
+            role: 'staff',
+            isActive: { $ne: false }
+        });
+
+        // Calculate performance for all staff members
+        const staffPerformances = await Promise.all(
+            allStaff.map(async (staff) => {
+                const performance = await this.calculateRealStaffPerformance(staff._id, coachId, parseInt(timeRange));
+                return {
+                    staffId: staff._id,
+                    name: staff.name,
+                    email: staff.email,
+                    totalScore: performance.scores.total,
+                    scores: performance.scores,
+                    metrics: performance.metrics
+                };
+            })
+        );
+
+        // Sort by total score
+        staffPerformances.sort((a, b) => b.totalScore - a.totalScore);
+
+        // Find current staff position
+        const currentStaffIndex = staffPerformances.findIndex(staff => 
+            staff.staffId.toString() === staffId.toString()
+        );
+        const currentStaff = staffPerformances[currentStaffIndex] || null;
+
+        // Calculate team statistics
+        const teamScores = staffPerformances.map(staff => staff.totalScore);
+        const teamAverage = teamScores.reduce((sum, score) => sum + score, 0) / teamScores.length;
+        const teamMedian = teamScores.length > 0 ? 
+            teamScores[Math.floor(teamScores.length / 2)] : 0;
+
+        const comparison = {
+            currentStaff: currentStaff,
+            currentPosition: currentStaffIndex + 1,
+            teamAverage: Math.round(teamAverage),
+            teamMedian: Math.round(teamMedian),
+            percentile: currentStaffIndex >= 0 ? 
+                Math.round(((staffPerformances.length - currentStaffIndex) / staffPerformances.length) * 100) : 0,
+            topPerformers: staffPerformances.slice(0, 3),
+            teamSize: staffPerformances.length,
+            timeRange: parseInt(timeRange),
+            lastUpdated: new Date().toISOString()
+        };
+
+        res.json({
+            success: true,
+            data: comparison
+        });
+    });
+
+    /**
+     * Get performance trends endpoint
+     * @route GET /api/staff-dashboard/unified/performance/trends
+     * @access Private (Staff)
+     */
+    getPerformanceTrends = asyncHandler(async (req, res) => {
+        const { period = 'monthly', months = 6 } = req.query;
+        const staffId = req.staffInfo.staffId;
+
+        const trends = await this.calculateTrends(staffId, parseInt(months) * 30);
+
+        res.json({
+            success: true,
+            data: {
+                trends,
+                period,
+                months: parseInt(months),
+                generatedAt: new Date().toISOString()
+            }
+        });
+    });
 }
 
 module.exports = new UnifiedStaffDashboardController();

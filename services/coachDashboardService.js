@@ -1,4 +1,4 @@
-const { Lead, Task, AdCampaign, Payment, Staff, Coach, Appointment } = require('../schema');
+const { Lead, Task, AdCampaign, RazorpayPayment, Staff, Coach, Appointment } = require('../schema');
 const dailyPriorityFeedService = require('./dailyPriorityFeedService');
 const staffLeaderboardService = require('./staffLeaderboardService');
 const aiAdsAgentService = require('./aiAdsAgentService');
@@ -68,7 +68,7 @@ class CoachDashboardService {
     async getOverviewData(coachId, startDate) {
         const leads = await Lead.find({ coachId, createdAt: { $gte: startDate } });
         const tasks = await Task.find({ coachId, createdAt: { $gte: startDate } });
-        const payments = await Payment.find({ coachId, createdAt: { $gte: startDate } });
+        const payments = await RazorpayPayment.find({ coachId, createdAt: { $gte: startDate } });
         const appointments = await Appointment.find({ coachId, startTime: { $gte: startDate } }); // NEW: Added appointments
 
         const totalLeads = leads.length;
@@ -289,7 +289,7 @@ class CoachDashboardService {
     }
 
     async getFinancialData(coachId, startDate, timeRange) {
-        const payments = await Payment.find({ coachId, createdAt: { $gte: startDate } });
+        const payments = await RazorpayPayment.find({ coachId, createdAt: { $gte: startDate } });
 
         // Revenue by month
         const revenueByMonth = {};
@@ -437,7 +437,7 @@ class CoachDashboardService {
                 createdAt: { $gte: dayStart, $lte: dayEnd }
             });
 
-            const payments = await Payment.find({
+            const payments = await RazorpayPayment.find({
                 coachId,
                 createdAt: { $gte: dayStart, $lte: dayEnd }
             });
@@ -464,7 +464,7 @@ class CoachDashboardService {
     async calculateKPIs(coachId, startDate) {
         const leads = await Lead.find({ coachId, createdAt: { $gte: startDate } });
         const tasks = await Task.find({ coachId, createdAt: { $gte: startDate } });
-        const payments = await Payment.find({ coachId, createdAt: { $gte: startDate } });
+        const payments = await RazorpayPayment.find({ coachId, createdAt: { $gte: startDate } });
         const appointments = await Appointment.find({ coachId, startTime: { $gte: startDate } }); // NEW: Added appointments
 
         const totalLeads = leads.length;
@@ -635,7 +635,7 @@ class CoachDashboardService {
     }
 
     async getRevenueChartData(coachId) {
-        const payments = await Payment.find({ coachId });
+        const payments = await RazorpayPayment.find({ coachId });
         const monthlyData = {};
 
         payments.forEach(payment => {
