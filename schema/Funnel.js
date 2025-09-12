@@ -106,7 +106,7 @@ const stageSchema = new mongoose.Schema({
 const funnelSchema = new mongoose.Schema({
     coachId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Coach',
+        ref: 'User',
         required: true
     },
     name: {

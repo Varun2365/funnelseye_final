@@ -42,7 +42,7 @@ const TaskSchema = new mongoose.Schema({
     },
     coachId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Coach',
+        ref: 'User',
         required: [true, 'A task must belong to a coach.']
     },
     estimatedHours: {
@@ -67,7 +67,7 @@ const TaskSchema = new mongoose.Schema({
     comments: [{
         user: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Coach'
+            ref: 'User'
         },
         content: String,
         createdAt: {
@@ -91,7 +91,7 @@ const TaskSchema = new mongoose.Schema({
     timeLogs: [{
         user: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Coach'
+            ref: 'User'
         },
         startTime: Date,
         endTime: Date,

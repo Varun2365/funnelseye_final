@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const messageTemplateSchema = new mongoose.Schema({
     coachId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Coach',
+        ref: 'User',
         required: true
     },
     

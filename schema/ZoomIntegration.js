@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const zoomIntegrationSchema = new mongoose.Schema({
     coachId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Coach',
+        ref: 'User',
         required: true,
         unique: true
     },

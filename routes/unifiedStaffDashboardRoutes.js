@@ -354,6 +354,15 @@ router.get('/appointments/available-staff', authorizeStaff('staff'), unifiedStaf
  */
 router.put('/appointments/:appointmentId/unassign', authorizeStaff('staff'), unifiedStaffDashboardController.unassignAppointment);
 
+/**
+ * @route PUT /api/staff-dashboard/unified/appointments/transfer
+ * @desc Transfer appointment between staff members
+ * @access Private (Coach/Staff)
+ * @body { appointmentId, fromStaffId, toStaffId, reason?, notes?, transferDate? }
+ * @example PUT /api/staff-dashboard/unified/appointments/transfer
+ */
+router.put('/appointments/transfer', authorizeStaff('staff'), unifiedStaffDashboardController.transferAppointmentBetweenStaff);
+
 // ===== PERFORMANCE & ANALYTICS ADDITIONAL ENDPOINTS =====
 
 /**

@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const coachMarketingCredentialsSchema = new mongoose.Schema({
     coachId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Coach',
+        ref: 'User',
         required: true,
         unique: true,
         index: true

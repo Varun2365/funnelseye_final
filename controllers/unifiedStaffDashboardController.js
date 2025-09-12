@@ -529,7 +529,7 @@ class UnifiedStaffDashboardController {
         const skip = (page - 1) * limit;
         const tasks = await Task.find(query)
             .populate('relatedLead', 'name email phone status')
-            .populate('coachId', 'name email')
+            .populate('coachId', 'name email role')
             .sort({ dueDate: 1 })
             .skip(skip)
             .limit(parseInt(limit));
@@ -631,7 +631,7 @@ class UnifiedStaffDashboardController {
 
         const populatedTask = await Task.findById(id)
             .populate('relatedLead', 'name email phone status')
-            .populate('coachId', 'name email');
+            .populate('coachId', 'name email role');
 
         res.json({
             success: true,
@@ -707,7 +707,7 @@ class UnifiedStaffDashboardController {
 
         const populatedTask = await Task.findById(id)
             .populate('relatedLead', 'name email phone status')
-            .populate('coachId', 'name email');
+            .populate('coachId', 'name email role');
 
         res.json({
             success: true,
@@ -1707,7 +1707,7 @@ class UnifiedStaffDashboardController {
      */
     async updateCalendarEvent(req, res) {
         try {
-            const event = await StaffCalendar.findById(req.params.id);
+            const event = await StaffCalendar.findById(req.params.eventId);
             if (!event) {
                 return res.status(404).json({
                     success: false,
@@ -1803,7 +1803,7 @@ class UnifiedStaffDashboardController {
      */
     async deleteCalendarEvent(req, res) {
         try {
-            const event = await StaffCalendar.findById(req.params.id);
+            const event = await StaffCalendar.findById(req.params.eventId);
             if (!event) {
                 return res.status(404).json({
                     success: false,
@@ -2028,7 +2028,7 @@ class UnifiedStaffDashboardController {
             const skip = (page - 1) * limit;
             const appointments = await Appointment.find(query)
                 .populate('leadId', 'name email phone')
-                .populate('coachId', 'name email')
+                .populate('coachId', 'name email role')
                 .sort({ startTime: 1 })
                 .skip(skip)
                 .limit(parseInt(limit));
@@ -2178,7 +2178,7 @@ class UnifiedStaffDashboardController {
 
             const populatedAppointment = await Appointment.findById(appointmentId)
                 .populate('leadId', 'name email phone')
-                .populate('coachId', 'name email');
+                .populate('coachId', 'name email role');
 
             return res.status(200).json({
                 success: true,
@@ -2188,6 +2188,163 @@ class UnifiedStaffDashboardController {
 
         } catch (err) {
             console.error('unassignAppointment error:', err.message);
+            return res.status(err.statusCode || 500).json({
+                success: false,
+                message: err.message || 'Server Error'
+            });
+        }
+    }
+
+    /**
+     * Transfer an appointment from one staff member to another
+     */
+    async transferAppointmentBetweenStaff(req, res) {
+        try {
+            const { appointmentId, fromStaffId, toStaffId, reason, notes, transferDate } = req.body;
+            
+            if (!appointmentId || !fromStaffId || !toStaffId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'appointmentId, fromStaffId, and toStaffId are required'
+                });
+            }
+
+            // Verify coach has permission to transfer appointments
+            if (req.user.role === 'coach' && !hasPermission(req.staffPermissions, 'calendar:manage')) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Insufficient permissions to transfer appointments'
+                });
+            }
+
+            // Get the appointment
+            const appointment = await Appointment.findById(appointmentId);
+            if (!appointment) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Appointment not found'
+                });
+            }
+
+            // Ensure proper access
+            this.ensureAppointmentAccess(req, appointment);
+
+            // Verify the appointment is currently assigned to fromStaffId
+            if (appointment.assignedStaffId && appointment.assignedStaffId.toString() !== fromStaffId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Appointment is not currently assigned to the specified staff member'
+                });
+            }
+
+            // Verify both staff members exist and belong to the same coach
+            const [fromStaff, toStaff] = await Promise.all([
+                User.findById(fromStaffId),
+                User.findById(toStaffId)
+            ]);
+
+            if (!fromStaff || fromStaff.role !== 'staff') {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Source staff member not found'
+                });
+            }
+
+            if (!toStaff || toStaff.role !== 'staff') {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Target staff member not found'
+                });
+            }
+
+            // Verify both staff belong to the same coach
+            if (fromStaff.coachId.toString() !== toStaff.coachId.toString()) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Cannot transfer appointment between staff from different coaches'
+                });
+            }
+
+            // Check if target staff is available at the appointment time
+            const appointmentStart = new Date(appointment.startTime);
+            const appointmentEnd = new Date(appointmentStart.getTime() + appointment.duration * 60000);
+
+            const conflictingAppointments = await Appointment.find({
+                assignedStaffId: toStaffId,
+                _id: { $ne: appointmentId },
+                startTime: { $lt: appointmentEnd },
+                $expr: {
+                    $gte: [
+                        { $add: ["$startTime", { $multiply: ["$duration", 60000] }] },
+                        appointmentStart
+                    ]
+                }
+            });
+
+            if (conflictingAppointments.length > 0) {
+                return res.status(409).json({
+                    success: false,
+                    message: 'Target staff member has conflicting appointments at this time',
+                    conflictingAppointments: conflictingAppointments.map(apt => ({
+                        id: apt._id,
+                        startTime: apt.startTime,
+                        duration: apt.duration,
+                        summary: apt.summary
+                    }))
+                });
+            }
+
+            // Update the appointment
+            appointment.assignedStaffId = toStaffId;
+            appointment.updatedAt = new Date();
+
+            // Add transfer history
+            if (!appointment.transferHistory) {
+                appointment.transferHistory = [];
+            }
+
+            appointment.transferHistory.push({
+                fromStaffId: fromStaffId,
+                toStaffId: toStaffId,
+                transferredBy: req.userId || req.user.id,
+                transferDate: transferDate || new Date(),
+                reason: reason || 'No reason provided',
+                notes: notes || 'No notes provided'
+            });
+
+            await appointment.save();
+
+            // Populate the appointment with staff details
+            const populatedAppointment = await Appointment.findById(appointmentId)
+                .populate('assignedStaffId', 'name email role')
+                .populate('leadId', 'name email phone')
+                .populate('coachId', 'name email role');
+
+            res.json({
+                success: true,
+                message: 'Appointment transferred successfully',
+                data: {
+                    appointment: populatedAppointment,
+                    transferDetails: {
+                        fromStaff: {
+                            id: fromStaff._id,
+                            name: fromStaff.name,
+                            email: fromStaff.email
+                        },
+                        toStaff: {
+                            id: toStaff._id,
+                            name: toStaff.name,
+                            email: toStaff.email
+                        },
+                        transferDate: transferDate || new Date(),
+                        reason: reason || 'No reason provided',
+                        notes: notes || 'No notes provided'
+                    }
+                }
+            });
+
+        } catch (err) {
+            console.error('transferAppointmentBetweenStaff error:', err.message);
             return res.status(err.statusCode || 500).json({
                 success: false,
                 message: err.message || 'Server Error'
@@ -2245,7 +2402,7 @@ class UnifiedStaffDashboardController {
      */
     async getStaffTask(req, res) {
         try {
-            const task = await Task.findById(req.params.id)
+            const task = await Task.findById(req.params.taskId)
                 .populate('relatedLead', 'name email phone status')
                 .populate('assignedTo', 'name email')
                 .populate('createdBy', 'name email');
@@ -2283,7 +2440,7 @@ class UnifiedStaffDashboardController {
      */
     async startTask(req, res) {
         try {
-            const taskId = req.params.id;
+            const taskId = req.params.taskId;
 
             const task = await Task.findById(taskId);
             if (!task) {
@@ -2302,7 +2459,7 @@ class UnifiedStaffDashboardController {
             }
 
             // Start task
-            task.status = 'in_progress';
+            task.status = 'In Progress';
             task.startedAt = new Date();
 
             await task.save();
@@ -2326,7 +2483,7 @@ class UnifiedStaffDashboardController {
      */
     async pauseTask(req, res) {
         try {
-            const taskId = req.params.id;
+            const taskId = req.params.taskId;
 
             const task = await Task.findById(taskId);
             if (!task) {
@@ -2345,7 +2502,7 @@ class UnifiedStaffDashboardController {
             }
 
             // Pause task
-            task.status = 'paused';
+            task.status = 'Paused';
             task.pausedAt = new Date();
 
             await task.save();
@@ -2370,7 +2527,7 @@ class UnifiedStaffDashboardController {
     async addTaskComment(req, res) {
         try {
             const { comment } = req.body;
-            const taskId = req.params.id;
+            const taskId = req.params.taskId;
 
             if (!comment) {
                 return res.status(400).json({
@@ -2426,7 +2583,7 @@ class UnifiedStaffDashboardController {
     async logTaskTime(req, res) {
         try {
             const { hours, description } = req.body;
-            const taskId = req.params.id;
+            const taskId = req.params.taskId;
 
             if (!hours || hours <= 0) {
                 return res.status(400).json({

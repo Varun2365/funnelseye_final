@@ -65,6 +65,11 @@
 			"key": "calendar_event_id",
 			"value": "",
 			"type": "string"
+		},
+		{
+			"key": "transfer_staff_id",
+			"value": "",
+			"type": "string"
 		}
 	],
 	"item": [
@@ -1062,6 +1067,27 @@
 									"raw": "{{base_url}}/api/staff-dashboard/unified/appointments/{{appointment_id}}/unassign",
 									"host": ["{{base_url}}"],
 									"path": ["api", "staff-dashboard", "unified", "appointments", "{{appointment_id}}", "unassign"]
+								}
+							}
+						},
+						{
+							"name": "Transfer Appointment Between Staff",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"appointmentId\": \"{{appointment_id}}\",\n    \"fromStaffId\": \"{{staff_id}}\",\n    \"toStaffId\": \"{{transfer_staff_id}}\",\n    \"reason\": \"Workload redistribution\",\n    \"notes\": \"Transferring appointment due to schedule conflict\",\n    \"transferDate\": \"2024-01-20T10:00:00Z\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/staff-dashboard/unified/appointments/transfer",
+									"host": ["{{base_url}}"],
+									"path": ["api", "staff-dashboard", "unified", "appointments", "transfer"]
 								}
 							}
 						}
