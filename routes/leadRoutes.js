@@ -14,7 +14,8 @@ const {
     getNurturingProgress,
     aiQualifyLead,
     generateNurturingSequence,
-    generateFollowUpMessage
+    generateFollowUpMessage,
+    submitQuestionResponses
 } = require('../controllers/leadController');
 
 const { protect, authorizeCoach } = require('../middleware/auth');
@@ -24,6 +25,9 @@ const router = express.Router();
 
 // --- Public Route for creating a Lead ---
 router.route('/').post(createLead);
+
+// --- PUBLIC ROUTE: Submit Question Responses (No Auth Required) ---
+router.post('/question-responses', submitQuestionResponses);
 
 // --- All Subsequent Routes require Authentication ---
 router.use(protect, updateLastActive, authorizeCoach());

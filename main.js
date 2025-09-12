@@ -46,6 +46,7 @@ const workflowRoutes = require('./routes/workflowRoutes');
 const staffLeaderboardRoutes = require('./routes/staffLeaderboardRoutes');
 const coachDashboardRoutes = require('./routes/coachDashboardRoutes');
 const staffDashboardRoutes = require('./routes/staffDashboardRoutes');
+const unifiedStaffDashboardRoutes = require('./routes/unifiedStaffDashboardRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const subscriptionManagementTask = require('./tasks/subscriptionManagement');
 const coachPaymentRoutes = require('./routes/coachPaymentRoutes');
@@ -268,6 +269,9 @@ app.use('/whatsapp', express.static(path.join(__dirname, 'whatsapp/public')));
 
 // ===== STAFF & TEAM MANAGEMENT =====
 app.use('/api/staff', staffRoutes);
+// Unified Staff Dashboard - replaces individual staff dashboard routes
+app.use('/api/staff-dashboard/unified', unifiedStaffDashboardRoutes);
+// Legacy staff routes (kept for backward compatibility)
 app.use('/api/staff-dashboard', staffDashboardRoutes);
 app.use('/api/staff-leaderboard', staffLeaderboardRoutes);
 app.use('/api/staff-calendar', staffCalendarRoutes);
@@ -298,9 +302,13 @@ const newAdminMlmRoutes = require('./routes/adminMlmRoutes');
 const newAdminFinancialRoutes = require('./routes/adminFinancialRoutes');
 const newAdminSecurityRoutes = require('./routes/adminSecurityRoutes');
 const platformConfigRoutes = require('./routes/platformConfigRoutes');
+const staffAuthRoutes = require('./routes/staffAuthRoutes');
 
 // Mount new admin auth routes first (login, logout, etc.)
 app.use('/api/admin/auth', newAdminAuthRoutes);
+
+// Mount staff auth routes
+app.use('/api/staffv2/auth', staffAuthRoutes);
 
 // Mount new admin system routes
 app.use('/api/admin/system', newAdminSystemRoutes);

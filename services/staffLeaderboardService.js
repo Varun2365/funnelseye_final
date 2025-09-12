@@ -34,17 +34,27 @@ class StaffLeaderboardService {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - timeRange);
 
+        // Convert coachId to ObjectId if it's a string
+        const mongoose = require('mongoose');
+        const coachObjectId = mongoose.Types.ObjectId.isValid(coachId) 
+            ? (typeof coachId === 'string' ? new mongoose.Types.ObjectId(coachId) : coachId)
+            : null;
+
+        if (!coachObjectId) {
+            throw new Error(`Invalid coachId: ${coachId}`);
+        }
+
         // Get all tasks for this staff member
         const tasks = await Task.find({
             assignedTo: staffId,
-            coachId: coachId,
+            coachId: coachObjectId,
             createdAt: { $gte: startDate }
         });
 
         // Get leads handled by this staff member
         const leads = await Lead.find({
             assignedTo: staffId,
-            coachId: coachId,
+            coachId: coachObjectId,
             createdAt: { $gte: startDate }
         });
 
@@ -57,16 +67,16 @@ class StaffLeaderboardService {
             (onTimeTasks.length / completedTasks.length) * 100 : 0;
 
         // Calculate quality rating (from task comments and lead feedback)
-        const qualityScore = await this.calculateQualityScore(staffId, coachId, startDate);
+        const qualityScore = await this.calculateQualityScore(staffId, coachObjectId, startDate);
 
         // Calculate efficiency score
         const efficiencyScore = await this.calculateEfficiencyScore(tasks);
 
         // Calculate leadership score
-        const leadershipScore = await this.calculateLeadershipScore(staffId, coachId, startDate);
+        const leadershipScore = await this.calculateLeadershipScore(staffId, coachObjectId, startDate);
 
         // Calculate innovation score
-        const innovationScore = await this.calculateInnovationScore(staffId, coachId, startDate);
+        const innovationScore = await this.calculateInnovationScore(staffId, coachObjectId, startDate);
 
         // Calculate weighted total score
         const totalScore = (
@@ -98,16 +108,26 @@ class StaffLeaderboardService {
     }
 
     async calculateQualityScore(staffId, coachId, startDate) {
+        // Convert coachId to ObjectId if it's a string
+        const mongoose = require('mongoose');
+        const coachObjectId = mongoose.Types.ObjectId.isValid(coachId) 
+            ? (typeof coachId === 'string' ? new mongoose.Types.ObjectId(coachId) : coachId)
+            : null;
+
+        if (!coachObjectId) {
+            throw new Error(`Invalid coachId: ${coachId}`);
+        }
+
         // Calculate based on client feedback, task quality ratings, and lead conversion rates
         const tasks = await Task.find({
             assignedTo: staffId,
-            coachId: coachId,
+            coachId: coachObjectId,
             createdAt: { $gte: startDate }
         });
 
         const leads = await Lead.find({
             assignedTo: staffId,
-            coachId: coachId,
+            coachId: coachObjectId,
             createdAt: { $gte: startDate }
         });
 
@@ -164,9 +184,19 @@ class StaffLeaderboardService {
     }
 
     async calculateLeadershipScore(staffId, coachId, startDate) {
+        // Convert coachId to ObjectId if it's a string
+        const mongoose = require('mongoose');
+        const coachObjectId = mongoose.Types.ObjectId.isValid(coachId) 
+            ? (typeof coachId === 'string' ? new mongoose.Types.ObjectId(coachId) : coachId)
+            : null;
+
+        if (!coachObjectId) {
+            throw new Error(`Invalid coachId: ${coachId}`);
+        }
+
         // Calculate based on helping other team members, mentoring, etc.
         const tasks = await Task.find({
-            coachId: coachId,
+            coachId: coachObjectId,
             createdAt: { $gte: startDate }
         });
 
@@ -181,16 +211,26 @@ class StaffLeaderboardService {
         );
 
         // Count mentoring activities
-        const mentoringActivities = await this.getMentoringActivities(staffId, coachId, startDate);
+        const mentoringActivities = await this.getMentoringActivities(staffId, coachObjectId, startDate);
 
         const leadershipScore = Math.min(100, (helpingTasks.length * 5) + (mentoringActivities * 10));
         return leadershipScore;
     }
 
     async calculateInnovationScore(staffId, coachId, startDate) {
+        // Convert coachId to ObjectId if it's a string
+        const mongoose = require('mongoose');
+        const coachObjectId = mongoose.Types.ObjectId.isValid(coachId) 
+            ? (typeof coachId === 'string' ? new mongoose.Types.ObjectId(coachId) : coachId)
+            : null;
+
+        if (!coachObjectId) {
+            throw new Error(`Invalid coachId: ${coachId}`);
+        }
+
         // Calculate based on process improvements, suggestions, etc.
-        const improvementSuggestions = await this.getImprovementSuggestions(staffId, coachId, startDate);
-        const processOptimizations = await this.getProcessOptimizations(staffId, coachId, startDate);
+        const improvementSuggestions = await this.getImprovementSuggestions(staffId, coachObjectId, startDate);
+        const processOptimizations = await this.getProcessOptimizations(staffId, coachObjectId, startDate);
 
         const innovationScore = Math.min(100, (improvementSuggestions * 15) + (processOptimizations * 10));
         return innovationScore;

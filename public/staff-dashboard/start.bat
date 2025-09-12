@@ -1,0 +1,9 @@
+@echo off
+echo Starting Staff Dashboard...
+echo.
+echo Installing dependencies...
+call npm install
+echo.
+echo Starting development server...
+call npm start
+pause

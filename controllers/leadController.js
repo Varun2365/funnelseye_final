@@ -1091,6 +1091,188 @@ const generateFollowUpMessage = async (req, res) => {
     }
 };
 
+// @desc    Submit question responses for appointment booking (No Auth Required)
+// @route   POST /api/leads/question-responses
+// @access  Public (No authentication required for appointment booking)
+const submitQuestionResponses = async (req, res) => {
+    try {
+        const { leadId, questionResponses, appointmentData } = req.body;
+
+        // Validate required fields
+        if (!leadId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Lead ID is required'
+            });
+        }
+
+        if (!questionResponses || Object.keys(questionResponses).length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Question responses are required'
+            });
+        }
+
+        // Find the lead by ID (no coach validation for public access)
+        const lead = await Lead.findById(leadId);
+        if (!lead) {
+            return res.status(404).json({
+                success: false,
+                message: 'Lead not found'
+            });
+        }
+
+        // Prepare update data
+        const updateData = {
+            lastUpdated: new Date()
+        };
+
+        // Update client questions if provided
+        if (questionResponses.clientQuestions) {
+            updateData.clientQuestions = {
+                ...lead.clientQuestions,
+                ...questionResponses.clientQuestions
+            };
+        }
+
+        // Update coach questions if provided
+        if (questionResponses.coachQuestions) {
+            updateData.coachQuestions = {
+                ...lead.coachQuestions,
+                ...questionResponses.coachQuestions
+            };
+        }
+
+        // Update appointment-related data if provided
+        if (appointmentData) {
+            if (appointmentData.preferredTime) {
+                updateData.preferredTime = appointmentData.preferredTime;
+            }
+            if (appointmentData.preferredDate) {
+                updateData.preferredDate = appointmentData.preferredDate;
+            }
+            if (appointmentData.timezone) {
+                updateData.timezone = appointmentData.timezone;
+            }
+            if (appointmentData.notes) {
+                updateData.appointmentNotes = appointmentData.notes;
+            }
+        }
+
+        // Update lead status to indicate questions have been answered
+        if (lead.status === 'New' || lead.status === 'Contacted') {
+            updateData.status = 'Qualified';
+        }
+
+        // Recalculate lead score based on new responses
+        const allQuestions = {
+            ...updateData.clientQuestions,
+            ...updateData.coachQuestions
+        };
+        
+        let newScore = 0;
+        const insights = [];
+
+        // Basic scoring logic based on question responses
+        if (allQuestions.watchedVideo === 'Yes') {
+            newScore += 20;
+            insights.push('Watched full video - high engagement');
+        } else if (allQuestions.watchedVideo === 'Partially') {
+            newScore += 10;
+            insights.push('Partially watched video - moderate engagement');
+        }
+
+        if (allQuestions.readyToStart === 'Yes') {
+            newScore += 25;
+            insights.push('Ready to start within 7 days - high urgency');
+        } else if (allQuestions.readyToStart === 'Not sure') {
+            newScore += 10;
+            insights.push('Uncertain about timeline - needs nurturing');
+        }
+
+        if (allQuestions.willingToInvest === 'Yes') {
+            newScore += 25;
+            insights.push('Willing to invest - high conversion potential');
+        } else if (allQuestions.willingToInvest === 'Need a flexible option') {
+            newScore += 15;
+            insights.push('Open to investment with flexibility - moderate potential');
+        }
+
+        if (allQuestions.seriousnessScale >= 8) {
+            newScore += 20;
+            insights.push('High seriousness level - strong commitment');
+        } else if (allQuestions.seriousnessScale >= 6) {
+            newScore += 15;
+            insights.push('Moderate seriousness level - good potential');
+        } else if (allQuestions.seriousnessScale >= 4) {
+            newScore += 10;
+            insights.push('Low-moderate seriousness level - needs motivation');
+        }
+
+        // Update score and insights
+        updateData.score = Math.min(newScore, 100);
+        updateData.qualificationInsights = insights;
+
+        // Update the lead
+        const updatedLead = await Lead.findByIdAndUpdate(
+            leadId,
+            updateData,
+            { new: true, runValidators: true }
+        );
+
+        // Publish event for question responses submitted
+        const eventName = 'lead_question_responses_submitted';
+        const eventPayload = {
+            eventName: eventName,
+            payload: {
+                leadId: updatedLead._id,
+                leadData: updatedLead.toObject(),
+                questionResponses: questionResponses,
+                appointmentData: appointmentData,
+                newScore: updateData.score,
+                coachId: updatedLead.coachId
+            }
+        };
+        publishEvent(eventName, eventPayload).catch(err => 
+            console.error(`[Controller] Failed to publish event: ${eventName}`, err)
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Question responses submitted successfully',
+            data: {
+                leadId: updatedLead._id,
+                score: updatedLead.score,
+                insights: updatedLead.qualificationInsights,
+                status: updatedLead.status
+            }
+        });
+
+    } catch (error) {
+        console.error("Error submitting question responses:", error);
+        
+        if (error.name === 'CastError') {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid Lead ID format.'
+            });
+        }
+        
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(val => val.message);
+            return res.status(400).json({
+                success: false,
+                message: messages.join(', ')
+            });
+        }
+        
+        res.status(500).json({
+            success: false,
+            message: 'Server Error. Could not submit question responses.'
+        });
+    }
+};
+
 // Export all functions
 module.exports = {
     createLead,
@@ -1100,6 +1282,7 @@ module.exports = {
     addFollowUpNote,
     getUpcomingFollowUps,
     deleteLead,
+    submitQuestionResponses, // New method for public question responses
     // simple AI rescore endpoint handler
     aiRescore: async (req, res) => {
         try {

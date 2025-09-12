@@ -21,6 +21,7 @@ const protect = async (req, res, next) => {
 
     // Check if token is provided
     if (!token) {
+        console.log('🔍 [Protect Middleware] No token provided');
         // If no token, the user is not authenticated
         return res.status(401).json({
             success: false,
@@ -31,8 +32,9 @@ const protect = async (req, res, next) => {
     try {
         // Verify token
         // This decodes the token using the secret and checks for expiration
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        //console.log('🔑 [Protect Middleware] Decoded token:', decoded);
+        console.log('🔍 [Protect Middleware] Verifying token:', token.substring(0, 20) + '...');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+        console.log('🔑 [Protect Middleware] Decoded token:', decoded);
         // Find user by the ID extracted from the token's payload
         // For staff users, we need to ensure discriminator fields are loaded
         const user = await User.findById(decoded.id);
