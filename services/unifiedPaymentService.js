@@ -16,7 +16,15 @@ class UnifiedPaymentService {
      */
     async initializeSettings() {
         try {
-            this.settings = await GlobalPaymentSettings.findOne();
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Database connection timeout')), 5000);
+            });
+
+            const settingsPromise = GlobalPaymentSettings.findOne();
+            
+            this.settings = await Promise.race([settingsPromise, timeoutPromise]);
+            
             if (!this.settings) {
                 // Create default settings if none exist
                 this.settings = await GlobalPaymentSettings.create({
@@ -39,6 +47,23 @@ class UnifiedPaymentService {
             // logger.info('[UnifiedPaymentService] Settings initialized');
         } catch (error) {
             logger.error('[UnifiedPaymentService] Error initializing settings:', error);
+            // Set default settings to prevent further errors
+            this.settings = {
+                commission: {
+                    mlmLevels: [
+                        { level: 1, percentage: 10, isActive: true },
+                        { level: 2, percentage: 5, isActive: true },
+                        { level: 3, percentage: 3, isActive: true }
+                    ],
+                    directCommission: { percentage: 70, isActive: true },
+                    minimumPayoutAmount: 500
+                },
+                platformFee: { percentage: 10, isActive: true },
+                payout: {
+                    instantPayout: { isEnabled: true, fee: 50 },
+                    monthlyPayout: { isEnabled: true, dayOfMonth: 5 }
+                }
+            };
         }
     }
 

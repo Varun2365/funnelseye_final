@@ -14,7 +14,13 @@ class CentralPaymentService {
      */
     async initializeGateways() {
         try {
-            const gatewayConfigs = await PaymentGatewayConfig.getActiveGateways();
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Database connection timeout')), 5000);
+            });
+
+            const gatewayConfigsPromise = PaymentGatewayConfig.getActiveGateways();
+            const gatewayConfigs = await Promise.race([gatewayConfigsPromise, timeoutPromise]);
             
             for (const config of gatewayConfigs) {
                 await this.initializeGateway(config);
@@ -23,6 +29,8 @@ class CentralPaymentService {
             logger.info(`[CentralPaymentService] Initialized ${gatewayConfigs.length} payment gateways`);
         } catch (error) {
             logger.error('[CentralPaymentService] Error initializing gateways:', error);
+            // Continue without gateways to prevent server crash
+            logger.info('[CentralPaymentService] Continuing without gateway initialization');
         }
     }
 

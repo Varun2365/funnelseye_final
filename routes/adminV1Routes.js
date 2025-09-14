@@ -184,7 +184,7 @@ router.get('/subscription-plans',
 router.get('/financial-settings', 
     verifyAdminToken, 
     checkAdminPermission('systemSettings'), 
-    adminV1Controller.getFinancialSettings
+    adminV1Controller.getSystemFinancialSettings
 );
 
 /**

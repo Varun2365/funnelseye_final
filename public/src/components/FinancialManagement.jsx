@@ -188,6 +188,11 @@ const FinancialManagement = () => {
     }
   };
 
+  // Check if Razorpay credentials are configured
+  const isRazorpayConfigured = () => {
+    return financialSettings?.razorpayApiKey && financialSettings?.razorpaySecret;
+  };
+
   // Refresh Razorpay balance
   const handleRefreshBalance = async () => {
     try {
@@ -196,11 +201,19 @@ const FinancialManagement = () => {
         setRevenueStats(prev => ({ ...prev, razorpayBalance: response.data.balance }));
         showToast('Razorpay balance refreshed', 'success');
       } else {
-        showToast(response.message || 'Failed to refresh balance', 'error');
+        if (response.message?.includes('not configured')) {
+          showToast('Please configure Razorpay credentials in Financial Settings first', 'warning');
+        } else {
+          showToast(response.message || 'Failed to refresh balance', 'error');
+        }
       }
     } catch (error) {
       console.error('Error refreshing balance:', error);
-      showToast('Error refreshing balance', 'error');
+      if (error.message?.includes('not configured')) {
+        showToast('Please configure Razorpay credentials in Financial Settings first', 'warning');
+      } else {
+        showToast('Error refreshing balance', 'error');
+      }
     }
   };
 
@@ -268,12 +281,13 @@ const FinancialManagement = () => {
             <div className="flex items-center space-x-2 mt-2">
               <Button 
                 size="sm" 
-                variant="outline" 
+                variant={isRazorpayConfigured() ? "outline" : "secondary"}
                 onClick={handleRefreshBalance}
                 className="h-6 px-2 text-xs"
+                title={isRazorpayConfigured() ? "Refresh Razorpay balance" : "Configure Razorpay credentials first"}
               >
                 <RefreshCw className="w-3 h-3 mr-1" />
-                Refresh
+                {isRazorpayConfigured() ? "Refresh" : "Configure"}
               </Button>
             </div>
           </CardContent>
@@ -304,7 +318,7 @@ const FinancialManagement = () => {
               ₹{revenueStats.platformEarnings?.toLocaleString() || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              Fee: {financialSettings.platformFee}%
+              Fee: {financialSettings?.platformFee || 0}%
             </p>
           </CardContent>
         </Card>
@@ -368,23 +382,23 @@ const FinancialManagement = () => {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">Platform Fee</span>
-                    <span className="text-sm font-bold">{financialSettings.platformFee}%</span>
+                    <span className="text-sm font-bold">{financialSettings?.platformFee || 0}%</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">MLM Commission</span>
-                    <span className="text-sm font-bold">{financialSettings.mlmCommission}%</span>
+                    <span className="text-sm font-bold">{financialSettings?.mlmCommission || 0}%</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">Tax Rate</span>
-                    <span className="text-sm font-bold">{financialSettings.taxRate}%</span>
+                    <span className="text-sm font-bold">{financialSettings?.taxRate || 0}%</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">Payout Frequency</span>
-                    <span className="text-sm font-bold capitalize">{financialSettings.payoutFrequency}</span>
+                    <span className="text-sm font-bold capitalize">{financialSettings?.payoutFrequency || 'weekly'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm font-medium">Min Payout Amount</span>
-                    <span className="text-sm font-bold">₹{financialSettings.minimumPayoutAmount}</span>
+                    <span className="text-sm font-bold">₹{financialSettings?.minimumPayoutAmount || 100}</span>
                   </div>
                 </div>
                 <Button 
@@ -469,7 +483,7 @@ const FinancialManagement = () => {
                   <div>
                     <Label>Payout Frequency</Label>
                     <Select 
-                      value={financialSettings.payoutFrequency} 
+                      value={financialSettings?.payoutFrequency || 'weekly'} 
                       onValueChange={(value) => setFinancialSettings(prev => ({ ...prev, payoutFrequency: value }))}
                     >
                       <SelectTrigger>
@@ -485,7 +499,7 @@ const FinancialManagement = () => {
                   <div>
                     <Label>Payout Day</Label>
                     <Select 
-                      value={financialSettings.payoutDay} 
+                      value={financialSettings?.payoutDay || 'monday'} 
                       onValueChange={(value) => setFinancialSettings(prev => ({ ...prev, payoutDay: value }))}
                     >
                       <SelectTrigger>
@@ -504,7 +518,7 @@ const FinancialManagement = () => {
                     <Label>Payout Time</Label>
                     <Input 
                       type="time" 
-                      value={financialSettings.payoutTime}
+                      value={financialSettings?.payoutTime || '09:00'}
                       onChange={(e) => setFinancialSettings(prev => ({ ...prev, payoutTime: e.target.value }))}
                     />
                   </div>
@@ -512,7 +526,7 @@ const FinancialManagement = () => {
                     <Label>Minimum Payout Amount</Label>
                     <Input 
                       type="number" 
-                      value={financialSettings.minimumPayoutAmount}
+                      value={financialSettings?.minimumPayoutAmount || 100}
                       onChange={(e) => setFinancialSettings(prev => ({ ...prev, minimumPayoutAmount: parseInt(e.target.value) }))}
                     />
                   </div>
@@ -538,11 +552,11 @@ const FinancialManagement = () => {
                       <p className="text-sm text-muted-foreground">Enable UPI-based payouts</p>
                     </div>
                     <Button 
-                      variant={financialSettings.upiEnabled ? "default" : "outline"}
+                      variant={financialSettings?.upiEnabled ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setFinancialSettings(prev => ({ ...prev, upiEnabled: !prev.upiEnabled }))}
+                      onClick={() => setFinancialSettings(prev => ({ ...prev, upiEnabled: !prev?.upiEnabled }))}
                     >
-                      {financialSettings.upiEnabled ? 'Enabled' : 'Disabled'}
+                      {financialSettings?.upiEnabled ? 'Enabled' : 'Disabled'}
                     </Button>
                   </div>
                   <div className="flex items-center justify-between">
@@ -551,11 +565,11 @@ const FinancialManagement = () => {
                       <p className="text-sm text-muted-foreground">Enable bank transfer payouts</p>
                     </div>
                     <Button 
-                      variant={financialSettings.bankTransferEnabled ? "default" : "outline"}
+                      variant={financialSettings?.bankTransferEnabled ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setFinancialSettings(prev => ({ ...prev, bankTransferEnabled: !prev.bankTransferEnabled }))}
+                      onClick={() => setFinancialSettings(prev => ({ ...prev, bankTransferEnabled: !prev?.bankTransferEnabled }))}
                     >
-                      {financialSettings.bankTransferEnabled ? 'Enabled' : 'Disabled'}
+                      {financialSettings?.bankTransferEnabled ? 'Enabled' : 'Disabled'}
                     </Button>
                   </div>
                 </div>
@@ -648,7 +662,7 @@ const FinancialManagement = () => {
                 <Input
                   id="razorpay-key"
                   type="password"
-                  value={financialSettings.razorpayApiKey}
+                  value={financialSettings?.razorpayApiKey || ''}
                   onChange={(e) => setFinancialSettings(prev => ({ ...prev, razorpayApiKey: e.target.value }))}
                   placeholder="Enter Razorpay API Key"
                 />
@@ -658,7 +672,7 @@ const FinancialManagement = () => {
                 <Input
                   id="razorpay-secret"
                   type="password"
-                  value={financialSettings.razorpaySecret}
+                  value={financialSettings?.razorpaySecret || ''}
                   onChange={(e) => setFinancialSettings(prev => ({ ...prev, razorpaySecret: e.target.value }))}
                   placeholder="Enter Razorpay Secret"
                 />
@@ -670,7 +684,7 @@ const FinancialManagement = () => {
                 <Input
                   id="platform-fee"
                   type="number"
-                  value={financialSettings.platformFee}
+                  value={financialSettings?.platformFee || 0}
                   onChange={(e) => setFinancialSettings(prev => ({ ...prev, platformFee: parseFloat(e.target.value) }))}
                   placeholder="Enter platform fee percentage"
                 />
@@ -680,7 +694,7 @@ const FinancialManagement = () => {
                 <Input
                   id="mlm-commission"
                   type="number"
-                  value={financialSettings.mlmCommission}
+                  value={financialSettings?.mlmCommission || 0}
                   onChange={(e) => setFinancialSettings(prev => ({ ...prev, mlmCommission: parseFloat(e.target.value) }))}
                   placeholder="Enter MLM commission percentage"
                 />
@@ -692,7 +706,7 @@ const FinancialManagement = () => {
                 <Input
                   id="tax-rate"
                   type="number"
-                  value={financialSettings.taxRate}
+                  value={financialSettings?.taxRate || 0}
                   onChange={(e) => setFinancialSettings(prev => ({ ...prev, taxRate: parseFloat(e.target.value) }))}
                   placeholder="Enter tax rate percentage"
                 />
@@ -702,7 +716,7 @@ const FinancialManagement = () => {
                 <Input
                   id="min-payout"
                   type="number"
-                  value={financialSettings.minimumPayoutAmount}
+                  value={financialSettings?.minimumPayoutAmount || 100}
                   onChange={(e) => setFinancialSettings(prev => ({ ...prev, minimumPayoutAmount: parseInt(e.target.value) }))}
                   placeholder="Enter minimum payout amount"
                 />
@@ -768,7 +782,7 @@ const FinancialManagement = () => {
           <DialogHeader>
             <DialogTitle>Payout All Coaches</DialogTitle>
             <DialogDescription>
-              Process payouts for all eligible coaches with pending amounts above ₹{financialSettings.minimumPayoutAmount}
+              Process payouts for all eligible coaches with pending amounts above ₹{financialSettings?.minimumPayoutAmount || 100}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -777,12 +791,12 @@ const FinancialManagement = () => {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm">Eligible Coaches:</span>
-                  <span className="text-sm font-medium">{coaches.filter(c => c.pendingAmount >= financialSettings.minimumPayoutAmount).length}</span>
+                  <span className="text-sm font-medium">{coaches.filter(c => c.pendingAmount >= (financialSettings?.minimumPayoutAmount || 100)).length}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm">Total Amount:</span>
                   <span className="text-sm font-medium">
-                    ₹{coaches.filter(c => c.pendingAmount >= financialSettings.minimumPayoutAmount).reduce((sum, c) => sum + c.pendingAmount, 0).toLocaleString()}
+                    ₹{coaches.filter(c => c.pendingAmount >= (financialSettings?.minimumPayoutAmount || 100)).reduce((sum, c) => sum + c.pendingAmount, 0).toLocaleString()}
                   </span>
                 </div>
               </div>

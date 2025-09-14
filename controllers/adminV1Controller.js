@@ -470,7 +470,7 @@ exports.updateUser = asyncHandler(async (req, res) => {
  * @route   GET /api/admin/v1/financial-settings
  * @access  Private (Admin)
  */
-exports.getFinancialSettings = asyncHandler(async (req, res) => {
+exports.getSystemFinancialSettings = asyncHandler(async (req, res) => {
     try {
         const settings = await AdminSystemSettings.findOne().select('paymentSystem');
         
@@ -2321,32 +2321,63 @@ async function createAuditLog(adminId, action, details, req) {
 exports.getFinancialSettings = asyncHandler(async (req, res) => {
     try {
         // Get financial settings from AdminV1Settings
-        let settings = await AdminV1Settings.findOne({ type: 'financial' });
+        let settings = await AdminV1Settings.findOne({ settingId: 'financial' });
         
         if (!settings) {
             // Create default settings if none exist
-            settings = new AdminV1Settings({
-                type: 'financial',
-                data: {
-                    razorpayApiKey: '',
-                    razorpaySecret: '',
-                    platformFee: 5.0,
-                    mlmCommission: 10.0,
-                    payoutFrequency: 'weekly',
-                    payoutDay: 'monday',
-                    payoutTime: '09:00',
-                    taxRate: 18.0,
-                    upiEnabled: true,
-                    bankTransferEnabled: true,
-                    minimumPayoutAmount: 100
-                }
-            });
-            await settings.save();
+            settings = await AdminV1Settings.findOneAndUpdate(
+                { settingId: 'financial' },
+                {
+                    settingId: 'financial',
+                    paymentSystem: {
+                        razorpay: {
+                            keyId: '',
+                            keySecret: '',
+                            accountNumber: '',
+                            webhookSecret: '',
+                            isEnabled: false
+                        },
+                        platformFees: {
+                            subscriptionFee: 5.0,
+                            transactionFee: 2.0,
+                            payoutFee: 1.0,
+                            refundFee: 0.5
+                        },
+                        mlmCommissionStructure: {
+                            levels: [
+                                { level: 1, percentage: 10 },
+                                { level: 2, percentage: 5 },
+                                { level: 3, percentage: 3 }
+                            ],
+                            platformFeePercentage: 5,
+                            maxLevels: 3,
+                            autoPayoutEnabled: true,
+                            payoutThreshold: 100
+                        }
+                    }
+                },
+                { upsert: true, new: true }
+            );
         }
+
+        // Return the financial settings in the expected format
+        const financialData = {
+            razorpayApiKey: settings.paymentSystem?.razorpay?.keyId || '',
+            razorpaySecret: settings.paymentSystem?.razorpay?.keySecret || '',
+            platformFee: settings.paymentSystem?.platformFees?.subscriptionFee || 5.0,
+            mlmCommission: settings.paymentSystem?.mlmCommissionStructure?.platformFeePercentage || 10.0,
+            payoutFrequency: 'weekly',
+            payoutDay: 'monday',
+            payoutTime: '09:00',
+            taxRate: settings.paymentSystem?.taxSettings?.gstPercentage || 18.0,
+            upiEnabled: true,
+            bankTransferEnabled: true,
+            minimumPayoutAmount: settings.paymentSystem?.mlmCommissionStructure?.payoutThreshold || 100
+        };
 
         res.json({
             success: true,
-            data: settings.data
+            data: financialData
         });
     } catch (error) {
         console.error('Error getting financial settings:', error);
@@ -2409,30 +2440,39 @@ exports.updateFinancialSettings = asyncHandler(async (req, res) => {
 
         // Update or create financial settings
         const settings = await AdminV1Settings.findOneAndUpdate(
-            { type: 'financial' },
+            { settingId: 'financial' },
             {
-                type: 'financial',
-                data: {
-                    razorpayApiKey: razorpayApiKey || '',
-                    razorpaySecret: razorpaySecret || '',
-                    platformFee: parseFloat(platformFee) || 5.0,
-                    mlmCommission: parseFloat(mlmCommission) || 10.0,
-                    payoutFrequency: payoutFrequency || 'weekly',
-                    payoutDay: payoutDay || 'monday',
-                    payoutTime: payoutTime || '09:00',
-                    taxRate: parseFloat(taxRate) || 18.0,
-                    upiEnabled: upiEnabled !== undefined ? upiEnabled : true,
-                    bankTransferEnabled: bankTransferEnabled !== undefined ? bankTransferEnabled : true,
-                    minimumPayoutAmount: parseInt(minimumPayoutAmount) || 100
+                $set: {
+                    'paymentSystem.razorpay.keyId': razorpayApiKey || '',
+                    'paymentSystem.razorpay.keySecret': razorpaySecret || '',
+                    'paymentSystem.platformFees.subscriptionFee': parseFloat(platformFee) || 5.0,
+                    'paymentSystem.mlmCommissionStructure.platformFeePercentage': parseFloat(mlmCommission) || 10.0,
+                    'paymentSystem.mlmCommissionStructure.payoutThreshold': parseInt(minimumPayoutAmount) || 100,
+                    'paymentSystem.taxSettings.gstPercentage': parseFloat(taxRate) || 18.0
                 }
             },
             { upsert: true, new: true }
         );
 
+        // Return the updated settings in the expected format
+        const financialData = {
+            razorpayApiKey: settings.paymentSystem?.razorpay?.keyId || '',
+            razorpaySecret: settings.paymentSystem?.razorpay?.keySecret || '',
+            platformFee: settings.paymentSystem?.platformFees?.subscriptionFee || 5.0,
+            mlmCommission: settings.paymentSystem?.mlmCommissionStructure?.platformFeePercentage || 10.0,
+            payoutFrequency: payoutFrequency || 'weekly',
+            payoutDay: payoutDay || 'monday',
+            payoutTime: payoutTime || '09:00',
+            taxRate: settings.paymentSystem?.taxSettings?.gstPercentage || 18.0,
+            upiEnabled: upiEnabled !== undefined ? upiEnabled : true,
+            bankTransferEnabled: bankTransferEnabled !== undefined ? bankTransferEnabled : true,
+            minimumPayoutAmount: settings.paymentSystem?.mlmCommissionStructure?.payoutThreshold || 100
+        };
+
         res.json({
             success: true,
             message: 'Financial settings updated successfully',
-            data: settings.data
+            data: financialData
         });
     } catch (error) {
         console.error('Error updating financial settings:', error);
@@ -2451,8 +2491,8 @@ exports.updateFinancialSettings = asyncHandler(async (req, res) => {
 exports.getRevenueStats = asyncHandler(async (req, res) => {
     try {
         // Get financial settings for calculations
-        const settings = await AdminV1Settings.findOne({ type: 'financial' });
-        const platformFee = settings?.data?.platformFee || 5.0;
+        const settings = await AdminV1Settings.findOne({ settingId: 'financial' });
+        const platformFee = settings?.paymentSystem?.platformFees?.subscriptionFee || 5.0;
 
         // Check if we have any payments, if not create some sample data
         const paymentCount = await RazorpayPayment.countDocuments({ status: 'captured' });
@@ -2537,8 +2577,8 @@ exports.getRevenueStats = asyncHandler(async (req, res) => {
 exports.getCoachesForPayout = asyncHandler(async (req, res) => {
     try {
         // Get financial settings
-        const settings = await AdminV1Settings.findOne({ type: 'financial' });
-        const minimumPayoutAmount = settings?.data?.minimumPayoutAmount || 100;
+        const settings = await AdminV1Settings.findOne({ settingId: 'financial' });
+        const minimumPayoutAmount = settings?.paymentSystem?.mlmCommissionStructure?.payoutThreshold || 100;
 
         // Get coaches with pending amounts
         const coaches = await User.find({ role: 'coach' })
@@ -2733,8 +2773,8 @@ exports.processCoachPayout = asyncHandler(async (req, res) => {
 exports.processPayoutAll = asyncHandler(async (req, res) => {
     try {
         // Get financial settings
-        const settings = await AdminV1Settings.findOne({ type: 'financial' });
-        const minimumPayoutAmount = settings?.data?.minimumPayoutAmount || 100;
+        const settings = await AdminV1Settings.findOne({ settingId: 'financial' });
+        const minimumPayoutAmount = settings?.paymentSystem?.mlmCommissionStructure?.payoutThreshold || 100;
 
         // Get eligible coaches
         const coaches = await User.find({ role: 'coach' })
@@ -2814,12 +2854,12 @@ exports.processPayoutAll = asyncHandler(async (req, res) => {
 exports.refreshRazorpayBalance = asyncHandler(async (req, res) => {
     try {
         // Get Razorpay settings
-        const settings = await AdminV1Settings.findOne({ type: 'financial' });
+        const settings = await AdminV1Settings.findOne({ settingId: 'financial' });
         
-        if (!settings?.data?.razorpayApiKey || !settings?.data?.razorpaySecret) {
+        if (!settings?.paymentSystem?.razorpay?.keyId || !settings?.paymentSystem?.razorpay?.keySecret) {
             return res.status(400).json({
                 success: false,
-                message: 'Razorpay credentials not configured'
+                message: 'Razorpay credentials not configured. Please configure Razorpay API key and secret in Financial Settings.'
             });
         }
 

@@ -90,9 +90,9 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: ["http://localhost:5000", "http://localhost:8080", "https://funnelseye.com"],
+        origin: "*",
         methods: ["GET", "POST"],
-        credentials: true
+        credentials: false
     }
 });
 
@@ -134,36 +134,13 @@ const io = new Server(server, {
 // ✨ Express Middleware Setup
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-// Unified CORS configuration - consolidated from scattered pieces
-const { corsOptions } = require('./config/cors');
-
-app.use(cors(corsOptions));
-
-// CORS debugging middleware - helps troubleshoot CORS issues
-app.use((req, res, next) => {
-    // Log CORS-related information for debugging
-    if (req.method === 'OPTIONS') {
-        console.log(`[CORS DEBUG] Preflight request for: ${req.path}`);
-        console.log(`[CORS DEBUG] Origin: ${req.headers.origin}`);
-        console.log(`[CORS DEBUG] Access-Control-Request-Method: ${req.headers['access-control-request-method']}`);
-        console.log(`[CORS DEBUG] Access-Control-Request-Headers: ${req.headers['access-control-request-headers']}`);
-        
-        // Ensure CORS headers are set for preflight requests
-        res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-API-Key, X-Client-Version, Cache-Control, Pragma, Expires, x-coach-id, X-Coach-ID, coach-id, Coach-ID, staff-id, Staff-ID, x-staff-id, X-Staff-ID, token_staff, Token_Staff, x-user-id, X-User-ID, x-session-id, X-Session-ID, x-request-id, X-Request-ID, x-forwarded-for, X-Forwarded-For, x-real-ip, X-Real-IP, x-custom-domain, X-Custom-Domain, x-auth-token, X-Auth-Token, x-refresh-token, X-Refresh-Token, x-tenant-id, X-Tenant-ID, x-version, X-Version, x-request-source, X-Request-Source');
-        res.header('Access-Control-Allow-Credentials', 'true');
-        res.header('Access-Control-Max-Age', '86400');
-        
-        // Handle preflight requests
-        if (req.method === 'OPTIONS') {
-            res.status(200).end();
-            return;
-        }
-    }
-    
-    next();
-});
+// Allow all origins - no CORS restrictions
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: '*',
+    credentials: false
+}));
 
 // // Request logging middleware for debugging
 app.use((req, res, next) => {
@@ -584,11 +561,7 @@ app.use((req, res, next) => {
 app.use((err, req, res, next) => {
     console.error('Global error handler:', err);
     
-    // Add CORS headers even for errors
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-    res.header('Access-Control-Allow-Credentials', 'true');
+    // CORS headers are handled by the main CORS middleware
     
     if (err.name === 'ValidationError') {
         return res.status(400).json({
@@ -615,11 +588,7 @@ app.use((err, req, res, next) => {
 
 // 404 handler for unmatched routes
 // app.use('*', (req, res) => {
-//     // Add CORS headers for 404 responses
-//     res.header('Access-Control-Allow-Origin', '*');
-//     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-//     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-//     res.header('Access-Control-Allow-Credentials', 'true');
+//     // CORS headers are handled by the main CORS middleware
     
 //     res.status(404).json({
 //         success: false,
