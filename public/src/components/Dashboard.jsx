@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import axios from 'axios';
+import adminApiService from '../services/adminApiService';
 
 const Dashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
@@ -34,9 +35,9 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       console.log('📊 [DASHBOARD] Fetching dashboard data...');
-      const response = await axios.get('/admin/system/dashboard');
-      console.log('📊 [DASHBOARD] Dashboard data received:', response.data);
-      setDashboardData(response.data.data);
+      const response = await adminApiService.getDashboard();
+      console.log('📊 [DASHBOARD] Dashboard data received:', response);
+      setDashboardData(response.data);
     } catch (error) {
       console.error('📊 [DASHBOARD] Error fetching dashboard data:', error);
       setError('Failed to load dashboard data');
@@ -47,8 +48,8 @@ const Dashboard = () => {
 
   const fetchSystemHealth = async () => {
     try {
-      const response = await axios.get('/admin/system/health');
-      setSystemHealth(response.data.data);
+      const response = await adminApiService.getSystemHealth();
+      setSystemHealth(response.data);
     } catch (error) {
       console.error('Error fetching system health:', error);
     }

@@ -36,7 +36,7 @@ class UnifiedPaymentService {
                     }
                 });
             }
-            logger.info('[UnifiedPaymentService] Settings initialized');
+            // logger.info('[UnifiedPaymentService] Settings initialized');
         } catch (error) {
             logger.error('[UnifiedPaymentService] Error initializing settings:', error);
         }

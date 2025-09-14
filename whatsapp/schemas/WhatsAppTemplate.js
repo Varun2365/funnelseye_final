@@ -11,39 +11,21 @@ const whatsAppTemplateSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    content: {
+        type: String,
+        required: true,
+        trim: true
+    },
     category: {
         type: String,
-        enum: ['marketing', 'support', 'appointment', 'reminder', 'welcome', 'custom'],
+        required: true,
+        enum: ['greeting', 'appointment', 'reminder', 'followup', 'marketing', 'support', 'custom'],
         default: 'custom'
     },
     language: {
         type: String,
-        default: 'en',
+        default: 'en_US',
         trim: true
-    },
-    content: {
-        header: {
-            type: String,
-            trim: true
-        },
-        body: {
-            type: String,
-            required: true,
-            trim: true
-        },
-        footer: {
-            type: String,
-            trim: true
-        },
-        buttons: [{
-            type: {
-                type: String,
-                enum: ['url', 'phone_number', 'quick_reply']
-            },
-            text: String,
-            url: String,
-            phoneNumber: String
-        }]
     },
     variables: [{
         name: {
@@ -51,9 +33,10 @@ const whatsAppTemplateSchema = new mongoose.Schema({
             required: true,
             trim: true
         },
-        description: {
+        type: {
             type: String,
-            trim: true
+            enum: ['text', 'number', 'date', 'phone', 'email'],
+            default: 'text'
         },
         defaultValue: {
             type: String,
@@ -66,17 +49,8 @@ const whatsAppTemplateSchema = new mongoose.Schema({
     }],
     status: {
         type: String,
-        enum: ['draft', 'pending', 'approved', 'rejected'],
-        default: 'draft'
-    },
-    metaTemplateId: {
-        type: String,
-        trim: true,
-        sparse: true
-    },
-    isActive: {
-        type: Boolean,
-        default: true
+        enum: ['active', 'inactive', 'archived'],
+        default: 'active'
     },
     usageCount: {
         type: Number,
@@ -99,11 +73,52 @@ const whatsAppTemplateSchema = new mongoose.Schema({
 });
 
 // Indexes
-whatsAppTemplateSchema.index({ coachId: 1, isActive: 1 });
+whatsAppTemplateSchema.index({ coachId: 1, status: 1 });
 whatsAppTemplateSchema.index({ coachId: 1, category: 1 });
-whatsAppTemplateSchema.index({ metaTemplateId: 1 }, { sparse: true });
+whatsAppTemplateSchema.index({ name: 1, coachId: 1 }, { unique: true });
 
-// Ensure unique template names per coach
-whatsAppTemplateSchema.index({ coachId: 1, name: 1 }, { unique: true });
+// Virtual for template preview
+whatsAppTemplateSchema.virtual('preview').get(function() {
+    let preview = this.content;
+    
+    // Replace variables with placeholder values
+    this.variables.forEach(variable => {
+        const placeholder = variable.defaultValue || `{${variable.name}}`;
+        preview = preview.replace(new RegExp(`{${variable.name}}`, 'g'), placeholder);
+    });
+    
+    return preview.length > 100 ? preview.substring(0, 100) + '...' : preview;
+});
+
+// Method to increment usage count
+whatsAppTemplateSchema.methods.incrementUsage = function() {
+    this.usageCount += 1;
+    this.lastUsed = new Date();
+    return this.save();
+};
+
+// Method to get template with variables replaced
+whatsAppTemplateSchema.methods.getTemplateWithVariables = function(variables = {}) {
+    let content = this.content;
+    
+    this.variables.forEach(variable => {
+        const value = variables[variable.name] || variable.defaultValue || `{${variable.name}}`;
+        content = content.replace(new RegExp(`{${variable.name}}`, 'g'), value);
+    });
+    
+    return content;
+};
+
+// Static method to get templates by category
+whatsAppTemplateSchema.statics.getByCategory = function(coachId, category) {
+    return this.find({ coachId, category, status: 'active' }).sort({ usageCount: -1 });
+};
+
+// Static method to get most used templates
+whatsAppTemplateSchema.statics.getMostUsed = function(coachId, limit = 10) {
+    return this.find({ coachId, status: 'active' })
+        .sort({ usageCount: -1, lastUsed: -1 })
+        .limit(limit);
+};
 
 module.exports = mongoose.model('WhatsAppTemplate', whatsAppTemplateSchema);

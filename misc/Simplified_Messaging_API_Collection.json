@@ -1,0 +1,1086 @@
+{
+	"info": {
+		"_postman_id": "simplified-messaging-v1",
+		"name": "Simplified Messaging API Collection",
+		"description": "Complete API collection for messagingv1 routes - Admin & Coach endpoints with authentication",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "simplified-messaging"
+	},
+	"item": [
+		{
+			"name": "🔐 Authentication",
+			"description": "Login endpoints for admin and coach",
+			"item": [
+				{
+					"name": "Admin Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"admin123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login as admin"
+					}
+				},
+				{
+					"name": "Coach Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"coach@example.com\",\n    \"password\": \"coach123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login as coach"
+					}
+				}
+			]
+		},
+		{
+			"name": "📱 Coach - Device Management",
+			"description": "Coach device management endpoints",
+			"item": [
+				{
+					"name": "Create WhatsApp Device",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"deviceName\": \"My WhatsApp Device\",\n    \"deviceType\": \"baileys\",\n    \"phoneNumber\": \"+1234567890\",\n    \"description\": \"Primary WhatsApp device\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/devices",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"devices"
+							]
+						},
+						"description": "Create a new WhatsApp device"
+					}
+				},
+				{
+					"name": "Get All Devices",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/devices",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"devices"
+							]
+						},
+						"description": "Get all WhatsApp devices for coach"
+					}
+				},
+				{
+					"name": "Update Device",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"deviceName\": \"Updated Device Name\",\n    \"description\": \"Updated description\",\n    \"isDefault\": true,\n    \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/devices/{{device_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"devices",
+								"{{device_id}}"
+							]
+						},
+						"description": "Update WhatsApp device"
+					}
+				},
+				{
+					"name": "Delete Device",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/devices/{{device_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"devices",
+								"{{device_id}}"
+							]
+						},
+						"description": "Delete WhatsApp device"
+					}
+				},
+				{
+					"name": "Get Device Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/devices/{{device_id}}/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"devices",
+								"{{device_id}}",
+								"status"
+							]
+						},
+						"description": "Get device connection status"
+					}
+				},
+				{
+					"name": "Switch Device",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/devices/{{device_id}}/switch",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"devices",
+								"{{device_id}}",
+								"switch"
+							]
+						},
+						"description": "Set device as default"
+					}
+				}
+			]
+		},
+		{
+			"name": "💬 Coach - Messaging",
+			"description": "Coach messaging endpoints",
+			"item": [
+				{
+					"name": "Send Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"to\": \"{{recipient_phone}}\",\n    \"message\": \"Hello from Coach!\",\n    \"type\": \"text\",\n    \"deviceId\": \"{{device_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/send",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"send"
+							]
+						},
+						"description": "Send message"
+					}
+				},
+				{
+					"name": "Get Inbox",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/inbox?page=1&limit=20",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"inbox"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Get inbox messages"
+					}
+				},
+				{
+					"name": "Get Message History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/messages/{{contact_phone}}?page=1&limit=50",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"messages",
+								"{{contact_phone}}"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "50"
+								}
+							]
+						},
+						"description": "Get message history for contact"
+					}
+				},
+				{
+					"name": "Mark Messages as Read",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"contact\": \"{{contact_phone}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/messages/mark-read",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"messages",
+								"mark-read"
+							]
+						},
+						"description": "Mark messages as read"
+					}
+				}
+			]
+		},
+		{
+			"name": "📋 Coach - Templates",
+			"description": "Coach template management",
+			"item": [
+				{
+					"name": "Get Templates",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/templates",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"templates"
+							]
+						},
+						"description": "Get message templates"
+					}
+				},
+				{
+					"name": "Create Template",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Welcome Template\",\n    \"content\": \"Hello {name}, welcome!\",\n    \"category\": \"greeting\",\n    \"language\": \"en_US\",\n    \"variables\": [\n        {\n            \"name\": \"name\",\n            \"defaultValue\": \"Customer\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/templates",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"templates"
+							]
+						},
+						"description": "Create message template"
+					}
+				},
+				{
+					"name": "Update Template",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Updated Welcome Template\",\n    \"content\": \"Hi {name}, welcome to our platform!\",\n    \"category\": \"greeting\",\n    \"language\": \"en_US\",\n    \"variables\": [\n        {\n            \"name\": \"name\",\n            \"defaultValue\": \"Customer\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/templates/{{template_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"templates",
+								"{{template_id}}"
+							]
+						},
+						"description": "Update message template"
+					}
+				},
+				{
+					"name": "Delete Template",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/templates/{{template_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"templates",
+								"{{template_id}}"
+							]
+						},
+						"description": "Delete message template"
+					}
+				}
+			]
+		},
+		{
+			"name": "📊 Coach - Statistics & Settings",
+			"description": "Coach statistics and settings",
+			"item": [
+				{
+					"name": "Get Messaging Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/stats?period=30d",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"stats"
+							],
+							"query": [
+								{
+									"key": "period",
+									"value": "30d"
+								}
+							]
+						},
+						"description": "Get messaging statistics"
+					}
+				},
+				{
+					"name": "Get Contacts",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/contacts?page=1&limit=50",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"contacts"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "50"
+								}
+							]
+						},
+						"description": "Get contacts list"
+					}
+				},
+				{
+					"name": "Get WhatsApp Settings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/settings",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"settings"
+							]
+						},
+						"description": "Get coach WhatsApp settings"
+					}
+				},
+				{
+					"name": "Set WhatsApp Settings",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"useCentralWhatsApp\": false,\n    \"baileysSettings\": {\n        \"deviceName\": \"My Personal WhatsApp\",\n        \"phoneNumber\": \"+1234567890\"\n    },\n    \"emailSettings\": {\n        \"notifications\": true,\n        \"email\": \"coach@example.com\"\n    },\n    \"autoReplySettings\": {\n        \"enabled\": true,\n        \"message\": \"Thank you for your message!\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/settings",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"settings"
+							]
+						},
+						"description": "Set coach WhatsApp settings"
+					}
+				}
+			]
+		},
+		{
+			"name": "🔗 Coach - Baileys Integration",
+			"description": "Coach Baileys WhatsApp integration",
+			"item": [
+				{
+					"name": "Get QR Code",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/baileys/qr/{{device_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"baileys",
+								"qr",
+								"{{device_id}}"
+							]
+						},
+						"description": "Get QR code for Baileys setup"
+					}
+				},
+				{
+					"name": "Initialize Baileys Connection",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/baileys/connect/{{device_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"baileys",
+								"connect",
+								"{{device_id}}"
+							]
+						},
+						"description": "Initialize Baileys connection - Use this endpoint, NOT the microservice directly"
+					}
+				},
+				{
+					"name": "Get Baileys Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/baileys/status/{{device_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"baileys",
+								"status",
+								"{{device_id}}"
+							]
+						},
+						"description": "Get Baileys connection status"
+					}
+				},
+				{
+					"name": "Force QR Generation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/baileys/force-qr/{{device_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"baileys",
+								"force-qr",
+								"{{device_id}}"
+							]
+						},
+						"description": "Force QR code generation"
+					}
+				},
+				{
+					"name": "Disconnect Baileys",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/baileys/disconnect/{{device_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"baileys",
+								"disconnect",
+								"{{device_id}}"
+							]
+						},
+						"description": "Disconnect Baileys WhatsApp"
+					}
+				}
+			]
+		},
+		{
+			"name": "👥 Coach - Staff Management",
+			"description": "Coach staff device management",
+			"item": [
+				{
+					"name": "Get Staff Devices",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/staff/devices",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"staff",
+								"devices"
+							]
+						},
+						"description": "Get staff WhatsApp devices"
+					}
+				}
+			]
+		},
+		{
+			"name": "🔧 Admin - WhatsApp Management",
+			"description": "Admin WhatsApp management endpoints",
+			"item": [
+				{
+					"name": "Get All Coach Devices",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/whatsapp/devices",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"whatsapp",
+								"devices"
+							]
+						},
+						"description": "Get all coach WhatsApp devices (admin)"
+					}
+				},
+				{
+					"name": "Get Device Status (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/whatsapp/devices/{{device_id}}/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"whatsapp",
+								"devices",
+								"{{device_id}}",
+								"status"
+							]
+						},
+						"description": "Get device status (admin)"
+					}
+				},
+				{
+					"name": "Update Device (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"deviceName\": \"Admin Updated Device\",\n    \"description\": \"Updated by admin\",\n    \"isActive\": true,\n    \"creditsPerMessage\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/whatsapp/devices/{{device_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"whatsapp",
+								"devices",
+								"{{device_id}}"
+							]
+						},
+						"description": "Update device (admin)"
+					}
+				},
+				{
+					"name": "Delete Device (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/whatsapp/devices/{{device_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"whatsapp",
+								"devices",
+								"{{device_id}}"
+							]
+						},
+						"description": "Delete device (admin)"
+					}
+				},
+				{
+					"name": "Get Messaging Statistics (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/whatsapp/stats?period=30d",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"whatsapp",
+								"stats"
+							],
+							"query": [
+								{
+									"key": "period",
+									"value": "30d"
+								}
+							]
+						},
+						"description": "Get messaging statistics (admin)"
+					}
+				},
+				{
+					"name": "Get All Messages (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/whatsapp/messages?page=1&limit=50",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"admin",
+								"whatsapp",
+								"messages"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "50"
+								}
+							]
+						},
+						"description": "Get all messages (admin)"
+					}
+				}
+			]
+		},
+		{
+			"name": "🔍 Debug & Testing",
+			"description": "Debug endpoints",
+			"item": [
+				{
+					"name": "Debug QR Setup",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/messagingv1/debug/qr-setup/{{device_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"messagingv1",
+								"debug",
+								"qr-setup",
+								"{{device_id}}"
+							]
+						},
+						"description": "Debug QR setup"
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"description": "Main API server URL"
+		},
+		{
+			"key": "admin_token",
+			"value": "",
+			"description": "Admin JWT token"
+		},
+		{
+			"key": "coach_token",
+			"value": "",
+			"description": "Coach JWT token"
+		},
+		{
+			"key": "device_id",
+			"value": "",
+			"description": "WhatsApp device ID"
+		},
+		{
+			"key": "recipient_phone",
+			"value": "+1234567890",
+			"description": "Recipient phone number"
+		},
+		{
+			"key": "contact_phone",
+			"value": "+1234567890",
+			"description": "Contact phone number"
+		},
+		{
+			"key": "template_id",
+			"value": "",
+			"description": "Message template ID"
+		}
+	]
+}

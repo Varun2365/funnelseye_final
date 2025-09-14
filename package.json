@@ -10,7 +10,7 @@
   "description": "",
   "dependencies": {
     "@hapi/boom": "^10.0.1",
-    "@whiskeysockets/baileys": "^6.7.18",
+    "@whiskeysockets/baileys": "7.0.0-rc.2",
     "acme-client": "^5.4.0",
     "amqplib": "^0.10.8",
     "axios": "^1.10.0",

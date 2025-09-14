@@ -19,6 +19,38 @@ const AppointmentSchema = new mongoose.Schema({
     ref: 'Staff',
     required: false, // Optional - appointments can be coach-only or staff-assigned
   },
+  // NEW: Meeting host permissions for staff
+  meetingHostPermissions: {
+    hasHostAccess: {
+      type: Boolean,
+      default: false
+    },
+    canStartMeeting: {
+      type: Boolean,
+      default: false
+    },
+    canManageParticipants: {
+      type: Boolean,
+      default: false
+    },
+    canShareScreen: {
+      type: Boolean,
+      default: false
+    },
+    canRecordMeeting: {
+      type: Boolean,
+      default: false
+    },
+    transferredFromCoach: {
+      type: Boolean,
+      default: false
+    },
+    originalCoachId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false
+    }
+  },
   startTime: {
     type: Date,
     required: true,

@@ -15,6 +15,8 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  
+  // Animation refs removed - useReveal hook was deleted
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -80,6 +82,7 @@ const LoginPage = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={loading}
+                className=""
               />
             </div>
             
@@ -93,6 +96,7 @@ const LoginPage = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
+                className=""
               />
             </div>
             
@@ -111,6 +115,21 @@ const LoginPage = () => {
               )}
             </Button>
           </form>
+          
+          <div className="text-center space-y-2 mt-4">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{' '}
+              <a href="/register" className="text-primary hover:text-primary/80 font-medium">
+                Sign up
+              </a>
+            </p>
+            <p className="text-sm text-gray-500">
+              Admin access?{' '}
+              <a href="/admin-login" className="text-blue-600 hover:text-blue-700 font-medium">
+                Admin Login
+              </a>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

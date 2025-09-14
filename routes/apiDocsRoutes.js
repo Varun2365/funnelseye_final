@@ -659,7 +659,95 @@ const allApiRoutes = {
         { method: 'GET', path: '/api/staff-dashboard/calendar', desc: 'Get staff calendar and schedule' },
         { method: 'GET', path: '/api/staff-dashboard/notifications', desc: 'Get staff notifications and alerts' },
         { method: 'GET', path: '/api/staff-dashboard/analytics', desc: 'Get staff analytics and insights' },
+        // NEW: Coach to Staff Appointment Transfer with Host Permissions
+        { method: 'PUT', path: '/api/staff-dashboard/unified/appointments/transfer-from-coach', desc: 'Transfer appointment from coach to staff with meeting host permissions', sample: { appointmentId: 'appointment_id', staffId: 'staff_id', hostPermissions: { hasHostAccess: true, canStartMeeting: true, canManageParticipants: true, canShareScreen: true, canRecordMeeting: false }, reason: 'Coach unavailable' } },
+        { method: 'PUT', path: '/api/staff-dashboard/unified/appointments/transfer', desc: 'Transfer appointment between staff members', sample: { appointmentId: 'appointment_id', fromStaffId: 'staff_id_1', toStaffId: 'staff_id_2', reason: 'Workload redistribution' } },
     ],
+    // ===== 💰 COACH FINANCIAL MANAGEMENT =====
+    '💰 Coach Financial Management': [
+        // Revenue & Analytics
+        { method: 'GET', path: '/api/coach/financial/revenue', desc: 'Get coach revenue analytics', sample: { timeRange: 30, period: 'daily' } },
+        { method: 'GET', path: '/api/coach/financial/payments', desc: 'Get payment history', sample: { page: 1, limit: 20, status: 'active' } },
+        // Razorpay Balance & Account
+        { method: 'GET', path: '/api/coach/financial/balance', desc: 'Get Razorpay account balance' },
+        // Payout Management
+        { method: 'POST', path: '/api/coach/financial/payout', desc: 'Create manual payout', sample: { amount: 1000, payoutMethod: 'UPI', upiId: 'coach@paytm', notes: 'Monthly payout' } },
+        { method: 'GET', path: '/api/coach/financial/payouts', desc: 'Get payout history', sample: { page: 1, limit: 20, status: 'processed' } },
+        { method: 'PUT', path: '/api/coach/financial/payout-settings', desc: 'Update automatic payout settings', sample: { autoPayoutEnabled: true, payoutMethod: 'UPI', upiId: 'coach@paytm', minimumAmount: 500, payoutFrequency: 'weekly' } },
+        // MLM Commission
+        { method: 'GET', path: '/api/coach/financial/mlm-commission', desc: 'Get MLM commission structure and history' },
+        // Coach to Coach Payouts
+        { method: 'POST', path: '/api/coach/financial/payout-to-coach', desc: 'Payout to another coach', sample: { targetCoachId: 'coach_id', amount: 500, notes: 'Commission payout' } },
+        // Refund Management
+        { method: 'GET', path: '/api/coach/financial/refunds', desc: 'Get refund history', sample: { page: 1, limit: 20 } },
+    ],
+
+    // ===== 🎛️ ADMIN V1 MASTER API =====
+    '🎛️ Admin V1 Master API': [
+        // Authentication
+        { method: 'POST', path: '/api/admin/v1/auth/login', desc: 'Admin login', sample: { email: 'admin@example.com', password: 'password123', rememberMe: true } },
+        { method: 'POST', path: '/api/admin/v1/auth/logout', desc: 'Admin logout', sample: { sessionToken: 'session_token_here' } },
+        { method: 'GET', path: '/api/admin/v1/auth/profile', desc: 'Get admin profile' },
+        
+        // Dashboard & Analytics
+        { method: 'GET', path: '/api/admin/v1/dashboard', desc: 'Get comprehensive admin dashboard', sample: { timeRange: 30 } },
+        { method: 'GET', path: '/api/admin/v1/analytics', desc: 'Get platform analytics', sample: { timeRange: 30, metric: 'all' } },
+        
+        // User Management
+        { method: 'GET', path: '/api/admin/v1/users', desc: 'Get all users with filtering', sample: { page: 1, limit: 20, role: 'user', status: 'active', search: 'john' } },
+        { method: 'GET', path: '/api/admin/v1/users/:userId', desc: 'Get user details with subscriptions' },
+        { method: 'PUT', path: '/api/admin/v1/users/:userId', desc: 'Update user status or details', sample: { status: 'active', coachId: 'coach_id', notes: 'VIP client' } },
+        
+        // Financial Settings
+        { method: 'GET', path: '/api/admin/v1/financial-settings', desc: 'Get financial settings' },
+        { method: 'PUT', path: '/api/admin/v1/financial-settings', desc: 'Update financial settings', sample: { razorpay: { keyId: 'rzp_test_...' }, platformFees: { subscriptionFee: 5.0 } } },
+        { method: 'GET', path: '/api/admin/v1/financial/razorpay-account', desc: 'Get Razorpay account details' },
+        { method: 'PUT', path: '/api/admin/v1/financial/mlm-commission-structure', desc: 'Update MLM commission structure', sample: { levels: [{ level: 1, percentage: 10 }], platformFeePercentage: 5 } },
+        { method: 'POST', path: '/api/admin/v1/financial/process-mlm-commission', desc: 'Process MLM commission', sample: { subscriptionId: 'sub_id', subscriptionAmount: 1000, coachId: 'coach_id' } },
+        { method: 'GET', path: '/api/admin/v1/financial/platform-fees', desc: 'Get platform fee settings' },
+        { method: 'PUT', path: '/api/admin/v1/financial/platform-fees', desc: 'Update platform fee settings', sample: { subscriptionFee: 5.0, transactionFee: 2.0 } },
+        { method: 'GET', path: '/api/admin/v1/financial/analytics-dashboard', desc: 'Get financial analytics dashboard', sample: { timeRange: 30 } },
+        
+        // Downline Management
+        { method: 'GET', path: '/api/admin/v1/downline', desc: 'Get downline structure', sample: { coachId: 'coach_id', level: 3 } },
+        { method: 'GET', path: '/api/admin/v1/mlm-reports', desc: 'Get MLM commission reports', sample: { timeRange: 30, coachId: 'coach_id' } },
+        
+        // Platform Configuration
+        { method: 'GET', path: '/api/admin/v1/platform-config', desc: 'Get platform configuration' },
+        { method: 'PUT', path: '/api/admin/v1/platform-config', desc: 'Update platform configuration', sample: { general: { platformName: 'New Platform' }, features: { mlmEnabled: true } } },
+        
+        // Content Management
+        { method: 'GET', path: '/api/admin/v1/content/plans', desc: 'Get all coach plans/programs', sample: { page: 1, limit: 20, status: 'active', search: 'fat loss' } },
+        { method: 'POST', path: '/api/admin/v1/content/plans', desc: 'Create new coach plan', sample: { name: '21-Day Fat Loss', description: 'Complete program', price: 2999, duration: 21 } },
+        { method: 'PUT', path: '/api/admin/v1/content/plans/:planId', desc: 'Update coach plan', sample: { price: 3999, status: 'active' } },
+        
+        // Messaging & Automation
+        { method: 'GET', path: '/api/admin/v1/messaging/settings', desc: 'Get messaging settings' },
+        { method: 'PUT', path: '/api/admin/v1/messaging/settings', desc: 'Update messaging settings', sample: { whatsapp: { enabled: true, provider: 'gupshup' }, email: { enabled: true } } },
+        
+        // Subscription Plans
+        { method: 'GET', path: '/api/admin/v1/subscription-plans', desc: 'Get subscription plans' },
+        
+        // AI Settings
+        { method: 'GET', path: '/api/admin/v1/ai-settings', desc: 'Get AI settings' },
+        { method: 'PUT', path: '/api/admin/v1/ai-settings', desc: 'Update AI settings', sample: { nutritionist: { enabled: true, model: 'gpt-3.5-turbo' }, support: { enabled: true } } },
+        
+        // System Management
+        { method: 'GET', path: '/api/admin/v1/system/health', desc: 'Get system health status' },
+        { method: 'GET', path: '/api/admin/v1/settings', desc: 'Get global platform settings' },
+        { method: 'PUT', path: '/api/admin/v1/settings/:section', desc: 'Update global settings section', sample: { platformName: 'New Platform Name', defaultLanguage: 'en' } },
+        
+        // Audit Logs
+        { method: 'GET', path: '/api/admin/v1/audit-logs', desc: 'Get audit logs with filtering', sample: { page: 1, limit: 20, severity: 'high', startDate: '2024-01-01' } },
+        
+        // Product Management
+        { method: 'GET', path: '/api/admin/v1/products', desc: 'Get all admin products', sample: { page: 1, limit: 20, status: 'active', search: 'fitness' } },
+        { method: 'POST', path: '/api/admin/v1/products', desc: 'Create admin product', sample: { name: 'Fitness Program', description: 'Complete program', category: 'fitness', basePrice: 2999 } },
+        
+        // Security Management
+        { method: 'GET', path: '/api/admin/v1/security/incidents', desc: 'Get security incidents', sample: { timeRange: 7, severity: 'high' } },
+    ],
+
     // ===== 📊 COACH DASHBOARD & ANALYTICS =====
     '📊 Coach Dashboard': [
         { method: 'GET', path: '/api/coach-dashboard/data', desc: 'Get complete dashboard data' },
@@ -800,6 +888,17 @@ const allApiRoutes = {
         { method: 'PUT', path: '/api/admin/financial/payment-gateways/:gatewayName', desc: 'Update payment gateway configuration (Admin)' },
         { method: 'POST', path: '/api/admin/financial/payment-gateways/:gatewayName/test', desc: 'Test payment gateway (Admin)' },
         { method: 'GET', path: '/api/admin/financial/payment-analytics', desc: 'Get payment analytics (Admin)' },
+        
+        // NEW: Razorpay Account Management
+        { method: 'GET', path: '/api/admin/financial/razorpay-account', desc: 'Get Razorpay account details and balance (Admin)' },
+        // NEW: MLM Commission Management
+        { method: 'PUT', path: '/api/admin/financial/mlm-commission-structure', desc: 'Update MLM commission structure (Admin)', sample: { levels: [{ level: 1, percentage: 10 }, { level: 2, percentage: 5 }], platformFeePercentage: 5, maxLevels: 3, autoPayoutEnabled: true, payoutThreshold: 100 } },
+        { method: 'POST', path: '/api/admin/financial/process-mlm-commission', desc: 'Process MLM commission for subscription (Admin)', sample: { subscriptionId: 'sub_id', subscriptionAmount: 1000, coachId: 'coach_id' } },
+        // NEW: Platform Fee Management
+        { method: 'GET', path: '/api/admin/financial/platform-fees', desc: 'Get platform fee settings (Admin)' },
+        { method: 'PUT', path: '/api/admin/financial/platform-fees', desc: 'Update platform fee settings (Admin)', sample: { subscriptionFee: 5.0, transactionFee: 2.0, payoutFee: 1.0, refundFee: 0.5 } },
+        // NEW: Financial Analytics Dashboard
+        { method: 'GET', path: '/api/admin/financial/analytics-dashboard', desc: 'Get comprehensive financial analytics dashboard (Admin)', sample: { timeRange: 30 } },
     ],
     // ===== 📢 MARKETING & ADVERTISING CAMPAIGNS =====
     '📢 Marketing & Advertising': [
@@ -830,6 +929,48 @@ const allApiRoutes = {
                 adData: { name: 'Website Traffic Ad', status: 'PAUSED' }
             }
         }
+    ],
+    // ===== 🚀 MARKETING V1 API (NEW COMPREHENSIVE SYSTEM) =====
+    '🚀 Marketing V1 API (Comprehensive)': [
+        // Credentials Management
+        { method: 'GET', path: '/api/marketing/v1/credentials/meta/setup-steps', desc: 'Get detailed Meta API setup instructions' },
+        { method: 'GET', path: '/api/marketing/v1/credentials/openai/setup-steps', desc: 'Get detailed OpenAI setup instructions' },
+        { method: 'POST', path: '/api/marketing/v1/credentials/meta', desc: 'Setup Meta API credentials for coach', sample: { accessToken: 'EAABwzLixnjYBO...', appId: '123456789', appSecret: 'abc123...', businessAccountId: '123456789', adAccountId: 'act_123456789' } },
+        { method: 'POST', path: '/api/marketing/v1/credentials/meta/verify', desc: 'Verify Meta API credentials' },
+        { method: 'GET', path: '/api/marketing/v1/credentials/meta/account-info', desc: 'Get Meta account information' },
+        { method: 'POST', path: '/api/marketing/v1/credentials/openai', desc: 'Setup OpenAI credentials for AI features', sample: { apiKey: 'sk-...', modelPreference: 'gpt-4' } },
+        { method: 'GET', path: '/api/marketing/v1/credentials/status', desc: 'Get marketing credentials status' },
+        
+        // Campaign Analysis & Management
+        { method: 'GET', path: '/api/marketing/v1/campaigns/analysis', desc: 'Get comprehensive campaign analysis', sample: { dateRange: '30d', campaignIds: 'camp1,camp2', includeInsights: true, includeRecommendations: true } },
+        { method: 'GET', path: '/api/marketing/v1/campaigns/:campaignId/insights', desc: 'Get detailed campaign insights', sample: { dateRange: '30d', breakdown: 'daily', includeDemographics: true, includePlacements: true } },
+        { method: 'GET', path: '/api/marketing/v1/campaigns/:campaignId/metrics', desc: 'Get campaign performance metrics', sample: { dateRange: '30d', metrics: 'impressions,clicks,spend,ctr,cpc,cpm,conversions' } },
+        { method: 'GET', path: '/api/marketing/v1/campaigns/:campaignId/audience-insights', desc: 'Get campaign audience insights', sample: { dateRange: '30d' } },
+        { method: 'GET', path: '/api/marketing/v1/campaigns/:campaignId/recommendations', desc: 'Get campaign optimization recommendations', sample: { includeAIRecommendations: true } },
+        { method: 'POST', path: '/api/marketing/v1/campaigns/create', desc: 'Create new campaign with AI assistance', sample: { name: 'AI Campaign', objective: 'CONVERSIONS', budget: 50, targetAudience: 'Fitness enthusiasts 25-45', productInfo: 'Online fitness coaching program', useAI: true, autoOptimize: false } },
+        { method: 'PUT', path: '/api/marketing/v1/campaigns/:campaignId', desc: 'Update campaign settings', sample: { name: 'Updated Campaign', status: 'ACTIVE', dailyBudget: 75 } },
+        { method: 'POST', path: '/api/marketing/v1/campaigns/:campaignId/pause', desc: 'Pause campaign' },
+        { method: 'POST', path: '/api/marketing/v1/campaigns/:campaignId/resume', desc: 'Resume campaign' },
+        { method: 'DELETE', path: '/api/marketing/v1/campaigns/:campaignId', desc: 'Delete campaign' },
+        { method: 'POST', path: '/api/marketing/v1/campaigns/:campaignId/duplicate', desc: 'Duplicate campaign', sample: { newName: 'Campaign Copy', modifications: { budget: 60, targetAudience: 'Updated audience' } } },
+        
+        // AI-Powered Features
+        { method: 'POST', path: '/api/marketing/v1/ai/generate-copy', desc: 'Generate AI-powered ad copy', sample: { productInfo: 'Online fitness coaching', targetAudience: 'Fitness enthusiasts 25-45', campaignObjective: 'CONVERSIONS', tone: 'motivational', length: 'medium', includeCallToAction: true } },
+        { method: 'POST', path: '/api/marketing/v1/ai/targeting-recommendations', desc: 'Generate AI-powered targeting recommendations', sample: { targetAudience: 'Fitness enthusiasts', budget: 50, objective: 'CONVERSIONS', productInfo: 'Online fitness coaching', excludeAudiences: ['competitors'] } },
+        { method: 'POST', path: '/api/marketing/v1/ai/optimize-campaign/:campaignId', desc: 'Optimize campaign with AI', sample: { optimizationType: 'performance', includeBudgetOptimization: true, includeAudienceOptimization: true, includeCreativeOptimization: true } },
+        { method: 'POST', path: '/api/marketing/v1/ai/generate-creatives', desc: 'Generate AI-powered creative variations', sample: { baseCreative: 'Transform your fitness journey', productInfo: 'Online fitness coaching', targetAudience: 'Fitness enthusiasts', variations: 3, includeImages: false, includeVideos: false } },
+        { method: 'GET', path: '/api/marketing/v1/ai/performance-insights/:campaignId', desc: 'Get AI-powered performance insights', sample: { dateRange: '30d', includePredictions: true, includeTrends: true, includeAnomalies: true } },
+        { method: 'POST', path: '/api/marketing/v1/ai/generate-strategy', desc: 'Generate AI-powered marketing strategy', sample: { businessInfo: 'Online fitness coaching business', goals: 'Increase conversions by 50%', budget: 1000, timeline: '3 months', targetAudience: 'Fitness enthusiasts 25-45', competitors: ['competitor1', 'competitor2'] } },
+        
+        // Dashboard & Analytics
+        { method: 'GET', path: '/api/marketing/v1/dashboard', desc: 'Get marketing dashboard data', sample: { dateRange: '30d', includeAIInsights: true, includeRecommendations: true } },
+        { method: 'GET', path: '/api/marketing/v1/campaigns/performance-summary', desc: 'Get campaign performance summary', sample: { dateRange: '30d', campaignIds: 'camp1,camp2', includeComparisons: true } },
+        { method: 'GET', path: '/api/marketing/v1/campaigns/export', desc: 'Export campaign data', sample: { format: 'csv', dateRange: '30d', campaignIds: 'camp1,camp2', includeInsights: true } },
+        
+        // Automation & Scheduling
+        { method: 'POST', path: '/api/marketing/v1/campaigns/:campaignId/schedule', desc: 'Schedule campaign', sample: { startDate: '2024-01-01T00:00:00Z', endDate: '2024-01-31T23:59:59Z', timezone: 'UTC', budgetSchedule: { dailyBudget: 50 } } },
+        { method: 'POST', path: '/api/marketing/v1/campaigns/:campaignId/automation', desc: 'Set up campaign automation rules', sample: { rules: [{ condition: 'ctr < 1%', action: 'pause_campaign' }], notifications: true, autoOptimize: false } },
+        { method: 'GET', path: '/api/marketing/v1/campaigns/:campaignId/automation/status', desc: 'Get automation status' }
     ],
     // ===== 🧮 LEAD SCORING & TRACKING (EXTENDED) =====
     '🧮 Lead Scoring & Tracking': [

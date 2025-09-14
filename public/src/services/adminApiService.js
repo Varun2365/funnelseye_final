@@ -83,19 +83,19 @@ class AdminApiService {
 
     // ===== SYSTEM DASHBOARD =====
     async getDashboard() {
-        return this.apiCall('/admin/system/dashboard');
+        return this.apiCall('/admin/v1/dashboard');
     }
 
     async getSystemHealth() {
-        return this.apiCall('/admin/system/health');
+        return this.apiCall('/admin/v1/system-health');
     }
 
     async getSystemAnalytics() {
-        return this.apiCall('/admin/system/analytics');
+        return this.apiCall('/admin/v1/platform-analytics');
     }
 
     async exportSystemAnalytics() {
-        return this.apiCall('/admin/system/analytics/export');
+        return this.apiCall('/admin/v1/platform-analytics/export');
     }
 
     // ===== SYSTEM SETTINGS =====
@@ -138,19 +138,19 @@ class AdminApiService {
     // ===== USER MANAGEMENT =====
     async getUsers(params = {}) {
         const queryString = new URLSearchParams(params).toString();
-        const endpoint = `/admin/users${queryString ? `?${queryString}` : ''}`;
+        const endpoint = `/admin/v1/users${queryString ? `?${queryString}` : ''}`;
         console.log(`👥 [UserManagement] Getting users with params:`, params);
         return this.apiCall(endpoint);
     }
 
     async getUserById(userId) {
         console.log(`👤 [UserManagement] Getting user by ID:`, userId);
-        return this.apiCall(`/admin/users/${userId}`);
+        return this.apiCall(`/admin/v1/users/${userId}`);
     }
 
     async updateUser(userId, userData) {
         console.log(`✏️ [UserManagement] Updating user:`, userId, userData);
-        return this.apiCall(`/admin/users/${userId}`, {
+        return this.apiCall(`/admin/v1/users/${userId}`, {
             method: 'PUT',
             body: JSON.stringify(userData)
         });
@@ -158,54 +158,69 @@ class AdminApiService {
 
     async updateUserStatus(userId, status) {
         console.log(`🔄 [UserManagement] Updating user status:`, userId, status);
-        return this.apiCall(`/admin/users/${userId}/status`, {
-            method: 'PATCH',
+        // Using updateUser endpoint with status field
+        return this.apiCall(`/admin/v1/users/${userId}`, {
+            method: 'PUT',
             body: JSON.stringify({ status })
         });
     }
 
     async deleteUser(userId) {
         console.log(`🗑️ [UserManagement] Deleting user:`, userId);
-        return this.apiCall(`/admin/users/${userId}`, {
-            method: 'DELETE'
+        // Using updateUser endpoint with deletedAt field
+        return this.apiCall(`/admin/v1/users/${userId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ deletedAt: new Date().toISOString() })
         });
     }
 
     async restoreUser(userId) {
         console.log(`🔄 [UserManagement] Restoring user:`, userId);
-        return this.apiCall(`/admin/users/${userId}/restore`, {
-            method: 'PATCH'
+        // Using updateUser endpoint with deletedAt: null
+        return this.apiCall(`/admin/v1/users/${userId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ deletedAt: null })
         });
     }
 
     async getUserAnalytics() {
         console.log(`📊 [UserManagement] Getting user analytics`);
-        return this.apiCall('/admin/users/analytics');
+        return this.apiCall('/admin/v1/analytics?metric=users');
     }
 
     async bulkUpdateUsers(updates) {
-        return this.apiCall('/admin/users/bulk-update', {
+        console.log(`🔄 [UserManagement] Bulk updating users:`, updates.length, 'users');
+        return this.apiCall('/admin/v1/users/bulk-update', {
             method: 'POST',
-            body: JSON.stringify(updates)
+            body: JSON.stringify({ updates })
         });
     }
 
-    async exportUsers() {
-        return this.apiCall('/admin/users/export');
+    async exportUsers(format = 'csv', includeDeleted = false) {
+        console.log(`📊 [UserManagement] Exporting users as ${format}`);
+        const queryString = new URLSearchParams({ format, includeDeleted }).toString();
+        return this.apiCall(`/admin/v1/users/export?${queryString}`);
     }
 
     async createUser(userData) {
-        return this.apiCall('/admin/users', {
+        console.log(`➕ [UserManagement] Creating new user:`, userData.email);
+        return this.apiCall('/admin/v1/users', {
             method: 'POST',
             body: JSON.stringify(userData)
         });
     }
 
-    async bulkDeleteUsers(userIds) {
-        return this.apiCall('/admin/users/bulk-delete', {
+    async bulkDeleteUsers(userIds, permanent = false) {
+        console.log(`🗑️ [UserManagement] Bulk deleting users:`, userIds.length, 'users');
+        return this.apiCall('/admin/v1/users/bulk-delete', {
             method: 'POST',
-            body: JSON.stringify({ userIds })
+            body: JSON.stringify({ userIds, permanent })
         });
+    }
+
+    async getSubscriptionPlans() {
+        console.log(`📋 [UserManagement] Getting subscription plans`);
+        return this.apiCall('/admin/v1/subscription-plans');
     }
 
     // ===== AUDIT LOGS =====
@@ -622,6 +637,57 @@ class AdminApiService {
         return this.apiCall('/admin/platform-config/import', {
             method: 'POST',
             body: JSON.stringify(data)
+        });
+    }
+
+    // Financial Management Methods
+    async getFinancialSettings() {
+        console.log(`💰 [Financial] Getting financial settings`);
+        return this.apiCall('/admin/v1/financial/settings');
+    }
+
+    async updateFinancialSettings(settings) {
+        console.log(`💰 [Financial] Updating financial settings`);
+        return this.apiCall('/admin/v1/financial/settings', {
+            method: 'PUT',
+            body: JSON.stringify(settings)
+        });
+    }
+
+    async getRevenueStats() {
+        console.log(`💰 [Financial] Getting revenue statistics`);
+        return this.apiCall('/admin/v1/financial/revenue-stats');
+    }
+
+    async getCoachesForPayout() {
+        console.log(`💰 [Financial] Getting coaches for payout`);
+        return this.apiCall('/admin/v1/financial/coaches-payout');
+    }
+
+    async getPaymentHistory() {
+        console.log(`💰 [Financial] Getting payment history`);
+        return this.apiCall('/admin/v1/financial/payment-history');
+    }
+
+    async processCoachPayout(coachId, amount) {
+        console.log(`💰 [Financial] Processing payout for coach ${coachId}: ₹${amount}`);
+        return this.apiCall('/admin/v1/financial/process-payout', {
+            method: 'POST',
+            body: JSON.stringify({ coachId, amount })
+        });
+    }
+
+    async processPayoutAll() {
+        console.log(`💰 [Financial] Processing payouts for all eligible coaches`);
+        return this.apiCall('/admin/v1/financial/payout-all', {
+            method: 'POST'
+        });
+    }
+
+    async refreshRazorpayBalance() {
+        console.log(`💰 [Financial] Refreshing Razorpay balance`);
+        return this.apiCall('/admin/v1/financial/refresh-balance', {
+            method: 'POST'
         });
     }
 }

@@ -3,6 +3,19 @@
 // 🚀 Load environment variables from .env file
 require('dotenv').config({ quiet: true });
 
+// 🛡️ Global Error Handlers to prevent server crashes
+process.on('uncaughtException', (error) => {
+    console.error('🚨 [CRITICAL] Uncaught Exception:', error);
+    // Don't exit the process, just log the error
+    // This prevents the server from crashing due to Baileys errors
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('🚨 [CRITICAL] Unhandled Rejection at:', promise, 'reason:', reason);
+    // Don't exit the process, just log the error
+    // This prevents the server from crashing due to Baileys errors
+});
+
 // 📦 Core Node.js Modules
 const express = require('express');
 const http = require('http');
@@ -260,12 +273,58 @@ app.use('/api/ai-ads', aiAdsRoutes);
 const coachMarketingCredentialsRoutes = require('./routes/coachMarketingCredentialsRoutes');
 app.use('/api/coach-marketing-credentials', coachMarketingCredentialsRoutes);
 
+// ===== NEW MARKETING V1 API =====
+const marketingV1Routes = require('./routes/marketingV1Routes');
+app.use('/api/marketing/v1', marketingV1Routes);
+
+// ===== COACH FINANCIAL MANAGEMENT =====
+const coachFinancialRoutes = require('./routes/coachFinancialRoutes');
+app.use('/api/coach/financial', coachFinancialRoutes);
+
+// ===== ADMIN HIERARCHY MANAGEMENT =====
+const adminHierarchyRoutes = require('./routes/adminHierarchyRoutes');
+app.use('/api/admin/hierarchy', adminHierarchyRoutes);
+
+// ===== ADMIN V1 MASTER API =====
+const adminV1Routes = require('./routes/adminV1Routes');
+app.use('/api/admin/v1', adminV1Routes);
+
+// ===== WHATSAPP ROUTES (COMMENTED OUT) =====
+// All old WhatsApp routes are commented out to avoid conflicts
+
+/*
 // ===== UNIFIED WHATSAPP INTEGRATION =====
 const whatsappRoutes = require('./whatsapp/routes');
-app.use('/api/whatsapp', whatsappRoutes);
+const unifiedMessagingRoutes = require('./routes/unifiedMessagingRoutes');
+// app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/messagingv1', unifiedMessagingRoutes);
+
+// ===== CENTRAL WHATSAPP SYSTEM =====
+// Central WhatsApp management routes (Admin)
+const centralWhatsAppRoutes = require('./routes/centralWhatsAppRoutes');
+app.use('/api/admin/central-whatsapp', centralWhatsAppRoutes);
+
+// Central WhatsApp main routes (Coach + Admin)
+app.use('/api/centralwhatsapp', centralWhatsAppRoutes);
 
 // Serve WhatsApp QR code page
 app.use('/whatsapp', express.static(path.join(__dirname, 'whatsapp/public')));
+
+// Serve unified messaging QR setup page
+app.get('/whatsapp-qr-setup.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/whatsapp-qr-setup.html'));
+});
+
+// New Baileys QR setup page
+app.get('/whatsapp-qr', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/new-whatsapp-qr-setup.html'));
+});
+*/
+
+// ===== UNIFIED WHATSAPP V1 SYSTEM =====
+// Single endpoint for all WhatsApp functionality - Admin and Coach
+const centralWhatsAppRoutes = require('./routes/centralWhatsAppRoutes');
+app.use('/api/whatsapp/v1', centralWhatsAppRoutes);
 
 // ===== STAFF & TEAM MANAGEMENT =====
 app.use('/api/staff', staffRoutes);
@@ -303,6 +362,7 @@ const newAdminFinancialRoutes = require('./routes/adminFinancialRoutes');
 const newAdminSecurityRoutes = require('./routes/adminSecurityRoutes');
 const platformConfigRoutes = require('./routes/platformConfigRoutes');
 const staffAuthRoutes = require('./routes/staffAuthRoutes');
+// const adminWhatsappRoutes = require('./routes/adminWhatsappRoutes'); // Commented out - using unified WhatsApp v1
 
 // Mount new admin auth routes first (login, logout, etc.)
 app.use('/api/admin/auth', newAdminAuthRoutes);
@@ -310,16 +370,18 @@ app.use('/api/admin/auth', newAdminAuthRoutes);
 // Mount staff auth routes
 app.use('/api/staffv2/auth', staffAuthRoutes);
 
+// ===== EXISTING ADMIN ROUTES (TEMPORARILY DISABLED - USING ADMIN V1) =====
 // Mount new admin system routes
-app.use('/api/admin/system', newAdminSystemRoutes);
+// app.use('/api/admin/system', newAdminSystemRoutes);
 // app.use('/api/admin/payment', newAdminPaymentRoutes);
-app.use('/api/admin/users', newAdminUserRoutes);
-app.use('/api/admin/audit-logs', newAdminAuditRoutes);
+// app.use('/api/admin/users', newAdminUserRoutes);
+// app.use('/api/admin/audit-logs', newAdminAuditRoutes);
 // Admin WhatsApp routes moved to dustbin/whatsapp-dump/
-app.use('/api/admin/mlm', newAdminMlmRoutes);
-app.use('/api/admin/financial', newAdminFinancialRoutes);
-app.use('/api/admin/security', newAdminSecurityRoutes);
-app.use('/api/admin/platform-config', platformConfigRoutes);
+// app.use('/api/admin/mlm', newAdminMlmRoutes);
+// app.use('/api/admin/financial', newAdminFinancialRoutes);
+// app.use('/api/admin/whatsapp', adminWhatsappRoutes); // Commented out - using unified WhatsApp v1
+// app.use('/api/admin/security', newAdminSecurityRoutes);
+// app.use('/api/admin/platform-config', platformConfigRoutes);
 
 // Serve new admin dashboard UI (React app)
 app.get('/admin', (req, res) => {

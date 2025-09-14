@@ -1,0 +1,1039 @@
+{
+	"info": {
+		"_postman_id": "marketing-ai-ads-collection",
+		"name": "Marketing & AI Ads API Collection",
+		"description": "Comprehensive collection for testing Marketing and AI Ads features with Coach authentication",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{coach_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "coach_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "coach_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "campaign_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "ad_set_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "creative_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "🔐 Authentication",
+			"item": [
+				{
+					"name": "Coach Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"coach@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.token) {",
+									"        pm.collectionVariables.set('coach_token', response.token);",
+									"        pm.collectionVariables.set('coach_id', response.user.id);",
+									"        console.log('Coach token set:', response.token);",
+									"    }",
+									"}"
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "🤖 AI Ads Features",
+			"item": [
+				{
+					"name": "Generate Ad Copy",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetAudience\": \"Fitness enthusiasts aged 25-40\",\n  \"productInfo\": \"Personal training program for weight loss\",\n  \"campaignObjective\": \"Lead Generation\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ai-ads/generate-copy",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai-ads", "generate-copy"]
+						}
+					}
+				},
+				{
+					"name": "Generate Marketing Headlines",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"coachName\": \"John Fitness\",\n  \"niche\": \"Weight Loss\",\n  \"offer\": \"30-Day Transformation Program\",\n  \"targetAudience\": \"Busy professionals\",\n  \"tone\": \"Motivational\",\n  \"headlineCount\": 5,\n  \"includeHashtags\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ai-ads/generate-headlines",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai-ads", "generate-headlines"]
+						}
+					}
+				},
+				{
+					"name": "Generate Social Media Post",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"platform\": \"instagram\",\n  \"contentType\": \"motivational_post\",\n  \"topic\": \"Weight loss transformation\",\n  \"targetAudience\": \"Fitness beginners\",\n  \"tone\": \"Inspirational\",\n  \"includeHashtags\": true,\n  \"includeCallToAction\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ai-ads/generate-social-post",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai-ads", "generate-social-post"]
+						}
+					}
+				},
+				{
+					"name": "Generate Social Media Campaign",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"campaignName\": \"Summer Fitness Challenge\",\n  \"platform\": \"instagram\",\n  \"duration\": 7,\n  \"targetAudience\": \"Fitness enthusiasts\",\n  \"theme\": \"Motivation and transformation\",\n  \"postCount\": 5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ai-ads/generate-social-campaign",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai-ads", "generate-social-campaign"]
+						}
+					}
+				},
+				{
+					"name": "Generate Poster Image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"prompt\": \"Motivational fitness poster with transformation theme\",\n  \"style\": \"Modern\",\n  \"colors\": [\"Blue\", \"Orange\"],\n  \"size\": \"1080x1080\",\n  \"includeText\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ai-ads/generate-poster",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai-ads", "generate-poster"]
+						}
+					}
+				},
+				{
+					"name": "Generate Poster Variations",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"basePrompt\": \"Fitness motivation poster\",\n  \"variationCount\": 3,\n  \"styles\": [\"Modern\", \"Vintage\", \"Minimalist\"],\n  \"size\": \"1080x1080\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ai-ads/generate-poster-variations",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai-ads", "generate-poster-variations"]
+						}
+					}
+				},
+				{
+					"name": "Generate Targeting Recommendations",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"productType\": \"Fitness Program\",\n  \"targetAudience\": \"Weight loss seekers\",\n  \"budget\": 1000,\n  \"campaignObjective\": \"Lead Generation\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ai-ads/targeting-recommendations",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai-ads", "targeting-recommendations"]
+						}
+					}
+				},
+				{
+					"name": "Create Optimized Campaign",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"campaignName\": \"AI Optimized Fitness Campaign\",\n  \"productInfo\": \"Personal training program\",\n  \"targetAudience\": \"Fitness enthusiasts\",\n  \"budget\": 500,\n  \"objective\": \"Lead Generation\",\n  \"platform\": \"Facebook\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ai-ads/create-optimized-campaign",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai-ads", "create-optimized-campaign"]
+						}
+					}
+				},
+				{
+					"name": "Get AI Dashboard",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/ai-ads/dashboard",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai-ads", "dashboard"]
+						}
+					}
+				},
+				{
+					"name": "Get Performance Insights",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/ai-ads/performance-insights",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai-ads", "performance-insights"]
+						}
+					}
+				},
+				{
+					"name": "Get Social Media History",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/ai-ads/social-history",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai-ads", "social-history"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🧠 AI Features",
+			"item": [
+				{
+					"name": "Test AI Connection",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/ai/test-connection",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai", "test-connection"]
+						}
+					}
+				},
+				{
+					"name": "Get Available AI Models",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/ai/models",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai", "models"]
+						}
+					}
+				},
+				{
+					"name": "Generate Marketing Copy",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"product\": \"Fitness Program\",\n  \"targetAudience\": \"Weight loss seekers\",\n  \"copyType\": \"ad\",\n  \"tone\": \"Motivational\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ai/generate-marketing-copy",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai", "generate-marketing-copy"]
+						}
+					}
+				},
+				{
+					"name": "Generate Headlines",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"topic\": \"Weight Loss Transformation\",\n  \"targetAudience\": \"Fitness beginners\",\n  \"count\": 5,\n  \"style\": \"Attention-grabbing\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ai/generate-headlines",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai", "generate-headlines"]
+						}
+					}
+				},
+				{
+					"name": "Generate Social Post",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"platform\": \"Instagram\",\n  \"topic\": \"Fitness motivation\",\n  \"tone\": \"Inspirational\",\n  \"includeHashtags\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ai/generate-social-post",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai", "generate-social-post"]
+						}
+					}
+				},
+				{
+					"name": "Analyze Sentiment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"text\": \"I love this fitness program! It's amazing and really works.\",\n  \"context\": \"Customer feedback\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ai/analyze-sentiment",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai", "analyze-sentiment"]
+						}
+					}
+				},
+				{
+					"name": "Generate Lead Insights",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"leadData\": {\n    \"name\": \"John Doe\",\n    \"email\": \"john@example.com\",\n    \"interests\": [\"fitness\", \"weight loss\"],\n    \"behavior\": \"high engagement\"\n  },\n  \"context\": \"Lead qualification\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ai/generate-lead-insights",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai", "generate-lead-insights"]
+						}
+					}
+				},
+				{
+					"name": "Optimize Content",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Transform your body in 30 days with our fitness program\",\n  \"optimizationType\": \"engagement\",\n  \"targetAudience\": \"Fitness enthusiasts\",\n  \"platform\": \"Instagram\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ai/optimize-content",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai", "optimize-content"]
+						}
+					}
+				},
+				{
+					"name": "AI Chat Completion",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"Help me create a marketing strategy for my fitness coaching business\",\n  \"context\": \"Marketing strategy\",\n  \"conversationHistory\": []\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ai/chat-completion",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ai", "chat-completion"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📊 Lead Magnets",
+			"item": [
+				{
+					"name": "Get Coach Lead Magnets",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/lead-magnets/coach",
+							"host": ["{{base_url}}"],
+							"path": ["api", "lead-magnets", "coach"]
+						}
+					}
+				},
+				{
+					"name": "Update Coach Lead Magnets",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"leadMagnets\": {\n    \"ai_diet_planner\": {\n      \"enabled\": true,\n      \"customization\": {\n        \"branding\": \"Fitness Pro\",\n        \"colors\": [\"#FF6B6B\", \"#4ECDC4\"]\n      }\n    },\n    \"bmi_calculator\": {\n      \"enabled\": true,\n      \"customization\": {\n        \"branding\": \"Fitness Pro\"\n      }\n    }\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/lead-magnets/coach",
+							"host": ["{{base_url}}"],
+							"path": ["api", "lead-magnets", "coach"]
+						}
+					}
+				},
+				{
+					"name": "Generate AI Diet Plan",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userInfo\": {\n    \"age\": 30,\n    \"weight\": 70,\n    \"height\": 170,\n    \"activityLevel\": \"Moderate\",\n    \"goals\": [\"Weight Loss\"],\n    \"dietaryRestrictions\": [\"Vegetarian\"]\n  },\n  \"leadId\": \"{{coach_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/lead-magnets/ai-diet-plan",
+							"host": ["{{base_url}}"],
+							"path": ["api", "lead-magnets", "ai-diet-plan"]
+						}
+					}
+				},
+				{
+					"name": "Calculate BMI and Recommendations",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"weight\": 70,\n  \"height\": 170,\n  \"age\": 30,\n  \"gender\": \"Male\",\n  \"leadId\": \"{{coach_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/lead-magnets/bmi-calculator",
+							"host": ["{{base_url}}"],
+							"path": ["api", "lead-magnets", "bmi-calculator"]
+						}
+					}
+				},
+				{
+					"name": "Generate Ebook Content",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"topic\": \"Weight Loss Guide\",\n  \"targetAudience\": \"Beginners\",\n  \"length\": \"Medium\",\n  \"style\": \"Educational\",\n  \"leadId\": \"{{coach_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/lead-magnets/fitness-ebook",
+							"host": ["{{base_url}}"],
+							"path": ["api", "lead-magnets", "fitness-ebook"]
+						}
+					}
+				},
+				{
+					"name": "Calculate Workout Metrics",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"workoutData\": {\n    \"exercises\": [\"Push-ups\", \"Squats\", \"Plank\"],\n    \"duration\": 30,\n    \"intensity\": \"Moderate\"\n  },\n  \"leadId\": \"{{coach_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/lead-magnets/workout-calculator",
+							"host": ["{{base_url}}"],
+							"path": ["api", "lead-magnets", "workout-calculator"]
+						}
+					}
+				},
+				{
+					"name": "Track Progress",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"progressData\": {\n    \"weight\": 68,\n    \"measurements\": {\n      \"waist\": 32,\n      \"chest\": 38\n    },\n    \"photos\": [],\n    \"notes\": \"Feeling great!\"\n  },\n  \"leadId\": \"{{coach_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/lead-magnets/progress-tracker",
+							"host": ["{{base_url}}"],
+							"path": ["api", "lead-magnets", "progress-tracker"]
+						}
+					}
+				},
+				{
+					"name": "Analyze Sleep Quality",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"sleepData\": {\n    \"sleepHours\": 7.5,\n    \"bedtime\": \"22:00\",\n    \"wakeTime\": \"06:00\",\n    \"quality\": \"Good\",\n    \"disturbances\": 1\n  },\n  \"leadId\": \"{{coach_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/lead-magnets/sleep-analyzer",
+							"host": ["{{base_url}}"],
+							"path": ["api", "lead-magnets", "sleep-analyzer"]
+						}
+					}
+				},
+				{
+					"name": "Assess Stress Level",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"stressData\": {\n    \"workStress\": 6,\n    \"personalStress\": 4,\n    \"physicalSymptoms\": [\"Headaches\", \"Fatigue\"],\n    \"copingMethods\": [\"Exercise\", \"Meditation\"]\n  },\n  \"leadId\": \"{{coach_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/lead-magnets/stress-assessment",
+							"host": ["{{base_url}}"],
+							"path": ["api", "lead-magnets", "stress-assessment"]
+						}
+					}
+				},
+				{
+					"name": "Get Available Lead Magnets",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/lead-magnets/available",
+							"host": ["{{base_url}}"],
+							"path": ["api", "lead-magnets", "available"]
+						}
+					}
+				},
+				{
+					"name": "Get Lead Magnet Analytics",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/lead-magnets/analytics",
+							"host": ["{{base_url}}"],
+							"path": ["api", "lead-magnets", "analytics"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📈 Coach Dashboard",
+			"item": [
+				{
+					"name": "Get Dashboard Data",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/coach/dashboard/data",
+							"host": ["{{base_url}}"],
+							"path": ["api", "coach", "dashboard", "data"]
+						}
+					}
+				},
+				{
+					"name": "Get Marketing Data",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/coach/dashboard/marketing",
+							"host": ["{{base_url}}"],
+							"path": ["api", "coach", "dashboard", "marketing"]
+						}
+					}
+				},
+				{
+					"name": "Get AI Insights",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/coach/dashboard/ai-insights",
+							"host": ["{{base_url}}"],
+							"path": ["api", "coach", "dashboard", "ai-insights"]
+						}
+					}
+				},
+				{
+					"name": "Get Performance Data",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/coach/dashboard/performance",
+							"host": ["{{base_url}}"],
+							"path": ["api", "coach", "dashboard", "performance"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📢 Ads Management",
+			"item": [
+				{
+					"name": "List Campaigns",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/ads",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ads"]
+						}
+					}
+				},
+				{
+					"name": "Create Campaign",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"coachMetaAccountId\": \"act_123456789\",\n  \"useAI\": true,\n  \"campaignData\": {\n    \"name\": \"Fitness Program Campaign\",\n    \"objective\": \"CONVERSIONS\",\n    \"status\": \"PAUSED\",\n    \"dailyBudget\": 50,\n    \"targetAudience\": \"Fitness enthusiasts aged 25-40\",\n    \"productInfo\": \"Personal training program for weight loss\",\n    \"startTime\": \"2024-01-01T00:00:00Z\",\n    \"endTime\": \"2024-01-31T23:59:59Z\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ads/create",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ads", "create"]
+						}
+					}
+				},
+				{
+					"name": "Create URL Campaign (All-in-One)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"coachMetaAccountId\": \"act_123456789\",\n  \"campaignData\": {\n    \"name\": \"Fitness URL Campaign\",\n    \"objective\": \"TRAFFIC\",\n    \"dailyBudget\": 25,\n    \"targetUrl\": \"https://example.com/fitness-program\",\n    \"targetAudience\": \"Fitness beginners\",\n    \"productInfo\": \"Beginner fitness program\",\n    \"imageUrl\": \"https://example.com/image.jpg\",\n    \"headline\": \"Transform Your Body in 30 Days\",\n    \"description\": \"Join thousands who have transformed their lives with our proven program\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ads/create-url-campaign",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ads", "create-url-campaign"]
+						}
+					}
+				},
+				{
+					"name": "Sync Campaigns",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"coachMetaAccountId\": \"act_123456789\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ads/sync",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ads", "sync"]
+						}
+					}
+				},
+				{
+					"name": "Update Campaign",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Fitness Campaign\",\n  \"dailyBudget\": 75,\n  \"status\": \"ACTIVE\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ads/{{campaign_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ads", "{{campaign_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Pause Campaign",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{base_url}}/api/ads/{{campaign_id}}/pause",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ads", "{{campaign_id}}", "pause"]
+						}
+					}
+				},
+				{
+					"name": "Resume Campaign",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{base_url}}/api/ads/{{campaign_id}}/resume",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ads", "{{campaign_id}}", "resume"]
+						}
+					}
+				},
+				{
+					"name": "Get Campaign Analytics",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/ads/{{campaign_id}}/analytics",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ads", "{{campaign_id}}", "analytics"]
+						}
+					}
+				},
+				{
+					"name": "Upload Image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "multipart/form-data"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "image",
+									"type": "file",
+									"src": "/path/to/image.jpg"
+								},
+								{
+									"key": "description",
+									"value": "Fitness motivation image",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ads/upload-image",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ads", "upload-image"]
+						}
+					}
+				},
+				{
+					"name": "Create Ad Set",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Fitness Ad Set\",\n  \"optimizationGoal\": \"CONVERSIONS\",\n  \"billingEvent\": \"IMPRESSIONS\",\n  \"bidAmount\": 2.50,\n  \"dailyBudget\": 25,\n  \"targeting\": {\n    \"ageMin\": 25,\n    \"ageMax\": 40,\n    \"genders\": [1],\n    \"interests\": [\"fitness\", \"weight loss\", \"health\"]\n  },\n  \"placement\": [\"facebook\", \"instagram\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ads/{{campaign_id}}/ad-sets",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ads", "{{campaign_id}}", "ad-sets"]
+						}
+					}
+				},
+				{
+					"name": "Create Ad Creative",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Fitness Creative\",\n  \"title\": \"Transform Your Body in 30 Days\",\n  \"body\": \"Join our proven fitness program and see real results\",\n  \"imageUrl\": \"https://example.com/fitness-image.jpg\",\n  \"callToActionType\": \"LEARN_MORE\",\n  \"linkUrl\": \"https://example.com/fitness-program\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ads/{{campaign_id}}/creatives",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ads", "{{campaign_id}}", "creatives"]
+						}
+					}
+				},
+				{
+					"name": "Create Ad",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Fitness Ad\",\n  \"adSetId\": \"{{ad_set_id}}\",\n  \"creativeId\": \"{{creative_id}}\",\n  \"status\": \"ACTIVE\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ads/{{campaign_id}}/ads",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ads", "{{campaign_id}}", "ads"]
+						}
+					}
+				},
+				{
+					"name": "List Ad Sets",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/ads/{{campaign_id}}/ad-sets",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ads", "{{campaign_id}}", "ad-sets"]
+						}
+					}
+				},
+				{
+					"name": "List Ad Creatives",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/ads/{{campaign_id}}/creatives",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ads", "{{campaign_id}}", "creatives"]
+						}
+					}
+				},
+				{
+					"name": "List Ads",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/ads/{{campaign_id}}/ads",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ads", "{{campaign_id}}", "ads"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🎯 Automation Rules",
+			"item": [
+				{
+					"name": "Get Available Events & Actions",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/automation-rules/events-actions",
+							"host": ["{{base_url}}"],
+							"path": ["api", "automation-rules", "events-actions"]
+						}
+					}
+				},
+				{
+					"name": "Get All Automation Rules",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/api/automation-rules",
+							"host": ["{{base_url}}"],
+							"path": ["api", "automation-rules"]
+						}
+					}
+				},
+				{
+					"name": "Create Automation Rule",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Auto Follow-up on Lead Creation\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"Welcome! Thanks for your interest in our fitness program.\",\n        \"templateId\": \"welcome_template\"\n      }\n    },\n    {\n      \"type\": \"add_lead_tag\",\n      \"config\": {\n        \"tag\": \"new_lead\"\n      }\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/automation-rules",
+							"host": ["{{base_url}}"],
+							"path": ["api", "automation-rules"]
+						}
+					}
+				}
+			]
+		}
+	]
+}

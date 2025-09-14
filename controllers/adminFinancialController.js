@@ -1,5 +1,7 @@
 const asyncHandler = require('../middleware/async');
-const { AdminSystemSettings, Coach, Payment, Subscription, CentralPayment, PaymentGatewayConfig } = require('../schema');
+const mongoose = require('mongoose');
+const razorpayService = require('../services/razorpayService');
+const { AdminSystemSettings, Coach, RazorpayPayment, Subscription, CentralPayment, PaymentGatewayConfig, User, MlmCommissionDistribution } = require('../schema');
 
 // ===== FINANCIAL & BILLING CONTROL CENTER =====
 
@@ -10,7 +12,15 @@ const { AdminSystemSettings, Coach, Payment, Subscription, CentralPayment, Payme
  */
 exports.getCreditSystem = asyncHandler(async (req, res) => {
     try {
+        console.log('🔄 [FINANCIAL_API] getCreditSystem - Starting...');
+        console.log('🔄 [FINANCIAL_API] getCreditSystem - Querying AdminSystemSettings...');
+        
+        const startTime = Date.now();
         const settings = await AdminSystemSettings.findOne().select('paymentSystem.currencies paymentSystem.taxSettings');
+        const queryTime = Date.now() - startTime;
+        
+        console.log(`✅ [FINANCIAL_API] getCreditSystem - Query completed in ${queryTime}ms`);
+        console.log('📊 [FINANCIAL_API] getCreditSystem - Settings found:', !!settings);
         
         // Get credit types and pricing
         const creditTypes = {
@@ -19,16 +29,24 @@ exports.getCreditSystem = asyncHandler(async (req, res) => {
             emailCredits: { name: 'Email Credits', basePrice: 0.005, markup: 0.002 }
         };
 
+        const responseData = {
+            creditTypes,
+            currencies: settings?.paymentSystem?.currencies || { supported: ['USD'], default: 'USD' },
+            taxSettings: settings?.paymentSystem?.taxSettings || {}
+        };
+
+        console.log('✅ [FINANCIAL_API] getCreditSystem - Preparing response...');
+        console.log('📊 [FINANCIAL_API] getCreditSystem - Response data keys:', Object.keys(responseData));
+
         res.status(200).json({
             success: true,
-            data: {
-                creditTypes,
-                currencies: settings?.paymentSystem?.currencies || { supported: ['USD'], default: 'USD' },
-                taxSettings: settings?.paymentSystem?.taxSettings || {}
-            }
+            data: responseData
         });
+        
+        console.log('✅ [FINANCIAL_API] getCreditSystem - Response sent successfully');
     } catch (error) {
-        console.error('Error getting credit system:', error);
+        console.error('❌ [FINANCIAL_API] getCreditSystem - Error:', error);
+        console.error('❌ [FINANCIAL_API] getCreditSystem - Error stack:', error.stack);
         res.status(500).json({
             success: false,
             message: 'Error retrieving credit system configuration',
@@ -87,6 +105,8 @@ exports.updateCreditSystem = asyncHandler(async (req, res) => {
  */
 exports.getCreditPackages = asyncHandler(async (req, res) => {
     try {
+        console.log('🔄 [FINANCIAL_API] getCreditPackages - Starting...');
+        
         // This would typically fetch from a CreditPackage schema
         const packages = [
             {
@@ -122,12 +142,18 @@ exports.getCreditPackages = asyncHandler(async (req, res) => {
             }
         ];
 
+        console.log('✅ [FINANCIAL_API] getCreditPackages - Packages prepared:', packages.length);
+        console.log('📊 [FINANCIAL_API] getCreditPackages - Package names:', packages.map(p => p.name));
+
         res.status(200).json({
             success: true,
             data: packages
         });
+        
+        console.log('✅ [FINANCIAL_API] getCreditPackages - Response sent successfully');
     } catch (error) {
-        console.error('Error getting credit packages:', error);
+        console.error('❌ [FINANCIAL_API] getCreditPackages - Error:', error);
+        console.error('❌ [FINANCIAL_API] getCreditPackages - Error stack:', error.stack);
         res.status(500).json({
             success: false,
             message: 'Error retrieving credit packages',
@@ -143,12 +169,18 @@ exports.getCreditPackages = asyncHandler(async (req, res) => {
  */
 exports.getRevenueAnalytics = asyncHandler(async (req, res) => {
     try {
+        console.log('🔄 [FINANCIAL_API] getRevenueAnalytics - Starting...');
         const { timeRange = 30 } = req.query;
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - timeRange);
+        
+        console.log('📊 [FINANCIAL_API] getRevenueAnalytics - Time range:', timeRange, 'days');
+        console.log('📊 [FINANCIAL_API] getRevenueAnalytics - Start date:', startDate);
 
         // Get payment analytics
-        const paymentStats = await Payment.aggregate([
+        console.log('🔄 [FINANCIAL_API] getRevenueAnalytics - Querying RazorpayPayment...');
+        const paymentStartTime = Date.now();
+        const paymentStats = await RazorpayPayment.aggregate([
             {
                 $match: {
                     createdAt: { $gte: startDate },
@@ -164,8 +196,13 @@ exports.getRevenueAnalytics = asyncHandler(async (req, res) => {
                 }
             }
         ]);
+        const paymentQueryTime = Date.now() - paymentStartTime;
+        console.log(`✅ [FINANCIAL_API] getRevenueAnalytics - Payment query completed in ${paymentQueryTime}ms`);
+        console.log('📊 [FINANCIAL_API] getRevenueAnalytics - Payment stats:', paymentStats);
 
         // Get subscription analytics
+        console.log('🔄 [FINANCIAL_API] getRevenueAnalytics - Querying Subscription...');
+        const subscriptionStartTime = Date.now();
         const subscriptionStats = await Subscription.aggregate([
             {
                 $match: {
@@ -181,8 +218,12 @@ exports.getRevenueAnalytics = asyncHandler(async (req, res) => {
                 }
             }
         ]);
+        const subscriptionQueryTime = Date.now() - subscriptionStartTime;
+        console.log(`✅ [FINANCIAL_API] getRevenueAnalytics - Subscription query completed in ${subscriptionQueryTime}ms`);
 
         // Get MRR (Monthly Recurring Revenue)
+        console.log('🔄 [FINANCIAL_API] getRevenueAnalytics - Querying MRR...');
+        const mrrStartTime = Date.now();
         const mrr = await Subscription.aggregate([
             {
                 $match: {
@@ -197,8 +238,12 @@ exports.getRevenueAnalytics = asyncHandler(async (req, res) => {
                 }
             }
         ]);
+        const mrrQueryTime = Date.now() - mrrStartTime;
+        console.log(`✅ [FINANCIAL_API] getRevenueAnalytics - MRR query completed in ${mrrQueryTime}ms`);
 
         // Get churn analysis
+        console.log('🔄 [FINANCIAL_API] getRevenueAnalytics - Querying churn...');
+        const churnStartTime = Date.now();
         const churnedSubscriptions = await Subscription.aggregate([
             {
                 $match: {
@@ -214,26 +259,36 @@ exports.getRevenueAnalytics = asyncHandler(async (req, res) => {
                 }
             }
         ]);
+        const churnQueryTime = Date.now() - churnStartTime;
+        console.log(`✅ [FINANCIAL_API] getRevenueAnalytics - Churn query completed in ${churnQueryTime}ms`);
+
+        const responseData = {
+            paymentStats: paymentStats[0] || {
+                totalRevenue: 0,
+                totalPayments: 0,
+                averagePayment: 0
+            },
+            subscriptionStats,
+            mrr: mrr[0]?.mrr || 0,
+            churnStats: churnedSubscriptions[0] || {
+                churnedCount: 0,
+                churnedRevenue: 0
+            },
+            timeRange
+        };
+
+        console.log('✅ [FINANCIAL_API] getRevenueAnalytics - Preparing response...');
+        console.log('📊 [FINANCIAL_API] getRevenueAnalytics - Response data keys:', Object.keys(responseData));
 
         res.status(200).json({
             success: true,
-            data: {
-                paymentStats: paymentStats[0] || {
-                    totalRevenue: 0,
-                    totalPayments: 0,
-                    averagePayment: 0
-                },
-                subscriptionStats,
-                mrr: mrr[0]?.mrr || 0,
-                churnStats: churnedSubscriptions[0] || {
-                    churnedCount: 0,
-                    churnedRevenue: 0
-                },
-                timeRange
-            }
+            data: responseData
         });
+        
+        console.log('✅ [FINANCIAL_API] getRevenueAnalytics - Response sent successfully');
     } catch (error) {
-        console.error('Error getting revenue analytics:', error);
+        console.error('❌ [FINANCIAL_API] getRevenueAnalytics - Error:', error);
+        console.error('❌ [FINANCIAL_API] getRevenueAnalytics - Error stack:', error.stack);
         res.status(500).json({
             success: false,
             message: 'Error retrieving revenue analytics',
@@ -249,11 +304,16 @@ exports.getRevenueAnalytics = asyncHandler(async (req, res) => {
  */
 exports.getPaymentFailures = asyncHandler(async (req, res) => {
     try {
+        console.log('🔄 [FINANCIAL_API] getPaymentFailures - Starting...');
         const { timeRange = 30 } = req.query;
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - timeRange);
+        
+        console.log('📊 [FINANCIAL_API] getPaymentFailures - Time range:', timeRange, 'days');
 
-        const failedPayments = await Payment.aggregate([
+        console.log('🔄 [FINANCIAL_API] getPaymentFailures - Querying failed payments...');
+        const queryStartTime = Date.now();
+        const failedPayments = await RazorpayPayment.aggregate([
             {
                 $match: {
                     status: 'failed',
@@ -271,8 +331,11 @@ exports.getPaymentFailures = asyncHandler(async (req, res) => {
                 $sort: { count: -1 }
             }
         ]);
+        const queryTime = Date.now() - queryStartTime;
+        console.log(`✅ [FINANCIAL_API] getPaymentFailures - Query completed in ${queryTime}ms`);
+        console.log('📊 [FINANCIAL_API] getPaymentFailures - Failed payments found:', failedPayments.length);
 
-        const retryAttempts = await Payment.aggregate([
+        const retryAttempts = await RazorpayPayment.aggregate([
             {
                 $match: {
                     status: 'pending',
@@ -321,7 +384,7 @@ exports.getGatewayMarkup = asyncHandler(async (req, res) => {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - timeRange);
 
-        const gatewayStats = await Payment.aggregate([
+        const gatewayStats = await RazorpayPayment.aggregate([
             {
                 $match: {
                     createdAt: { $gte: startDate },
@@ -896,6 +959,567 @@ exports.getPaymentAnalytics = asyncHandler(async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error retrieving payment analytics',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Create new credit package
+ * @route   POST /api/admin/financial/credit-packages
+ * @access  Private (Admin)
+ */
+exports.createCreditPackage = asyncHandler(async (req, res) => {
+    try {
+        const { name, description, credits, price, currency, isActive, features } = req.body;
+        const adminId = req.admin.id;
+
+        // Validate required fields
+        if (!name || !credits || !price) {
+            return res.status(400).json({
+                success: false,
+                message: 'Name, credits, and price are required'
+            });
+        }
+
+        // Create credit package in AdminSystemSettings
+        const settings = await AdminSystemSettings.findOne({ settingId: 'global' });
+        if (!settings) {
+            return res.status(404).json({
+                success: false,
+                message: 'System settings not found'
+            });
+        }
+
+        const newPackage = {
+            id: new mongoose.Types.ObjectId(),
+            name,
+            description: description || '',
+            credits: {
+                aiCredits: credits.aiCredits || 0,
+                emailCredits: credits.emailCredits || 0
+            },
+            price: {
+                amount: price,
+                currency: currency || 'INR'
+            },
+            isActive: isActive !== undefined ? isActive : true,
+            features: features || [],
+            createdAt: new Date(),
+            createdBy: adminId
+        };
+
+        if (!settings.creditPackages) {
+            settings.creditPackages = [];
+        }
+        settings.creditPackages.push(newPackage);
+
+        await settings.save();
+
+        res.status(201).json({
+            success: true,
+            message: 'Credit package created successfully',
+            data: newPackage
+        });
+    } catch (error) {
+        console.error('Error creating credit package:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error creating credit package',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Update credit package
+ * @route   PUT /api/admin/financial/credit-packages/:packageId
+ * @access  Private (Admin)
+ */
+exports.updateCreditPackage = asyncHandler(async (req, res) => {
+    try {
+        const { packageId } = req.params;
+        const updateData = req.body;
+        const adminId = req.admin.id;
+
+        const settings = await AdminSystemSettings.findOne({ settingId: 'global' });
+        if (!settings || !settings.creditPackages) {
+            return res.status(404).json({
+                success: false,
+                message: 'Credit packages not found'
+            });
+        }
+
+        const packageIndex = settings.creditPackages.findIndex(pkg => pkg.id.toString() === packageId);
+        if (packageIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                message: 'Credit package not found'
+            });
+        }
+
+        // Update package
+        settings.creditPackages[packageIndex] = {
+            ...settings.creditPackages[packageIndex],
+            ...updateData,
+            updatedAt: new Date(),
+            updatedBy: adminId
+        };
+
+        await settings.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Credit package updated successfully',
+            data: settings.creditPackages[packageIndex]
+        });
+    } catch (error) {
+        console.error('Error updating credit package:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating credit package',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Delete credit package
+ * @route   DELETE /api/admin/financial/credit-packages/:packageId
+ * @access  Private (Admin)
+ */
+exports.deleteCreditPackage = asyncHandler(async (req, res) => {
+    try {
+        const { packageId } = req.params;
+
+        const settings = await AdminSystemSettings.findOne({ settingId: 'global' });
+        if (!settings || !settings.creditPackages) {
+            return res.status(404).json({
+                success: false,
+                message: 'Credit packages not found'
+            });
+        }
+
+        const packageIndex = settings.creditPackages.findIndex(pkg => pkg.id.toString() === packageId);
+        if (packageIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                message: 'Credit package not found'
+            });
+        }
+
+        // Remove package
+        settings.creditPackages.splice(packageIndex, 1);
+        await settings.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Credit package deleted successfully'
+        });
+    } catch (error) {
+        console.error('Error deleting credit package:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error deleting credit package',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Get Razorpay account management
+ * @route   GET /api/admin/financial/razorpay-account
+ * @access  Private (Admin)
+ */
+exports.getRazorpayAccount = asyncHandler(async (req, res) => {
+    try {
+        const balanceResult = await razorpayService.getAccountBalance();
+        
+        if (!balanceResult.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Error fetching Razorpay account details',
+                error: balanceResult.error
+            });
+        }
+
+        // Get recent transactions
+        const recentPayments = await razorpayService.getAllPayments({ count: 10 });
+        const recentPayouts = await razorpayService.getAllPayouts({ count: 10 });
+
+        res.json({
+            success: true,
+            data: {
+                account: {
+                    id: balanceResult.accountId,
+                    name: balanceResult.accountName,
+                    balance: balanceResult.balance,
+                    currency: balanceResult.currency
+                },
+                recentActivity: {
+                    payments: recentPayments.success ? recentPayments.payments : [],
+                    payouts: recentPayouts.success ? recentPayouts.payouts : []
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error getting Razorpay account:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error retrieving Razorpay account details',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Update MLM commission structure
+ * @route   PUT /api/admin/financial/mlm-commission-structure
+ * @access  Private (Admin)
+ */
+exports.updateMlmCommissionStructure = asyncHandler(async (req, res) => {
+    try {
+        const { 
+            levels, 
+            platformFeePercentage, 
+            maxLevels,
+            autoPayoutEnabled,
+            payoutThreshold 
+        } = req.body;
+
+        if (!levels || !Array.isArray(levels)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Commission levels must be an array'
+            });
+        }
+
+        if (platformFeePercentage < 0 || platformFeePercentage > 100) {
+            return res.status(400).json({
+                success: false,
+                message: 'Platform fee percentage must be between 0 and 100'
+            });
+        }
+
+        const settings = await AdminSystemSettings.findOneAndUpdate(
+            {},
+            {
+                $set: {
+                    'paymentSystem.mlmCommissionStructure': {
+                        levels: levels,
+                        platformFeePercentage: platformFeePercentage,
+                        maxLevels: maxLevels || levels.length,
+                        autoPayoutEnabled: autoPayoutEnabled || false,
+                        payoutThreshold: payoutThreshold || 100
+                    }
+                }
+            },
+            {
+                new: true,
+                upsert: true,
+                runValidators: true
+            }
+        );
+
+        res.json({
+            success: true,
+            message: 'MLM commission structure updated successfully',
+            data: {
+                commissionStructure: settings.paymentSystem.mlmCommissionStructure
+            }
+        });
+    } catch (error) {
+        console.error('Error updating MLM commission structure:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating MLM commission structure',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Process MLM commission for subscription
+ * @route   POST /api/admin/financial/process-mlm-commission
+ * @access  Private (Admin)
+ */
+exports.processMlmCommission = asyncHandler(async (req, res) => {
+    try {
+        const { subscriptionId, subscriptionAmount, coachId } = req.body;
+
+        if (!subscriptionId || !subscriptionAmount || !coachId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Subscription ID, amount, and coach ID are required'
+            });
+        }
+
+        // Get MLM commission structure
+        const settings = await AdminSystemSettings.findOne().select('paymentSystem.mlmCommissionStructure');
+        if (!settings || !settings.paymentSystem?.mlmCommissionStructure) {
+            return res.status(400).json({
+                success: false,
+                message: 'MLM commission structure not configured'
+            });
+        }
+
+        const commissionStructure = settings.paymentSystem.mlmCommissionStructure;
+
+        // Get coach hierarchy
+        const coach = await User.findById(coachId);
+        if (!coach || coach.role !== 'coach') {
+            return res.status(404).json({
+                success: false,
+                message: 'Coach not found'
+            });
+        }
+
+        // Calculate commission
+        const commissionResult = razorpayService.calculateMLMCommission(
+            subscriptionAmount,
+            commissionStructure,
+            coach.currentLevel || 1
+        );
+
+        if (!commissionResult.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Error calculating commission',
+                error: commissionResult.error
+            });
+        }
+
+        // Create commission distribution records
+        const commissionDistributions = [];
+        for (const commission of commissionResult.commissions) {
+            const distribution = await MlmCommissionDistribution.create({
+                subscriptionId: subscriptionId,
+                recipientId: coachId,
+                level: commission.level,
+                percentage: commission.percentage,
+                amount: commission.amount,
+                platformFee: commissionResult.platformFee,
+                netAmount: commissionResult.netAmount,
+                status: 'pending',
+                createdAt: new Date()
+            });
+            commissionDistributions.push(distribution);
+        }
+
+        // Process automatic payout if enabled
+        if (commissionStructure.autoPayoutEnabled && commissionResult.totalCommission >= commissionStructure.payoutThreshold) {
+            const coachPayoutSettings = coach.payoutSettings;
+            if (coachPayoutSettings?.autoPayoutEnabled) {
+                const payoutData = {
+                    coachId: coachId,
+                    amount: commissionResult.totalCommission,
+                    upiId: coachPayoutSettings.upiId,
+                    bankAccount: coachPayoutSettings.bankAccount,
+                    purpose: 'MLM Commission',
+                    notes: `Automatic commission payout for subscription ${subscriptionId}`
+                };
+
+                const payoutResult = await razorpayService.processAutomaticPayout(
+                    payoutData,
+                    coachPayoutSettings.payoutMethod
+                );
+
+                if (payoutResult.success) {
+                    // Update commission distributions with payout info
+                    await MlmCommissionDistribution.updateMany(
+                        { subscriptionId: subscriptionId },
+                        {
+                            $set: {
+                                status: 'paid',
+                                payoutId: payoutResult.payoutId,
+                                paidAt: new Date()
+                            }
+                        }
+                    );
+                }
+            }
+        }
+
+        res.json({
+            success: true,
+            message: 'MLM commission processed successfully',
+            data: {
+                subscriptionId,
+                subscriptionAmount,
+                platformFee: commissionResult.platformFee,
+                netAmount: commissionResult.netAmount,
+                totalCommission: commissionResult.totalCommission,
+                commissions: commissionDistributions,
+                remainingAmount: commissionResult.remainingAmount
+            }
+        });
+    } catch (error) {
+        console.error('Error processing MLM commission:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error processing MLM commission',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Get platform fee settings
+ * @route   GET /api/admin/financial/platform-fees
+ * @access  Private (Admin)
+ */
+exports.getPlatformFees = asyncHandler(async (req, res) => {
+    try {
+        const settings = await AdminSystemSettings.findOne().select('paymentSystem.platformFees');
+        
+        const defaultFees = {
+            subscriptionFee: 5.0, // 5% of subscription
+            transactionFee: 2.0, // 2% per transaction
+            payoutFee: 1.0, // 1% per payout
+            refundFee: 0.5 // 0.5% per refund
+        };
+
+        res.json({
+            success: true,
+            data: {
+                platformFees: settings?.paymentSystem?.platformFees || defaultFees,
+                currency: 'INR'
+            }
+        });
+    } catch (error) {
+        console.error('Error getting platform fees:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error retrieving platform fees',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Update platform fee settings
+ * @route   PUT /api/admin/financial/platform-fees
+ * @access  Private (Admin)
+ */
+exports.updatePlatformFees = asyncHandler(async (req, res) => {
+    try {
+        const { subscriptionFee, transactionFee, payoutFee, refundFee } = req.body;
+
+        // Validate fee percentages
+        const fees = { subscriptionFee, transactionFee, payoutFee, refundFee };
+        for (const [key, value] of Object.entries(fees)) {
+            if (value !== undefined && (value < 0 || value > 100)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `${key} must be between 0 and 100`
+                });
+            }
+        }
+
+        const settings = await AdminSystemSettings.findOneAndUpdate(
+            {},
+            {
+                $set: {
+                    'paymentSystem.platformFees': {
+                        subscriptionFee: subscriptionFee || 5.0,
+                        transactionFee: transactionFee || 2.0,
+                        payoutFee: payoutFee || 1.0,
+                        refundFee: refundFee || 0.5
+                    }
+                }
+            },
+            {
+                new: true,
+                upsert: true,
+                runValidators: true
+            }
+        );
+
+        res.json({
+            success: true,
+            message: 'Platform fees updated successfully',
+            data: {
+                platformFees: settings.paymentSystem.platformFees
+            }
+        });
+    } catch (error) {
+        console.error('Error updating platform fees:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating platform fees',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Get financial analytics dashboard
+ * @route   GET /api/admin/financial/analytics-dashboard
+ * @access  Private (Admin)
+ */
+exports.getFinancialAnalyticsDashboard = asyncHandler(async (req, res) => {
+    try {
+        const { timeRange = 30 } = req.query;
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - parseInt(timeRange));
+
+        // Get Razorpay balance
+        const balanceResult = await razorpayService.getAccountBalance();
+
+        // Get subscription analytics
+        const subscriptions = await Subscription.find({
+            createdAt: { $gte: startDate }
+        }).populate('planId', 'price').populate('coachId', 'name email');
+
+        const totalRevenue = subscriptions.reduce((sum, sub) => sum + (sub.planId?.price || 0), 0);
+        const activeSubscriptions = subscriptions.filter(sub => sub.status === 'active').length;
+
+        // Get commission analytics
+        const commissions = await MlmCommissionDistribution.find({
+            createdAt: { $gte: startDate }
+        });
+
+        const totalCommissionsPaid = commissions
+            .filter(comm => comm.status === 'paid')
+            .reduce((sum, comm) => sum + comm.amount, 0);
+
+        // Get payout analytics
+        const payoutsResult = await razorpayService.getAllPayouts({
+            from: Math.floor(startDate.getTime() / 1000),
+            count: 100
+        });
+
+        const totalPayouts = payoutsResult.success ? 
+            payoutsResult.payouts.reduce((sum, payout) => sum + (payout.amount / 100), 0) : 0;
+
+        // Calculate platform fees collected
+        const platformFeesCollected = totalRevenue * 0.05; // Assuming 5% platform fee
+
+        res.json({
+            success: true,
+            data: {
+                overview: {
+                    totalRevenue,
+                    activeSubscriptions,
+                    totalCommissionsPaid,
+                    totalPayouts,
+                    platformFeesCollected,
+                    netProfit: platformFeesCollected - totalCommissionsPaid
+                },
+                razorpayAccount: balanceResult.success ? {
+                    balance: balanceResult.balance,
+                    currency: balanceResult.currency,
+                    accountName: balanceResult.accountName
+                } : null,
+                timeRange: parseInt(timeRange),
+                lastUpdated: new Date()
+            }
+        });
+    } catch (error) {
+        console.error('Error getting financial analytics dashboard:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error retrieving financial analytics',
             error: error.message
         });
     }

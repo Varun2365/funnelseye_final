@@ -34,6 +34,9 @@ const {
     processMonthlyCommissions,
     calculateSubscriptionCommission,
     
+    // Admin Functions
+    getAdminCoaches,
+    
     // ===== INTEGRATED EXISTING MLM FUNCTIONALITY =====
     addDownline,
     getDownline,
@@ -43,9 +46,16 @@ const {
     getReports,
     getReportDetail,
     
+    // ===== ENHANCED PERFORMANCE TRACKING =====
+    getCoachPerformance,
+    getSalesPerformance,
+    getClientPerformance,
+    getLeadPerformance,
+    
 } = require('../controllers/advancedMlmController');
 
 const { protect, authorizeCoach, authorizeStaff, authorizeAdmin } = require('../middleware/auth');
+const { verifyAdminToken, checkAdminPermission, noLogActivity } = require('../middleware/adminAuth');
 const { updateLastActive } = require('../middleware/activityMiddleware');
 
 // ===== PUBLIC ROUTES (No Authentication Required) =====
@@ -54,13 +64,13 @@ const { updateLastActive } = require('../middleware/activityMiddleware');
 router.get('/health', mlmHealthCheck);
 
 // Route 0.1: Test middleware chain (Admin only)
-router.get('/test-middleware', protect, updateLastActive, authorizeAdmin, (req, res) => {
+router.get('/test-middleware', verifyAdminToken, checkAdminPermission('mlmSettings'), noLogActivity, (req, res) => {
     res.json({
         success: true,
         message: 'Middleware chain working correctly',
-        user: {
-            id: req.user.id,
-            role: req.role
+        admin: {
+            id: req.admin.id,
+            email: req.admin.email
         }
     });
 });
@@ -71,7 +81,7 @@ router.get('/test-middleware', protect, updateLastActive, authorizeAdmin, (req, 
 // ===== HIERARCHY LEVEL MANAGEMENT =====
 
 // Route 1: Setup default hierarchy levels (Admin only)
-router.post('/setup-hierarchy', protect, updateLastActive, authorizeAdmin, setupHierarchyLevels);
+router.post('/setup-hierarchy', verifyAdminToken, checkAdminPermission('mlmSettings'), noLogActivity, setupHierarchyLevels);
 
 // Route 2: Get all hierarchy levels (Public)
 router.get('/hierarchy-levels', getHierarchyLevels);
@@ -98,40 +108,58 @@ router.post('/lock-hierarchy', protect, updateLastActive, authorizeCoach('coach'
 router.post('/admin-request', protect, updateLastActive, authorizeCoach('coach'), submitAdminRequest);
 
 // Route 9: Get admin requests for a specific coach
-// Admins can view any coach's admin requests, coaches can only view their own
+// Coaches can view their own admin requests
 router.get('/admin-requests/:coachId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getCoachAdminRequests);
 
 // ===== COMMISSION SYSTEM =====
 
 // Route 10: Calculate commission only on platform subscriptions (Admin only)
-router.post('/calculate-subscription-commission', protect, updateLastActive, authorizeAdmin, calculateSubscriptionCommission);
+router.post('/calculate-subscription-commission', verifyAdminToken, checkAdminPermission('mlmSettings'), noLogActivity, calculateSubscriptionCommission);
 
 // Route 10: Get coach commissions
-// Admins can view any coach's commissions, coaches can only view their own
+// Coaches can view their own commissions, admins can view any coach's commissions
 router.get('/commissions/:coachId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getCoachCommissions);
 
 // ===== ADMIN ROUTES (Admin Authentication Required) =====
 
 // Route 11: Get all pending admin requests
-router.get('/admin/pending-requests', protect, updateLastActive, authorizeAdmin, getPendingAdminRequests);
+router.get('/admin/pending-requests', verifyAdminToken, noLogActivity, getPendingAdminRequests);
 
 // Route 12: Process admin request (approve/reject)
-router.put('/admin/process-request/:requestId', protect, updateLastActive, authorizeAdmin, processAdminRequest);
+router.put('/admin/process-request/:requestId', verifyAdminToken, checkAdminPermission('mlmSettings'), noLogActivity, processAdminRequest);
 
 // Route 13: Change coach upline
-router.put('/admin/change-upline', protect, updateLastActive, authorizeAdmin, changeCoachUpline);
+router.put('/admin/change-upline', verifyAdminToken, checkAdminPermission('mlmSettings'), noLogActivity, changeCoachUpline);
 
 // Route 14: Get commission settings
-router.get('/admin/commission-settings', protect, updateLastActive, authorizeAdmin, getCommissionSettings);
+router.get('/admin/commission-settings', verifyAdminToken, checkAdminPermission('mlmSettings'), noLogActivity, getCommissionSettings);
 
 // Route 15: Update commission settings
-router.put('/admin/commission-settings', protect, updateLastActive, authorizeAdmin, updateCommissionSettings);
+router.put('/admin/commission-settings', verifyAdminToken, checkAdminPermission('mlmSettings'), noLogActivity, updateCommissionSettings);
 
 // Route 16: Calculate and create commission for subscription
-router.post('/admin/calculate-commission', protect, updateLastActive, authorizeAdmin, calculateCommission);
+router.post('/admin/calculate-commission', verifyAdminToken, checkAdminPermission('mlmSettings'), noLogActivity, calculateCommission);
 
 // Route 17: Process monthly commission payments
-router.post('/admin/process-monthly-commissions', protect, updateLastActive, authorizeAdmin, processMonthlyCommissions);
+router.post('/admin/process-monthly-commissions', verifyAdminToken, checkAdminPermission('mlmSettings'), noLogActivity, processMonthlyCommissions);
+
+// Route 18: Get all coaches (Admin only)
+router.get('/admin/coaches', verifyAdminToken, checkAdminPermission('mlmSettings'), noLogActivity, getAdminCoaches);
+
+// Route 19: Get hierarchy for admin (Admin only)
+router.get('/admin/hierarchy/:coachId', verifyAdminToken, checkAdminPermission('mlmSettings'), noLogActivity, getDownlineHierarchy);
+
+// Route 20: Get coach performance for admin (Admin only)
+router.get('/admin/coach-performance/:coachId', verifyAdminToken, checkAdminPermission('mlmSettings'), noLogActivity, getCoachPerformance);
+
+// Route 21: Get sales performance for admin (Admin only)
+router.get('/admin/sales-performance/:sponsorId', verifyAdminToken, checkAdminPermission('mlmSettings'), noLogActivity, getSalesPerformance);
+
+// Route 22: Get client performance for admin (Admin only)
+router.get('/admin/client-performance/:sponsorId', verifyAdminToken, checkAdminPermission('mlmSettings'), noLogActivity, getClientPerformance);
+
+// Route 23: Get lead performance for admin (Admin only)
+router.get('/admin/lead-performance/:sponsorId', verifyAdminToken, checkAdminPermission('mlmSettings'), noLogActivity, getLeadPerformance);
 
 // ===== INTEGRATED EXISTING MLM FUNCTIONALITY =====
 
@@ -139,26 +167,44 @@ router.post('/admin/process-monthly-commissions', protect, updateLastActive, aut
 router.post('/downline', protect, updateLastActive, authorizeCoach('coach'), addDownline);
 
 // Route 19: Get direct downline for a specific sponsor
-// Admins can view any coach's downline, coaches can only view their own
+// Coaches can view their own downline, admins can view any coach's downline
 router.get('/downline/:sponsorId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getDownline);
 
 // Route 20: Get complete downline hierarchy
-// Admins can view any coach's hierarchy, coaches can only view their own
+// Coaches can view their own hierarchy, admins can view any coach's hierarchy
 router.get('/hierarchy/:coachId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getDownlineHierarchy);
 
 // Route 21: Get team performance summary
-// Admins can view any coach's team performance, coaches can only view their own
+// Coaches can view their own team performance, admins can view any coach's team performance
 router.get('/team-performance/:sponsorId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getTeamPerformance);
 
 // Route 22: Generate comprehensive team report
 router.post('/generate-report', protect, updateLastActive, authorizeCoach('coach'), generateTeamReport);
 
 // Route 23: Get list of generated reports
-// Admins can view any coach's reports, coaches can only view their own
+// Coaches can view their own reports, admins can view any coach's reports
 router.get('/reports/:sponsorId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getReports);
 
 // Route 24: Get specific report details
-// Admins can view any report, coaches can only view their own reports
+// Coaches can view their own reports, admins can view any report
 router.get('/reports/detail/:reportId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getReportDetail);
+
+// ===== ENHANCED PERFORMANCE TRACKING ROUTES =====
+
+// Route 25: Get detailed performance metrics for a specific coach
+// Coaches can view their own performance, admins can view any coach's performance
+router.get('/coach-performance/:coachId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getCoachPerformance);
+
+// Route 26: Get sales performance for downline coaches
+// Coaches can view their own team's sales performance, admins can view any coach's sales performance
+router.get('/sales-performance/:sponsorId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getSalesPerformance);
+
+// Route 27: Get client acquisition performance for downline coaches
+// Coaches can view their own team's client performance, admins can view any coach's client performance
+router.get('/client-performance/:sponsorId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getClientPerformance);
+
+// Route 28: Get lead generation performance for downline coaches
+// Coaches can view their own team's lead performance, admins can view any coach's lead performance
+router.get('/lead-performance/:sponsorId', protect, updateLastActive, authorizeCoach('coach', 'admin', 'super_admin'), getLeadPerformance);
 
 module.exports = router;

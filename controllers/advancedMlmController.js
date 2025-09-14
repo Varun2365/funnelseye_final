@@ -454,10 +454,7 @@ const submitAdminRequest = async (req, res) => {
     }
 
     try {
-        const requestId = `REQ_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
         const adminRequest = new AdminRequest({
-            requestId,
             coachId,
             requestType,
             requestedData,
@@ -471,7 +468,7 @@ const submitAdminRequest = async (req, res) => {
             success: true,
             message: 'Admin request submitted successfully.',
             data: {
-                requestId: adminRequest.requestId,
+                requestId: adminRequest._id,
                 status: adminRequest.status,
                 submittedAt: adminRequest.createdAt
             }
@@ -535,13 +532,98 @@ const getPendingAdminRequests = async (req, res) => {
     }
 };
 
+// @desc    Get all coaches for admin management
+// @route   GET /api/advanced-mlm/admin/coaches
+// @access  Private (Admin)
+const getAdminCoaches = async (req, res) => {
+    try {
+        const { 
+            page = 1, 
+            limit = 50, 
+            search,
+            status,
+            sortBy = 'createdAt',
+            sortOrder = 'desc'
+        } = req.query;
+
+        const query = { role: 'coach' };
+        
+        // Add search filter
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } },
+                { selfCoachId: { $regex: search, $options: 'i' } },
+                { phone: { $regex: search, $options: 'i' } }
+            ];
+        }
+        
+        // Add status filter
+        if (status) {
+            query.status = status;
+        }
+
+        // Calculate pagination
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        
+        // Build sort object
+        const sort = {};
+        sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+        // Get coaches with pagination
+        const coaches = await User.find(query)
+            .select('-password -__v')
+            .populate('sponsorId', 'name email selfCoachId')
+            .sort(sort)
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        // Calculate team size for each coach
+        const coachesWithTeamSize = await Promise.all(coaches.map(async (coach) => {
+            const teamSize = await User.countDocuments({ 
+                sponsorId: coach._id, 
+                role: 'coach' 
+            });
+            
+            return {
+                ...coach.toObject(),
+                teamSize
+            };
+        }));
+
+        // Get total count for pagination
+        const total = await User.countDocuments(query);
+
+        res.status(200).json({
+            success: true,
+            message: 'Coaches retrieved successfully.',
+            data: {
+                coaches: coachesWithTeamSize,
+                pagination: {
+                    currentPage: parseInt(page),
+                    totalPages: Math.ceil(total / parseInt(limit)),
+                    totalCoaches: total,
+                    hasNext: skip + coachesWithTeamSize.length < total,
+                    hasPrev: parseInt(page) > 1
+                }
+            }
+        });
+    } catch (err) {
+        console.error('Error getting coaches:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while retrieving coaches'
+        });
+    }
+};
+
 // @desc    Process admin request
 // @route   PUT /api/advanced-mlm/admin/process-request/:requestId
 // @access  Private (Admin)
 const processAdminRequest = async (req, res) => {
     const { requestId } = req.params;
     const { status, adminNotes } = req.body;
-    const adminId = req.user._id;
+    const adminId = req.admin._id;
 
     if (!status || !['approved', 'rejected'].includes(status)) {
         return res.status(400).json({
@@ -551,7 +633,7 @@ const processAdminRequest = async (req, res) => {
     }
 
     try {
-        const request = await AdminRequest.findOne({ requestId });
+        const request = await AdminRequest.findById(requestId);
         if (!request) {
             return res.status(404).json({
                 success: false,
@@ -603,7 +685,7 @@ const changeCoachUpline = async (req, res) => {
         isExternalSponsor = false 
     } = req.body;
     
-    const adminId = req.user._id;
+    const adminId = req.admin._id;
 
     if (!coachId || !newUplineName) {
         return res.status(400).json({
@@ -712,7 +794,7 @@ const updateCommissionSettings = async (req, res) => {
         notes 
     } = req.body;
     
-    const adminId = req.user._id;
+    const adminId = req.admin._id;
 
     if (!commissionPercentage || commissionPercentage < 0 || commissionPercentage > 100) {
         return res.status(400).json({
@@ -1023,7 +1105,7 @@ const getCoachCommissions = async (req, res) => {
 // @access  Private (Admin)
 const processMonthlyCommissions = async (req, res) => {
     const { month, year } = req.body;
-    const adminId = req.user._id;
+    const adminId = req.admin._id;
 
     if (!month || !year) {
         return res.status(400).json({
@@ -1095,12 +1177,12 @@ const processMonthlyCommissions = async (req, res) => {
 const addDownline = async (req, res) => {
     console.log('[Advanced MLM Controller] Request body:', req.body);
     
-    const { name, email, password, sponsorId } = req.body;
+    const { name, email, password, sponsorId, selfCoachId } = req.body;
 
-    if (!email || !password || !name || !sponsorId) {
+    if (!email || !password || !name || !sponsorId || !selfCoachId) {
         return res.status(400).json({ 
             success: false,
-            message: 'Please enter all required fields: name, email, password, and sponsorId.' 
+            message: 'Please enter all required fields: name, email, password, sponsorId, and selfCoachId.' 
         });
     }
 
@@ -1121,6 +1203,15 @@ const addDownline = async (req, res) => {
             });
         }
 
+        // Check if selfCoachId is already taken
+        const existingCoachWithId = await User.findOne({ selfCoachId });
+        if (existingCoachWithId) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Coach ID already taken. Please choose a different one.' 
+            });
+        }
+
         // Create coach using User model with role discriminator
         const newCoach = new User({
             name,
@@ -1128,7 +1219,7 @@ const addDownline = async (req, res) => {
             password,
             role: 'coach',
             sponsorId,
-            selfCoachId: null, // Will be set during hierarchy setup
+            selfCoachId, // Use the provided selfCoachId
             currentLevel: 1, // Default to level 1
             hierarchyLocked: false,
             isVerified: false
@@ -1149,6 +1240,7 @@ const addDownline = async (req, res) => {
             data: {
                 coachId: newCoach._id,
                 sponsorId: newCoach.sponsorId,
+                selfCoachId: newCoach.selfCoachId,
                 name: newCoach.name,
                 email: newCoach.email
             }
@@ -1301,10 +1393,28 @@ const getDownlineHierarchy = async (req, res) => {
             });
         }
 
+        // Transform data structure for visualization component
+        const transformedData = {
+            hierarchy: {
+                _id: result._id,
+                name: result.name,
+                email: result.email,
+                selfCoachId: sponsor.selfCoachId,
+                currentLevel: sponsor.currentLevel,
+                children: result.downlineHierarchy || []
+            },
+            summary: {
+                totalCoaches: (result.downlineHierarchy || []).length + 1,
+                maxDepth: Math.max(...(result.downlineHierarchy || []).map(d => d.level || 0), 0),
+                activeCoaches: (result.downlineHierarchy || []).filter(d => d.isActive !== false).length + 1,
+                totalRevenue: 0 // This would need to be calculated from actual data
+            }
+        };
+
         res.status(200).json({
             success: true,
             message: 'Downline hierarchy retrieved successfully.',
-            data: result
+            data: transformedData
         });
 
     } catch (err) {
@@ -1699,6 +1809,551 @@ async function applyHierarchyChanges(request) {
     }
 }
 
+// ===== ENHANCED PERFORMANCE TRACKING METHODS =====
+
+// @desc    Get detailed performance metrics for a specific coach
+// @route   GET /api/advanced-mlm/coach-performance/:coachId
+// @access  Private
+const getCoachPerformance = async (req, res) => {
+    const { coachId } = req.params;
+    const { period = 'monthly', startDate, endDate } = req.query;
+
+    try {
+        // Verify coach exists
+        const coach = await User.findById(coachId).select('_id name email role currentLevel');
+        if (!coach) {
+            return res.status(404).json({
+                success: false,
+                message: 'Coach not found.'
+            });
+        }
+
+        // Calculate date range
+        let dateFilter = {};
+        if (startDate && endDate) {
+            dateFilter = {
+                createdAt: {
+                    $gte: new Date(startDate),
+                    $lte: new Date(endDate)
+                }
+            };
+        } else {
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            dateFilter = {
+                createdAt: {
+                    $gte: startOfMonth,
+                    $lte: endOfMonth
+                }
+            };
+        }
+
+        // Get comprehensive performance data
+        const [
+            performanceRecord,
+            leadsStats,
+            salesStats,
+            clientStats,
+            commissionStats,
+            downlineStats
+        ] = await Promise.all([
+            // Performance record
+            CoachPerformance.findOne({ coachId }),
+            
+            // Leads statistics
+            Lead.aggregate([
+                { $match: { coachId: new mongoose.Types.ObjectId(coachId), ...dateFilter } },
+                {
+                    $group: {
+                        _id: null,
+                        totalLeads: { $sum: 1 },
+                        convertedLeads: { $sum: { $cond: [{ $eq: ['$status', 'converted'] }, 1, 0] } },
+                        activeLeads: { $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] } },
+                        avgLeadValue: { $avg: '$estimatedValue' }
+                    }
+                }
+            ]),
+            
+            // Sales statistics
+            RazorpayPayment.aggregate([
+                { $match: { coachId: new mongoose.Types.ObjectId(coachId), status: 'completed', ...dateFilter } },
+                {
+                    $group: {
+                        _id: null,
+                        totalSales: { $sum: '$amount' },
+                        totalTransactions: { $sum: 1 },
+                        avgTransactionValue: { $avg: '$amount' }
+                    }
+                }
+            ]),
+            
+            // Client statistics
+            User.aggregate([
+                { $match: { sponsorId: new mongoose.Types.ObjectId(coachId), role: 'customer', ...dateFilter } },
+                {
+                    $group: {
+                        _id: null,
+                        totalClients: { $sum: 1 },
+                        activeClients: { $sum: { $cond: [{ $eq: ['$isActive', true] }, 1, 0] } }
+                    }
+                }
+            ]),
+            
+            // Commission statistics
+            Commission.aggregate([
+                { $match: { coachId: new mongoose.Types.ObjectId(coachId), ...dateFilter } },
+                {
+                    $group: {
+                        _id: null,
+                        totalCommissions: { $sum: '$amount' },
+                        totalCommissionCount: { $sum: 1 },
+                        avgCommission: { $avg: '$amount' }
+                    }
+                }
+            ]),
+            
+            // Downline statistics
+            User.aggregate([
+                { $match: { sponsorId: new mongoose.Types.ObjectId(coachId), role: 'coach' } },
+                {
+                    $group: {
+                        _id: null,
+                        totalDownline: { $sum: 1 },
+                        activeDownline: { $sum: { $cond: [{ $eq: ['$isActive', true] }, 1, 0] } }
+                    }
+                }
+            ])
+        ]);
+
+        // Format response data
+        const performanceData = {
+            coach: {
+                id: coach._id,
+                name: coach.name,
+                email: coach.email,
+                currentLevel: coach.currentLevel
+            },
+            performance: performanceRecord ? {
+                currentLevel: performanceRecord.performanceRating.level,
+                performanceScore: performanceRecord.performanceRating.score,
+                isActive: performanceRecord.isActive,
+                lastActivity: performanceRecord.lastActivity,
+                activityStreak: performanceRecord.activityStreak
+            } : null,
+            leads: leadsStats[0] || {
+                totalLeads: 0,
+                convertedLeads: 0,
+                activeLeads: 0,
+                avgLeadValue: 0
+            },
+            sales: salesStats[0] || {
+                totalSales: 0,
+                totalTransactions: 0,
+                avgTransactionValue: 0
+            },
+            clients: clientStats[0] || {
+                totalClients: 0,
+                activeClients: 0
+            },
+            commissions: commissionStats[0] || {
+                totalCommissions: 0,
+                totalCommissionCount: 0,
+                avgCommission: 0
+            },
+            downline: downlineStats[0] || {
+                totalDownline: 0,
+                activeDownline: 0
+            },
+            period: period,
+            dateRange: {
+                startDate: dateFilter.createdAt?.$gte || null,
+                endDate: dateFilter.createdAt?.$lte || null
+            }
+        };
+
+        res.status(200).json({
+            success: true,
+            message: 'Coach performance data retrieved successfully.',
+            data: performanceData
+        });
+
+    } catch (err) {
+        console.error('Error getting coach performance:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while retrieving coach performance'
+        });
+    }
+};
+
+// @desc    Get sales performance for downline coaches
+// @route   GET /api/advanced-mlm/sales-performance/:sponsorId
+// @access  Private
+const getSalesPerformance = async (req, res) => {
+    const { sponsorId } = req.params;
+    const { period = 'monthly', startDate, endDate } = req.query;
+
+    try {
+        // Get all downline coaches
+        const downline = await User.find({ sponsorId, role: 'coach' }).select('_id name email currentLevel');
+        
+        if (downline.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'No downline coaches found.'
+            });
+        }
+
+        const downlineIds = downline.map(d => d._id);
+
+        // Calculate date range
+        let dateFilter = {};
+        if (startDate && endDate) {
+            dateFilter = {
+                createdAt: {
+                    $gte: new Date(startDate),
+                    $lte: new Date(endDate)
+                }
+            };
+        } else {
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            dateFilter = {
+                createdAt: {
+                    $gte: startOfMonth,
+                    $lte: endOfMonth
+                }
+            };
+        }
+
+        // Get sales data for all downline coaches
+        const salesData = await RazorpayPayment.aggregate([
+            { $match: { coachId: { $in: downlineIds }, status: 'completed', ...dateFilter } },
+            {
+                $group: {
+                    _id: '$coachId',
+                    totalSales: { $sum: '$amount' },
+                    totalTransactions: { $sum: 1 },
+                    avgTransactionValue: { $avg: '$amount' },
+                    maxTransaction: { $max: '$amount' },
+                    minTransaction: { $min: '$amount' }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'coach'
+                }
+            },
+            {
+                $unwind: '$coach'
+            },
+            {
+                $project: {
+                    coachId: '$_id',
+                    coachName: '$coach.name',
+                    coachEmail: '$coach.email',
+                    coachLevel: '$coach.currentLevel',
+                    totalSales: 1,
+                    totalTransactions: 1,
+                    avgTransactionValue: 1,
+                    maxTransaction: 1,
+                    minTransaction: 1
+                }
+            },
+            {
+                $sort: { totalSales: -1 }
+            }
+        ]);
+
+        // Calculate summary statistics
+        const summary = {
+            totalTeamSales: salesData.reduce((sum, coach) => sum + coach.totalSales, 0),
+            totalTeamTransactions: salesData.reduce((sum, coach) => sum + coach.totalTransactions, 0),
+            avgTeamTransactionValue: salesData.length > 0 ? 
+                salesData.reduce((sum, coach) => sum + coach.totalSales, 0) / 
+                salesData.reduce((sum, coach) => sum + coach.totalTransactions, 0) : 0,
+            topPerformer: salesData[0] || null,
+            activeCoaches: salesData.length,
+            totalDownline: downline.length
+        };
+
+        res.status(200).json({
+            success: true,
+            message: 'Sales performance data retrieved successfully.',
+            data: {
+                summary,
+                coachSales: salesData,
+                period: period,
+                dateRange: {
+                    startDate: dateFilter.createdAt?.$gte || null,
+                    endDate: dateFilter.createdAt?.$lte || null
+                }
+            }
+        });
+
+    } catch (err) {
+        console.error('Error getting sales performance:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while retrieving sales performance'
+        });
+    }
+};
+
+// @desc    Get client acquisition performance for downline coaches
+// @route   GET /api/advanced-mlm/client-performance/:sponsorId
+// @access  Private
+const getClientPerformance = async (req, res) => {
+    const { sponsorId } = req.params;
+    const { period = 'monthly', startDate, endDate } = req.query;
+
+    try {
+        // Get all downline coaches
+        const downline = await User.find({ sponsorId, role: 'coach' }).select('_id name email currentLevel');
+        
+        if (downline.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'No downline coaches found.'
+            });
+        }
+
+        const downlineIds = downline.map(d => d._id);
+
+        // Calculate date range
+        let dateFilter = {};
+        if (startDate && endDate) {
+            dateFilter = {
+                createdAt: {
+                    $gte: new Date(startDate),
+                    $lte: new Date(endDate)
+                }
+            };
+        } else {
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            dateFilter = {
+                createdAt: {
+                    $gte: startOfMonth,
+                    $lte: endOfMonth
+                }
+            };
+        }
+
+        // Get client data for all downline coaches
+        const clientData = await User.aggregate([
+            { $match: { sponsorId: { $in: downlineIds }, role: 'customer', ...dateFilter } },
+            {
+                $group: {
+                    _id: '$sponsorId',
+                    totalClients: { $sum: 1 },
+                    activeClients: { $sum: { $cond: [{ $eq: ['$isActive', true] }, 1, 0] } },
+                    newClients: { $sum: { $cond: [{ $gte: ['$createdAt', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)] }, 1, 0] } }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'coach'
+                }
+            },
+            {
+                $unwind: '$coach'
+            },
+            {
+                $project: {
+                    coachId: '$_id',
+                    coachName: '$coach.name',
+                    coachEmail: '$coach.email',
+                    coachLevel: '$coach.currentLevel',
+                    totalClients: 1,
+                    activeClients: 1,
+                    newClients: 1,
+                    clientRetentionRate: {
+                        $cond: [
+                            { $gt: ['$totalClients', 0] },
+                            { $multiply: [{ $divide: ['$activeClients', '$totalClients'] }, 100] },
+                            0
+                        ]
+                    }
+                }
+            },
+            {
+                $sort: { totalClients: -1 }
+            }
+        ]);
+
+        // Calculate summary statistics
+        const summary = {
+            totalTeamClients: clientData.reduce((sum, coach) => sum + coach.totalClients, 0),
+            totalActiveClients: clientData.reduce((sum, coach) => sum + coach.activeClients, 0),
+            totalNewClients: clientData.reduce((sum, coach) => sum + coach.newClients, 0),
+            avgRetentionRate: clientData.length > 0 ? 
+                clientData.reduce((sum, coach) => sum + coach.clientRetentionRate, 0) / clientData.length : 0,
+            topClientAcquirer: clientData[0] || null,
+            activeCoaches: clientData.length,
+            totalDownline: downline.length
+        };
+
+        res.status(200).json({
+            success: true,
+            message: 'Client performance data retrieved successfully.',
+            data: {
+                summary,
+                coachClients: clientData,
+                period: period,
+                dateRange: {
+                    startDate: dateFilter.createdAt?.$gte || null,
+                    endDate: dateFilter.createdAt?.$lte || null
+                }
+            }
+        });
+
+    } catch (err) {
+        console.error('Error getting client performance:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while retrieving client performance'
+        });
+    }
+};
+
+// @desc    Get lead generation performance for downline coaches
+// @route   GET /api/advanced-mlm/lead-performance/:sponsorId
+// @access  Private
+const getLeadPerformance = async (req, res) => {
+    const { sponsorId } = req.params;
+    const { period = 'monthly', startDate, endDate } = req.query;
+
+    try {
+        // Get all downline coaches
+        const downline = await User.find({ sponsorId, role: 'coach' }).select('_id name email currentLevel');
+        
+        if (downline.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'No downline coaches found.'
+            });
+        }
+
+        const downlineIds = downline.map(d => d._id);
+
+        // Calculate date range
+        let dateFilter = {};
+        if (startDate && endDate) {
+            dateFilter = {
+                createdAt: {
+                    $gte: new Date(startDate),
+                    $lte: new Date(endDate)
+                }
+            };
+        } else {
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            dateFilter = {
+                createdAt: {
+                    $gte: startOfMonth,
+                    $lte: endOfMonth
+                }
+            };
+        }
+
+        // Get lead data for all downline coaches
+        const leadData = await Lead.aggregate([
+            { $match: { coachId: { $in: downlineIds }, ...dateFilter } },
+            {
+                $group: {
+                    _id: '$coachId',
+                    totalLeads: { $sum: 1 },
+                    convertedLeads: { $sum: { $cond: [{ $eq: ['$status', 'converted'] }, 1, 0] } },
+                    activeLeads: { $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] } },
+                    qualifiedLeads: { $sum: { $cond: [{ $eq: ['$status', 'qualified'] }, 1, 0] } },
+                    avgLeadValue: { $avg: '$estimatedValue' },
+                    totalLeadValue: { $sum: '$estimatedValue' }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'coach'
+                }
+            },
+            {
+                $unwind: '$coach'
+            },
+            {
+                $project: {
+                    coachId: '$_id',
+                    coachName: '$coach.name',
+                    coachEmail: '$coach.email',
+                    coachLevel: '$coach.currentLevel',
+                    totalLeads: 1,
+                    convertedLeads: 1,
+                    activeLeads: 1,
+                    qualifiedLeads: 1,
+                    avgLeadValue: 1,
+                    totalLeadValue: 1,
+                    conversionRate: {
+                        $cond: [
+                            { $gt: ['$totalLeads', 0] },
+                            { $multiply: [{ $divide: ['$convertedLeads', '$totalLeads'] }, 100] },
+                            0
+                        ]
+                    }
+                }
+            },
+            {
+                $sort: { totalLeads: -1 }
+            }
+        ]);
+
+        // Calculate summary statistics
+        const summary = {
+            totalTeamLeads: leadData.reduce((sum, coach) => sum + coach.totalLeads, 0),
+            totalConvertedLeads: leadData.reduce((sum, coach) => sum + coach.convertedLeads, 0),
+            totalActiveLeads: leadData.reduce((sum, coach) => sum + coach.activeLeads, 0),
+            totalLeadValue: leadData.reduce((sum, coach) => sum + coach.totalLeadValue, 0),
+            avgConversionRate: leadData.length > 0 ? 
+                leadData.reduce((sum, coach) => sum + coach.conversionRate, 0) / leadData.length : 0,
+            topLeadGenerator: leadData[0] || null,
+            activeCoaches: leadData.length,
+            totalDownline: downline.length
+        };
+
+        res.status(200).json({
+            success: true,
+            message: 'Lead performance data retrieved successfully.',
+            data: {
+                summary,
+                coachLeads: leadData,
+                period: period,
+                dateRange: {
+                    startDate: dateFilter.createdAt?.$gte || null,
+                    endDate: dateFilter.createdAt?.$lte || null
+                }
+            }
+        });
+
+    } catch (err) {
+        console.error('Error getting lead performance:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Server error while retrieving lead performance'
+        });
+    }
+};
+
 module.exports = {
     // Health Check
     mlmHealthCheck,
@@ -1721,6 +2376,7 @@ module.exports = {
     
     // Admin Functions
     getPendingAdminRequests,
+    getAdminCoaches,
     processAdminRequest,
     changeCoachUpline,
     
@@ -1739,5 +2395,11 @@ module.exports = {
     getTeamPerformance,
     generateTeamReport,
     getReports,
-    getReportDetail
+    getReportDetail,
+    
+    // ===== ENHANCED PERFORMANCE TRACKING =====
+    getCoachPerformance,
+    getSalesPerformance,
+    getClientPerformance,
+    getLeadPerformance
 };

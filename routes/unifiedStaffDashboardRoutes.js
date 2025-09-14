@@ -355,6 +355,28 @@ router.get('/appointments/available-staff', authorizeStaff('staff'), unifiedStaf
 router.put('/appointments/:appointmentId/unassign', authorizeStaff('staff'), unifiedStaffDashboardController.unassignAppointment);
 
 /**
+ * @route PUT /api/staff-dashboard/unified/appointments/transfer-from-coach
+ * @desc Transfer appointment from coach to staff with meeting host permissions
+ * @access Private (Coach)
+ * @body { appointmentId, staffId, hostPermissions?, reason?, notes?, transferDate? }
+ * @example PUT /api/staff-dashboard/unified/appointments/transfer-from-coach
+ * @body {
+ *   "appointmentId": "appointment_id_here",
+ *   "staffId": "staff_id_here",
+ *   "hostPermissions": {
+ *     "hasHostAccess": true,
+ *     "canStartMeeting": true,
+ *     "canManageParticipants": true,
+ *     "canShareScreen": true,
+ *     "canRecordMeeting": false
+ *   },
+ *   "reason": "Coach unavailable, transferring to staff",
+ *   "notes": "Staff has full meeting control"
+ * }
+ */
+router.put('/appointments/transfer-from-coach', authorizeStaff('coach'), unifiedStaffDashboardController.transferAppointmentFromCoachToStaff);
+
+/**
  * @route PUT /api/staff-dashboard/unified/appointments/transfer
  * @desc Transfer appointment between staff members
  * @access Private (Coach/Staff)

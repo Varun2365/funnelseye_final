@@ -6,8 +6,7 @@ const Staff = User.discriminator('staff', new mongoose.Schema({
 	coachId: {
 		type: mongoose.Schema.Types.ObjectId,
 		ref: 'User', // coach user
-		required: true,
-		index: true
+		required: true
 	},
 	permissions: {
 		type: [String],

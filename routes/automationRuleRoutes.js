@@ -3,16 +3,18 @@
 const express = require('express');
 const router = express.Router();
 // --- CORRECTED: The import name must match the controller's export ---
-const { createRule, getRules,getRuleById, updateRule, deleteRule } = require('../controllers/automationRuleController'); 
+const { createRule, getRules, getRuleById, updateRule, deleteRule, getEventsAndActions } = require('../controllers/automationRuleController'); 
 
 // Assuming you have an authentication middleware to protect routes
 const {protect} = require('../middleware/auth'); // Adjust path as per your project structure
 const { updateLastActive } = require('../middleware/activityMiddleware'); // Your new middleware
 
+// Public route for getting available events and actions (no authentication required)
+router.get('/events-actions', getEventsAndActions); // Get all available events and actions
+
 // Use router.use() to apply both the authentication and activity tracking middleware
 // to ALL subsequent routes in this file.
 router.use(protect, updateLastActive);
-
 
 // Route to create a new automation rule
 // This route is now protected, and it will update the user's lastActiveAt timestamp

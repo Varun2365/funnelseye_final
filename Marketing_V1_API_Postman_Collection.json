@@ -1,0 +1,1209 @@
+{
+	"info": {
+		"_postman_id": "marketing-v1-api-collection",
+		"name": "Marketing V1 API - Comprehensive System",
+		"description": "Complete Postman collection for the new Marketing V1 API system with Meta API integration and AI-powered features for coaches.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "marketing-v1-exporter"
+	},
+	"item": [
+		{
+			"name": "🔐 Credentials Management",
+			"item": [
+				{
+					"name": "Get Meta API Setup Steps",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}",
+								"description": "Coach JWT token"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/credentials/meta/setup-steps",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"credentials",
+								"meta",
+								"setup-steps"
+							]
+						},
+						"description": "Get detailed step-by-step instructions for setting up Meta API credentials. This endpoint provides comprehensive guidance on obtaining all required Meta API tokens and account information."
+					},
+					"response": []
+				},
+				{
+					"name": "Get OpenAI Setup Steps",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}",
+								"description": "Coach JWT token"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/credentials/openai/setup-steps",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"credentials",
+								"openai",
+								"setup-steps"
+							]
+						},
+						"description": "Get detailed step-by-step instructions for setting up OpenAI API credentials. This endpoint provides comprehensive guidance on obtaining OpenAI API keys and configuring billing."
+					},
+					"response": []
+				},
+				{
+					"name": "Setup Meta API Credentials",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}",
+								"description": "Coach JWT token"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"accessToken\": \"EAABwzLixnjYBO...\",\n  \"appId\": \"123456789\",\n  \"appSecret\": \"abc123def456...\",\n  \"businessAccountId\": \"123456789\",\n  \"adAccountId\": \"act_123456789\",\n  \"facebookPageId\": \"123456789\",\n  \"instagramAccountId\": \"123456789\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/credentials/meta",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"credentials",
+								"meta"
+							]
+						},
+						"description": "Setup Meta API credentials for coach. All sensitive data is encrypted before storage.\n\n📋 **STEP-BY-STEP GUIDE TO GET META API CREDENTIALS:**\n\n**🔧 STEP 1: Create Facebook App**\n1. Go to https://developers.facebook.com/\n2. Click \"My Apps\" → \"Create App\"\n3. Choose \"Business\" as app type\n4. Fill in app details:\n   - App Name: Your business name\n   - App Contact Email: Your email\n   - Business Manager Account: Select your business\n5. Click \"Create App\"\n\n**🔑 STEP 2: Get App ID and App Secret**\n1. In your app dashboard, go to \"Settings\" → \"Basic\"\n2. Copy \"App ID\" (this is your `appId`)\n3. Click \"Show\" next to App Secret and copy it (this is your `appSecret`)\n\n**🎯 STEP 3: Get Access Token**\n1. Go to \"Tools\" → \"Graph API Explorer\"\n2. Select your app from dropdown\n3. Click \"Generate Access Token\"\n4. Select these permissions:\n   - `ads_management`\n   - `pages_manage_posts`\n   - `pages_read_engagement`\n   - `instagram_basic`\n   - `instagram_content_publish`\n5. Click \"Generate Access Token\"\n6. Copy the token (this is your `accessToken`)\n\n**🏢 STEP 4: Get Business Account ID**\n1. Go to https://business.facebook.com/\n2. Select your Business Manager\n3. Go to \"Business Settings\" → \"Business Info\"\n4. Copy \"Business Manager ID\" (this is your `businessAccountId`)\n\n**💰 STEP 5: Get Ad Account ID**\n1. In Business Manager, go to \"Ad Accounts\"\n2. Click on your ad account\n3. Copy the account ID (format: `act_123456789`)\n   - This is your `adAccountId`\n\n**📄 STEP 6: Get Facebook Page ID**\n1. Go to your Facebook Page\n2. Click \"Settings\" → \"Page Info\"\n3. Scroll down to find \"Page ID\"\n4. Copy the ID (this is your `facebookPageId`)\n\n**📸 STEP 7: Get Instagram Account ID**\n1. Go to https://business.facebook.com/\n2. Go to \"Business Settings\" → \"Instagram Accounts\"\n3. Click on your Instagram account\n4. Copy the Instagram Account ID (this is your `instagramAccountId`)\n\n**⚠️ IMPORTANT NOTES:**\n- Access tokens expire! You'll need to refresh them periodically\n- Make sure your Facebook app is approved for production use\n- Test with a small budget first\n- Keep all credentials secure and never share them publicly\n\n**🔍 VERIFICATION:**\nAfter setup, use the \"Verify Meta API Credentials\" endpoint to test your configuration."
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Meta API Credentials",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/credentials/meta/verify",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"credentials",
+								"meta",
+								"verify"
+							]
+						},
+						"description": "Verify Meta API credentials and update connection status."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Meta Account Information",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/credentials/meta/account-info",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"credentials",
+								"meta",
+								"account-info"
+							]
+						},
+						"description": "Get detailed Meta account information including ad accounts and business accounts."
+					},
+					"response": []
+				},
+				{
+					"name": "Setup OpenAI Credentials",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"apiKey\": \"sk-...\",\n  \"modelPreference\": \"gpt-4\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/credentials/openai",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"credentials",
+								"openai"
+							]
+						},
+						"description": "Setup OpenAI credentials for AI-powered features.\n\n📋 **STEP-BY-STEP GUIDE TO GET OPENAI API KEY:**\n\n**🔧 STEP 1: Create OpenAI Account**\n1. Go to https://platform.openai.com/\n2. Click \"Sign Up\" or \"Log In\"\n3. Complete account verification (email + phone)\n4. Add payment method (required for API usage)\n\n**🔑 STEP 2: Get API Key**\n1. Log into your OpenAI account\n2. Go to https://platform.openai.com/api-keys\n3. Click \"Create new secret key\"\n4. Give it a name (e.g., \"Marketing V1 API\")\n5. Copy the key immediately (you won't see it again!)\n6. This is your `apiKey` (starts with `sk-`)\n\n**💰 STEP 3: Add Credits**\n1. Go to https://platform.openai.com/account/billing\n2. Click \"Add credits\" or \"Set up billing\"\n3. Add at least $5-10 for testing\n4. Monitor usage in the dashboard\n\n**⚙️ STEP 4: Choose Model Preference**\nAvailable models:\n- `gpt-4` (Recommended) - Most capable, best for complex tasks\n- `gpt-3.5-turbo` - Faster and cheaper, good for simple tasks\n- `gpt-4-turbo-preview` - Latest GPT-4 with improvements\n\n**📊 STEP 5: Monitor Usage**\n1. Go to https://platform.openai.com/usage\n2. Set up usage limits to avoid unexpected charges\n3. Monitor your API calls and costs\n\n**⚠️ IMPORTANT NOTES:**\n- API keys are sensitive - never share them publicly\n- Each API call costs money (typically $0.01-0.10 per request)\n- Set usage limits to control costs\n- Keys don't expire but can be revoked\n- Keep your key secure and rotate it periodically\n\n**🔍 VERIFICATION:**\nAfter setup, use the \"Verify OpenAI Credentials\" endpoint to test your configuration.\n\n**💡 COST ESTIMATION:**\n- GPT-4: ~$0.03 per 1K tokens\n- GPT-3.5-turbo: ~$0.002 per 1K tokens\n- Typical ad copy generation: $0.01-0.05 per request\n- Campaign optimization: $0.05-0.20 per request"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Credentials Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/credentials/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"credentials",
+								"status"
+							]
+						},
+						"description": "Get the status of all marketing credentials (Meta and OpenAI)."
+					},
+					"response": []
+				}
+			],
+			"description": "Manage Meta API and OpenAI credentials for coaches."
+		},
+		{
+			"name": "📊 Campaign Analysis & Management",
+			"item": [
+				{
+					"name": "Get Comprehensive Campaign Analysis",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/analysis?dateRange=30d&campaignIds=camp1,camp2&includeInsights=true&includeRecommendations=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"analysis"
+							],
+							"query": [
+								{
+									"key": "dateRange",
+									"value": "30d",
+									"description": "Date range for analysis (7d, 30d, 90d, etc.)"
+								},
+								{
+									"key": "campaignIds",
+									"value": "camp1,camp2",
+									"description": "Comma-separated campaign IDs (optional)"
+								},
+								{
+									"key": "includeInsights",
+									"value": "true",
+									"description": "Include detailed insights"
+								},
+								{
+									"key": "includeRecommendations",
+									"value": "true",
+									"description": "Include AI recommendations"
+								}
+							]
+						},
+						"description": "Get comprehensive analysis of all campaigns with performance metrics and insights."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Campaign Insights",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/{{campaign_id}}/insights?dateRange=30d&breakdown=daily&includeDemographics=true&includePlacements=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"{{campaign_id}}",
+								"insights"
+							],
+							"query": [
+								{
+									"key": "dateRange",
+									"value": "30d"
+								},
+								{
+									"key": "breakdown",
+									"value": "daily",
+									"description": "daily, weekly, monthly"
+								},
+								{
+									"key": "includeDemographics",
+									"value": "true"
+								},
+								{
+									"key": "includePlacements",
+									"value": "true"
+								}
+							]
+						},
+						"description": "Get detailed insights for a specific campaign including demographics and placements."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Campaign Metrics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/{{campaign_id}}/metrics?dateRange=30d&metrics=impressions,clicks,spend,ctr,cpc,cpm,conversions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"{{campaign_id}}",
+								"metrics"
+							],
+							"query": [
+								{
+									"key": "dateRange",
+									"value": "30d"
+								},
+								{
+									"key": "metrics",
+									"value": "impressions,clicks,spend,ctr,cpc,cpm,conversions"
+								}
+							]
+						},
+						"description": "Get specific performance metrics for a campaign."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Campaign Audience Insights",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/{{campaign_id}}/audience-insights?dateRange=30d",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"{{campaign_id}}",
+								"audience-insights"
+							],
+							"query": [
+								{
+									"key": "dateRange",
+									"value": "30d"
+								}
+							]
+						},
+						"description": "Get audience insights including demographics and geographic data."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Campaign Recommendations",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/{{campaign_id}}/recommendations?includeAIRecommendations=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"{{campaign_id}}",
+								"recommendations"
+							],
+							"query": [
+								{
+									"key": "includeAIRecommendations",
+									"value": "true"
+								}
+							]
+						},
+						"description": "Get optimization recommendations for a campaign, optionally including AI suggestions."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Campaign with AI",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"AI-Powered Fitness Campaign\",\n  \"objective\": \"CONVERSIONS\",\n  \"budget\": 50,\n  \"targetAudience\": \"Fitness enthusiasts aged 25-45 interested in online coaching\",\n  \"productInfo\": \"Online fitness coaching program with personalized workout plans and nutrition guidance\",\n  \"useAI\": true,\n  \"autoOptimize\": false,\n  \"schedule\": {\n    \"startDate\": \"2024-01-01T00:00:00Z\",\n    \"endDate\": \"2024-01-31T23:59:59Z\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/create",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"create"
+							]
+						},
+						"description": "Create a new campaign with AI assistance for content generation and targeting."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Campaign",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Campaign Name\",\n  \"status\": \"ACTIVE\",\n  \"dailyBudget\": 75\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/{{campaign_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"{{campaign_id}}"
+							]
+						},
+						"description": "Update campaign settings including name, status, and budget."
+					},
+					"response": []
+				},
+				{
+					"name": "Pause Campaign",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/{{campaign_id}}/pause",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"{{campaign_id}}",
+								"pause"
+							]
+						},
+						"description": "Pause a running campaign."
+					},
+					"response": []
+				},
+				{
+					"name": "Resume Campaign",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/{{campaign_id}}/resume",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"{{campaign_id}}",
+								"resume"
+							]
+						},
+						"description": "Resume a paused campaign."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Campaign",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/{{campaign_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"{{campaign_id}}"
+							]
+						},
+						"description": "Delete a campaign permanently."
+					},
+					"response": []
+				},
+				{
+					"name": "Duplicate Campaign",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"newName\": \"Campaign Copy - Q2\",\n  \"modifications\": {\n    \"budget\": 60,\n    \"targetAudience\": \"Updated target audience for Q2\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/{{campaign_id}}/duplicate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"{{campaign_id}}",
+								"duplicate"
+							]
+						},
+						"description": "Duplicate a campaign with optional modifications."
+					},
+					"response": []
+				}
+			],
+			"description": "Comprehensive campaign analysis and management features."
+		},
+		{
+			"name": "🤖 AI-Powered Features",
+			"item": [
+				{
+					"name": "Generate AI Ad Copy",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"productInfo\": \"Online fitness coaching program with personalized workout plans\",\n  \"targetAudience\": \"Fitness enthusiasts aged 25-45 who want to get in shape\",\n  \"campaignObjective\": \"CONVERSIONS\",\n  \"tone\": \"motivational\",\n  \"length\": \"medium\",\n  \"includeCallToAction\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/ai/generate-copy",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"ai",
+								"generate-copy"
+							]
+						},
+						"description": "Generate compelling ad copy using AI based on product info and target audience."
+					},
+					"response": []
+				},
+				{
+					"name": "Generate AI Targeting Recommendations",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"targetAudience\": \"Fitness enthusiasts who want to lose weight\",\n  \"budget\": 50,\n  \"objective\": \"CONVERSIONS\",\n  \"productInfo\": \"Online fitness coaching program\",\n  \"excludeAudiences\": [\"competitors\", \"existing customers\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/ai/targeting-recommendations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"ai",
+								"targeting-recommendations"
+							]
+						},
+						"description": "Get AI-powered targeting recommendations including demographics, interests, and placements."
+					},
+					"response": []
+				},
+				{
+					"name": "Optimize Campaign with AI",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"optimizationType\": \"performance\",\n  \"includeBudgetOptimization\": true,\n  \"includeAudienceOptimization\": true,\n  \"includeCreativeOptimization\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/ai/optimize-campaign/{{campaign_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"ai",
+								"optimize-campaign",
+								"{{campaign_id}}"
+							]
+						},
+						"description": "Get AI-powered optimization suggestions for budget, audience, and creative."
+					},
+					"response": []
+				},
+				{
+					"name": "Generate AI Creative Variations",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"baseCreative\": \"Transform your fitness journey with personalized coaching\",\n  \"productInfo\": \"Online fitness coaching program\",\n  \"targetAudience\": \"Fitness enthusiasts aged 25-45\",\n  \"variations\": 3,\n  \"includeImages\": false,\n  \"includeVideos\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/ai/generate-creatives",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"ai",
+								"generate-creatives"
+							]
+						},
+						"description": "Generate multiple creative variations for A/B testing."
+					},
+					"response": []
+				},
+				{
+					"name": "Get AI Performance Insights",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/ai/performance-insights/{{campaign_id}}?dateRange=30d&includePredictions=true&includeTrends=true&includeAnomalies=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"ai",
+								"performance-insights",
+								"{{campaign_id}}"
+							],
+							"query": [
+								{
+									"key": "dateRange",
+									"value": "30d"
+								},
+								{
+									"key": "includePredictions",
+									"value": "true"
+								},
+								{
+									"key": "includeTrends",
+									"value": "true"
+								},
+								{
+									"key": "includeAnomalies",
+									"value": "true"
+								}
+							]
+						},
+						"description": "Get AI-powered performance insights with predictions and trend analysis."
+					},
+					"response": []
+				},
+				{
+					"name": "Generate AI Marketing Strategy",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"businessInfo\": \"Online fitness coaching business targeting busy professionals\",\n  \"goals\": \"Increase conversions by 50% and reduce cost per acquisition by 30%\",\n  \"budget\": 1000,\n  \"timeline\": \"3 months\",\n  \"targetAudience\": \"Fitness enthusiasts aged 25-45 who want personalized coaching\",\n  \"competitors\": [\"competitor1\", \"competitor2\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/ai/generate-strategy",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"ai",
+								"generate-strategy"
+							]
+						},
+						"description": "Generate comprehensive marketing strategy with campaign structure and recommendations."
+					},
+					"response": []
+				}
+			],
+			"description": "AI-powered features for content generation, optimization, and strategy."
+		},
+		{
+			"name": "📈 Dashboard & Analytics",
+			"item": [
+				{
+					"name": "Get Marketing Dashboard",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/dashboard?dateRange=30d&includeAIInsights=true&includeRecommendations=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"dashboard"
+							],
+							"query": [
+								{
+									"key": "dateRange",
+									"value": "30d"
+								},
+								{
+									"key": "includeAIInsights",
+									"value": "true"
+								},
+								{
+									"key": "includeRecommendations",
+									"value": "true"
+								}
+							]
+						},
+						"description": "Get comprehensive marketing dashboard with AI insights and recommendations."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Campaign Performance Summary",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/performance-summary?dateRange=30d&campaignIds=camp1,camp2&includeComparisons=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"performance-summary"
+							],
+							"query": [
+								{
+									"key": "dateRange",
+									"value": "30d"
+								},
+								{
+									"key": "campaignIds",
+									"value": "camp1,camp2"
+								},
+								{
+									"key": "includeComparisons",
+									"value": "true"
+								}
+							]
+						},
+						"description": "Get high-level performance summary with comparisons to previous periods."
+					},
+					"response": []
+				},
+				{
+					"name": "Export Campaign Data",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/export?format=csv&dateRange=30d&campaignIds=camp1,camp2&includeInsights=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"export"
+							],
+							"query": [
+								{
+									"key": "format",
+									"value": "csv",
+									"description": "csv or json"
+								},
+								{
+									"key": "dateRange",
+									"value": "30d"
+								},
+								{
+									"key": "campaignIds",
+									"value": "camp1,camp2"
+								},
+								{
+									"key": "includeInsights",
+									"value": "true"
+								}
+							]
+						},
+						"description": "Export campaign data in various formats for external analysis."
+					},
+					"response": []
+				}
+			],
+			"description": "Dashboard and analytics features for campaign performance tracking."
+		},
+		{
+			"name": "⚡ Automation & Scheduling",
+			"item": [
+				{
+					"name": "Schedule Campaign",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"startDate\": \"2024-01-01T00:00:00Z\",\n  \"endDate\": \"2024-01-31T23:59:59Z\",\n  \"timezone\": \"UTC\",\n  \"budgetSchedule\": {\n    \"dailyBudget\": 50,\n    \"weeklyBudget\": 350,\n    \"monthlyBudget\": 1500\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/{{campaign_id}}/schedule",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"{{campaign_id}}",
+								"schedule"
+							]
+						},
+						"description": "Schedule a campaign with specific start/end dates and budget schedules."
+					},
+					"response": []
+				},
+				{
+					"name": "Setup Campaign Automation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rules\": [\n    {\n      \"condition\": \"ctr < 1%\",\n      \"action\": \"pause_campaign\",\n      \"description\": \"Pause campaign if CTR drops below 1%\"\n    },\n    {\n      \"condition\": \"cpc > 2.0\",\n      \"action\": \"reduce_budget\",\n      \"description\": \"Reduce budget if CPC exceeds $2.00\",\n      \"parameters\": {\n        \"reductionPercentage\": 20\n      }\n    },\n    {\n      \"condition\": \"conversion_rate < 2%\",\n      \"action\": \"optimize_audience\",\n      \"description\": \"Optimize audience targeting if conversion rate is low\"\n    }\n  ],\n  \"notifications\": true,\n  \"autoOptimize\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/{{campaign_id}}/automation",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"{{campaign_id}}",
+								"automation"
+							]
+						},
+						"description": "Set up automated rules for campaign management based on performance metrics."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Automation Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{coach_jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/marketing/v1/campaigns/{{campaign_id}}/automation/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"marketing",
+								"v1",
+								"campaigns",
+								"{{campaign_id}}",
+								"automation",
+								"status"
+							]
+						},
+						"description": "Get the current automation status and rules for a campaign."
+					},
+					"response": []
+				}
+			],
+			"description": "Automation and scheduling features for campaign management."
+		},
+		{
+			"name": "🔧 Authentication & Setup",
+			"item": [
+				{
+					"name": "Coach Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"coach@example.com\",\n  \"password\": \"your_password\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login as a coach to get JWT token for API access."
+					},
+					"response": []
+				},
+				{
+					"name": "Coach Signup",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"secure_password\",\n  \"role\": \"coach\",\n  \"selfCoachId\": \"COACH_001\",\n  \"currentLevel\": 1,\n  \"sponsorId\": \"sponsor_id_here\",\n  \"teamRankName\": \"Distributor Coach\",\n  \"presidentTeamRankName\": \"Distributor Coach\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/signup",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"signup"
+							]
+						},
+						"description": "Sign up as a new coach with MLM hierarchy information."
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints for coach login and signup."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000",
+			"description": "Base URL for the API server"
+		},
+		{
+			"key": "coach_jwt_token",
+			"value": "",
+			"description": "JWT token for coach authentication"
+		},
+		{
+			"key": "campaign_id",
+			"value": "",
+			"description": "Campaign ID for testing campaign-specific endpoints"
+		},
+		{
+			"key": "meta_access_token",
+			"value": "",
+			"description": "Meta API access token"
+		},
+		{
+			"key": "openai_api_key",
+			"value": "",
+			"description": "OpenAI API key for AI features"
+		}
+	]
+}

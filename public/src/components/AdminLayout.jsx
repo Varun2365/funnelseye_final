@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import HierarchyRequests from './HierarchyRequests';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { 
@@ -39,6 +40,7 @@ import {
   Monitor
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import ThemeSwitcher from './ThemeSwitcher';
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -50,13 +52,16 @@ const AdminLayout = () => {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'User Management', href: '/users', icon: Users },
     { name: 'Financial & MLM', href: '/financial', icon: DollarSign },
+    { name: 'Downline Management', href: '/downline-management', icon: Layers },
+    { name: 'Hierarchy Requests', href: '/hierarchy-requests', icon: UserCheck },
     { name: 'Platform Configuration', href: '/platform-config', icon: Cog },
+    // { name: 'Debug Financial', href: '/debug-financial', icon: Monitor },
     { name: 'Content Management', href: '/courses', icon: BookOpen },
-    { name: 'Support Center', href: '/support', icon: HelpCircle },
+    // { name: 'Support Center', href: '/support', icon: HelpCircle },
     { name: 'Analytics & Reports', href: '/analytics', icon: BarChart3 },
     { name: 'Messaging', href: '/messaging', icon: MessageCircle },
     { name: 'Admin Staff', href: '/admin-staff', icon: UserCheck },
-    { name: 'Security & Compliance', href: '/security', icon: Shield }
+    // { name: 'Security & Compliance', href: '/security', icon: Shield }
   ];
 
   const handleLogout = async () => {
@@ -76,10 +81,10 @@ const AdminLayout = () => {
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transform transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 lg:inset-0",
+        "fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-screen">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b">
             <div className="flex items-center space-x-2">
@@ -107,7 +112,7 @@ const AdminLayout = () => {
                   key={item.name}
                   variant={isActive ? "secondary" : "ghost"}
                   className={cn(
-                    "w-full justify-start",
+                    "w-full justify-start nav-item",
                     isActive && "bg-secondary text-secondary-foreground"
                   )}
                   onClick={() => {
@@ -150,7 +155,7 @@ const AdminLayout = () => {
       </div>
 
       {/* Main content */}
-      <div className="flex-1">
+      <div className="flex-1 lg:ml-64">
         {/* Top bar */}
         <header className="bg-card border-b h-16 flex items-center justify-between px-6 sticky top-0 z-10">
           <Button
@@ -166,6 +171,15 @@ const AdminLayout = () => {
             <div className="text-sm text-muted-foreground">
               Welcome back, {admin?.firstName}
             </div>
+            <ThemeSwitcher variant="simple" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </header>
 

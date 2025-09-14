@@ -305,12 +305,110 @@ const coachSchema = new mongoose.Schema({
                 recommendActivities: { type: Boolean, default: true }
             }
         }
+    },
+
+    // --- WhatsApp Settings ---
+    whatsAppSettings: {
+        useCentralWhatsApp: {
+            type: Boolean,
+            default: false
+        },
+        emailSettings: {
+            isEnabled: { type: Boolean, default: true },
+            email: { type: String, trim: true },
+            autoReply: { type: Boolean, default: false },
+            autoReplyMessage: { type: String, trim: true, default: 'Thank you for your message. We will get back to you soon.' }
+        },
+        autoReplySettings: {
+            isEnabled: { type: Boolean, default: false },
+            message: { type: String, trim: true, default: 'Thank you for your message. We will get back to you soon.' },
+            businessHours: {
+                enabled: { type: Boolean, default: false },
+                startTime: { type: String, default: '09:00' },
+                endTime: { type: String, default: '17:00' },
+                timezone: { type: String, default: 'UTC+05:30' }
+            }
+        }
+    },
+
+    // --- Messaging Credits ---
+    messagingCredits: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+
+    // WhatsApp Credit System Integration
+    whatsappCredits: {
+        enabled: {
+            type: Boolean,
+            default: true
+        },
+        lastSync: {
+            type: Date,
+            default: null
+        }
+    },
+
+    // --- Staff Management ---
+    staffSettings: {
+        allowStaffWhatsApp: {
+            type: Boolean,
+            default: true
+        },
+        staffPermissions: {
+            sendMessages: { type: Boolean, default: true },
+            viewInbox: { type: Boolean, default: true },
+            manageTemplates: { type: Boolean, default: false },
+            viewStats: { type: Boolean, default: true }
+        }
     }
 }, { 
     timestamps: true
     // Remove collection: 'users' - let it inherit from User model
     // Remove discriminatorKey: 'role' - let it inherit from User model
 });
+
+// Method to sync credits with WhatsApp credit system
+coachSchema.methods.syncWhatsAppCredits = async function() {
+    try {
+        const WhatsAppCredit = require('./WhatsAppCredit');
+        
+        // Get or create WhatsApp credits for this coach
+        const whatsappCredits = await WhatsAppCredit.getOrCreateCredits(this._id);
+        
+        // Sync the balance
+        this.messagingCredits = whatsappCredits.balance;
+        this.whatsappCredits.lastSync = new Date();
+        
+        await this.save();
+        
+        return {
+            success: true,
+            oldBalance: this.messagingCredits,
+            newBalance: whatsappCredits.balance,
+            whatsappCredits: whatsappCredits
+        };
+    } catch (error) {
+        console.error('Error syncing WhatsApp credits:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+};
+
+// Method to get current WhatsApp credit balance
+coachSchema.methods.getWhatsAppCreditBalance = async function() {
+    try {
+        const WhatsAppCredit = require('./WhatsAppCredit');
+        const whatsappCredits = await WhatsAppCredit.getOrCreateCredits(this._id);
+        return whatsappCredits.balance;
+    } catch (error) {
+        console.error('Error getting WhatsApp credit balance:', error);
+        return this.messagingCredits; // Fallback to old system
+    }
+};
 
 // Export the schema instead of the model to avoid circular dependency
 module.exports = coachSchema;

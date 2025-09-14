@@ -262,7 +262,7 @@ CoachTransactionSchema.index({ coachId: 1, transactionDate: -1 });
 CoachTransactionSchema.index({ transactionType: 1 });
 CoachTransactionSchema.index({ status: 1 });
 CoachTransactionSchema.index({ direction: 1 });
-CoachTransactionSchema.index({ transactionId: 1 });
+// Note: transactionId already has unique index from schema definition
 CoachTransactionSchema.index({ 'productInfo.productId': 1 });
 CoachTransactionSchema.index({ 'productInfo.planId': 1 });
 CoachTransactionSchema.index({ 'paymentGateway.transactionId': 1 });

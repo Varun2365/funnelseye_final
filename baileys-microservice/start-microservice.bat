@@ -1,0 +1,9 @@
+@echo off
+echo Starting Baileys WhatsApp Microservice...
+echo.
+echo Installing dependencies...
+call npm install
+echo.
+echo Starting microservice on port 4444...
+call npm start
+pause

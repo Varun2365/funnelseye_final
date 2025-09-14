@@ -70,6 +70,7 @@ const CoachSubscription = require('./CoachSubscription');
 
 // Import new admin system schemas
 const AdminSystemSettings = require('./AdminSystemSettings');
+const AdminV1Settings = require('./AdminV1Settings');
 const AdminUser = require('./AdminUser');
 const AdminAuditLog = require('./AdminAuditLog');
 
@@ -165,6 +166,7 @@ const models = {
 
     // New admin system models
     AdminSystemSettings,
+    AdminV1Settings,
     AdminUser,
     AdminAuditLog
 };

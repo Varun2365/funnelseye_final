@@ -169,7 +169,7 @@ const razorpayPaymentSchema = new mongoose.Schema({
 });
 
 // Indexes for efficient querying
-razorpayPaymentSchema.index({ razorpayPaymentId: 1 });
+// Note: razorpayPaymentId has unique partial index defined below
 razorpayPaymentSchema.index({ razorpayOrderId: 1 });
 razorpayPaymentSchema.index({ userId: 1, userType: 1 });
 razorpayPaymentSchema.index({ coachId: 1 });

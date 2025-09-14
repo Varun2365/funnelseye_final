@@ -1,6 +1,15 @@
 const mongoose = require('mongoose');
 
 const whatsAppDeviceSchema = new mongoose.Schema({
+    // Device ID for microservice compatibility
+    deviceId: {
+        type: String,
+        unique: true,
+        sparse: true, // Allow multiple null values
+        default: function() {
+            return this._id ? this._id.toString() : null;
+        }
+    },
     coachId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Coach',
@@ -19,8 +28,7 @@ const whatsAppDeviceSchema = new mongoose.Schema({
     // Baileys specific fields
     sessionId: {
         type: String,
-        trim: true,
-        sparse: true
+        trim: true
     },
     qrCode: {
         type: String,
@@ -41,8 +49,7 @@ const whatsAppDeviceSchema = new mongoose.Schema({
     // Meta specific fields
     phoneNumberId: {
         type: String,
-        trim: true,
-        sparse: true
+        trim: true
     },
     whatsAppBusinessAccountId: {
         type: String,
@@ -131,8 +138,14 @@ whatsAppDeviceSchema.index({ coachId: 1, isActive: 1 });
 whatsAppDeviceSchema.index({ sessionId: 1 }, { sparse: true });
 whatsAppDeviceSchema.index({ phoneNumberId: 1 }, { sparse: true });
 
-// Ensure only one default device per coach
+// Ensure deviceId is set and only one default device per coach
 whatsAppDeviceSchema.pre('save', async function(next) {
+    // Set deviceId if not already set
+    if (!this.deviceId) {
+        this.deviceId = this._id ? this._id.toString() : new mongoose.Types.ObjectId().toString();
+    }
+    
+    // Ensure only one default device per coach
     if (this.isDefault) {
         await this.constructor.updateMany(
             { coachId: this.coachId, _id: { $ne: this._id } },

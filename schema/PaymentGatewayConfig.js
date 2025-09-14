@@ -234,7 +234,7 @@ const PaymentGatewayConfigSchema = new mongoose.Schema({
 });
 
 // Indexes
-PaymentGatewayConfigSchema.index({ gatewayName: 1 });
+// Note: gatewayName already has unique index from schema definition
 PaymentGatewayConfigSchema.index({ isEnabled: 1, isActive: 1 });
 PaymentGatewayConfigSchema.index({ priority: 1 });
 

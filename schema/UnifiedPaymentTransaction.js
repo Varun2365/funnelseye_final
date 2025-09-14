@@ -269,7 +269,7 @@ const UnifiedPaymentTransactionSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
-UnifiedPaymentTransactionSchema.index({ transactionId: 1 });
+// Note: transactionId already has unique index from schema definition
 UnifiedPaymentTransactionSchema.index({ orderId: 1 });
 UnifiedPaymentTransactionSchema.index({ 'sender.id': 1, 'sender.type': 1 });
 UnifiedPaymentTransactionSchema.index({ 'receiver.id': 1, 'receiver.type': 1 });

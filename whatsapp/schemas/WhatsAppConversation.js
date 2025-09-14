@@ -52,8 +52,7 @@ const whatsAppConversationSchema = new mongoose.Schema({
     },
     leadId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Lead',
-        sparse: true
+        ref: 'Lead'
     },
     tags: [{
         type: String,

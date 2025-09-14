@@ -195,7 +195,28 @@ class AdminAuthController {
             });
 
             // Generate token
+            console.log('🔐 [ADMIN_LOGIN] Generating token for admin:', admin.email);
+            console.log('🔐 [ADMIN_LOGIN] Admin ID:', admin._id);
+            console.log('🔐 [ADMIN_LOGIN] Admin role:', admin.role);
+            console.log('🔐 [ADMIN_LOGIN] JWT_SECRET present:', !!process.env.JWT_SECRET);
+            console.log('🔐 [ADMIN_LOGIN] JWT_SECRET length:', process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 0);
+            
             const token = generateToken(admin._id, admin.role);
+            
+            console.log('🔐 [ADMIN_LOGIN] Token generated successfully');
+            console.log('🔐 [ADMIN_LOGIN] Token length:', token.length);
+            console.log('🔐 [ADMIN_LOGIN] Token preview:', token.substring(0, 20) + '...');
+            
+            // Decode the token to verify its contents
+            try {
+                const decoded = jwt.decode(token, { complete: true });
+                console.log('🔐 [ADMIN_LOGIN] Generated token header:', decoded?.header);
+                console.log('🔐 [ADMIN_LOGIN] Generated token payload:', decoded?.payload);
+                console.log('🔐 [ADMIN_LOGIN] Token issued at:', decoded?.payload?.iat ? new Date(decoded.payload.iat * 1000).toISOString() : 'N/A');
+                console.log('🔐 [ADMIN_LOGIN] Token expires at:', decoded?.payload?.exp ? new Date(decoded.payload.exp * 1000).toISOString() : 'N/A');
+            } catch (decodeError) {
+                console.log('❌ [ADMIN_LOGIN] Failed to decode generated token:', decodeError.message);
+            }
 
             // Create session token
             const sessionToken = crypto.randomBytes(32).toString('hex');

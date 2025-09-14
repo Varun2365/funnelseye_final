@@ -5,8 +5,7 @@ const CheckoutPageSchema = new mongoose.Schema({
     pageId: {
         type: String,
         required: true,
-        unique: true,
-        index: true
+        unique: true
     },
     name: {
         type: String,

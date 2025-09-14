@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -34,13 +35,16 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  RefreshCw
+  RefreshCw,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import adminApiService from '../services/adminApiService';
 import { useToast } from '../contexts/ToastContext';
 
 const UserManagement = () => {
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -52,6 +56,11 @@ const UserManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   
   // Dialog states
   const [userDialogOpen, setUserDialogOpen] = useState(false);
@@ -59,6 +68,8 @@ const UserManagement = () => {
   const [editMode, setEditMode] = useState(false);
   const [bulkActionDialogOpen, setBulkActionDialogOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState('');
+  const [createUserDialogOpen, setCreateUserDialogOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   
   // Form states
   const [userForm, setUserForm] = useState({
@@ -74,6 +85,40 @@ const UserManagement = () => {
     zipCode: ''
   });
 
+  const [createUserForm, setCreateUserForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+    role: 'user',
+    status: 'active',
+    coachId: '',
+    notes: '',
+    address: '',
+    city: '',
+    state: '',
+    country: '',
+    zipCode: '',
+    dateOfBirth: '',
+    gender: '',
+    occupation: '',
+    company: '',
+    website: '',
+    bio: '',
+    subscriptionPlan: '',
+    paymentMethod: 'stripe',
+    startDate: new Date().toISOString().split('T')[0],
+    autoRenew: true
+  });
+
+  const [exportOptions, setExportOptions] = useState({
+    format: 'csv',
+    includeDeleted: false
+  });
+
+  const [subscriptionPlans, setSubscriptionPlans] = useState([]);
+
   // Load users data
   const loadUsers = async () => {
     try {
@@ -81,7 +126,9 @@ const UserManagement = () => {
       const params = {
         page: currentPage,
         limit: itemsPerPage,
-        includeDeleted: showDeleted
+        includeDeleted: showDeleted,
+        sortBy,
+        sortOrder
       };
       
       // Only add search if it's not empty
@@ -97,6 +144,15 @@ const UserManagement = () => {
       // Only add role if it's not 'all'
       if (roleFilter && roleFilter !== 'all') {
         params.role = roleFilter;
+      }
+      
+      // Add date range filters
+      if (startDate) {
+        params.startDate = startDate;
+      }
+      
+      if (endDate) {
+        params.endDate = endDate;
       }
       
       const response = await adminApiService.getUsers(params);
@@ -126,10 +182,23 @@ const UserManagement = () => {
     }
   };
 
+  // Load subscription plans
+  const loadSubscriptionPlans = async () => {
+    try {
+      const response = await adminApiService.getSubscriptionPlans();
+      if (response.success) {
+        setSubscriptionPlans(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading subscription plans:', error);
+    }
+  };
+
   useEffect(() => {
     loadUsers();
     loadAnalytics();
-  }, [currentPage, searchTerm, statusFilter, roleFilter]);
+    loadSubscriptionPlans();
+  }, [currentPage, searchTerm, statusFilter, roleFilter, startDate, endDate, sortBy, sortOrder]);
 
   // Handle user selection
   const handleUserSelect = (userId, checked) => {
@@ -269,37 +338,24 @@ const UserManagement = () => {
     }
 
     try {
-      let response;
       switch (bulkAction) {
         case 'activate':
-          response = await adminApiService.bulkUpdateUsers({
-            userIds: selectedUsers,
-            updateData: { status: 'active' }
-          });
+          await handleBulkUpdate({ status: 'active' });
           break;
         case 'deactivate':
-          response = await adminApiService.bulkUpdateUsers({
-            userIds: selectedUsers,
-            updateData: { status: 'inactive' }
-          });
+          await handleBulkUpdate({ status: 'inactive' });
           break;
         case 'delete':
-          if (!confirm(`Are you sure you want to delete ${selectedUsers.length} users?`)) return;
-          response = await adminApiService.bulkDeleteUsers(selectedUsers);
+          await handleBulkDelete(false);
+          break;
+        case 'permanent_delete':
+          await handleBulkDelete(true);
           break;
         default:
           showToast('Invalid bulk action', 'error');
           return;
       }
-
-      if (response.success) {
-        showToast(`Bulk action completed successfully`, 'success');
-        setSelectedUsers([]);
-        setBulkActionDialogOpen(false);
-        loadUsers();
-      } else {
-        showToast(response.message || 'Failed to perform bulk action', 'error');
-      }
+      setBulkActionDialogOpen(false);
     } catch (error) {
       console.error('Error performing bulk action:', error);
       showToast('Error performing bulk action', 'error');
@@ -309,7 +365,7 @@ const UserManagement = () => {
   // Export users
   const exportUsers = async (format = 'csv') => {
     try {
-      const response = await adminApiService.exportUsers(format);
+      const response = await adminApiService.exportUsers(format, exportOptions.includeDeleted);
       if (response.success) {
         // Create download link
         const blob = new Blob([response.data], { type: 'text/csv' });
@@ -328,6 +384,103 @@ const UserManagement = () => {
     } catch (error) {
       console.error('Error exporting users:', error);
       showToast('Error exporting users', 'error');
+    }
+  };
+
+  // Create new user
+  const handleCreateUser = async () => {
+    try {
+      if (!createUserForm.name || !createUserForm.email || !createUserForm.password) {
+        showToast('Name, email, and password are required', 'error');
+        return;
+      }
+
+      const response = await adminApiService.createUser(createUserForm);
+      if (response.success) {
+        showToast('User created successfully', 'success');
+        setCreateUserDialogOpen(false);
+        setCreateUserForm({
+          name: '',
+          email: '',
+          phone: '',
+          password: '',
+          confirmPassword: '',
+          role: 'user',
+          status: 'active',
+          coachId: '',
+          notes: '',
+          address: '',
+          city: '',
+          state: '',
+          country: '',
+          zipCode: '',
+          dateOfBirth: '',
+          gender: '',
+          occupation: '',
+          company: '',
+          website: '',
+          bio: '',
+          subscriptionPlan: '',
+          paymentMethod: 'stripe',
+          startDate: new Date().toISOString().split('T')[0],
+          autoRenew: true
+        });
+        loadUsers();
+      } else {
+        showToast(response.message || 'Failed to create user', 'error');
+      }
+    } catch (error) {
+      console.error('Error creating user:', error);
+      showToast('Error creating user', 'error');
+    }
+  };
+
+  // Handle bulk operations with new API
+  const handleBulkUpdate = async (updateData) => {
+    try {
+      const updates = selectedUsers.map(userId => ({
+        userId,
+        ...updateData
+      }));
+
+      const response = await adminApiService.bulkUpdateUsers(updates);
+      if (response.success) {
+        showToast(`Bulk update completed. ${response.data.updated.length} users updated successfully.`, 'success');
+        if (response.data.errors.length > 0) {
+          showToast(`${response.data.errors.length} users failed to update`, 'warning');
+        }
+        setSelectedUsers([]);
+        loadUsers();
+      } else {
+        showToast(response.message || 'Failed to perform bulk update', 'error');
+      }
+    } catch (error) {
+      console.error('Error performing bulk update:', error);
+      showToast('Error performing bulk update', 'error');
+    }
+  };
+
+  // Handle bulk delete with new API
+  const handleBulkDelete = async (permanent = false) => {
+    try {
+      if (!confirm(`Are you sure you want to ${permanent ? 'permanently delete' : 'delete'} ${selectedUsers.length} users?`)) {
+        return;
+      }
+
+      const response = await adminApiService.bulkDeleteUsers(selectedUsers, permanent);
+      if (response.success) {
+        showToast(`Bulk delete completed. ${response.data.deleted.length} users ${permanent ? 'permanently deleted' : 'deleted'} successfully.`, 'success');
+        if (response.data.errors.length > 0) {
+          showToast(`${response.data.errors.length} users failed to delete`, 'warning');
+        }
+        setSelectedUsers([]);
+        loadUsers();
+      } else {
+        showToast(response.message || 'Failed to perform bulk delete', 'error');
+      }
+    } catch (error) {
+      console.error('Error performing bulk delete:', error);
+      showToast('Error performing bulk delete', 'error');
     }
   };
 
@@ -380,13 +533,13 @@ const UserManagement = () => {
             <Trash2 className="w-4 h-4 mr-2" />
             {showDeleted ? 'Hide Deleted' : 'Show Deleted'}
           </Button>
-          <Button onClick={() => exportUsers('csv')} variant="outline" size="sm">
+          <Button onClick={() => setExportDialogOpen(true)} variant="outline" size="sm">
             <Download className="w-4 h-4 mr-2" />
-            Export CSV
+            Export
           </Button>
-          <Button onClick={() => openUserDialog()} size="sm">
+          <Button onClick={() => setCreateUserDialogOpen(true)} size="sm">
             <UserPlus className="w-4 h-4 mr-2" />
-            Add User
+            Create User
           </Button>
         </div>
       </div>
@@ -508,6 +661,90 @@ const UserManagement = () => {
                   </Select>
                 </div>
               </div>
+              
+              {/* Advanced Filters Toggle */}
+              <div className="mt-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  className="flex items-center space-x-2"
+                >
+                  <Filter className="w-4 h-4" />
+                  <span>Advanced Filters</span>
+                  {showAdvancedFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </Button>
+              </div>
+              
+              {/* Advanced Filters */}
+              {showAdvancedFilters && (
+                <div className="mt-4 pt-4 border-t">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="start-date">Start Date</Label>
+                      <Input
+                        id="start-date"
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="end-date">End Date</Label>
+                      <Input
+                        id="end-date"
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="sort-by">Sort By</Label>
+                      <Select value={sortBy} onValueChange={setSortBy}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sort by" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="createdAt">Created Date</SelectItem>
+                          <SelectItem value="name">Name</SelectItem>
+                          <SelectItem value="email">Email</SelectItem>
+                          <SelectItem value="role">Role</SelectItem>
+                          <SelectItem value="status">Status</SelectItem>
+                          <SelectItem value="lastActiveAt">Last Active</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center space-x-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="sort-order">Sort Order</Label>
+                      <Select value={sortOrder} onValueChange={setSortOrder}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue placeholder="Order" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="desc">Descending</SelectItem>
+                          <SelectItem value="asc">Ascending</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-end space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setStartDate('');
+                          setEndDate('');
+                          setSortBy('createdAt');
+                          setSortOrder('desc');
+                        }}
+                      >
+                        Clear Filters
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -597,7 +834,15 @@ const UserManagement = () => {
                               </div>
                               <div>
                                 <div className="font-medium flex items-center space-x-2">
-                                  <span>{user.name || 'N/A'}</span>
+                                  <button
+                                    onClick={() => {
+                                      console.log('🔍 [UserManagement] Navigating to user:', user._id);
+                                      navigate(`/users/${user._id}`);
+                                    }}
+                                    className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                  >
+                                    {user.name || 'N/A'}
+                                  </button>
                                   {user.deletedAt && (
                                     <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
                                       DELETED
@@ -940,7 +1185,8 @@ const UserManagement = () => {
                 <SelectContent>
                   <SelectItem value="activate">Activate Users</SelectItem>
                   <SelectItem value="deactivate">Deactivate Users</SelectItem>
-                  <SelectItem value="delete">Delete Users</SelectItem>
+                  <SelectItem value="delete">Delete Users (Soft Delete)</SelectItem>
+                  <SelectItem value="permanent_delete">Permanently Delete Users</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -951,6 +1197,388 @@ const UserManagement = () => {
             </Button>
             <Button onClick={handleBulkAction} disabled={!bulkAction}>
               Execute Action
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create User Dialog */}
+      <Dialog open={createUserDialogOpen} onOpenChange={setCreateUserDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New User</DialogTitle>
+            <DialogDescription>
+              Create a comprehensive user account with all details
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Tabs defaultValue="basic" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="basic">Basic Info</TabsTrigger>
+              <TabsTrigger value="personal">Personal</TabsTrigger>
+              <TabsTrigger value="subscription">Subscription</TabsTrigger>
+              <TabsTrigger value="additional">Additional</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="basic" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="create-name">Full Name *</Label>
+                  <Input
+                    id="create-name"
+                    value={createUserForm.name}
+                    onChange={(e) => setCreateUserForm({...createUserForm, name: e.target.value})}
+                    placeholder="Enter full name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="create-email">Email Address *</Label>
+                  <Input
+                    id="create-email"
+                    type="email"
+                    value={createUserForm.email}
+                    onChange={(e) => setCreateUserForm({...createUserForm, email: e.target.value})}
+                    placeholder="Enter email address"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="create-phone">Phone Number</Label>
+                  <Input
+                    id="create-phone"
+                    value={createUserForm.phone}
+                    onChange={(e) => setCreateUserForm({...createUserForm, phone: e.target.value})}
+                    placeholder="Enter phone number"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="create-password">Password *</Label>
+                  <Input
+                    id="create-password"
+                    type="password"
+                    value={createUserForm.password}
+                    onChange={(e) => setCreateUserForm({...createUserForm, password: e.target.value})}
+                    placeholder="Enter password"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="create-confirm-password">Confirm Password *</Label>
+                  <Input
+                    id="create-confirm-password"
+                    type="password"
+                    value={createUserForm.confirmPassword}
+                    onChange={(e) => setCreateUserForm({...createUserForm, confirmPassword: e.target.value})}
+                    placeholder="Confirm password"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="create-role">Role</Label>
+                  <Select value={createUserForm.role} onValueChange={(value) => setCreateUserForm({...createUserForm, role: value})}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">User</SelectItem>
+                      <SelectItem value="premium">Premium User</SelectItem>
+                      <SelectItem value="coach">Coach</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="create-status">Status</Label>
+                  <Select value={createUserForm.status} onValueChange={(value) => setCreateUserForm({...createUserForm, status: value})}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="create-coach">Assigned Coach ID</Label>
+                  <Input
+                    id="create-coach"
+                    value={createUserForm.coachId}
+                    onChange={(e) => setCreateUserForm({...createUserForm, coachId: e.target.value})}
+                    placeholder="Enter coach ID (optional)"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="personal" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="create-dob">Date of Birth</Label>
+                  <Input
+                    id="create-dob"
+                    type="date"
+                    value={createUserForm.dateOfBirth}
+                    onChange={(e) => setCreateUserForm({...createUserForm, dateOfBirth: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="create-gender">Gender</Label>
+                  <Select value={createUserForm.gender} onValueChange={(value) => setCreateUserForm({...createUserForm, gender: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="create-occupation">Occupation</Label>
+                  <Input
+                    id="create-occupation"
+                    value={createUserForm.occupation}
+                    onChange={(e) => setCreateUserForm({...createUserForm, occupation: e.target.value})}
+                    placeholder="Enter occupation"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="create-company">Company</Label>
+                  <Input
+                    id="create-company"
+                    value={createUserForm.company}
+                    onChange={(e) => setCreateUserForm({...createUserForm, company: e.target.value})}
+                    placeholder="Enter company name"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="create-website">Website</Label>
+                <Input
+                  id="create-website"
+                  type="url"
+                  value={createUserForm.website}
+                  onChange={(e) => setCreateUserForm({...createUserForm, website: e.target.value})}
+                  placeholder="https://example.com"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="create-bio">Bio</Label>
+                <textarea
+                  id="create-bio"
+                  className="w-full p-2 border rounded-md min-h-[80px]"
+                  value={createUserForm.bio}
+                  onChange={(e) => setCreateUserForm({...createUserForm, bio: e.target.value})}
+                  placeholder="Enter user bio"
+                />
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="subscription" className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="create-subscription-plan">Subscription Plan</Label>
+                  <Select value={createUserForm.subscriptionPlan} onValueChange={(value) => setCreateUserForm({...createUserForm, subscriptionPlan: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select subscription plan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No Plan</SelectItem>
+                      {subscriptionPlans.map((plan) => (
+                        <SelectItem key={plan.id} value={plan.id}>
+                          {plan.name} - ${plan.price}/{plan.interval}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="create-payment-method">Payment Method</Label>
+                  <Select value={createUserForm.paymentMethod} onValueChange={(value) => setCreateUserForm({...createUserForm, paymentMethod: value})}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="stripe">Stripe</SelectItem>
+                      <SelectItem value="paypal">PayPal</SelectItem>
+                      <SelectItem value="razorpay">Razorpay</SelectItem>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="create-start-date">Subscription Start Date</Label>
+                  <Input
+                    id="create-start-date"
+                    type="date"
+                    value={createUserForm.startDate}
+                    onChange={(e) => setCreateUserForm({...createUserForm, startDate: e.target.value})}
+                  />
+                </div>
+                <div className="flex items-center space-x-2 pt-6">
+                  <input
+                    type="checkbox"
+                    id="create-auto-renew"
+                    checked={createUserForm.autoRenew}
+                    onChange={(e) => setCreateUserForm({...createUserForm, autoRenew: e.target.checked})}
+                    className="rounded"
+                  />
+                  <Label htmlFor="create-auto-renew">Auto Renew</Label>
+                </div>
+              </div>
+              
+              {createUserForm.subscriptionPlan && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <h4 className="font-medium mb-2">Selected Plan Details:</h4>
+                  {subscriptionPlans.find(p => p.id === createUserForm.subscriptionPlan) && (
+                    <div className="text-sm text-gray-600">
+                      <p><strong>Plan:</strong> {subscriptionPlans.find(p => p.id === createUserForm.subscriptionPlan).name}</p>
+                      <p><strong>Price:</strong> ${subscriptionPlans.find(p => p.id === createUserForm.subscriptionPlan).price}/{subscriptionPlans.find(p => p.id === createUserForm.subscriptionPlan).interval}</p>
+                      <p><strong>Features:</strong> {subscriptionPlans.find(p => p.id === createUserForm.subscriptionPlan).features.join(', ')}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="additional" className="space-y-4">
+              <div>
+                <Label htmlFor="create-address">Address</Label>
+                <Input
+                  id="create-address"
+                  value={createUserForm.address}
+                  onChange={(e) => setCreateUserForm({...createUserForm, address: e.target.value})}
+                  placeholder="Enter street address"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="create-city">City</Label>
+                  <Input
+                    id="create-city"
+                    value={createUserForm.city}
+                    onChange={(e) => setCreateUserForm({...createUserForm, city: e.target.value})}
+                    placeholder="Enter city"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="create-state">State/Province</Label>
+                  <Input
+                    id="create-state"
+                    value={createUserForm.state}
+                    onChange={(e) => setCreateUserForm({...createUserForm, state: e.target.value})}
+                    placeholder="Enter state/province"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="create-country">Country</Label>
+                  <Input
+                    id="create-country"
+                    value={createUserForm.country}
+                    onChange={(e) => setCreateUserForm({...createUserForm, country: e.target.value})}
+                    placeholder="Enter country"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="create-zip">ZIP/Postal Code</Label>
+                  <Input
+                    id="create-zip"
+                    value={createUserForm.zipCode}
+                    onChange={(e) => setCreateUserForm({...createUserForm, zipCode: e.target.value})}
+                    placeholder="Enter ZIP/postal code"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="create-notes">Admin Notes</Label>
+                <textarea
+                  id="create-notes"
+                  className="w-full p-2 border rounded-md min-h-[80px]"
+                  value={createUserForm.notes}
+                  onChange={(e) => setCreateUserForm({...createUserForm, notes: e.target.value})}
+                  placeholder="Enter admin notes about this user"
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateUserDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateUser}>
+              Create User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Dialog */}
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Export Users</DialogTitle>
+            <DialogDescription>
+              Choose export format and options
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="export-format">Format</Label>
+              <Select value={exportOptions.format} onValueChange={(value) => setExportOptions({...exportOptions, format: value})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="csv">CSV</SelectItem>
+                  <SelectItem value="json">JSON</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="include-deleted"
+                checked={exportOptions.includeDeleted}
+                onChange={(e) => setExportOptions({...exportOptions, includeDeleted: e.target.checked})}
+                className="rounded"
+              />
+              <Label htmlFor="include-deleted">Include deleted users</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              exportUsers(exportOptions.format);
+              setExportDialogOpen(false);
+            }}>
+              Export Users
             </Button>
           </DialogFooter>
         </DialogContent>

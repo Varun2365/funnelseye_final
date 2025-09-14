@@ -6,8 +6,7 @@ const coachMarketingCredentialsSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
-        unique: true,
-        index: true
+        unique: true
     },
 
     // Meta/Facebook Ads Credentials
@@ -152,31 +151,41 @@ coachMarketingCredentialsSchema.pre('save', function(next) {
 coachMarketingCredentialsSchema.methods.decrypt = function(encryptedData) {
     if (!encryptedData) return null;
     
-    const algorithm = 'aes-256-cbc';
-    const key = Buffer.from(this.encryptionKey, 'hex');
-    const iv = Buffer.from(encryptedData.substring(0, 32), 'hex');
-    const encrypted = encryptedData.substring(32);
-    
-    const decipher = crypto.createDecipher(algorithm, key);
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    
-    return decrypted;
+    try {
+        const algorithm = 'aes-256-cbc';
+        const key = Buffer.from(this.encryptionKey, 'hex');
+        const iv = Buffer.from(encryptedData.substring(0, 32), 'hex');
+        const encrypted = encryptedData.substring(32);
+        
+        const decipher = crypto.createDecipheriv(algorithm, key, iv);
+        let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        
+        return decrypted;
+    } catch (error) {
+        console.error('Decryption error:', error);
+        return null;
+    }
 };
 
 // Encrypt sensitive data
 coachMarketingCredentialsSchema.methods.encrypt = function(data) {
     if (!data) return null;
     
-    const algorithm = 'aes-256-cbc';
-    const key = Buffer.from(this.encryptionKey, 'hex');
-    const iv = crypto.randomBytes(16);
-    
-    const cipher = crypto.createCipher(algorithm, key);
-    let encrypted = cipher.update(data, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    
-    return iv.toString('hex') + encrypted;
+    try {
+        const algorithm = 'aes-256-cbc';
+        const key = Buffer.from(this.encryptionKey, 'hex');
+        const iv = crypto.randomBytes(16);
+        
+        const cipher = crypto.createCipheriv(algorithm, key, iv);
+        let encrypted = cipher.update(data, 'utf8', 'hex');
+        encrypted += cipher.final('hex');
+        
+        return iv.toString('hex') + encrypted;
+    } catch (error) {
+        console.error('Encryption error:', error);
+        return null;
+    }
 };
 
 // Generate encryption key

@@ -1,3 +1,4 @@
+const axios = require('axios');
 const staffLeaderboardService = require('../services/staffLeaderboardService');
 const workflowTaskService = require('../services/workflowTaskService');
 const staffPerformanceService = require('../services/staffPerformanceService');
@@ -2196,6 +2197,177 @@ class UnifiedStaffDashboardController {
     }
 
     /**
+     * Transfer an appointment from coach to staff with meeting host permissions
+     * @route PUT /api/staff-dashboard/unified/appointments/transfer-from-coach
+     * @access Private (Coach)
+     */
+    async transferAppointmentFromCoachToStaff(req, res) {
+        try {
+            const { 
+                appointmentId, 
+                staffId, 
+                hostPermissions = {},
+                reason, 
+                notes, 
+                transferDate 
+            } = req.body;
+            
+            if (!appointmentId || !staffId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'appointmentId and staffId are required'
+                });
+            }
+
+            // Verify user is a coach
+            if (req.user.role !== 'coach') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Only coaches can transfer appointments to staff'
+                });
+            }
+
+            const coachId = req.user.id;
+
+            // Get the appointment
+            const appointment = await Appointment.findById(appointmentId);
+            if (!appointment) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Appointment not found'
+                });
+            }
+
+            // Verify appointment belongs to this coach
+            if (appointment.coachId.toString() !== coachId.toString()) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'You can only transfer your own appointments'
+                });
+            }
+
+            // Get the target staff member
+            const staff = await User.findById(staffId);
+            if (!staff || staff.role !== 'staff') {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Staff member not found'
+                });
+            }
+
+            // Verify staff belongs to this coach
+            if (staff.coachId.toString() !== coachId.toString()) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Staff member must belong to your team'
+                });
+            }
+
+            // Check if staff is available at the appointment time
+            const appointmentStart = new Date(appointment.startTime);
+            const appointmentEnd = new Date(appointmentStart.getTime() + appointment.duration * 60000);
+
+            const conflictingAppointments = await Appointment.find({
+                assignedStaffId: staffId,
+                _id: { $ne: appointmentId },
+                startTime: { $lt: appointmentEnd },
+                $expr: {
+                    $gte: [
+                        { $add: ['$startTime', { $multiply: ['$duration', 60000] }] },
+                        appointmentStart
+                    ]
+                }
+            });
+
+            if (conflictingAppointments.length > 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Staff member has conflicting appointments at this time',
+                    conflictingAppointments: conflictingAppointments.map(apt => ({
+                        id: apt._id,
+                        startTime: apt.startTime,
+                        duration: apt.duration,
+                        summary: apt.summary
+                    }))
+                });
+            }
+
+            // Default host permissions if not specified
+            const defaultHostPermissions = {
+                hasHostAccess: true,
+                canStartMeeting: true,
+                canManageParticipants: true,
+                canShareScreen: true,
+                canRecordMeeting: false, // Default to false for security
+                transferredFromCoach: true,
+                originalCoachId: coachId
+            };
+
+            // Merge provided permissions with defaults
+            const finalHostPermissions = { ...defaultHostPermissions, ...hostPermissions };
+
+            // Update the appointment
+            appointment.assignedStaffId = staffId;
+            appointment.meetingHostPermissions = finalHostPermissions;
+            
+            // Add transfer history
+            if (!appointment.transferHistory) {
+                appointment.transferHistory = [];
+            }
+            
+            appointment.transferHistory.push({
+                fromUserId: coachId,
+                toUserId: staffId,
+                transferDate: transferDate || new Date(),
+                reason: reason || 'Coach transferred appointment to staff',
+                notes: notes || '',
+                hostPermissions: finalHostPermissions
+            });
+
+            await appointment.save();
+
+            // Update Zoom meeting host if it exists
+            if (appointment.zoomMeeting && appointment.zoomMeeting.meetingId) {
+                try {
+                    await this.updateZoomMeetingHost(appointmentId, staff.email, finalHostPermissions);
+                } catch (zoomError) {
+                    console.warn('Failed to update Zoom meeting host:', zoomError.message);
+                    // Don't fail the transfer if Zoom update fails
+                }
+            }
+
+            res.json({
+                success: true,
+                message: 'Appointment transferred to staff successfully',
+                data: {
+                    appointment: {
+                        id: appointment._id,
+                        summary: appointment.summary,
+                        startTime: appointment.startTime,
+                        duration: appointment.duration,
+                        assignedStaffId: appointment.assignedStaffId,
+                        meetingHostPermissions: appointment.meetingHostPermissions,
+                        transferHistory: appointment.transferHistory
+                    },
+                    staff: {
+                        id: staff._id,
+                        name: staff.name,
+                        email: staff.email
+                    },
+                    hostPermissions: finalHostPermissions
+                }
+            });
+
+        } catch (err) {
+            console.error('transferAppointmentFromCoachToStaff error:', err.message);
+            return res.status(err.statusCode || 500).json({
+                success: false,
+                message: err.message || 'Server Error'
+            });
+        }
+    }
+
+    /**
      * Transfer an appointment from one staff member to another
      */
     async transferAppointmentBetweenStaff(req, res) {
@@ -2349,6 +2521,61 @@ class UnifiedStaffDashboardController {
                 success: false,
                 message: err.message || 'Server Error'
             });
+        }
+    }
+
+    /**
+     * Update Zoom meeting host permissions
+     */
+    async updateZoomMeetingHost(appointmentId, staffEmail, hostPermissions) {
+        try {
+            const appointment = await Appointment.findById(appointmentId);
+            if (!appointment || !appointment.zoomMeeting || !appointment.zoomMeeting.meetingId) {
+                throw new Error('No Zoom meeting found for this appointment');
+            }
+
+            // Get coach's Zoom integration
+            const zoomService = require('../services/zoomService');
+            const integration = await zoomService.getCoachIntegration(appointment.coachId);
+
+            // Generate OAuth token
+            const tokenData = await zoomService.generateOAuthToken(
+                integration.clientId,
+                integration.clientSecret,
+                integration.zoomAccountId
+            );
+
+            // Update meeting settings to include staff as alternative host
+            const meetingUpdateData = {
+                settings: {
+                    alternative_hosts: staffEmail,
+                    alternative_hosts_email_notification: true,
+                    host_video: hostPermissions.canStartMeeting,
+                    participant_video: true,
+                    join_before_host: !hostPermissions.canStartMeeting, // If staff can start, don't allow join before host
+                    mute_upon_entry: true,
+                    watermark: false,
+                    use_pmi: false
+                }
+            };
+
+            const response = await axios.patch(
+                `${zoomService.baseURL}/meetings/${appointment.zoomMeeting.meetingId}`,
+                meetingUpdateData,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${tokenData.accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            console.log(`[ZoomService] Updated meeting host permissions for appointment ${appointmentId}`);
+            return response.data;
+
+        } catch (error) {
+            console.error('[ZoomService] Error updating meeting host:', error.response?.data || error.message);
+            throw new Error('Failed to update Zoom meeting host permissions');
         }
     }
 

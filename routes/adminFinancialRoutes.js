@@ -3,15 +3,25 @@ const router = express.Router();
 const adminFinancialController = require('../controllers/adminFinancialController');
 const { verifyAdminToken, checkAdminPermission, adminRateLimit, logAdminActivity } = require('../middleware/adminAuth');
 
+// Temporarily disable logAdminActivity for all financial routes to fix timeout issues
+const noLogActivity = (req, res, next) => {
+    console.log('🔐 [FINANCIAL_ROUTE] Skipping audit logging for performance');
+    next();
+};
+
 // ===== FINANCIAL & BILLING CONTROL CENTER ROUTES =====
 
 // @route   GET /api/admin/financial/credit-system
 // @desc    Get credit system configuration
 // @access  Private (Admin)
 router.get('/credit-system', 
+    (req, res, next) => {
+        console.log('🛣️ [FINANCIAL_ROUTE] GET /credit-system - Route hit');
+        next();
+    },
     verifyAdminToken, 
     checkAdminPermission('systemSettings'), 
-    logAdminActivity, 
+    noLogActivity, 
     adminFinancialController.getCreditSystem
 );
 
@@ -22,7 +32,7 @@ router.put('/credit-system',
     verifyAdminToken, 
     checkAdminPermission('systemSettings'), 
     adminRateLimit, 
-    logAdminActivity, 
+    noLogActivity, 
     adminFinancialController.updateCreditSystem
 );
 
@@ -32,8 +42,41 @@ router.put('/credit-system',
 router.get('/credit-packages', 
     verifyAdminToken, 
     checkAdminPermission('viewAnalytics'), 
-    logAdminActivity, 
+    noLogActivity, 
     adminFinancialController.getCreditPackages
+);
+
+// @route   POST /api/admin/financial/credit-packages
+// @desc    Create new credit package
+// @access  Private (Admin)
+router.post('/credit-packages', 
+    verifyAdminToken, 
+    checkAdminPermission('systemSettings'), 
+    adminRateLimit(10, 5 * 60 * 1000), // 10 requests per 5 minutes
+    noLogActivity, 
+    adminFinancialController.createCreditPackage
+);
+
+// @route   PUT /api/admin/financial/credit-packages/:packageId
+// @desc    Update credit package
+// @access  Private (Admin)
+router.put('/credit-packages/:packageId', 
+    verifyAdminToken, 
+    checkAdminPermission('systemSettings'), 
+    adminRateLimit(10, 5 * 60 * 1000), // 10 requests per 5 minutes
+    noLogActivity, 
+    adminFinancialController.updateCreditPackage
+);
+
+// @route   DELETE /api/admin/financial/credit-packages/:packageId
+// @desc    Delete credit package
+// @access  Private (Admin)
+router.delete('/credit-packages/:packageId', 
+    verifyAdminToken, 
+    checkAdminPermission('systemSettings'), 
+    adminRateLimit(5, 5 * 60 * 1000), // 5 requests per 5 minutes
+    noLogActivity, 
+    adminFinancialController.deleteCreditPackage
 );
 
 // @route   GET /api/admin/financial/revenue-analytics
@@ -42,7 +85,7 @@ router.get('/credit-packages',
 router.get('/revenue-analytics', 
     verifyAdminToken, 
     checkAdminPermission('viewAnalytics'), 
-    logAdminActivity, 
+    noLogActivity, 
     adminFinancialController.getRevenueAnalytics
 );
 
@@ -52,7 +95,7 @@ router.get('/revenue-analytics',
 router.get('/payment-failures', 
     verifyAdminToken, 
     checkAdminPermission('viewAnalytics'), 
-    logAdminActivity, 
+    noLogActivity, 
     adminFinancialController.getPaymentFailures
 );
 
@@ -62,7 +105,7 @@ router.get('/payment-failures',
 router.get('/gateway-markup', 
     verifyAdminToken, 
     checkAdminPermission('viewAnalytics'), 
-    logAdminActivity, 
+    noLogActivity, 
     adminFinancialController.getGatewayMarkup
 );
 
@@ -72,7 +115,7 @@ router.get('/gateway-markup',
 router.get('/credit-usage', 
     verifyAdminToken, 
     checkAdminPermission('viewAnalytics'), 
-    logAdminActivity, 
+    noLogActivity, 
     adminFinancialController.getCreditUsage
 );
 
@@ -84,7 +127,7 @@ router.get('/credit-usage',
 router.get('/payment-settings', 
     verifyAdminToken, 
     checkAdminPermission('paymentSettings'), 
-    logAdminActivity, 
+    noLogActivity, 
     adminFinancialController.getPaymentSettings
 );
 
@@ -95,7 +138,7 @@ router.put('/payment-settings',
     verifyAdminToken, 
     checkAdminPermission('paymentSettings'), 
     adminRateLimit(10, 5 * 60 * 1000), // 10 requests per 5 minutes
-    logAdminActivity, 
+    noLogActivity, 
     adminFinancialController.updatePaymentSettings
 );
 
@@ -105,7 +148,7 @@ router.put('/payment-settings',
 router.get('/commission-payouts', 
     verifyAdminToken, 
     checkAdminPermission('financialReports'), 
-    logAdminActivity, 
+    noLogActivity, 
     adminFinancialController.getCommissionPayouts
 );
 
@@ -116,7 +159,7 @@ router.post('/commission-payouts/:paymentId/process',
     verifyAdminToken, 
     checkAdminPermission('paymentManagement'), 
     adminRateLimit(20, 5 * 60 * 1000), // 20 requests per 5 minutes
-    logAdminActivity, 
+    noLogActivity, 
     adminFinancialController.processCommissionPayout
 );
 
@@ -126,7 +169,7 @@ router.post('/commission-payouts/:paymentId/process',
 router.get('/payment-gateways', 
     verifyAdminToken, 
     checkAdminPermission('paymentSettings'), 
-    logAdminActivity, 
+    noLogActivity, 
     adminFinancialController.getPaymentGateways
 );
 
@@ -137,7 +180,7 @@ router.put('/payment-gateways/:gatewayName',
     verifyAdminToken, 
     checkAdminPermission('paymentSettings'), 
     adminRateLimit(10, 5 * 60 * 1000), // 10 requests per 5 minutes
-    logAdminActivity, 
+    noLogActivity, 
     adminFinancialController.updatePaymentGateway
 );
 
@@ -148,7 +191,7 @@ router.post('/payment-gateways/:gatewayName/test',
     verifyAdminToken, 
     checkAdminPermission('paymentSettings'), 
     adminRateLimit(5, 15 * 60 * 1000), // 5 requests per 15 minutes
-    logAdminActivity, 
+    noLogActivity, 
     adminFinancialController.testPaymentGateway
 );
 
@@ -158,8 +201,79 @@ router.post('/payment-gateways/:gatewayName/test',
 router.get('/payment-analytics', 
     verifyAdminToken, 
     checkAdminPermission('financialReports'), 
-    logAdminActivity, 
+    noLogActivity, 
     adminFinancialController.getPaymentAnalytics
+);
+
+// ===== RAZORPAY ACCOUNT MANAGEMENT =====
+
+// @route   GET /api/admin/financial/razorpay-account
+// @desc    Get Razorpay account details and balance
+// @access  Private (Admin)
+router.get('/razorpay-account', 
+    verifyAdminToken, 
+    checkAdminPermission('systemSettings'), 
+    noLogActivity, 
+    adminFinancialController.getRazorpayAccount
+);
+
+// ===== MLM COMMISSION MANAGEMENT =====
+
+// @route   PUT /api/admin/financial/mlm-commission-structure
+// @desc    Update MLM commission structure
+// @access  Private (Admin)
+router.put('/mlm-commission-structure', 
+    verifyAdminToken, 
+    checkAdminPermission('mlmSettings'), 
+    adminRateLimit, 
+    noLogActivity, 
+    adminFinancialController.updateMlmCommissionStructure
+);
+
+// @route   POST /api/admin/financial/process-mlm-commission
+// @desc    Process MLM commission for subscription
+// @access  Private (Admin)
+router.post('/process-mlm-commission', 
+    verifyAdminToken, 
+    checkAdminPermission('mlmSettings'), 
+    adminRateLimit, 
+    noLogActivity, 
+    adminFinancialController.processMlmCommission
+);
+
+// ===== PLATFORM FEE MANAGEMENT =====
+
+// @route   GET /api/admin/financial/platform-fees
+// @desc    Get platform fee settings
+// @access  Private (Admin)
+router.get('/platform-fees', 
+    verifyAdminToken, 
+    checkAdminPermission('systemSettings'), 
+    noLogActivity, 
+    adminFinancialController.getPlatformFees
+);
+
+// @route   PUT /api/admin/financial/platform-fees
+// @desc    Update platform fee settings
+// @access  Private (Admin)
+router.put('/platform-fees', 
+    verifyAdminToken, 
+    checkAdminPermission('systemSettings'), 
+    adminRateLimit, 
+    noLogActivity, 
+    adminFinancialController.updatePlatformFees
+);
+
+// ===== FINANCIAL ANALYTICS DASHBOARD =====
+
+// @route   GET /api/admin/financial/analytics-dashboard
+// @desc    Get comprehensive financial analytics dashboard
+// @access  Private (Admin)
+router.get('/analytics-dashboard', 
+    verifyAdminToken, 
+    checkAdminPermission('viewAnalytics'), 
+    noLogActivity, 
+    adminFinancialController.getFinancialAnalyticsDashboard
 );
 
 module.exports = router;

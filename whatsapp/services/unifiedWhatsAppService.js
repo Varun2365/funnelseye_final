@@ -1,4 +1,4 @@
-const baileysService = require('./baileysWhatsAppService');
+const newBaileysService = require('./newBaileysWhatsAppService');
 const metaService = require('./metaWhatsAppService');
 const { WhatsAppDevice, WhatsAppMessage, WhatsAppConversation } = require('../schemas');
 const logger = require('../../utils/logger');
@@ -38,7 +38,7 @@ class UnifiedWhatsAppService {
                 await WhatsAppDevice.findByIdAndUpdate(device._id, { sessionId });
             }
 
-            const result = await baileysService.initializeSession(device._id.toString(), sessionId);
+            const result = await newBaileysService.initializeDevice(device._id.toString(), coachId);
             
             if (result.success) {
                 this.activeDevices.set(device._id.toString(), {
@@ -105,7 +105,7 @@ class UnifiedWhatsAppService {
             let result;
 
             if (device.deviceType === 'baileys') {
-                result = await baileysService.sendMessage(deviceId, to, content, options);
+                result = await newBaileysService.sendMessage(deviceId, { to, message: content, type: options.type || 'text' });
             } else if (device.deviceType === 'meta') {
                 result = await this.sendMetaMessage(device, to, content, options);
             } else {
@@ -241,7 +241,7 @@ class UnifiedWhatsAppService {
                 throw new Error('Device not found or not a Baileys device');
             }
 
-            return baileysService.getQRCode(deviceId);
+            return newBaileysService.getQRCode(deviceId);
 
         } catch (error) {
             logger.error(`[UnifiedWhatsAppService] Error getting QR code:`, error);
@@ -257,7 +257,7 @@ class UnifiedWhatsAppService {
             }
 
             if (device.deviceType === 'baileys') {
-                return baileysService.getConnectionStatus(deviceId);
+                return newBaileysService.getConnectionStatus(deviceId);
             } else if (device.deviceType === 'meta') {
                 // For Meta devices, we assume they're always connected if credentials are valid
                 return 'connected';
@@ -277,7 +277,7 @@ class UnifiedWhatsAppService {
             }
 
             if (device.deviceType === 'baileys') {
-                await baileysService.disconnectSession(deviceId);
+                await newBaileysService.disconnectDevice(deviceId);
             }
 
             this.activeDevices.delete(deviceId);
@@ -303,7 +303,7 @@ class UnifiedWhatsAppService {
             }
 
             if (device.deviceType === 'baileys') {
-                await baileysService.deleteSession(deviceId);
+                // Session cleanup is handled by disconnectDevice
             }
 
             this.activeDevices.delete(deviceId);

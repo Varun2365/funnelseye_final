@@ -14,7 +14,9 @@ function requirePermission(requiredPermission) {
     return (req, res, next) => {
         try {
             // Skip permission check for admin/super_admin
-            if (req.role === 'admin' || req.role === 'super_admin') {
+            // Check both req.role (for staff) and req.admin.role (for admin)
+            if (req.role === 'admin' || req.role === 'super_admin' || 
+                req.admin?.role === 'admin' || req.admin?.role === 'super_admin') {
                 return next();
             }
 

@@ -15,6 +15,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [admin, setAdmin] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Configure axios defaults
   useEffect(() => {
@@ -28,34 +29,55 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
+      console.log('🔐 [AUTH] Starting auth check...');
       const token = localStorage.getItem('adminToken');
+      
       if (!token) {
+        console.log('🔐 [AUTH] No token found, user not authenticated');
         setLoading(false);
         return;
       }
 
+      console.log('🔐 [AUTH] Token found, verifying with backend...');
+      
       // Set token in axios headers
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
       // Verify token with backend
       const response = await axios.get('/admin/auth/profile');
+      console.log('🔐 [AUTH] Backend response:', response.data);
+      
       if (response.data.success) {
+        console.log('🔐 [AUTH] Authentication successful');
         setIsAuthenticated(true);
-        setAdmin(response.data.admin);
+        setAdmin(response.data.data);
       } else {
+        console.log('🔐 [AUTH] Backend returned success: false');
         localStorage.removeItem('adminToken');
         delete axios.defaults.headers.common['Authorization'];
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.error('🔐 [AUTH] Auth check failed:', error);
+      console.error('🔐 [AUTH] Error response:', error.response?.data);
+      console.error('🔐 [AUTH] Error status:', error.response?.status);
+      
       // Only remove token if it's an auth error (401, 403)
       if (error.response?.status === 401 || error.response?.status === 403) {
+        console.log('🔐 [AUTH] Removing invalid token');
         localStorage.removeItem('adminToken');
         delete axios.defaults.headers.common['Authorization'];
       }
     } finally {
+      console.log('🔐 [AUTH] Auth check completed, setting loading to false');
       setLoading(false);
     }
+  };
+
+  const retryAuth = () => {
+    console.log('🔐 [AUTH] Retrying authentication...');
+    setRetryCount(prev => prev + 1);
+    setLoading(true);
+    checkAuthStatus();
   };
 
   const login = async (email, password) => {
@@ -132,9 +154,11 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     admin,
     loading,
+    retryCount,
     login,
     logout,
-    checkAuthStatus
+    checkAuthStatus,
+    retryAuth
   };
 
   console.log('🔐 [AUTH_CONTEXT] Rendering with state:', { isAuthenticated, admin: admin ? 'exists' : 'null', loading });

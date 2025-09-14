@@ -111,7 +111,7 @@ coachPaymentSchema.index({ coachId: 1, status: 1 });
 coachPaymentSchema.index({ paymentType: 1, status: 1 });
 coachPaymentSchema.index({ 'metadata.period.startDate': 1, 'metadata.period.endDate': 1 });
 coachPaymentSchema.index({ createdAt: -1 });
-coachPaymentSchema.index({ paymentId: 1 });
+// Note: paymentId already has unique index from schema definition
 
 // Virtual for payment duration
 coachPaymentSchema.virtual('processingDuration').get(function() {

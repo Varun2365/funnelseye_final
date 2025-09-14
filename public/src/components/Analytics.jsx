@@ -37,6 +37,7 @@ import {
   Area
 } from 'recharts';
 import axios from 'axios';
+import adminApiService from '../services/adminApiService';
 
 const Analytics = () => {
   const [analyticsData, setAnalyticsData] = useState(null);
@@ -54,9 +55,7 @@ const Analytics = () => {
       setLoading(true);
       console.log('📈 [ANALYTICS] Fetching analytics data...');
       
-      const response = await axios.get('/admin/system/analytics', {
-        params: { dateRange, metricType }
-      });
+      const response = await adminApiService.getSystemAnalytics();
       console.log('📈 [ANALYTICS] Analytics data received:', response.data);
       
       setAnalyticsData(response.data.data);
@@ -72,10 +71,7 @@ const Analytics = () => {
     try {
       console.log('📈 [ANALYTICS] Exporting analytics data...');
       
-      const response = await axios.get('/admin/system/analytics/export', {
-        params: { dateRange, metricType },
-        responseType: 'blob'
-      });
+      const response = await adminApiService.exportSystemAnalytics();
       
       // Create download link
       const url = window.URL.createObjectURL(new Blob([response.data]));

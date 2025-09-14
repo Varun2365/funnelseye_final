@@ -11,7 +11,13 @@ async function getCoachOpenAIKey(coachId) {
         .select('+openAI.apiKey +encryptionKey');
     
     if (!credentials || !credentials.openAI.apiKey) {
-        throw new Error('OpenAI API key not found for this coach');
+        // Fallback to global OpenAI API key from environment
+        const globalApiKey = process.env.OPENAI_API_KEY;
+        if (!globalApiKey) {
+            throw new Error('OpenAI API key not found for this coach and no global API key configured. Please set OPENAI_API_KEY environment variable or configure coach-specific API key.');
+        }
+        console.log('Using global OpenAI API key as fallback');
+        return globalApiKey;
     }
     
     return credentials.getDecryptedOpenAIKey();
@@ -325,6 +331,13 @@ class AIAdsAgent {
      */
     async generateTargetingRecommendations(coachId, targetAudience, budget) {
         try {
+            const apiKey = await getCoachOpenAIKey(coachId);
+            const model = await getCoachOpenAIModel(coachId);
+            
+            const openai = new OpenAI({
+                apiKey: apiKey
+            });
+
             const prompt = `
                 Generate Facebook ad targeting recommendations for a fitness coach.
                 
@@ -343,7 +356,7 @@ class AIAdsAgent {
             `;
 
             const completion = await openai.chat.completions.create({
-                model: "gpt-4",
+                model: model,
                 messages: [{ role: "user", content: prompt }],
                 max_tokens: 800
             });
@@ -541,6 +554,13 @@ class AIAdsAgent {
      */
     async generatePosterTextContent(coachId, posterRequirements) {
         try {
+            const apiKey = await getCoachOpenAIKey(coachId);
+            const model = await getCoachOpenAIModel(coachId);
+            
+            const openai = new OpenAI({
+                apiKey: apiKey
+            });
+
             const prompt = `
                 You are a professional fitness marketing copywriter. Create compelling text content and positioning instructions for a fitness marketing poster.
 
@@ -578,7 +598,7 @@ class AIAdsAgent {
             `;
 
             const completion = await openai.chat.completions.create({
-                model: "gpt-4",
+                model: model,
                 messages: [
                     {
                         role: "system",
@@ -737,6 +757,13 @@ class AIAdsAgent {
      */
     async generateMarketingHeadlines(coachId, headlineRequirements) {
         try {
+            const apiKey = await getCoachOpenAIKey(coachId);
+            const model = await getCoachOpenAIModel(coachId);
+            
+            const openai = new OpenAI({
+                apiKey: apiKey
+            });
+
             const {
                 coachName,
                 niche,
@@ -771,7 +798,7 @@ class AIAdsAgent {
             `;
 
             const completion = await openai.chat.completions.create({
-                model: "gpt-4",
+                model: model,
                 messages: [{ role: "user", content: prompt }],
                 max_tokens: 800
             });
@@ -825,6 +852,13 @@ class AIAdsAgent {
      */
     async generateSocialMediaPost(coachId, postRequirements) {
         try {
+            const apiKey = await getCoachOpenAIKey(coachId);
+            const model = await getCoachOpenAIModel(coachId);
+            
+            const openai = new OpenAI({
+                apiKey: apiKey
+            });
+
             const {
                 coachName,
                 niche,
@@ -861,7 +895,7 @@ class AIAdsAgent {
             `;
 
             const completion = await openai.chat.completions.create({
-                model: "gpt-4",
+                model: model,
                 messages: [{ role: "user", content: prompt }],
                 max_tokens: 600
             });

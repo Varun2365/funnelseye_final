@@ -215,13 +215,13 @@ async function scheduleNextStep(lead, step) {
  * This function is called by main.js to start the worker
  */
 function initNurturingWorker() {
-    console.log('[NurturingWorker] Initializing nurturing sequence worker...');
+    // console.log('[NurturingWorker] Initializing nurturing sequence worker...');
     
     // Run every 2 minutes for immediate processing
     setInterval(processNurturingSequences, 2 * 60 * 1000);
 
     // Don't run immediately on startup - let it run on the first interval
-    console.log('[NurturingWorker] Worker initialized, will start processing in 2 minutes');
+    // console.log('[NurturingWorker] Worker initialized, will start processing in 2 minutes');
 
     // Handle graceful shutdown
     process.on('SIGTERM', () => {

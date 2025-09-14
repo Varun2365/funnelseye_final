@@ -1,0 +1,441 @@
+{
+  "info": {
+    "name": "WhatsApp Baileys Client API",
+    "description": "Complete API collection for WhatsApp Baileys Client with MongoDB integration",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "deviceId",
+      "value": "my-device-1",
+      "type": "string"
+    },
+    {
+      "key": "participant",
+      "value": "1234567890@s.whatsapp.net",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Info",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "API Documentation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/docs",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "docs"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Device Management",
+      "item": [
+        {
+          "name": "Initialize Device",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/init",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "init"]
+            },
+            "description": "Initialize a new WhatsApp device. This will automatically generate a unique device ID and start the WhatsApp connection process. Returns the generated deviceId and QR code URL."
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/whatsapp/init",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "whatsapp", "init"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Device initialization started\",\n  \"deviceId\": \"device_1703123456789_abc123def\",\n  \"qrUrl\": \"/api/whatsapp/qr/device_1703123456789_abc123def\"\n}"
+            },
+            {
+              "name": "Error Response",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/whatsapp/init",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "whatsapp", "init"]
+                }
+              },
+              "status": "Internal Server Error",
+              "code": 500,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Failed to initialize device\",\n  \"error\": \"Error details here\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Device Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/status/{{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "status", "{{deviceId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Devices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/devices",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "devices"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Disconnect Device",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/disconnect/{{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "disconnect", "{{deviceId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "QR Code",
+      "item": [
+        {
+          "name": "Get QR Code Page",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/qr/{{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "qr", "{{deviceId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Messaging",
+      "item": [
+        {
+          "name": "Send Text Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{participant}}\",\n  \"message\": \"Hello from WhatsApp API! This is a test message.\",\n  \"type\": \"text\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/send/{{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "send", "{{deviceId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send Image Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{participant}}\",\n  \"message\": {\n    \"url\": \"https://example.com/image.jpg\",\n    \"caption\": \"Check out this image!\"\n  },\n  \"type\": \"image\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/send/{{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "send", "{{deviceId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send Video Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{participant}}\",\n  \"message\": {\n    \"url\": \"https://example.com/video.mp4\",\n    \"caption\": \"Here's a video for you!\"\n  },\n  \"type\": \"video\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/send/{{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "send", "{{deviceId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send Audio Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{participant}}\",\n  \"message\": {\n    \"url\": \"https://example.com/audio.mp3\"\n  },\n  \"type\": \"audio\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/send/{{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "send", "{{deviceId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send Document Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{participant}}\",\n  \"message\": {\n    \"url\": \"https://example.com/document.pdf\",\n    \"caption\": \"Please find the document attached.\"\n  },\n  \"type\": \"document\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/send/{{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "send", "{{deviceId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send Location Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{participant}}\",\n  \"message\": {\n    \"latitude\": 40.7128,\n    \"longitude\": -74.0060,\n    \"name\": \"New York City\",\n    \"address\": \"New York, NY, USA\"\n  },\n  \"type\": \"location\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/send/{{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "send", "{{deviceId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send Contact Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{participant}}\",\n  \"message\": {\n    \"name\": \"John Doe\",\n    \"number\": \"+1234567890\"\n  },\n  \"type\": \"contact\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/send/{{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "send", "{{deviceId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Inbox & Conversations",
+      "item": [
+        {
+          "name": "Get Inbox (All Conversations)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/inbox/{{deviceId}}?limit=20&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "inbox", "{{deviceId}}"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Messages for Conversation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/messages/{{deviceId}}/{{participant}}?limit=50&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "messages", "{{deviceId}}", "{{participant}}"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Statistics",
+      "item": [
+        {
+          "name": "Get Device Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/stats/{{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "stats", "{{deviceId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Pre-request script for all requests",
+          "console.log('Making request to:', pm.request.url.toString());"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Test script for all requests",
+          "pm.test('Status code is successful', function () {",
+          "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 202]);",
+          "});",
+          "",
+          "pm.test('Response has success field', function () {",
+          "    const jsonData = pm.response.json();",
+          "    pm.expect(jsonData).to.have.property('success');",
+          "});",
+          "",
+          "// Log response for debugging",
+          "console.log('Response:', pm.response.json());"
+        ]
+      }
+    }
+  ]
+}
