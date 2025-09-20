@@ -13,7 +13,29 @@ async function seedAdmin() {
     const admin = new AdminUser({
         email: 'admin@funnelseye.com',
         password: 'Admin@123',
-        name: 'Super Admin'
+        firstName: 'Super',
+        lastName: 'Admin',
+        role: 'super_admin',
+        status: 'active',
+        isEmailVerified: true,
+        permissions: {
+            systemSettings: true,
+            userManagement: true,
+            paymentSettings: true,
+            mlmSettings: true,
+            coachManagement: true,
+            planManagement: true,
+            contentModeration: true,
+            viewAnalytics: true,
+            exportData: true,
+            financialReports: true,
+            systemLogs: true,
+            maintenanceMode: true,
+            backupRestore: true,
+            securitySettings: true,
+            auditLogs: true,
+            twoFactorAuth: true
+        }
     });
     await admin.save();
     console.log('Initial admin user created: admin@funnelseye.com / Admin@123');

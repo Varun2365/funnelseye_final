@@ -184,9 +184,12 @@ class SubscriptionController {
         
         .plans-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 24px;
             margin-bottom: 80px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
         }
         
         .plan-card {
@@ -197,6 +200,12 @@ class SubscriptionController {
             transition: all 0.3s ease;
             position: relative;
             border: 2px solid transparent;
+            width: 100%;
+            max-width: 350px;
+            height: 500px;
+            display: flex;
+            flex-direction: column;
+            margin: 0 auto;
         }
         
         .plan-card:hover {
@@ -208,6 +217,7 @@ class SubscriptionController {
             background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
             color: white;
             transform: scale(1.02);
+            height: 500px;
         }
         
         .plan-card.popular .plan-name,
@@ -266,6 +276,7 @@ class SubscriptionController {
         .plan-features {
             list-style: none;
             margin-bottom: 32px;
+            flex-grow: 1;
         }
         
         .plan-features li {
@@ -301,6 +312,7 @@ class SubscriptionController {
             cursor: pointer;
             transition: all 0.3s ease;
             text-transform: none;
+            margin-top: auto;
         }
         
         .select-btn:hover {
@@ -485,10 +497,13 @@ class SubscriptionController {
             .plans-grid {
                 grid-template-columns: 1fr;
                 gap: 20px;
+                max-width: 400px;
             }
             
             .plan-card {
                 padding: 24px;
+                max-width: 100%;
+                height: 480px;
             }
             
             .features-section h2 {
