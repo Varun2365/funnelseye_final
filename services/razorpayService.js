@@ -42,25 +42,69 @@ class RazorpayService {
      */
     async getAccountBalance() {
         try {
-            const response = await axios.get(`${this.baseURL}/accounts/me`, {
+            // Use the correct Razorpay Banking Balances API endpoint
+            const response = await axios.get(`${this.baseURL}/banking_balances`, {
                 auth: {
                     username: process.env.RAZORPAY_KEY_ID,
                     password: process.env.RAZORPAY_KEY_SECRET
                 }
             });
 
+            if (response.data.items && response.data.items.length > 0) {
+                // Find RazorpayX account (razorpayx_lite)
+                const razorpayXAccount = response.data.items.find(account => 
+                    account.account_type === 'razorpayx_lite' || 
+                    account.account_type === 'current_account'
+                );
+
+                if (razorpayXAccount) {
+                    return {
+                        success: true,
+                        balance: razorpayXAccount.amount / 100, // Convert from paise to rupees
+                        currency: razorpayXAccount.currency || 'INR',
+                        accountId: razorpayXAccount.account_number,
+                        accountName: razorpayXAccount.bank_name || 'RazorpayX Account',
+                        accountType: razorpayXAccount.account_type,
+                        availableAmount: razorpayXAccount.available_amount / 100,
+                        refreshedAt: new Date(razorpayXAccount.refreshed_at * 1000)
+                    };
+                }
+
+                // If no RazorpayX account found, return the first account
+                const firstAccount = response.data.items[0];
+                return {
+                    success: true,
+                    balance: firstAccount.amount / 100,
+                    currency: firstAccount.currency || 'INR',
+                    accountId: firstAccount.account_number,
+                    accountName: firstAccount.bank_name || 'Razorpay Account',
+                    accountType: firstAccount.account_type,
+                    availableAmount: firstAccount.available_amount / 100,
+                    refreshedAt: new Date(firstAccount.refreshed_at * 1000)
+                };
+            }
+
+            // If no accounts found
             return {
                 success: true,
-                balance: response.data.balance,
-                currency: response.data.currency,
-                accountId: response.data.id,
-                accountName: response.data.name
+                balance: 0,
+                currency: 'INR',
+                accountId: 'no_account',
+                accountName: 'No RazorpayX Account Found',
+                note: 'No banking accounts found'
             };
+
         } catch (error) {
             console.error('Error fetching Razorpay balance:', error.response?.data || error.message);
+            
+            // If API fails, return a fallback response
             return {
                 success: false,
-                error: error.response?.data?.error?.description || error.message
+                error: error.response?.data?.error?.description || error.message,
+                balance: 0,
+                currency: 'INR',
+                accountId: 'error',
+                accountName: 'RazorpayX Account (Error)'
             };
         }
     }

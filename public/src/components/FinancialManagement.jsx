@@ -69,7 +69,12 @@ const FinancialManagement = () => {
     coachEarnings: 0,
     monthlyRevenue: 0,
     weeklyRevenue: 0,
-    dailyRevenue: 0
+    dailyRevenue: 0,
+    accountName: '',
+    accountId: '',
+    accountType: '',
+    availableAmount: 0,
+    refreshedAt: null
   });
 
   // State for coaches and payouts
@@ -150,9 +155,16 @@ const FinancialManagement = () => {
   const handleProcessPayout = async () => {
     try {
       setProcessingPayout(true);
-      const response = await adminApiService.processCoachPayout(selectedCoach._id, payoutAmount);
+      const response = await adminApiService.processCoachPayout(
+        selectedCoach._id, 
+        payoutAmount,
+        'INR',
+        'payout',
+        'IMPS',
+        `Manual payout - ${selectedCoach.name} - FE`
+      );
       if (response.success) {
-        showToast(`Payout of ₹${payoutAmount} processed for ${selectedCoach.name}`, 'success');
+        showToast(`Razorpay payout of ₹${payoutAmount} processed for ${selectedCoach.name}. Transaction ID: ${response.data?.payoutId || 'N/A'}`, 'success');
         setShowPayoutDialog(false);
         setSelectedCoach(null);
         setPayoutAmount(0);
@@ -163,6 +175,27 @@ const FinancialManagement = () => {
     } catch (error) {
       console.error('Error processing payout:', error);
       showToast('Error processing payout', 'error');
+    } finally {
+      setProcessingPayout(false);
+    }
+  };
+
+  const handleSetupRazorpayCoach = async () => {
+    if (!selectedCoach) return;
+
+    try {
+      setProcessingPayout(true);
+      const response = await adminApiService.setupRazorpayCoach(selectedCoach._id);
+      
+      if (response.success) {
+        showToast(`Razorpay setup initiated for ${selectedCoach.name}. Please check the coach's payment details.`, 'success');
+        loadFinancialData(); // Refresh data
+      } else {
+        showToast(response.message || 'Failed to setup Razorpay', 'error');
+      }
+    } catch (error) {
+      console.error('Error setting up Razorpay:', error);
+      showToast('Error setting up Razorpay for coach', 'error');
     } finally {
       setProcessingPayout(false);
     }
@@ -198,7 +231,15 @@ const FinancialManagement = () => {
     try {
       const response = await adminApiService.refreshRazorpayBalance();
       if (response.success) {
-        setRevenueStats(prev => ({ ...prev, razorpayBalance: response.data.balance }));
+        setRevenueStats(prev => ({ 
+          ...prev, 
+          razorpayBalance: response.data.balance,
+          accountName: response.data.accountName || '',
+          accountId: response.data.accountId || '',
+          accountType: response.data.accountType || '',
+          availableAmount: response.data.availableAmount || 0,
+          refreshedAt: response.data.refreshedAt || null
+        }));
         showToast('Razorpay balance refreshed', 'success');
       } else {
         if (response.message?.includes('not configured')) {
@@ -278,6 +319,19 @@ const FinancialManagement = () => {
             <div className="text-2xl font-bold text-blue-600">
               ₹{revenueStats.razorpayBalance?.toLocaleString() || 0}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {revenueStats.accountName ? `${revenueStats.accountName}` : 'RazorpayX Balance'}
+            </p>
+            {revenueStats.accountType && (
+              <p className="text-xs text-muted-foreground">
+                Type: {revenueStats.accountType}
+              </p>
+            )}
+            {revenueStats.availableAmount !== undefined && revenueStats.availableAmount !== revenueStats.razorpayBalance && (
+              <p className="text-xs text-muted-foreground">
+                Available: ₹{revenueStats.availableAmount?.toLocaleString() || 0}
+              </p>
+            )}
             <div className="flex items-center space-x-2 mt-2">
               <Button 
                 size="sm" 
@@ -428,13 +482,25 @@ const FinancialManagement = () => {
                     <Search className="h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Search coaches..." className="w-64" />
                   </div>
-                  <Button 
-                    onClick={() => setShowPayoutDialog(true)}
-                    disabled={!selectedCoach}
-                  >
-                    <CreditCard className="w-4 h-4 mr-2" />
-                    Process Payout
-                  </Button>
+                  <div className="flex space-x-2">
+                    <Button 
+                      onClick={() => setShowPayoutDialog(true)}
+                      disabled={!selectedCoach}
+                    >
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Process Payout
+                    </Button>
+                    {selectedCoach && !selectedCoach.razorpayDetails?.isActive && (
+                      <Button 
+                        variant="outline"
+                        onClick={handleSetupRazorpayCoach}
+                        disabled={processingPayout}
+                      >
+                        <Settings className="w-4 h-4 mr-2" />
+                        Setup Razorpay
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="space-y-2">
@@ -444,7 +510,10 @@ const FinancialManagement = () => {
                       className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-colors ${
                         selectedCoach?._id === coach._id ? 'border-blue-500 bg-blue-50' : 'hover:bg-gray-50'
                       }`}
-                      onClick={() => setSelectedCoach(coach)}
+                      onClick={() => {
+                        setSelectedCoach(coach);
+                        setPayoutAmount(coach.pendingAmount || 0);
+                      }}
                     >
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -455,11 +524,22 @@ const FinancialManagement = () => {
                           <p className="text-sm text-muted-foreground">{coach.email}</p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right space-y-1">
+                        <div className="text-sm text-gray-600">
+                          Total: ₹{coach.totalEarnings?.toLocaleString() || 0}
+                        </div>
+                        <div className="text-sm text-red-600">
+                          Platform Fee: ₹{coach.platformFeeAmount?.toLocaleString() || 0}
+                        </div>
                         <div className="text-lg font-bold text-green-600">
                           ₹{coach.pendingAmount?.toLocaleString() || 0}
                         </div>
-                        <p className="text-sm text-muted-foreground">Pending</p>
+                        <p className="text-sm text-muted-foreground">To Pay</p>
+                        {!coach.razorpayDetails?.isActive && (
+                          <div className="text-xs text-orange-600 mt-1">
+                            Razorpay not setup
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -736,7 +816,12 @@ const FinancialManagement = () => {
       </Dialog>
 
       {/* Individual Payout Dialog */}
-      <Dialog open={showPayoutDialog} onOpenChange={setShowPayoutDialog}>
+      <Dialog open={showPayoutDialog} onOpenChange={(open) => {
+        setShowPayoutDialog(open);
+        if (open && selectedCoach) {
+          setPayoutAmount(selectedCoach.pendingAmount || 0);
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Process Payout</DialogTitle>
@@ -745,19 +830,36 @@ const FinancialManagement = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Earnings Breakdown */}
+            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+              <h4 className="font-medium text-sm">Earnings Breakdown</h4>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span>Total Earnings:</span>
+                  <span className="font-medium">₹{selectedCoach?.totalEarnings?.toLocaleString() || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Platform Fee ({financialSettings?.platformFee || 0}%):</span>
+                  <span className="text-red-600">-₹{selectedCoach?.platformFeeAmount?.toLocaleString() || 0}</span>
+                </div>
+                <div className="flex justify-between border-t pt-1">
+                  <span className="font-medium">Amount to Pay:</span>
+                  <span className="font-bold text-green-600">₹{selectedCoach?.pendingAmount?.toLocaleString() || 0}</span>
+                </div>
+              </div>
+            </div>
+
             <div>
               <Label htmlFor="payout-amount">Payout Amount</Label>
               <Input
                 id="payout-amount"
                 type="number"
-                value={payoutAmount}
+                value={payoutAmount || selectedCoach?.pendingAmount || 0}
                 onChange={(e) => setPayoutAmount(parseFloat(e.target.value))}
                 placeholder="Enter payout amount"
               />
-            </div>
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <p className="text-sm text-muted-foreground">
-                Available balance: ₹{selectedCoach?.pendingAmount?.toLocaleString() || 0}
+              <p className="text-xs text-muted-foreground mt-1">
+                Amount auto-filled with calculated payout amount
               </p>
             </div>
           </div>

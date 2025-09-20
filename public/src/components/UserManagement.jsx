@@ -187,10 +187,11 @@ const UserManagement = () => {
     try {
       const response = await adminApiService.getSubscriptionPlans();
       if (response.success) {
-        setSubscriptionPlans(response.data);
+        setSubscriptionPlans(response.data.plans || []);
       }
     } catch (error) {
       console.error('Error loading subscription plans:', error);
+      setSubscriptionPlans([]); // Set empty array on error
     }
   };
 
@@ -1400,9 +1401,9 @@ const UserManagement = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">No Plan</SelectItem>
-                      {subscriptionPlans.map((plan) => (
-                        <SelectItem key={plan.id} value={plan.id}>
-                          {plan.name} - ${plan.price}/{plan.interval}
+                      {Array.isArray(subscriptionPlans) && subscriptionPlans.map((plan) => (
+                        <SelectItem key={plan._id || plan.id} value={plan._id || plan.id}>
+                          {plan.name} - ${plan.price}/{plan.billingCycle || plan.interval}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1449,11 +1450,18 @@ const UserManagement = () => {
               {createUserForm.subscriptionPlan && (
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <h4 className="font-medium mb-2">Selected Plan Details:</h4>
-                  {subscriptionPlans.find(p => p.id === createUserForm.subscriptionPlan) && (
+                  {Array.isArray(subscriptionPlans) && subscriptionPlans.find(p => (p._id || p.id) === createUserForm.subscriptionPlan) && (
                     <div className="text-sm text-gray-600">
-                      <p><strong>Plan:</strong> {subscriptionPlans.find(p => p.id === createUserForm.subscriptionPlan).name}</p>
-                      <p><strong>Price:</strong> ${subscriptionPlans.find(p => p.id === createUserForm.subscriptionPlan).price}/{subscriptionPlans.find(p => p.id === createUserForm.subscriptionPlan).interval}</p>
-                      <p><strong>Features:</strong> {subscriptionPlans.find(p => p.id === createUserForm.subscriptionPlan).features.join(', ')}</p>
+                      {(() => {
+                        const selectedPlan = subscriptionPlans.find(p => (p._id || p.id) === createUserForm.subscriptionPlan);
+                        return (
+                          <>
+                            <p><strong>Plan:</strong> {selectedPlan.name}</p>
+                            <p><strong>Price:</strong> ${selectedPlan.price}/{selectedPlan.billingCycle || selectedPlan.interval}</p>
+                            <p><strong>Features:</strong> {Array.isArray(selectedPlan.features) ? selectedPlan.features.join(', ') : 'N/A'}</p>
+                          </>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>

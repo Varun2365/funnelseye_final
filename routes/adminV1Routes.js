@@ -40,6 +40,18 @@ router.get('/analytics',
     adminV1Controller.getPlatformAnalytics
 );
 
+/**
+ * @route GET /api/admin/v1/system-health
+ * @desc Get system health status
+ * @access Private (Admin)
+ * @example GET /api/admin/v1/system-health
+ */
+router.get('/system-health', 
+    verifyAdminToken, 
+    checkAdminPermission('viewAnalytics'), 
+    adminV1Controller.getSystemHealth
+);
+
 // ===== USER MANAGEMENT =====
 
 /**
@@ -430,15 +442,216 @@ router.put('/messaging/settings',
 // ===== SUBSCRIPTION PLANS =====
 
 /**
- * @route GET /api/admin/v1/subscription-plans
- * @desc Get subscription plans
+ * @route GET /api/admin/v1/debug/subscription-plans
+ * @desc Debug endpoint to test SubscriptionPlan model
  * @access Private (Admin)
- * @example GET /api/admin/v1/subscription-plans
+ */
+router.get('/debug/subscription-plans', 
+    verifyAdminToken, 
+    checkAdminPermission('subscriptionManagement'), 
+    adminV1Controller.debugSubscriptionPlans
+);
+
+/**
+ * @route GET /api/admin/v1/subscription-plans
+ * @desc Get all subscription plans
+ * @access Private (Admin)
+ * @query page (optional): Page number (default: 1)
+ * @query limit (optional): Items per page (default: 20)
+ * @query status (optional): Filter by plan status (active/inactive)
+ * @query search (optional): Search by name or description
+ * @example GET /api/admin/v1/subscription-plans?page=1&limit=20&status=active
  */
 router.get('/subscription-plans', 
     verifyAdminToken, 
     checkAdminPermission('subscriptionManagement'), 
     adminV1Controller.getSubscriptionPlans
+);
+
+/**
+ * @route POST /api/admin/v1/subscription-plans
+ * @desc Create new subscription plan
+ * @access Private (Admin)
+ * @body name: Plan name
+ * @body description: Plan description
+ * @body price: Plan price
+ * @body currency: Currency code (default: USD)
+ * @body billingCycle: Billing cycle (monthly/quarterly/yearly)
+ * @body duration: Plan duration in months
+ * @body features: Plan features object
+ * @body limits: Plan limits object
+ * @body isPopular: Mark as popular plan (default: false)
+ * @body trialDays: Trial period in days (default: 0)
+ * @body setupFee: One-time setup fee (default: 0)
+ * @body sortOrder: Display order (default: 0)
+ * @example POST /api/admin/v1/subscription-plans
+ * @body {
+ *   "name": "Professional Plan",
+ *   "description": "Advanced features for growing businesses",
+ *   "price": 99.99,
+ *   "currency": "USD",
+ *   "billingCycle": "monthly",
+ *   "duration": 1,
+ *   "features": {
+ *     "maxFunnels": 10,
+ *     "maxStaff": 5,
+ *     "maxDevices": 3,
+ *     "aiFeatures": true,
+ *     "advancedAnalytics": true,
+ *     "prioritySupport": true,
+ *     "customDomain": true,
+ *     "apiAccess": true,
+ *     "whiteLabel": false,
+ *     "automationRules": 50,
+ *     "emailCredits": 10000,
+ *     "smsCredits": 1000,
+ *     "storageGB": 100,
+ *     "integrations": ["zapier", "webhook", "api"]
+ *   },
+ *   "limits": {
+ *     "maxLeads": 1000,
+ *     "maxAppointments": 500,
+ *     "maxCampaigns": 20,
+ *     "maxAutomationRules": 50,
+ *     "maxWhatsAppMessages": 1000,
+ *     "maxEmailTemplates": 100,
+ *     "maxLandingPages": 25,
+ *     "maxWebinars": 10
+ *   },
+ *   "isPopular": true,
+ *   "trialDays": 14,
+ *   "setupFee": 0,
+ *   "sortOrder": 2
+ * }
+ */
+router.post('/subscription-plans', 
+    verifyAdminToken, 
+    checkAdminPermission('subscriptionManagement'), 
+    adminRateLimit(10, 60 * 1000), // 10 requests per minute
+    adminV1Controller.createSubscriptionPlan
+);
+
+/**
+ * @route GET /api/admin/v1/subscription-plans/:planId
+ * @desc Get specific subscription plan details
+ * @access Private (Admin)
+ * @param planId: Subscription plan ID
+ * @example GET /api/admin/v1/subscription-plans/64a1b2c3d4e5f6789012345
+ */
+router.get('/subscription-plans/:planId', 
+    verifyAdminToken, 
+    checkAdminPermission('subscriptionManagement'), 
+    adminV1Controller.getSubscriptionPlanById
+);
+
+/**
+ * @route PUT /api/admin/v1/subscription-plans/:planId
+ * @desc Update subscription plan
+ * @access Private (Admin)
+ * @param planId: Subscription plan ID
+ * @body name (optional): Plan name
+ * @body description (optional): Plan description
+ * @body price (optional): Plan price
+ * @body currency (optional): Currency code
+ * @body billingCycle (optional): Billing cycle
+ * @body duration (optional): Plan duration
+ * @body features (optional): Plan features object
+ * @body limits (optional): Plan limits object
+ * @body isPopular (optional): Mark as popular plan
+ * @body trialDays (optional): Trial period
+ * @body setupFee (optional): Setup fee
+ * @body sortOrder (optional): Display order
+ * @body isActive (optional): Plan status
+ * @example PUT /api/admin/v1/subscription-plans/64a1b2c3d4e5f6789012345
+ * @body { "price": 149.99, "features": { "maxFunnels": 15, "aiFeatures": true } }
+ */
+router.put('/subscription-plans/:planId', 
+    verifyAdminToken, 
+    checkAdminPermission('subscriptionManagement'), 
+    adminRateLimit(10, 60 * 1000), // 10 requests per minute
+    adminV1Controller.updateSubscriptionPlan
+);
+
+/**
+ * @route DELETE /api/admin/v1/subscription-plans/:planId
+ * @desc Delete subscription plan
+ * @access Private (Admin)
+ * @param planId: Subscription plan ID
+ * @example DELETE /api/admin/v1/subscription-plans/64a1b2c3d4e5f6789012345
+ */
+router.delete('/subscription-plans/:planId', 
+    verifyAdminToken, 
+    checkAdminPermission('subscriptionManagement'), 
+    adminRateLimit(5, 60 * 1000), // 5 requests per minute
+    adminV1Controller.deleteSubscriptionPlan
+);
+
+/**
+ * @route PUT /api/admin/v1/subscription-plans/:planId/toggle-status
+ * @desc Toggle subscription plan active status
+ * @access Private (Admin)
+ * @param planId: Subscription plan ID
+ * @example PUT /api/admin/v1/subscription-plans/64a1b2c3d4e5f6789012345/toggle-status
+ */
+router.put('/subscription-plans/:planId/toggle-status', 
+    verifyAdminToken, 
+    checkAdminPermission('subscriptionManagement'), 
+    adminRateLimit(10, 60 * 1000), // 10 requests per minute
+    adminV1Controller.toggleSubscriptionPlanStatus
+);
+
+/**
+ * @route POST /api/admin/v1/subscription-plans/:planId/duplicate
+ * @desc Duplicate subscription plan
+ * @access Private (Admin)
+ * @param planId: Subscription plan ID to duplicate
+ * @body name (optional): New plan name
+ * @body price (optional): New plan price
+ * @example POST /api/admin/v1/subscription-plans/64a1b2c3d4e5f6789012345/duplicate
+ * @body { "name": "Professional Plan Copy", "price": 79.99 }
+ */
+router.post('/subscription-plans/:planId/duplicate', 
+    verifyAdminToken, 
+    checkAdminPermission('subscriptionManagement'), 
+    adminRateLimit(5, 60 * 1000), // 5 requests per minute
+    adminV1Controller.duplicateSubscriptionPlan
+);
+
+/**
+ * @route GET /api/admin/v1/subscription-plans/analytics
+ * @desc Get subscription plan analytics
+ * @access Private (Admin)
+ * @query timeRange (optional): Time range in days (default: 30)
+ * @example GET /api/admin/v1/subscription-plans/analytics?timeRange=30
+ */
+router.get('/subscription-plans/analytics', 
+    verifyAdminToken, 
+    checkAdminPermission('subscriptionManagement'), 
+    adminRateLimit(20, 60 * 1000), // 20 requests per minute
+    adminV1Controller.getSubscriptionPlanAnalytics
+);
+
+/**
+ * @route POST /api/admin/v1/subscription-plans/subscribe-coach
+ * @desc Subscribe coach to plan (admin action)
+ * @access Private (Admin)
+ * @body coachId: Coach ID
+ * @body planId: Subscription plan ID
+ * @body startDate (optional): Subscription start date
+ * @body notes (optional): Admin notes
+ * @example POST /api/admin/v1/subscription-plans/subscribe-coach
+ * @body {
+ *   "coachId": "64a1b2c3d4e5f6789012345",
+ *   "planId": "64a1b2c3d4e5f6789012346",
+ *   "startDate": "2024-01-01",
+ *   "notes": "VIP coach subscription"
+ * }
+ */
+router.post('/subscription-plans/subscribe-coach', 
+    verifyAdminToken, 
+    checkAdminPermission('subscriptionManagement'), 
+    adminRateLimit(10, 60 * 1000), // 10 requests per minute
+    adminV1Controller.subscribeCoachToPlan
 );
 
 // ===== AI SETTINGS =====

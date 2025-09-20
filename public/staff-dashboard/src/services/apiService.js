@@ -1,11 +1,10 @@
 import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:8080/api';
+import staffApiConfig from '../config/apiConfig.js';
 
 class ApiService {
   constructor() {
     this.api = axios.create({
-      baseURL: API_BASE_URL,
+      baseURL: staffApiConfig.apiBaseUrl,
       headers: {
         'Content-Type': 'application/json',
       },

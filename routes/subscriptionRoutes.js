@@ -5,6 +5,7 @@ const { subscriptionAuth } = require('../middleware/subscriptionAuth');
 
 // Public routes
 router.get('/plans', subscriptionController.getPlans);
+router.get('/select-plan', subscriptionController.getSelectPlanPage);
 
 // Protected routes (require authentication but no subscription check)
 router.get('/current', subscriptionAuth, subscriptionController.getCurrentSubscription);

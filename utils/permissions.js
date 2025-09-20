@@ -20,7 +20,13 @@ const PERMISSIONS = {
         WRITE: 'funnels:write',
         UPDATE: 'funnels:update',
         DELETE: 'funnels:delete',
-        MANAGE: 'funnels:manage'
+        MANAGE: 'funnels:manage',
+        // Granular funnel permissions
+        VIEW_ANALYTICS: 'funnels:view_analytics',
+        EDIT_STAGES: 'funnels:edit_stages',
+        MANAGE_STAGES: 'funnels:manage_stages',
+        PUBLISH: 'funnels:publish',
+        UNPUBLISH: 'funnels:unpublish'
     },
     
     // Task Management
@@ -85,7 +91,49 @@ const PERMISSIONS = {
     AUTOMATION: {
         READ: 'automation:read',
         WRITE: 'automation:write',
-        MANAGE: 'automation:manage'
+        UPDATE: 'automation:update',
+        DELETE: 'automation:delete',
+        MANAGE: 'automation:manage',
+        EXECUTE: 'automation:execute'
+    },
+    
+    // WhatsApp Messaging
+    WHATSAPP: {
+        READ: 'whatsapp:read',
+        WRITE: 'whatsapp:write',
+        SEND: 'whatsapp:send',
+        MANAGE: 'whatsapp:manage',
+        TEMPLATES: 'whatsapp:templates'
+    },
+    
+    // Ads & Campaigns
+    ADS: {
+        READ: 'ads:read',
+        WRITE: 'ads:write',
+        UPDATE: 'ads:update',
+        DELETE: 'ads:delete',
+        MANAGE: 'ads:manage',
+        PUBLISH: 'ads:publish',
+        ANALYTICS: 'ads:analytics'
+    },
+    
+    // Appointments
+    APPOINTMENTS: {
+        READ: 'appointments:read',
+        WRITE: 'appointments:write',
+        UPDATE: 'appointments:update',
+        DELETE: 'appointments:delete',
+        MANAGE: 'appointments:manage',
+        BOOK: 'appointments:book',
+        RESCHEDULE: 'appointments:reschedule'
+    },
+    
+    // Permission Requests
+    PERMISSIONS: {
+        REQUEST: 'permissions:request',
+        APPROVE: 'permissions:approve',
+        DENY: 'permissions:deny',
+        MANAGE: 'permissions:manage'
     }
 };
 
@@ -98,11 +146,23 @@ const PERMISSION_GROUPS = {
         PERMISSIONS.LEADS.MANAGE
     ],
     
+    'Funnel Editor': [
+        PERMISSIONS.FUNNELS.READ,
+        PERMISSIONS.FUNNELS.UPDATE,
+        PERMISSIONS.FUNNELS.EDIT_STAGES,
+        PERMISSIONS.FUNNELS.VIEW_ANALYTICS
+    ],
+    
     'Funnel Manager': [
         PERMISSIONS.FUNNELS.READ,
         PERMISSIONS.FUNNELS.WRITE,
         PERMISSIONS.FUNNELS.UPDATE,
-        PERMISSIONS.FUNNELS.MANAGE
+        PERMISSIONS.FUNNELS.MANAGE,
+        PERMISSIONS.FUNNELS.VIEW_ANALYTICS,
+        PERMISSIONS.FUNNELS.EDIT_STAGES,
+        PERMISSIONS.FUNNELS.MANAGE_STAGES,
+        PERMISSIONS.FUNNELS.PUBLISH,
+        PERMISSIONS.FUNNELS.UNPUBLISH
     ],
     
     'Task Manager': [
@@ -148,6 +208,50 @@ const PERMISSION_GROUPS = {
     // PERMISSIONS.WHATSAPP.MANAGE, // WhatsApp functionality moved to dustbin/whatsapp-dump/
         PERMISSIONS.AUTOMATION.READ,
         PERMISSIONS.AUTOMATION.WRITE
+    ],
+    
+    'WhatsApp Manager': [
+        PERMISSIONS.WHATSAPP.READ,
+        PERMISSIONS.WHATSAPP.WRITE,
+        PERMISSIONS.WHATSAPP.SEND,
+        PERMISSIONS.WHATSAPP.MANAGE,
+        PERMISSIONS.WHATSAPP.TEMPLATES
+    ],
+    
+    'Automation Manager': [
+        PERMISSIONS.AUTOMATION.READ,
+        PERMISSIONS.AUTOMATION.WRITE,
+        PERMISSIONS.AUTOMATION.UPDATE,
+        PERMISSIONS.AUTOMATION.DELETE,
+        PERMISSIONS.AUTOMATION.MANAGE,
+        PERMISSIONS.AUTOMATION.EXECUTE
+    ],
+    
+    'Ads Manager': [
+        PERMISSIONS.ADS.READ,
+        PERMISSIONS.ADS.WRITE,
+        PERMISSIONS.ADS.UPDATE,
+        PERMISSIONS.ADS.DELETE,
+        PERMISSIONS.ADS.MANAGE,
+        PERMISSIONS.ADS.PUBLISH,
+        PERMISSIONS.ADS.ANALYTICS
+    ],
+    
+    'Appointment Manager': [
+        PERMISSIONS.APPOINTMENTS.READ,
+        PERMISSIONS.APPOINTMENTS.WRITE,
+        PERMISSIONS.APPOINTMENTS.UPDATE,
+        PERMISSIONS.APPOINTMENTS.DELETE,
+        PERMISSIONS.APPOINTMENTS.MANAGE,
+        PERMISSIONS.APPOINTMENTS.BOOK,
+        PERMISSIONS.APPOINTMENTS.RESCHEDULE
+    ],
+    
+    'Permission Manager': [
+        PERMISSIONS.PERMISSIONS.REQUEST,
+        PERMISSIONS.PERMISSIONS.APPROVE,
+        PERMISSIONS.PERMISSIONS.DENY,
+        PERMISSIONS.PERMISSIONS.MANAGE
     ],
     
     'Full Access': Object.values(PERMISSIONS).flatMap(group => 

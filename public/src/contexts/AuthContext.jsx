@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import apiConfig from '../config/apiConfig.js';
 
 const AuthContext = createContext();
 
@@ -19,7 +20,8 @@ export const AuthProvider = ({ children }) => {
 
   // Configure axios defaults
   useEffect(() => {
-    axios.defaults.baseURL = 'http://localhost:8080/api';
+    axios.defaults.baseURL = apiConfig.apiBaseUrl;
+    console.log('🔗 [AuthContext] Axios base URL set to:', apiConfig.apiBaseUrl);
   }, []);
 
   // Check authentication status on mount

@@ -919,27 +919,7 @@ exports.updateMessagingSettings = asyncHandler(async (req, res) => {
  * @route   GET /api/admin/v1/subscription-plans
  * @access  Private (Admin)
  */
-exports.getSubscriptionPlans = asyncHandler(async (req, res) => {
-    try {
-        const plans = await CoachPlan.find({ status: 'active' })
-            .select('name price duration features description')
-            .sort({ price: 1 });
-
-        res.json({
-            success: true,
-            data: {
-                plans
-            }
-        });
-    } catch (error) {
-        console.error('Error getting subscription plans:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error retrieving subscription plans',
-            error: error.message
-        });
-    }
-});
+// Removed duplicate getSubscriptionPlans method - using the correct one below
 
 // ===== AI SETTINGS =====
 
@@ -1960,60 +1940,7 @@ function generateToken(adminId, role) {
     );
 }
 
-/**
- * @desc    Get subscription plans
- * @route   GET /api/admin/v1/subscription-plans
- * @access  Private (Admin)
- */
-exports.getSubscriptionPlans = asyncHandler(async (req, res) => {
-    try {
-        // For now, return hardcoded plans. In production, this would come from database
-        const plans = [
-            {
-                id: 'basic',
-                name: 'Basic Plan',
-                price: 29.99,
-                currency: 'USD',
-                interval: 'month',
-                features: ['Basic coaching', 'Email support', 'Mobile app access'],
-                maxLeads: 50,
-                maxStaff: 2
-            },
-            {
-                id: 'professional',
-                name: 'Professional Plan',
-                price: 79.99,
-                currency: 'USD',
-                interval: 'month',
-                features: ['Advanced coaching', 'Priority support', 'Analytics dashboard', 'WhatsApp automation'],
-                maxLeads: 200,
-                maxStaff: 5
-            },
-            {
-                id: 'enterprise',
-                name: 'Enterprise Plan',
-                price: 199.99,
-                currency: 'USD',
-                interval: 'month',
-                features: ['Full platform access', '24/7 support', 'Custom integrations', 'White-label options'],
-                maxLeads: 'Unlimited',
-                maxStaff: 'Unlimited'
-            }
-        ];
-
-        res.json({
-            success: true,
-            data: plans
-        });
-    } catch (error) {
-        console.error('Error getting subscription plans:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error retrieving subscription plans',
-            error: error.message
-        });
-    }
-});
+// Removed duplicate getSubscriptionPlans method - using the correct one below
 
 /**
  * @desc    Create a new user
@@ -2531,8 +2458,22 @@ exports.getRevenueStats = asyncHandler(async (req, res) => {
                 { $match: { status: 'captured', createdAt: { $gte: startOfMonth } } },
                 { $group: { _id: null, total: { $sum: '$amount' } } }
             ]),
-            // Mock Razorpay balance (replace with actual API call)
-            Promise.resolve({ balance: 50000 })
+            // Get real Razorpay balance
+            (async () => {
+                try {
+                    const settings = await AdminV1Settings.findOne({ settingId: 'financial' });
+                    if (settings?.paymentSystem?.razorpay?.keyId && settings?.paymentSystem?.razorpay?.keySecret) {
+                        process.env.RAZORPAY_KEY_ID = settings.paymentSystem.razorpay.keyId;
+                        process.env.RAZORPAY_KEY_SECRET = settings.paymentSystem.razorpay.keySecret;
+                        const balanceResult = await razorpayService.getAccountBalance();
+                        return { balance: balanceResult.success ? balanceResult.balance : 0 };
+                    }
+                    return { balance: 0 };
+                } catch (error) {
+                    console.error('Error fetching Razorpay balance for revenue stats:', error);
+                    return { balance: 0 };
+                }
+            })()
         ]);
 
         const totalRevenue = totalPayments[0]?.total || 0;
@@ -2542,9 +2483,20 @@ exports.getRevenueStats = asyncHandler(async (req, res) => {
         const platformEarnings = totalRevenue * (platformFee / 100);
         const coachEarnings = totalRevenue - platformEarnings;
 
-        // Calculate pending payouts (mock data)
-        const pendingPayouts = coachEarnings * 0.3; // Assume 30% pending
-        const completedPayouts = coachEarnings * 0.7; // Assume 70% completed
+        // Calculate actual pending and completed payouts from RazorpayPayment data
+        const [pendingPayoutsData, completedPayoutsData] = await Promise.all([
+            RazorpayPayment.aggregate([
+                { $match: { businessType: 'coach_payout', status: 'pending' } },
+                { $group: { _id: null, total: { $sum: '$amount' } } }
+            ]),
+            RazorpayPayment.aggregate([
+                { $match: { businessType: 'coach_payout', status: 'captured' } },
+                { $group: { _id: null, total: { $sum: '$amount' } } }
+            ])
+        ]);
+
+        const pendingPayouts = pendingPayoutsData[0]?.total || 0;
+        const completedPayouts = completedPayoutsData[0]?.total || 0;
 
         res.json({
             success: true,
@@ -2585,10 +2537,27 @@ exports.getCoachesForPayout = asyncHandler(async (req, res) => {
             .select('_id name email phone bankDetails upiDetails')
             .lean();
 
+        // Get platform fee percentage
+        const platformFeePercentage = settings?.paymentSystem?.platformFees?.subscriptionFee || 5.0;
+
         // Calculate actual pending amounts for each coach from RazorpayPayment
         const coachesWithPayouts = await Promise.all(coaches.map(async (coach) => {
-            // Calculate coach's earnings from successful payments
-            const coachEarnings = await RazorpayPayment.aggregate([
+            // Calculate coach's total earnings from successful payments
+            const totalEarningsData = await RazorpayPayment.aggregate([
+                { 
+                    $match: { 
+                        status: 'captured',
+                        $or: [
+                            { coachId: coach._id },
+                            { userId: coach._id, userType: 'coach' }
+                        ]
+                    } 
+                },
+                { $group: { _id: null, total: { $sum: '$amount' } } }
+            ]);
+
+            // Calculate coach's commission earnings
+            const coachEarningsData = await RazorpayPayment.aggregate([
                 { 
                     $match: { 
                         status: 'captured',
@@ -2601,13 +2570,18 @@ exports.getCoachesForPayout = asyncHandler(async (req, res) => {
                 { $group: { _id: null, total: { $sum: '$coachCommission' } } }
             ]);
 
-            const pendingAmount = coachEarnings[0]?.total || 0;
+            const totalEarnings = totalEarningsData[0]?.total || 0;
+            const coachCommission = coachEarningsData[0]?.total || 0;
+            const platformFeeAmount = totalEarnings * (platformFeePercentage / 100);
+            const pendingAmount = coachCommission; // This is what the coach actually gets
 
             return {
                 _id: coach._id,
                 name: coach.name,
                 email: coach.email,
                 phone: coach.phone,
+                totalEarnings: totalEarnings,
+                platformFeeAmount: platformFeeAmount,
                 pendingAmount: pendingAmount,
                 bankDetails: coach.bankDetails || null,
                 upiDetails: coach.upiDetails || null,
@@ -2689,7 +2663,7 @@ exports.getPaymentHistory = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Process individual coach payout
+ * @desc    Process individual coach payout (DEPRECATED - Use /api/paymentsv1/sending/razorpay-payout instead)
  * @route   POST /api/admin/v1/financial/process-payout
  * @access  Private (Admin)
  */
@@ -2741,9 +2715,25 @@ exports.processCoachPayout = asyncHandler(async (req, res) => {
         await AdminAuditLog.create({
             adminId: req.admin.id,
             adminEmail: req.admin.email,
-            action: 'coach_payout_process',
+            adminRole: req.admin.role || 'admin',
+            action: 'PROCESS_PAYOUT',
+            category: 'PAYMENT_MANAGEMENT',
             description: `Processed payout of ₹${amount} to ${coach.name}`,
+            severity: 'medium',
+            targetType: 'coach',
+            targetId: coachId,
+            targetEmail: coach.email,
+            ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+            userAgent: req.get('User-Agent'),
+            requestId: req.id || `req_${Date.now()}`,
+            endpoint: req.originalUrl,
+            method: req.method,
             status: 'success',
+            changes: {
+                before: { pendingAmount: coach.pendingAmount },
+                after: { payoutAmount: amount, status: 'completed' },
+                fieldsChanged: ['payoutAmount', 'status']
+            },
             metadata: {
                 coachId,
                 amount,
@@ -2766,7 +2756,7 @@ exports.processCoachPayout = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Process payouts for all eligible coaches
+ * @desc    Process payouts for all eligible coaches (DEPRECATED - Use /api/paymentsv1/sending/monthly-razorpay-payouts instead)
  * @route   POST /api/admin/v1/financial/payout-all
  * @access  Private (Admin)
  */
@@ -2818,9 +2808,23 @@ exports.processPayoutAll = asyncHandler(async (req, res) => {
         await AdminAuditLog.create({
             adminId: req.admin.id,
             adminEmail: req.admin.email,
-            action: 'bulk_payout_process',
+            adminRole: req.admin.role || 'admin',
+            action: 'PROCESS_PAYOUT',
+            category: 'PAYMENT_MANAGEMENT',
             description: `Processed bulk payouts for ${eligibleCoaches.length} coaches totaling ₹${totalAmount}`,
+            severity: 'high',
+            targetType: 'coach',
+            ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
+            userAgent: req.get('User-Agent'),
+            requestId: req.id || `req_${Date.now()}`,
+            endpoint: req.originalUrl,
+            method: req.method,
             status: 'success',
+            changes: {
+                before: { pendingCoaches: eligibleCoaches.length },
+                after: { processedCount: eligibleCoaches.length, totalAmount },
+                fieldsChanged: ['processedCount', 'totalAmount']
+            },
             metadata: {
                 processedCount: eligibleCoaches.length,
                 totalAmount,
@@ -2863,16 +2867,28 @@ exports.refreshRazorpayBalance = asyncHandler(async (req, res) => {
             });
         }
 
-        // Mock Razorpay balance refresh
-        // In real implementation, this would call Razorpay API
-        const mockBalance = Math.floor(Math.random() * 100000) + 10000;
+        // Set environment variables for Razorpay service
+        process.env.RAZORPAY_KEY_ID = settings.paymentSystem.razorpay.keyId;
+        process.env.RAZORPAY_KEY_SECRET = settings.paymentSystem.razorpay.keySecret;
+
+        // Get real Razorpay balance
+        const balanceResult = await razorpayService.getAccountBalance();
+        
+        if (!balanceResult.success) {
+            return res.status(400).json({
+                success: false,
+                message: `Failed to fetch Razorpay balance: ${balanceResult.error}`
+            });
+        }
 
         res.json({
             success: true,
             message: 'Razorpay balance refreshed successfully',
             data: {
-                balance: mockBalance,
-                currency: 'INR',
+                balance: balanceResult.balance, // Already converted from paise to rupees in service
+                currency: balanceResult.currency || 'INR',
+                accountId: balanceResult.accountId,
+                accountName: balanceResult.accountName,
                 refreshedAt: new Date()
             }
         });
@@ -2966,3 +2982,724 @@ async function createSamplePaymentData() {
         console.error('❌ Error creating sample payment data:', error);
     }
 }
+
+// ========================================
+// SUBSCRIPTION PLAN MANAGEMENT METHODS
+// ========================================
+
+/**
+ * @desc    Create new subscription plan
+ * @route   POST /api/admin/v1/subscription-plans
+ * @access  Private (Admin)
+ */
+exports.createSubscriptionPlan = asyncHandler(async (req, res) => {
+    try {
+        const {
+            name,
+            description,
+            price,
+            currency = 'INR',
+            billingCycle,
+            duration,
+            features = {},
+            limits = {},
+            isPopular = false,
+            trialDays = 0,
+            setupFee = 0,
+            sortOrder = 0,
+            category = 'professional',
+            tags = [],
+            restrictions = {}
+        } = req.body;
+
+        // Validate required fields
+        if (!name || !description || !price || !billingCycle || !duration) {
+            return res.status(400).json({
+                success: false,
+                message: 'Name, description, price, billingCycle, and duration are required'
+            });
+        }
+
+        // Validate billing cycle
+        const validBillingCycles = ['monthly', 'quarterly', 'yearly'];
+        if (!validBillingCycles.includes(billingCycle)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid billing cycle. Must be monthly, quarterly, or yearly'
+            });
+        }
+
+        // Create subscription plan
+        const planData = {
+            name,
+            description,
+            price,
+            currency,
+            billingCycle,
+            duration,
+            features: {
+                maxFunnels: features.maxFunnels || 5,
+                maxStaff: features.maxStaff || 2,
+                maxDevices: features.maxDevices || 1,
+                aiFeatures: features.aiFeatures || false,
+                advancedAnalytics: features.advancedAnalytics || false,
+                prioritySupport: features.prioritySupport || false,
+                customDomain: features.customDomain || false,
+                apiAccess: features.apiAccess || false,
+                whiteLabel: features.whiteLabel || false,
+                automationRules: features.automationRules || 10,
+                emailCredits: features.emailCredits || 1000,
+                smsCredits: features.smsCredits || 100,
+                storageGB: features.storageGB || 10,
+                integrations: features.integrations || [],
+                customBranding: features.customBranding || false,
+                advancedReporting: features.advancedReporting || false,
+                teamCollaboration: features.teamCollaboration || false,
+                mobileApp: features.mobileApp !== undefined ? features.mobileApp : true,
+                webhooks: features.webhooks || false,
+                sso: features.sso || false
+            },
+            limits: {
+                maxLeads: limits.maxLeads || 100,
+                maxAppointments: limits.maxAppointments || 50,
+                maxCampaigns: limits.maxCampaigns || 5,
+                maxAutomationRules: limits.maxAutomationRules || 10,
+                maxWhatsAppMessages: limits.maxWhatsAppMessages || 100,
+                maxEmailTemplates: limits.maxEmailTemplates || 10,
+                maxLandingPages: limits.maxLandingPages || 5,
+                maxWebinars: limits.maxWebinars || 2,
+                maxForms: limits.maxForms || 10,
+                maxSequences: limits.maxSequences || 5,
+                maxTags: limits.maxTags || 50,
+                maxCustomFields: limits.maxCustomFields || 20
+            },
+            isPopular,
+            trialDays,
+            setupFee,
+            sortOrder,
+            category,
+            tags,
+            restrictions,
+            createdBy: req.admin.id,
+            pricing: {
+                basePrice: price,
+                setupFee,
+                annualDiscount: 0,
+                currency
+            }
+        };
+
+        const SubscriptionPlan = require('../schema/SubscriptionPlan');
+        
+        console.log('🔍 [DEBUG] Creating plan with data:', planData);
+        const plan = await SubscriptionPlan.create(planData);
+        console.log('🔍 [DEBUG] Plan created successfully:', plan);
+
+        res.status(201).json({
+            success: true,
+            data: plan,
+            message: 'Subscription plan created successfully'
+        });
+
+    } catch (error) {
+        console.error('Error creating subscription plan:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error creating subscription plan',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Get all subscription plans with filtering and pagination
+ * @route   GET /api/admin/v1/subscription-plans
+ * @access  Private (Admin)
+ */
+/**
+ * @desc    Debug endpoint to test SubscriptionPlan model
+ * @route   GET /api/admin/v1/debug/subscription-plans
+ * @access  Private (Admin)
+ */
+exports.debugSubscriptionPlans = asyncHandler(async (req, res) => {
+    try {
+        const SubscriptionPlan = require('../schema/SubscriptionPlan');
+        
+        console.log('🔍 [DEBUG] Testing SubscriptionPlan model...');
+        
+        // Test 1: Check if model exists
+        console.log('🔍 [DEBUG] SubscriptionPlan model:', typeof SubscriptionPlan);
+        
+        // Test 2: Check total count
+        const totalCount = await SubscriptionPlan.countDocuments({});
+        console.log('🔍 [DEBUG] Total plans in database:', totalCount);
+        
+        // Test 3: Get all plans without any filters
+        const allPlans = await SubscriptionPlan.find({});
+        console.log('🔍 [DEBUG] All plans found:', allPlans.length);
+        console.log('🔍 [DEBUG] All plans data:', allPlans);
+        
+        // Test 4: Check database connection
+        const dbState = SubscriptionPlan.db.readyState;
+        console.log('🔍 [DEBUG] Database connection state:', dbState);
+        
+        res.json({
+            success: true,
+            debug: {
+                modelType: typeof SubscriptionPlan,
+                totalCount,
+                allPlansCount: allPlans.length,
+                allPlans: allPlans,
+                dbState,
+                dbName: SubscriptionPlan.db.name
+            }
+        });
+        
+    } catch (error) {
+        console.error('🔍 [DEBUG] Error in debug endpoint:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            stack: error.stack
+        });
+    }
+});
+
+exports.getSubscriptionPlans = asyncHandler(async (req, res) => {
+    try {
+        const { 
+            page = 1, 
+            limit = 20, 
+            status, 
+            search, 
+            category,
+            sortBy = 'sortOrder', 
+            sortOrder = 'asc' 
+        } = req.query;
+
+        const query = {};
+        
+        // Only add status filter if it's a valid value
+        if (status && status !== 'all' && status !== 'undefined') {
+            query.isActive = status === 'active';
+        }
+        
+        // Only add category filter if it's a valid value
+        if (category && category !== 'all' && category !== 'undefined') {
+            query.category = category;
+        }
+        
+        // Only add search filter if search term exists and is not empty
+        if (search && search.trim() !== '') {
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } },
+                { tags: { $in: [new RegExp(search, 'i')] } }
+            ];
+        }
+
+        const sort = {};
+        sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+        const SubscriptionPlan = require('../schema/SubscriptionPlan');
+        
+        console.log('🔍 [DEBUG] Query parameters:', query);
+        console.log('🔍 [DEBUG] Sort parameters:', sort);
+        console.log('🔍 [DEBUG] Pagination:', { page, limit, skip: (page - 1) * limit });
+        
+        // Check total count first
+        const totalCount = await SubscriptionPlan.countDocuments({});
+        console.log('🔍 [DEBUG] Total plans in database:', totalCount);
+        
+        const plans = await SubscriptionPlan.find(query)
+            .populate('createdBy', 'firstName lastName email')
+            .populate('updatedBy', 'firstName lastName email')
+            .sort(sort)
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+
+        console.log('🔍 [DEBUG] Found plans:', plans.length);
+        console.log('🔍 [DEBUG] Plans data:', plans);
+
+        const total = await SubscriptionPlan.countDocuments(query);
+        console.log('🔍 [DEBUG] Total matching query:', total);
+
+        res.json({
+            success: true,
+            data: {
+                plans,
+                pagination: {
+                    currentPage: parseInt(page),
+                    totalPages: Math.ceil(total / limit),
+                    totalItems: total,
+                    hasNext: page * limit < total,
+                    hasPrev: page > 1
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting subscription plans:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error retrieving subscription plans',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Get specific subscription plan by ID
+ * @route   GET /api/admin/v1/subscription-plans/:planId
+ * @access  Private (Admin)
+ */
+exports.getSubscriptionPlanById = asyncHandler(async (req, res) => {
+    try {
+        const { planId } = req.params;
+
+        const SubscriptionPlan = require('../schema/SubscriptionPlan');
+        const plan = await SubscriptionPlan.findById(planId)
+            .populate('createdBy', 'firstName lastName email')
+            .populate('updatedBy', 'firstName lastName email');
+
+        if (!plan) {
+            return res.status(404).json({
+                success: false,
+                message: 'Subscription plan not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: plan
+        });
+
+    } catch (error) {
+        console.error('Error getting subscription plan:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error retrieving subscription plan',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Update subscription plan
+ * @route   PUT /api/admin/v1/subscription-plans/:planId
+ * @access  Private (Admin)
+ */
+exports.updateSubscriptionPlan = asyncHandler(async (req, res) => {
+    try {
+        const { planId } = req.params;
+        const updateData = req.body;
+
+        // Remove fields that shouldn't be updated directly
+        delete updateData._id;
+        delete updateData.createdAt;
+        delete updateData.createdBy;
+
+        // Add updatedBy
+        updateData.updatedBy = req.admin.id;
+
+        const SubscriptionPlan = require('../schema/SubscriptionPlan');
+        const plan = await SubscriptionPlan.findByIdAndUpdate(
+            planId,
+            updateData,
+            { new: true, runValidators: true }
+        ).populate('createdBy', 'firstName lastName email')
+         .populate('updatedBy', 'firstName lastName email');
+
+        if (!plan) {
+            return res.status(404).json({
+                success: false,
+                message: 'Subscription plan not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: plan,
+            message: 'Subscription plan updated successfully'
+        });
+
+    } catch (error) {
+        console.error('Error updating subscription plan:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating subscription plan',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Delete subscription plan
+ * @route   DELETE /api/admin/v1/subscription-plans/:planId
+ * @access  Private (Admin)
+ */
+exports.deleteSubscriptionPlan = asyncHandler(async (req, res) => {
+    try {
+        const { planId } = req.params;
+
+        const SubscriptionPlan = require('../schema/SubscriptionPlan');
+        const CoachSubscription = require('../schema/CoachSubscription');
+
+        // Check if any coaches are subscribed to this plan
+        const activeSubscriptions = await CoachSubscription.countDocuments({
+            planId,
+            status: { $in: ['active', 'trial'] }
+        });
+
+        if (activeSubscriptions > 0) {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot delete plan. ${activeSubscriptions} coaches are currently subscribed to this plan.`
+            });
+        }
+
+        const plan = await SubscriptionPlan.findByIdAndDelete(planId);
+
+        if (!plan) {
+            return res.status(404).json({
+                success: false,
+                message: 'Subscription plan not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Subscription plan deleted successfully'
+        });
+
+    } catch (error) {
+        console.error('Error deleting subscription plan:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error deleting subscription plan',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Toggle subscription plan active status
+ * @route   PUT /api/admin/v1/subscription-plans/:planId/toggle-status
+ * @access  Private (Admin)
+ */
+exports.toggleSubscriptionPlanStatus = asyncHandler(async (req, res) => {
+    try {
+        const { planId } = req.params;
+
+        const SubscriptionPlan = require('../schema/SubscriptionPlan');
+        const plan = await SubscriptionPlan.findById(planId);
+
+        if (!plan) {
+            return res.status(404).json({
+                success: false,
+                message: 'Subscription plan not found'
+            });
+        }
+
+        plan.isActive = !plan.isActive;
+        plan.updatedBy = req.admin.id;
+        await plan.save();
+
+        res.json({
+            success: true,
+            data: {
+                planId: plan._id,
+                isActive: plan.isActive
+            },
+            message: `Plan ${plan.isActive ? 'activated' : 'deactivated'} successfully`
+        });
+
+    } catch (error) {
+        console.error('Error toggling plan status:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error toggling plan status',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Duplicate subscription plan
+ * @route   POST /api/admin/v1/subscription-plans/:planId/duplicate
+ * @access  Private (Admin)
+ */
+exports.duplicateSubscriptionPlan = asyncHandler(async (req, res) => {
+    try {
+        const { planId } = req.params;
+        const { name, price } = req.body;
+
+        const SubscriptionPlan = require('../schema/SubscriptionPlan');
+        const originalPlan = await SubscriptionPlan.findById(planId);
+
+        if (!originalPlan) {
+            return res.status(404).json({
+                success: false,
+                message: 'Original subscription plan not found'
+            });
+        }
+
+        // Create duplicate plan
+        const duplicateData = originalPlan.toObject();
+        delete duplicateData._id;
+        delete duplicateData.createdAt;
+        delete duplicateData.updatedAt;
+
+        duplicateData.name = name || `${originalPlan.name} (Copy)`;
+        duplicateData.price = price || originalPlan.price;
+        duplicateData.isActive = false; // Start as inactive
+        duplicateData.isPopular = false; // Reset popular status
+        duplicateData.createdBy = req.admin.id;
+        duplicateData.updatedBy = req.admin.id;
+
+        const duplicatedPlan = await SubscriptionPlan.create(duplicateData);
+
+        res.status(201).json({
+            success: true,
+            data: duplicatedPlan,
+            message: 'Subscription plan duplicated successfully'
+        });
+
+    } catch (error) {
+        console.error('Error duplicating subscription plan:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error duplicating subscription plan',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Get subscription plan analytics
+ * @route   GET /api/admin/v1/subscription-plans/analytics
+ * @access  Private (Admin)
+ */
+exports.getSubscriptionPlanAnalytics = asyncHandler(async (req, res) => {
+    try {
+        const { timeRange = 30 } = req.query;
+        const days = parseInt(timeRange);
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+
+        const SubscriptionPlan = require('../schema/SubscriptionPlan');
+        const CoachSubscription = require('../schema/CoachSubscription');
+
+        // Get plan statistics
+        const totalPlans = await SubscriptionPlan.countDocuments();
+        const activePlans = await SubscriptionPlan.countDocuments({ isActive: true });
+
+        // Get subscription statistics
+        const totalSubscriptions = await CoachSubscription.countDocuments();
+        const activeSubscriptions = await CoachSubscription.countDocuments({
+            status: { $in: ['active', 'trial'] }
+        });
+
+        // Get recent subscriptions
+        const recentSubscriptions = await CoachSubscription.find({
+            createdAt: { $gte: startDate }
+        }).populate('planId', 'name price').populate('coachId', 'name email');
+
+        // Get plan popularity
+        const planPopularity = await CoachSubscription.aggregate([
+            {
+                $match: { status: { $in: ['active', 'trial'] } }
+            },
+            {
+                $group: {
+                    _id: '$planId',
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'subscriptionplans',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'plan'
+                }
+            },
+            {
+                $unwind: '$plan'
+            },
+            {
+                $project: {
+                    planName: '$plan.name',
+                    planPrice: '$plan.price',
+                    subscriberCount: '$count'
+                }
+            },
+            {
+                $sort: { subscriberCount: -1 }
+            }
+        ]);
+
+        // Calculate revenue
+        const revenueData = await CoachSubscription.aggregate([
+            {
+                $match: {
+                    status: { $in: ['active', 'trial'] },
+                    createdAt: { $gte: startDate }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'subscriptionplans',
+                    localField: 'planId',
+                    foreignField: '_id',
+                    as: 'plan'
+                }
+            },
+            {
+                $unwind: '$plan'
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalRevenue: { $sum: '$plan.price' },
+                    averageRevenue: { $avg: '$plan.price' }
+                }
+            }
+        ]);
+
+        const analytics = {
+            plans: {
+                total: totalPlans,
+                active: activePlans,
+                inactive: totalPlans - activePlans
+            },
+            subscriptions: {
+                total: totalSubscriptions,
+                active: activeSubscriptions,
+                inactive: totalSubscriptions - activeSubscriptions
+            },
+            recentSubscriptions: recentSubscriptions.slice(0, 10),
+            planPopularity,
+            revenue: revenueData[0] || { totalRevenue: 0, averageRevenue: 0 },
+            timeRange: days
+        };
+
+        res.json({
+            success: true,
+            data: analytics
+        });
+
+    } catch (error) {
+        console.error('Error getting subscription analytics:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error getting subscription analytics',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Subscribe coach to plan (admin action)
+ * @route   POST /api/admin/v1/subscription-plans/subscribe-coach
+ * @access  Private (Admin)
+ */
+exports.subscribeCoachToPlan = asyncHandler(async (req, res) => {
+    try {
+        const { coachId, planId, startDate, notes } = req.body;
+
+        if (!coachId || !planId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Coach ID and Plan ID are required'
+            });
+        }
+
+        const User = require('../schema/User');
+        const SubscriptionPlan = require('../schema/SubscriptionPlan');
+        const CoachSubscription = require('../schema/CoachSubscription');
+
+        // Verify coach exists
+        const coach = await User.findById(coachId);
+        if (!coach || coach.role !== 'coach') {
+            return res.status(404).json({
+                success: false,
+                message: 'Coach not found'
+            });
+        }
+
+        // Verify plan exists and is active
+        const plan = await SubscriptionPlan.findById(planId);
+        if (!plan || !plan.isActive) {
+            return res.status(404).json({
+                success: false,
+                message: 'Subscription plan not found or inactive'
+            });
+        }
+
+        // Check if coach already has an active subscription
+        const existingSubscription = await CoachSubscription.findOne({
+            coachId,
+            status: { $in: ['active', 'trial'] }
+        });
+
+        if (existingSubscription) {
+            return res.status(400).json({
+                success: false,
+                message: 'Coach already has an active subscription'
+            });
+        }
+
+        // Calculate subscription dates
+        const subscriptionStartDate = startDate ? new Date(startDate) : new Date();
+        const subscriptionEndDate = new Date(subscriptionStartDate);
+
+        switch (plan.billingCycle) {
+            case 'monthly':
+                subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + plan.duration);
+                break;
+            case 'quarterly':
+                subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + (plan.duration * 3));
+                break;
+            case 'yearly':
+                subscriptionEndDate.setFullYear(subscriptionEndDate.getFullYear() + plan.duration);
+                break;
+        }
+
+        // Create subscription
+        const subscription = await CoachSubscription.create({
+            coachId,
+            planId,
+            status: 'active',
+            currentPeriod: {
+                startDate: subscriptionStartDate,
+                endDate: subscriptionEndDate
+            },
+            billing: {
+                amount: plan.price,
+                currency: plan.currency,
+                billingCycle: plan.billingCycle,
+                nextBillingDate: subscriptionEndDate,
+                paymentStatus: 'paid'
+            },
+            features: plan.features,
+            limits: plan.limits,
+            adminNotes: notes,
+            createdBy: req.admin.id
+        });
+
+        res.status(201).json({
+            success: true,
+            data: subscription,
+            message: 'Coach subscribed successfully'
+        });
+
+    } catch (error) {
+        console.error('Error subscribing coach:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error subscribing coach',
+            error: error.message
+        });
+    }
+});

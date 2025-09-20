@@ -1,16 +1,31 @@
 // Admin API Service - Comprehensive service for all admin endpoints
-const API_BASE_URL = 'http://localhost:8080/api';
+import apiConfig from '../config/apiConfig.js';
 
 class AdminApiService {
     constructor() {
         this.token = localStorage.getItem('adminToken');
+        this.apiBaseUrl = apiConfig.apiBaseUrl;
         console.log('🔐 [AdminApiService] Initialized with token:', this.token ? `${this.token.substring(0, 20)}...` : 'NO TOKEN');
+        console.log('🔗 [AdminApiService] Using API Base URL:', this.apiBaseUrl);
     }
 
     // Set authentication token
     setToken(token) {
         this.token = token;
         localStorage.setItem('adminToken', token);
+    }
+
+    // Handle token expiration
+    handleTokenExpiration() {
+        console.log('🔐 [AdminApiService] Handling token expiration...');
+        // Clear the token
+        this.token = null;
+        localStorage.removeItem('adminToken');
+        
+        // Redirect to login page
+        if (typeof window !== 'undefined') {
+            window.location.href = '/admin-login.html';
+        }
     }
 
     // Get authentication headers
@@ -25,7 +40,7 @@ class AdminApiService {
 
     // Generic API call method
     async apiCall(endpoint, options = {}) {
-        const url = `${API_BASE_URL}${endpoint}`;
+        const url = apiConfig.getApiUrl(endpoint);
         const config = {
             headers: this.getHeaders(),
             ...options
@@ -46,6 +61,11 @@ class AdminApiService {
             console.log(`📄 [AdminApiService] Response data:`, data);
 
             if (!response.ok) {
+                // Handle token expiration
+                if (response.status === 401) {
+                    console.log('🔐 [AdminApiService] Token expired or invalid, redirecting to login');
+                    this.handleTokenExpiration();
+                }
                 throw new Error(data.message || `HTTP error! status: ${response.status}`);
             }
 
@@ -218,9 +238,72 @@ class AdminApiService {
         });
     }
 
-    async getSubscriptionPlans() {
-        console.log(`📋 [UserManagement] Getting subscription plans`);
-        return this.apiCall('/admin/v1/subscription-plans');
+    async debugSubscriptionPlans() {
+        console.log(`🔍 [DEBUG] Testing subscription plans debug endpoint`);
+        return this.apiCall('/admin/v1/debug/subscription-plans');
+    }
+
+    async getSubscriptionPlans(params = {}) {
+        console.log(`📋 [SubscriptionPlans] Getting subscription plans`);
+        const queryString = new URLSearchParams(params).toString();
+        return this.apiCall(`/admin/v1/subscription-plans${queryString ? `?${queryString}` : ''}`);
+    }
+
+    async createSubscriptionPlan(planData) {
+        console.log(`📋 [SubscriptionPlans] Creating subscription plan`);
+        return this.apiCall('/admin/v1/subscription-plans', {
+            method: 'POST',
+            body: JSON.stringify(planData)
+        });
+    }
+
+    async getSubscriptionPlanById(planId) {
+        console.log(`📋 [SubscriptionPlans] Getting subscription plan by ID: ${planId}`);
+        return this.apiCall(`/admin/v1/subscription-plans/${planId}`);
+    }
+
+    async updateSubscriptionPlan(planId, planData) {
+        console.log(`📋 [SubscriptionPlans] Updating subscription plan: ${planId}`);
+        return this.apiCall(`/admin/v1/subscription-plans/${planId}`, {
+            method: 'PUT',
+            body: JSON.stringify(planData)
+        });
+    }
+
+    async deleteSubscriptionPlan(planId) {
+        console.log(`📋 [SubscriptionPlans] Deleting subscription plan: ${planId}`);
+        return this.apiCall(`/admin/v1/subscription-plans/${planId}`, {
+            method: 'DELETE'
+        });
+    }
+
+    async toggleSubscriptionPlanStatus(planId) {
+        console.log(`📋 [SubscriptionPlans] Toggling subscription plan status: ${planId}`);
+        return this.apiCall(`/admin/v1/subscription-plans/${planId}/toggle-status`, {
+            method: 'PUT'
+        });
+    }
+
+    async duplicateSubscriptionPlan(planId, data = {}) {
+        console.log(`📋 [SubscriptionPlans] Duplicating subscription plan: ${planId}`);
+        return this.apiCall(`/admin/v1/subscription-plans/${planId}/duplicate`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    }
+
+    async getSubscriptionPlanAnalytics(params = {}) {
+        console.log(`📋 [SubscriptionPlans] Getting subscription plan analytics`);
+        const queryString = new URLSearchParams(params).toString();
+        return this.apiCall(`/admin/v1/subscription-plans/analytics${queryString ? `?${queryString}` : ''}`);
+    }
+
+    async subscribeCoachToPlan(data) {
+        console.log(`📋 [SubscriptionPlans] Subscribing coach to plan`);
+        return this.apiCall('/admin/v1/subscription-plans/subscribe-coach', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
     }
 
     // ===== AUDIT LOGS =====
@@ -508,7 +591,7 @@ class AdminApiService {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        const response = await fetch(apiConfig.getApiUrl(endpoint), {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${this.token}`
@@ -524,7 +607,7 @@ class AdminApiService {
     }
 
     async downloadFile(endpoint, filename) {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        const response = await fetch(apiConfig.getApiUrl(endpoint), {
             headers: {
                 'Authorization': `Bearer ${this.token}`
             }
@@ -669,18 +752,26 @@ class AdminApiService {
         return this.apiCall('/admin/v1/financial/payment-history');
     }
 
-    async processCoachPayout(coachId, amount) {
-        console.log(`💰 [Financial] Processing payout for coach ${coachId}: ₹${amount}`);
-        return this.apiCall('/admin/v1/financial/process-payout', {
+    async processCoachPayout(coachId, amount, currency = 'INR', purpose = 'payout', mode = 'IMPS', narration = 'Manual payout') {
+        console.log(`💰 [Financial] Processing Razorpay payout for coach ${coachId}: ₹${amount}`);
+        return this.apiCall('/paymentsv1/sending/razorpay-payout', {
             method: 'POST',
-            body: JSON.stringify({ coachId, amount })
+            body: JSON.stringify({ 
+                coachId, 
+                amount, 
+                currency, 
+                purpose, 
+                mode, 
+                narration 
+            })
         });
     }
 
     async processPayoutAll() {
-        console.log(`💰 [Financial] Processing payouts for all eligible coaches`);
-        return this.apiCall('/admin/v1/financial/payout-all', {
-            method: 'POST'
+        console.log(`💰 [Financial] Processing monthly Razorpay payouts for all eligible coaches`);
+        return this.apiCall('/paymentsv1/sending/monthly-razorpay-payouts', {
+            method: 'POST',
+            body: JSON.stringify({ period: 'current' })
         });
     }
 
@@ -688,6 +779,52 @@ class AdminApiService {
         console.log(`💰 [Financial] Refreshing Razorpay balance`);
         return this.apiCall('/admin/v1/financial/refresh-balance', {
             method: 'POST'
+        });
+    }
+
+    // Additional payout methods from paymentsv1Routes.js
+    async setupRazorpayCoach(coachId) {
+        console.log(`💰 [Financial] Setting up Razorpay for coach ${coachId}`);
+        return this.apiCall(`/paymentsv1/sending/setup-razorpay-coach/${coachId}`, {
+            method: 'POST'
+        });
+    }
+
+    async getRazorpayPayoutStatus(payoutId) {
+        console.log(`💰 [Financial] Getting Razorpay payout status for ${payoutId}`);
+        return this.apiCall(`/paymentsv1/sending/razorpay-payout-status/${payoutId}`);
+    }
+
+    async syncRazorpayPayoutStatus(payoutId) {
+        console.log(`💰 [Financial] Syncing Razorpay payout status for ${payoutId}`);
+        return this.apiCall(`/paymentsv1/sending/sync-razorpay-status/${payoutId}`, {
+            method: 'POST'
+        });
+    }
+
+    async getRazorpayStatus() {
+        console.log(`💰 [Financial] Getting Razorpay configuration status`);
+        return this.apiCall('/paymentsv1/admin/razorpay-status');
+    }
+
+    async testRazorpayModule() {
+        console.log(`💰 [Financial] Testing Razorpay module`);
+        return this.apiCall('/paymentsv1/admin/test-razorpay');
+    }
+
+    async updateRazorpayConfig(config) {
+        console.log(`💰 [Financial] Updating Razorpay configuration`);
+        return this.apiCall('/paymentsv1/admin/razorpay-config', {
+            method: 'POST',
+            body: JSON.stringify(config)
+        });
+    }
+
+    async setupCoachPaymentCollection(coachId, paymentDetails) {
+        console.log(`💰 [Financial] Setting up payment collection for coach ${coachId}`);
+        return this.apiCall(`/paymentsv1/admin/setup-coach-payment-collection/${coachId}`, {
+            method: 'POST',
+            body: JSON.stringify(paymentDetails)
         });
     }
 }

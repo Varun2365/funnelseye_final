@@ -31,6 +31,708 @@ class SubscriptionController {
             });
         }
     }
+  
+    /**
+     * Get plan selection page
+     * GET /api/subscriptions/select-plan?token=coach_token
+     */
+    async getSelectPlanPage(req, res) {
+        try {
+            const { token } = req.query;
+            
+            let coach = null;
+            let hasValidToken = false;
+            
+            if (token) {
+                // Verify the token and get coach info
+                const jwt = require('jsonwebtoken');
+                const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+                
+                try {
+                    const decoded = jwt.verify(token, JWT_SECRET);
+                    coach = await User.findById(decoded.id);
+                    
+                    if (coach && coach.role === 'coach') {
+                        hasValidToken = true;
+                    }
+                } catch (error) {
+                    // Token is invalid, but we'll still show the page
+                    hasValidToken = false;
+                }
+            }
+
+            // Get active subscription plans
+            const plans = await SubscriptionPlan.find({ isActive: true })
+                .sort({ sortOrder: 1, price: 1 });
+
+            // Check if coach already has an active subscription (only if valid token)
+            let existingSubscription = null;
+            if (hasValidToken && coach) {
+                existingSubscription = await CoachSubscription.findOne({
+                    coachId: coach._id,
+                    status: { $in: ['active', 'trial'] }
+                });
+            }
+
+            // Render the plan selection page
+            res.send(this.renderPlanSelectionPage(plans, coach, existingSubscription, token, hasValidToken));
+            
+        } catch (error) {
+            logger.error('[SubscriptionController] Error getting select plan page:', error);
+            res.status(500).send(`
+                <html>
+                    <head><title>Error</title></head>
+                    <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                        <h1>Server Error</h1>
+                        <p>An error occurred while loading the page.</p>
+                    </body>
+                </html>
+            `);
+        }
+    }
+
+    /**
+     * Render the plan selection page HTML
+     */
+    renderPlanSelectionPage(plans, coach, existingSubscription, token, hasValidToken) {
+        const hasActiveSubscription = !!existingSubscription;
+        
+        return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Your Plan - FunnelsEye</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f8f4ff 0%, #e8d5ff 100%);
+            min-height: 100vh;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 60px 0 40px;
+        }
+        
+        .header .subtitle {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #8b5cf6;
+            margin-bottom: 16px;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 40px;
+            line-height: 1.2;
+        }
+        
+        .billing-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 60px;
+        }
+        
+        .toggle-container {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 4px;
+            display: flex;
+            position: relative;
+        }
+        
+        .toggle-option {
+            padding: 12px 24px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .toggle-option.active {
+            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+            color: white;
+        }
+        
+        .toggle-option:not(.active) {
+            color: #718096;
+        }
+        
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+            margin-bottom: 80px;
+        }
+        
+        .plan-card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            position: relative;
+            border: 2px solid transparent;
+        }
+        
+        .plan-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+        
+        .plan-card.popular {
+            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+            color: white;
+            transform: scale(1.02);
+        }
+        
+        .plan-card.popular .plan-name,
+        .plan-card.popular .plan-description,
+        .plan-card.popular .plan-price,
+        .plan-card.popular .plan-billing,
+        .plan-card.popular .plan-features li {
+            color: white;
+        }
+        
+        .plan-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .plan-card.popular .plan-icon {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .plan-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 8px;
+        }
+        
+        .plan-description {
+            color: #718096;
+            margin-bottom: 24px;
+            font-size: 0.95rem;
+        }
+        
+        .plan-price {
+            font-size: 3rem;
+            font-weight: 800;
+            color: #1a202c;
+            margin-bottom: 8px;
+            line-height: 1;
+        }
+        
+        .plan-billing {
+            color: #a0aec0;
+            margin-bottom: 32px;
+            font-size: 0.9rem;
+        }
+        
+        .plan-features {
+            list-style: none;
+            margin-bottom: 32px;
+        }
+        
+        .plan-features li {
+            padding: 8px 0;
+            color: #4a5568;
+            position: relative;
+            padding-left: 24px;
+            font-size: 0.95rem;
+        }
+        
+        .plan-features li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #8b5cf6;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+        
+        .plan-card.popular .plan-features li::before {
+            color: white;
+        }
+        
+        .select-btn {
+            width: 100%;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: none;
+        }
+        
+        .select-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+        }
+        
+        .select-btn:disabled {
+            background: #e2e8f0;
+            color: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .plan-card.popular .select-btn {
+            background: white;
+            color: #8b5cf6;
+        }
+        
+        .plan-card.popular .select-btn:hover {
+            background: #f7fafc;
+            box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3);
+        }
+        
+        .current-plan {
+            background: #f0f8ff;
+            border: 2px solid #8b5cf6;
+        }
+        
+        .current-plan .select-btn {
+            background: #10b981;
+        }
+        
+        .current-plan .select-btn:hover {
+            background: #059669;
+        }
+        
+        .error-dialog {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        
+        .error-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .error-content h2 {
+            color: #e53e3e;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .error-content p {
+            color: #718096;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .error-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .error-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            color: #8b5cf6;
+            margin-top: 40px;
+        }
+        
+        .spinner {
+            border: 3px solid rgba(139, 92, 246, 0.2);
+            border-top: 3px solid #8b5cf6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .features-section {
+            text-align: center;
+            padding: 80px 0;
+            background: white;
+            margin: 0 -20px;
+        }
+        
+        .features-section .subtitle {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #8b5cf6;
+            margin-bottom: 16px;
+        }
+        
+        .features-section h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 60px;
+            line-height: 1.2;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .feature-card {
+            text-align: center;
+            padding: 32px;
+        }
+        
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            color: white;
+            font-size: 1.5rem;
+        }
+        
+        .feature-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 16px;
+        }
+        
+        .feature-description {
+            color: #718096;
+            line-height: 1.6;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2.25rem;
+            }
+            
+            .plans-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .plan-card {
+                padding: 24px;
+            }
+            
+            .features-section h2 {
+                font-size: 2rem;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+                gap: 32px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="subtitle">COACHING PLATFORM</div>
+            <h1>Select The Best Plan For Your Needs</h1>
+            
+            <div class="billing-toggle">
+                <div class="toggle-container">
+                    <div class="toggle-option active" onclick="toggleBilling('monthly')">Monthly Plan</div>
+                    <div class="toggle-option" onclick="toggleBilling('yearly')">Yearly Plan</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="plans-grid" id="plansGrid">
+            ${plans.map(plan => this.renderPlanCard(plan, hasActiveSubscription, hasValidToken)).join('')}
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing your request...</p>
+        </div>
+    </div>
+    
+    <div class="features-section">
+        <div class="container">
+            <div class="subtitle">SCALE YOUR BUSINESS</div>
+            <h2>A Platform That Is Designed For Your Business Growth</h2>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-title">Advanced Analytics</div>
+                    <div class="feature-description">Track your coaching performance with detailed analytics and insights to optimize your business growth.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔧</div>
+                    <div class="feature-title">Powerful Tools</div>
+                    <div class="feature-description">Access a comprehensive suite of tools designed specifically for coaches to manage clients and grow their practice.</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">👥</div>
+                    <div class="feature-title">Dedicated Support</div>
+                    <div class="feature-description">Get priority support from our team of experts who understand the unique needs of coaching businesses.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="error-dialog" id="errorDialog">
+        <div class="error-content">
+            <h2>Payment Failed</h2>
+            <p>Your payment could not be processed. Please try again or contact support.</p>
+            <button class="error-btn" onclick="closeErrorDialog()">OK</button>
+        </div>
+    </div>
+    
+    <script>
+        const token = '${token || ''}';
+        const coachId = '${coach ? coach._id : ''}';
+        const hasValidToken = ${hasValidToken};
+        
+        function selectPlan(planId, planPrice, planName) {
+            if (!hasValidToken) {
+                alert('Please log in to select a plan. You need a valid authentication token to proceed with the subscription.');
+                return;
+            }
+            
+            if (${hasActiveSubscription}) {
+                alert('You already have an active subscription. Please contact support to change your plan.');
+                return;
+            }
+            
+            document.getElementById('loading').style.display = 'block';
+            
+            // Create Razorpay order
+            fetch('/api/subscriptions/create-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    planId: planId,
+                    amount: planPrice * 100 // Convert to paise
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const options = {
+                        key: '${process.env.RAZORPAY_KEY_ID || 'rzp_test_1234567890'}',
+                        amount: data.order.amount,
+                        currency: data.order.currency,
+                        name: 'FunnelsEye',
+                        description: planName,
+                        order_id: data.order.id,
+                        handler: function (response) {
+                            verifyPayment(response, planId);
+                        },
+                        prefill: {
+                            name: '${coach ? coach.name || '' : ''}',
+                            email: '${coach ? coach.email || '' : ''}',
+                        },
+                        theme: {
+                            color: '#667eea'
+                        }
+                    };
+                    
+                    const rzp = new Razorpay(options);
+                    rzp.open();
+                } else {
+                    throw new Error(data.message || 'Failed to create order');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showErrorDialog();
+            })
+            .finally(() => {
+                document.getElementById('loading').style.display = 'none';
+            });
+        }
+        
+        function verifyPayment(paymentResponse, planId) {
+            document.getElementById('loading').style.display = 'block';
+            
+            fetch('/api/subscriptions/verify-payment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    paymentId: paymentResponse.razorpay_payment_id,
+                    orderId: paymentResponse.razorpay_order_id,
+                    signature: paymentResponse.razorpay_signature,
+                    planId: planId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Redirect to dashboard
+                    window.location.href = 'https://dashboard.funnelseye.com';
+                } else {
+                    throw new Error(data.message || 'Payment verification failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showErrorDialog();
+            })
+            .finally(() => {
+                document.getElementById('loading').style.display = 'none';
+            });
+        }
+        
+        function showErrorDialog() {
+            document.getElementById('errorDialog').style.display = 'block';
+        }
+        
+        function closeErrorDialog() {
+            document.getElementById('errorDialog').style.display = 'none';
+        }
+        
+        // Close error dialog when clicking outside
+        document.getElementById('errorDialog').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeErrorDialog();
+            }
+        });
+        
+        function toggleBilling(period) {
+            // Update toggle UI
+            document.querySelectorAll('.toggle-option').forEach(option => {
+                option.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Here you can add logic to recalculate prices based on billing period
+            // For now, we'll just update the UI
+            console.log('Billing period changed to:', period);
+        }
+    </script>
+</body>
+</html>
+        `;
+    }
+
+    /**
+     * Render individual plan card
+     */
+    renderPlanCard(plan, hasActiveSubscription, hasValidToken) {
+        const isCurrentPlan = false; // You can add logic to check if this is the current plan
+        const price = plan.price;
+        const currency = plan.currency || 'INR';
+        const billingCycle = plan.billingCycle || 'monthly';
+        
+        // Get first letter of plan name for icon
+        const planIcon = plan.name.charAt(0).toUpperCase();
+        
+        return `
+            <div class="plan-card ${plan.isPopular ? 'popular' : ''} ${isCurrentPlan ? 'current-plan' : ''}">
+                <div class="plan-icon">${planIcon}</div>
+                <div class="plan-name">${plan.name}</div>
+                <div class="plan-description">${plan.description}</div>
+                <div class="plan-price">${currency} ${price}</div>
+                <div class="plan-billing">per ${billingCycle}</div>
+                
+                <ul class="plan-features">
+                    <li>${plan.features.maxFunnels || 0} Funnels</li>
+                    <li>${plan.features.maxStaff || 0} Staff Members</li>
+                    <li>${plan.features.maxDevices || 0} Devices</li>
+                    <li>${plan.features.storageGB || 0} GB Storage</li>
+                    ${plan.features.aiFeatures ? '<li>AI Features</li>' : ''}
+                    ${plan.features.advancedAnalytics ? '<li>Advanced Analytics</li>' : ''}
+                    ${plan.features.prioritySupport ? '<li>Priority Support</li>' : ''}
+                    ${plan.features.customDomain ? '<li>Custom Domain</li>' : ''}
+                    ${plan.features.apiAccess ? '<li>API Access</li>' : ''}
+                    ${plan.features.whiteLabel ? '<li>White Label</li>' : ''}
+                </ul>
+                
+                <button class="select-btn" 
+                        onclick="selectPlan('${plan._id}', ${price}, '${plan.name}')"
+                        ${hasActiveSubscription ? 'disabled' : ''}>
+                    ${hasActiveSubscription ? 'Already Subscribed' : 'Start Free Trial'}
+                </button>
+            </div>
+        `;
+    }
     
     /**
      * Get coach's current subscription
@@ -380,6 +1082,7 @@ const controller = new SubscriptionController();
 
 module.exports = {
     getPlans: controller.getPlans.bind(controller),
+    getSelectPlanPage: controller.getSelectPlanPage.bind(controller),
     getCurrentSubscription: controller.getCurrentSubscription.bind(controller),
     createOrder: controller.createOrder.bind(controller),
     verifyPayment: controller.verifyPayment.bind(controller),

@@ -12,6 +12,7 @@ import SystemSettings from './components/SystemSettings';
 import PaymentSettings from './components/PaymentSettings';
 import Analytics from './components/Analytics';
 import SubscriptionManagement from './components/SubscriptionManagement';
+import SubscriptionPlans from './components/SubscriptionPlans';
 import CoursesManagement from './components/CoursesManagement';
 import SupportTickets from './components/SupportTickets';
 import PaymentManagement from './components/PaymentManagement';
@@ -103,6 +104,7 @@ function AppContent() {
             <Route path="hierarchy-requests" element={<HierarchyRequests />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="subscription" element={<SubscriptionManagement />} />
+            <Route path="subscription-plans" element={<SubscriptionPlans />} />
             <Route path="courses" element={<CoursesManagement />} />
             <Route path="support" element={<SupportTickets />} />
             <Route path="mlm-management" element={<MlmManagement />} />

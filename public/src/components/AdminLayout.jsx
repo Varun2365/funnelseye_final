@@ -51,6 +51,7 @@ const AdminLayout = () => {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'User Management', href: '/users', icon: Users },
+    { name: 'Subscription Plans', href: '/subscription-plans', icon: Package },
     { name: 'Financial & MLM', href: '/financial', icon: DollarSign },
     { name: 'Downline Management', href: '/downline-management', icon: Layers },
     { name: 'Hierarchy Requests', href: '/hierarchy-requests', icon: UserCheck },
