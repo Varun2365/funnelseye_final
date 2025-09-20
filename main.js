@@ -30,6 +30,7 @@ const checkInactiveCoaches = require('./tasks/checkInactiveCoaches');
 const { init } = require('./services/rabbitmqProducer');
 const sslService = require('./services/sslService');
 const zoomCleanupService = require('./services/zoomCleanupService');
+const AdminUser = require('./schema/AdminUser');
 
 // 🛡️ Middleware Imports
 const cors = require('cors');
@@ -596,6 +597,64 @@ function printApiTable(title, routes, baseUrl) {
 // -----------------------------------------------------------------
 
 /**
+ * Checks for existing admin user and creates one if none exists
+ */
+const ensureAdminUser = async () => {
+    try {
+        console.log('🔍 Checking for admin user...');
+        
+        // Check if any admin user exists
+        const existingAdmin = await AdminUser.findOne({});
+        
+        if (existingAdmin) {
+            console.log('✅ Admin user already exists.');
+            return;
+        }
+        
+        // Create default super admin user
+        console.log('🔧 Creating default admin user...');
+        const admin = new AdminUser({
+            email: 'admin@funnelseye.com',
+            password: 'Admin@123',
+            firstName: 'Super',
+            lastName: 'Admin',
+            role: 'super_admin',
+            status: 'active',
+            isEmailVerified: true,
+            permissions: {
+                systemSettings: true,
+                userManagement: true,
+                paymentSettings: true,
+                mlmSettings: true,
+                coachManagement: true,
+                planManagement: true,
+                contentModeration: true,
+                viewAnalytics: true,
+                exportData: true,
+                financialReports: true,
+                systemLogs: true,
+                maintenanceMode: true,
+                backupRestore: true,
+                securitySettings: true,
+                auditLogs: true,
+                twoFactorAuth: true
+            }
+        });
+        
+        await admin.save();
+        console.log('✅ Default admin user created successfully!');
+        console.log('📧 Email: admin@funnelseye.com');
+        console.log('🔑 Password: Admin@123');
+        console.log('⚠️  Please change the default password after first login!');
+        
+    } catch (error) {
+        console.error('❌ Error creating admin user:', error.message);
+        // Don't exit the process, just log the error
+        // This allows the server to continue running even if admin creation fails
+    }
+};
+
+/**
  * Initializes the server by connecting to the database and starting the Express app.
  * It also starts all necessary worker processes.
  */
@@ -606,6 +665,9 @@ const startServer = async () => {
         
         // Then, initialize all models to ensure they're registered
         const models = require('./schema');
+        
+        // Check and create admin user if needed
+        await ensureAdminUser();
         
         // Now initialize other services
         await init();

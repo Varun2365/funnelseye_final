@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const adminUserSchema = new mongoose.Schema({
-    adminId: { type: String, required: true, unique: true },
     email: { 
         type: String, 
         required: true, 
@@ -119,6 +118,9 @@ adminUserSchema.pre('save', async function(next) {
         this.password = await bcrypt.hash(this.password, salt);
         
         // Add to password history
+        if (!this.passwordHistory) {
+            this.passwordHistory = [];
+        }
         if (this.passwordHistory.length >= 5) {
             this.passwordHistory.shift();
         }
@@ -128,14 +130,6 @@ adminUserSchema.pre('save', async function(next) {
     } catch (error) {
         next(error);
     }
-});
-
-// Pre-save middleware to generate adminId
-adminUserSchema.pre('save', function(next) {
-    if (!this.adminId) {
-        this.adminId = `ADMIN_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-    }
-    next();
 });
 
 // Instance methods
