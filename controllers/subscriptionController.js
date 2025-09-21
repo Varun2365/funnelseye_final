@@ -104,6 +104,7 @@ class SubscriptionController {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Select Your Plan - FunnelsEye</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <style>
         * {
@@ -113,10 +114,10 @@ class SubscriptionController {
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #f8f4ff 0%, #e8d5ff 100%);
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #fafbff 0%, #f8f9ff 100%);
             min-height: 100vh;
-            color: #2d3748;
+            color: #1a1a1a;
             line-height: 1.6;
         }
         
@@ -128,96 +129,104 @@ class SubscriptionController {
         
         .header {
             text-align: center;
-            padding: 60px 0 40px;
+            padding: 80px 0 60px;
+            border-bottom: 1px solid #f0f0f0;
+            margin-bottom: 60px;
         }
         
         .header .subtitle {
-            font-size: 0.875rem;
-            font-weight: 600;
+            font-size: 0.75rem;
+            font-weight: 500;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #8b5cf6;
-            margin-bottom: 16px;
+            letter-spacing: 0.1em;
+            color: #6366f1;
+            margin-bottom: 24px;
+            font-family: 'Poppins', sans-serif;
         }
         
         .header h1 {
-            font-size: 3rem;
-            font-weight: 700;
-            color: #1a202c;
-            margin-bottom: 40px;
-            line-height: 1.2;
+            font-size: 2.5rem;
+            font-weight: 300;
+            color: #1a1a1a;
+            margin-bottom: 0;
+            line-height: 1.3;
+            font-family: 'Poppins', sans-serif;
         }
         
         .billing-toggle {
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 60px;
+            margin-bottom: 80px;
         }
         
         .toggle-container {
-            background: #f7fafc;
-            border-radius: 12px;
+            background: #f1f5f9;
+            border-radius: 8px;
             padding: 4px;
             display: flex;
             position: relative;
         }
         
         .toggle-option {
-            padding: 12px 24px;
-            font-weight: 600;
+            padding: 12px 32px;
+            font-weight: 400;
             cursor: pointer;
             transition: all 0.3s ease;
-            border-radius: 8px;
+            border-radius: 6px;
             position: relative;
             z-index: 2;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.9rem;
         }
         
         .toggle-option.active {
-            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
-            color: white;
+            background: #6366f1;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
         }
         
         .toggle-option:not(.active) {
-            color: #718096;
+            color: #64748b;
         }
         
         .plans-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 24px;
-            margin-bottom: 80px;
-            max-width: 1200px;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 32px;
+            margin-bottom: 100px;
+            max-width: 1000px;
             margin-left: auto;
             margin-right: auto;
         }
         
         .plan-card {
-            background: white;
-            border-radius: 16px;
-            padding: 32px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 40px 32px;
+            border: 1px solid #e2e8f0;
             transition: all 0.3s ease;
             position: relative;
-            border: 2px solid transparent;
             width: 100%;
-            max-width: 350px;
-            height: 500px;
+            max-width: 320px;
+            min-height: 480px;
             display: flex;
             flex-direction: column;
             margin: 0 auto;
         }
         
         .plan-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+            border-color: #6366f1;
+            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.12);
+            transform: translateY(-2px);
         }
         
         .plan-card.popular {
-            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border: 2px solid #6366f1;
+            transform: none;
+            min-height: 480px;
             color: white;
-            transform: scale(1.02);
-            height: 500px;
         }
         
         .plan-card.popular .plan-name,
@@ -225,122 +234,136 @@ class SubscriptionController {
         .plan-card.popular .plan-price,
         .plan-card.popular .plan-billing,
         .plan-card.popular .plan-features li {
-            color: white;
+            color: #ffffff;
         }
         
         .plan-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
-            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 20px;
-            color: white;
-            font-weight: bold;
-            font-size: 1.2rem;
+            margin-bottom: 24px;
+            color: #ffffff;
+            font-weight: 500;
+            font-size: 1rem;
         }
         
         .plan-card.popular .plan-icon {
             background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
         }
         
         .plan-name {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #1a202c;
-            margin-bottom: 8px;
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+            font-family: 'Poppins', sans-serif;
         }
         
         .plan-description {
-            color: #718096;
-            margin-bottom: 24px;
-            font-size: 0.95rem;
+            color: #666666;
+            margin-bottom: 32px;
+            font-size: 0.9rem;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 400;
+            line-height: 1.5;
         }
         
         .plan-price {
-            font-size: 3rem;
-            font-weight: 800;
-            color: #1a202c;
+            font-size: 2.5rem;
+            font-weight: 300;
+            color: #1a1a1a;
             margin-bottom: 8px;
             line-height: 1;
+            font-family: 'Poppins', sans-serif;
         }
         
         .plan-billing {
-            color: #a0aec0;
-            margin-bottom: 32px;
-            font-size: 0.9rem;
+            color: #888888;
+            margin-bottom: 40px;
+            font-size: 0.85rem;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 400;
         }
         
         .plan-features {
             list-style: none;
             margin-bottom: 32px;
             flex-grow: 1;
+            min-height: 0;
         }
         
         .plan-features li {
-            padding: 8px 0;
-            color: #4a5568;
+            padding: 6px 0;
+            color: #666666;
             position: relative;
-            padding-left: 24px;
-            font-size: 0.95rem;
+            padding-left: 20px;
+            font-size: 0.85rem;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 400;
         }
         
         .plan-features li::before {
             content: '✓';
             position: absolute;
             left: 0;
-            color: #8b5cf6;
+            color: #10b981;
             font-weight: bold;
-            font-size: 1rem;
+            font-size: 0.9rem;
         }
         
         .plan-card.popular .plan-features li::before {
-            color: white;
+            color: #ffffff;
         }
         
         .select-btn {
             width: 100%;
             padding: 16px 24px;
-            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
             color: white;
             border: none;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 600;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
             cursor: pointer;
             transition: all 0.3s ease;
             text-transform: none;
             margin-top: auto;
+            font-family: 'Poppins', sans-serif;
         }
         
         .select-btn:hover {
+            background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%);
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
         }
         
         .select-btn:disabled {
-            background: #e2e8f0;
-            color: #a0aec0;
+            background: #f0f0f0;
+            color: #cccccc;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
         
         .plan-card.popular .select-btn {
-            background: white;
-            color: #8b5cf6;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
         }
         
         .plan-card.popular .select-btn:hover {
-            background: #f7fafc;
-            box-shadow: 0 8px 25px rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
         }
         
         .current-plan {
-            background: #f0f8ff;
-            border: 2px solid #8b5cf6;
+            background: #f0fdf4;
+            border: 2px solid #10b981;
         }
         
         .current-plan .select-btn {
@@ -358,7 +381,7 @@ class SubscriptionController {
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.4);
             z-index: 1000;
         }
         
@@ -368,53 +391,123 @@ class SubscriptionController {
             left: 50%;
             transform: translate(-50%, -50%);
             background: white;
-            padding: 40px;
-            border-radius: 16px;
+            padding: 48px 40px;
+            border-radius: 12px;
             text-align: center;
             max-width: 400px;
             width: 90%;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            border: 1px solid #f0f0f0;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.1);
         }
         
         .error-content h2 {
-            color: #e53e3e;
-            margin-bottom: 20px;
-            font-size: 1.5rem;
+            color: #1a1a1a;
+            margin-bottom: 16px;
+            font-size: 1.25rem;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
         }
         
         .error-content p {
-            color: #718096;
-            margin-bottom: 30px;
+            color: #666666;
+            margin-bottom: 32px;
             line-height: 1.6;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 400;
+            font-size: 0.9rem;
         }
         
         .error-btn {
-            padding: 12px 30px;
-            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
+            font-size: 0.9rem;
+            font-weight: 500;
             transition: all 0.3s ease;
+            font-family: 'Poppins', sans-serif;
         }
         
         .error-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+        
+        .success-dialog {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+        }
+        
+        .success-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 48px 40px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            border: 1px solid #f0f0f0;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.1);
+        }
+        
+        .success-content h2 {
+            color: #1a1a1a;
+            margin-bottom: 16px;
+            font-size: 1.25rem;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
+        }
+        
+        .success-content p {
+            color: #666666;
+            margin-bottom: 32px;
+            line-height: 1.6;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 400;
+            font-size: 0.9rem;
+        }
+        
+        .success-btn {
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        .success-btn:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
         
         .loading {
             display: none;
             text-align: center;
-            color: #8b5cf6;
+            color: #666666;
             margin-top: 40px;
         }
         
         .spinner {
-            border: 3px solid rgba(139, 92, 246, 0.2);
-            border-top: 3px solid #8b5cf6;
+            border: 3px solid rgba(99, 102, 241, 0.2);
+            border-top: 3px solid #6366f1;
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -429,64 +522,70 @@ class SubscriptionController {
         
         .features-section {
             text-align: center;
-            padding: 80px 0;
-            background: white;
+            padding: 100px 0;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
             margin: 0 -20px;
+            border-top: 1px solid #e2e8f0;
         }
         
         .features-section .subtitle {
-            font-size: 0.875rem;
-            font-weight: 600;
+            font-size: 0.75rem;
+            font-weight: 500;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #8b5cf6;
-            margin-bottom: 16px;
+            letter-spacing: 0.1em;
+            color: #6366f1;
+            margin-bottom: 24px;
+            font-family: 'Poppins', sans-serif;
         }
         
         .features-section h2 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: #1a202c;
-            margin-bottom: 60px;
-            line-height: 1.2;
+            font-size: 2rem;
+            font-weight: 300;
+            color: #1a1a1a;
+            margin-bottom: 80px;
+            line-height: 1.3;
+            font-family: 'Poppins', sans-serif;
         }
         
         .features-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 40px;
-            max-width: 1000px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 48px;
+            max-width: 900px;
             margin: 0 auto;
         }
         
         .feature-card {
             text-align: center;
-            padding: 32px;
+            padding: 0;
         }
         
         .feature-icon {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
-            border-radius: 12px;
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 24px;
-            color: white;
-            font-size: 1.5rem;
+            color: #ffffff;
+            font-size: 1.25rem;
         }
         
         .feature-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #1a202c;
+            font-size: 1.125rem;
+            font-weight: 500;
+            color: #1a1a1a;
             margin-bottom: 16px;
+            font-family: 'Poppins', sans-serif;
         }
         
         .feature-description {
-            color: #718096;
+            color: #666666;
             line-height: 1.6;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 400;
         }
         
         @media (max-width: 768px) {
@@ -537,7 +636,7 @@ class SubscriptionController {
         
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p>Processing your request...</p>
+            <p style="font-family: 'Poppins', sans-serif; font-weight: 500;">Processing your request...</p>
         </div>
     </div>
     
@@ -569,8 +668,16 @@ class SubscriptionController {
     <div class="error-dialog" id="errorDialog">
         <div class="error-content">
             <h2>Payment Failed</h2>
-            <p>Your payment could not be processed. Please try again or contact support.</p>
+            <p class="error-message">Your payment could not be processed. Please try again or contact support.</p>
             <button class="error-btn" onclick="closeErrorDialog()">OK</button>
+        </div>
+    </div>
+    
+    <div class="success-dialog" id="successDialog">
+        <div class="success-content">
+            <h2>Payment Successful!</h2>
+            <p class="success-message">Your payment has been processed successfully. Redirecting to dashboard...</p>
+            <button class="success-btn" onclick="closeSuccessDialog()">OK</button>
         </div>
     </div>
     
@@ -606,14 +713,22 @@ class SubscriptionController {
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
+                console.log('Payment order response:', data); // Debug log
+                if (data.success && data.data && data.data.paymentOrder) {
+                    const paymentOrder = data.data.paymentOrder;
+                    const razorpayKey = '${process.env.RAZORPAY_KEY_ID || 'rzp_test_1234567890'}';
+                    
+                    if (!razorpayKey || razorpayKey === 'rzp_test_1234567890') {
+                        throw new Error('Razorpay key not configured. Please contact support.');
+                    }
+                    
                     const options = {
-                        key: '${process.env.RAZORPAY_KEY_ID || 'rzp_test_1234567890'}',
-                        amount: data.order.amount,
-                        currency: data.order.currency,
+                        key: razorpayKey,
+                        amount: paymentOrder.amount,
+                        currency: paymentOrder.currency,
                         name: 'FunnelsEye',
                         description: planName,
-                        order_id: data.order.id,
+                        order_id: paymentOrder.orderId,
                         handler: function (response) {
                             verifyPayment(response, planId);
                         },
@@ -622,19 +737,20 @@ class SubscriptionController {
                             email: '${coach ? coach.email || '' : ''}',
                         },
                         theme: {
-                            color: '#667eea'
+                            color: '#940612'
                         }
                     };
                     
                     const rzp = new Razorpay(options);
                     rzp.open();
                 } else {
-                    throw new Error(data.message || 'Failed to create order');
+                    console.error('Failed to create payment order:', data);
+                    throw new Error(data.message || 'Failed to create payment order');
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                showErrorDialog();
+                console.error('Error creating payment order:', error);
+                showErrorDialog(error.message || 'Failed to create payment order. Please try again.');
             })
             .finally(() => {
                 document.getElementById('loading').style.display = 'none';
@@ -651,42 +767,71 @@ class SubscriptionController {
                     'Authorization': 'Bearer ' + token
                 },
                 body: JSON.stringify({
-                    paymentId: paymentResponse.razorpay_payment_id,
-                    orderId: paymentResponse.razorpay_order_id,
-                    signature: paymentResponse.razorpay_signature,
+                    razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                    razorpay_order_id: paymentResponse.razorpay_order_id,
+                    razorpay_signature: paymentResponse.razorpay_signature,
                     planId: planId
                 })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Redirect to dashboard
-                    window.location.href = 'https://dashboard.funnelseye.com';
+                    // Show success dialog
+                    showSuccessDialog(data.message || 'Payment successful!');
+                    // Redirect to dashboard after 3 seconds
+                    setTimeout(() => {
+                        window.location.href = 'https://dashboard.funnelseye.com';
+                    }, 3000);
                 } else {
                     throw new Error(data.message || 'Payment verification failed');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                showErrorDialog();
+                showErrorDialog(error.message || 'Payment verification failed. Please try again.');
             })
             .finally(() => {
                 document.getElementById('loading').style.display = 'none';
             });
         }
         
-        function showErrorDialog() {
-            document.getElementById('errorDialog').style.display = 'block';
+        function showErrorDialog(message = 'An error occurred during payment. Please try again.') {
+            const errorDialog = document.getElementById('errorDialog');
+            const errorMessage = errorDialog.querySelector('.error-message');
+            if (errorMessage) {
+                errorMessage.textContent = message;
+            }
+            errorDialog.style.display = 'block';
+        }
+        
+        function showSuccessDialog(message = 'Payment successful!') {
+            const successDialog = document.getElementById('successDialog');
+            const successMessage = successDialog.querySelector('.success-message');
+            if (successMessage) {
+                successMessage.textContent = message;
+            }
+            successDialog.style.display = 'block';
         }
         
         function closeErrorDialog() {
             document.getElementById('errorDialog').style.display = 'none';
         }
         
+        function closeSuccessDialog() {
+            document.getElementById('successDialog').style.display = 'none';
+        }
+        
         // Close error dialog when clicking outside
         document.getElementById('errorDialog').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeErrorDialog();
+            }
+        });
+        
+        // Close success dialog when clicking outside
+        document.getElementById('successDialog').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeSuccessDialog();
             }
         });
         
@@ -796,7 +941,13 @@ class SubscriptionController {
             const { planId, paymentMethod = 'razorpay' } = req.body;
             const coachId = req.user._id;
             
-            logger.info(`[SubscriptionController] Creating subscription order for plan: ${planId}`);
+            logger.info(`[SubscriptionController] Creating payment order for plan: ${planId}`);
+            
+            // Clean up any incomplete subscriptions for this coach
+            await CoachSubscription.deleteMany({
+                coachId: coachId,
+                status: 'pending'
+            });
             
             // Validate plan exists and is active
             const plan = await SubscriptionPlan.findOne({ 
@@ -811,61 +962,26 @@ class SubscriptionController {
                 });
             }
             
-            // Check if coach already has a subscription (any status)
+            // Check if coach already has an active subscription
             const existingSubscription = await CoachSubscription.findOne({
-                coachId
+                coachId,
+                status: { $in: ['active', 'trial'] }
             });
             
-            if (existingSubscription && existingSubscription.status === 'active') {
+            if (existingSubscription) {
                 return res.status(400).json({
                     success: false,
                     message: 'You already have an active subscription. Please cancel it before subscribing to a new plan.'
                 });
             }
             
-            // Calculate dates
-            const startDate = new Date();
-            const endDate = new Date();
-            endDate.setMonth(endDate.getMonth() + plan.duration);
-            
-            let subscription;
-            
-            if (existingSubscription) {
-                // Update existing subscription
-                subscription = existingSubscription;
-                subscription.planId = plan._id;
-                subscription.status = 'active';
-                subscription.startDate = startDate;
-                subscription.endDate = endDate;
-                subscription.nextBillingDate = endDate;
-                subscription.autoRenew = true;
-                subscription.cancellationDate = null;
-                subscription.cancellationReason = null;
-                
-                await subscription.save();
-            } else {
-                // Create new subscription record
-                subscription = new CoachSubscription({
-                    coachId,
-                    planId: plan._id,
-                    status: 'active',
-                    startDate,
-                    endDate,
-                    nextBillingDate: endDate,
-                    autoRenew: true
-                });
-                
-                await subscription.save();
-            }
-            
-            // Create payment order for all subscriptions
-            const paymentOrder = await this.createPaymentOrder(plan, subscription);
+            // Create payment order (without creating subscription yet)
+            const paymentOrder = await this.createPaymentOrder(plan, coachId);
             
             res.json({
                 success: true,
-                message: 'Subscription order created successfully',
+                message: 'Payment order created successfully',
                 data: {
-                    subscription: subscription,
                     plan: plan,
                     paymentOrder: paymentOrder
                 }
@@ -884,7 +1000,7 @@ class SubscriptionController {
     /**
      * Create Razorpay payment order for subscription
      */
-    async createPaymentOrder(plan, subscription) {
+    async createPaymentOrder(plan, coachId) {
         try {
             const Razorpay = require('razorpay');
             const razorpay = new Razorpay({
@@ -900,9 +1016,8 @@ class SubscriptionController {
                 currency: plan.currency,
                 receipt: receipt,
                 notes: {
-                    subscription_id: subscription._id.toString(),
                     plan_id: plan._id.toString(),
-                    coach_id: subscription.coachId.toString(),
+                    coach_id: coachId.toString(),
                     billing_cycle: plan.billingCycle
                 }
             };
@@ -932,64 +1047,152 @@ class SubscriptionController {
                 razorpay_order_id, 
                 razorpay_payment_id, 
                 razorpay_signature,
-                subscription_id 
+                planId 
             } = req.body;
             
-            logger.info(`[SubscriptionController] Verifying payment for subscription: ${subscription_id}`);
+            const coachId = req.user._id;
+            
+            logger.info(`[SubscriptionController] Verifying payment for coach: ${coachId}, plan: ${planId}`);
             
             // Verify Razorpay signature
             const crypto = require('crypto');
-            const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET);
+            const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET);
             hmac.update(razorpay_order_id + '|' + razorpay_payment_id);
             const generatedSignature = hmac.digest('hex');
             
             if (generatedSignature !== razorpay_signature) {
+                logger.error(`[SubscriptionController] Invalid payment signature for payment: ${razorpay_payment_id}`);
                 return res.status(400).json({
                     success: false,
                     message: 'Invalid payment signature'
                 });
             }
             
-            // Update subscription
-            const subscription = await CoachSubscription.findById(subscription_id);
-            if (!subscription) {
-                return res.status(404).json({
+            // Verify payment with Razorpay API
+            const Razorpay = require('razorpay');
+            const razorpay = new Razorpay({
+                key_id: process.env.RAZORPAY_KEY_ID,
+                key_secret: process.env.RAZORPAY_KEY_SECRET
+            });
+            
+            try {
+                const payment = await razorpay.payments.fetch(razorpay_payment_id);
+                
+                if (payment.status !== 'captured') {
+                    logger.error(`[SubscriptionController] Payment not captured. Status: ${payment.status}`);
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Payment not completed successfully'
+                    });
+                }
+            } catch (error) {
+                logger.error(`[SubscriptionController] Error verifying payment with Razorpay: ${error.message}`);
+                return res.status(400).json({
                     success: false,
-                    message: 'Subscription not found'
+                    message: 'Unable to verify payment status'
                 });
             }
             
-            // Add payment to history
-            subscription.paymentHistory.push({
-                paymentId: razorpay_payment_id,
-                amount: subscription.planId.price,
-                currency: subscription.planId.currency,
-                paymentMethod: 'razorpay',
-                paymentDate: new Date(),
-                status: 'success',
-                razorpayOrderId: razorpay_order_id,
-                razorpayPaymentId: razorpay_payment_id,
-                razorpaySignature: razorpay_signature
+            // Get the plan details
+            const plan = await SubscriptionPlan.findById(planId);
+            if (!plan) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Subscription plan not found'
+                });
+            }
+            
+            // Check if coach already has an active subscription
+            const existingSubscription = await CoachSubscription.findOne({
+                coachId: coachId,
+                status: { $in: ['active', 'trial'] }
             });
             
-            // Activate subscription
-            subscription.status = 'active';
-            subscription.startDate = new Date();
-            subscription.endDate = new Date();
-            subscription.endDate.setMonth(subscription.endDate.getMonth() + subscription.planId.duration);
-            subscription.nextBillingDate = subscription.endDate;
+            if (existingSubscription) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'You already have an active subscription'
+                });
+            }
+            
+            // Check if this payment has already been processed
+            const existingPayment = await CoachSubscription.findOne({
+                'paymentHistory.razorpayPaymentId': razorpay_payment_id
+            });
+            
+            if (existingPayment) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'This payment has already been processed'
+                });
+            }
+            
+            // Create new subscription
+            const subscription = new CoachSubscription({
+                coachId: coachId,
+                planId: planId,
+                status: 'active',
+                startDate: new Date(),
+                endDate: new Date(Date.now() + (plan.duration * 30 * 24 * 60 * 60 * 1000)), // Convert months to milliseconds
+                paymentMethod: 'razorpay',
+                paymentHistory: [{
+                    paymentId: razorpay_payment_id,
+                    amount: plan.price,
+                    currency: plan.currency,
+                    paymentMethod: 'razorpay',
+                    paymentDate: new Date(),
+                    status: 'success',
+                    razorpayOrderId: razorpay_order_id,
+                    razorpayPaymentId: razorpay_payment_id,
+                    razorpaySignature: razorpay_signature
+                }]
+            });
             
             await subscription.save();
             
-            // Populate plan details for response
-            await subscription.populate('planId', 'name price currency billingCycle');
+            // Update coach's subscription status
+            await User.findByIdAndUpdate(coachId, {
+                hasActiveSubscription: true,
+                subscriptionId: subscription._id
+            });
+            
+            // Create RazorpayPayment record for admin earnings tracking
+            const RazorpayPayment = require('../schema/RazorpayPayment');
+            const razorpayPayment = new RazorpayPayment({
+                razorpayOrderId: razorpay_order_id,
+                razorpayPaymentId: razorpay_payment_id,
+                amount: plan.price,
+                currency: plan.currency || 'INR',
+                status: 'captured',
+                businessType: 'platform_subscription',
+                userId: coachId,
+                userType: 'coach',
+                coachId: coachId,
+                productType: 'subscription',
+                productName: `${plan.name} Subscription`,
+                productDescription: `Subscription payment for ${plan.name}`,
+                paymentMethod: 'other', // Razorpay is the gateway, not the payment method
+                razorpayResponse: {
+                    order_id: razorpay_order_id,
+                    payment_id: razorpay_payment_id,
+                    signature: razorpay_signature
+                },
+                // For subscription payments, the full amount goes to platform (no coach commission)
+                coachCommission: 0,
+                platformFee: plan.price,
+                netAmount: plan.price
+            });
+            
+            await razorpayPayment.save();
+            
+            logger.info(`[SubscriptionController] Payment verified, subscription created, and RazorpayPayment record created for coach: ${coachId}`);
             
             res.json({
                 success: true,
-                message: 'Payment verified and subscription activated successfully',
+                message: 'Payment verified successfully',
                 data: {
-                    subscription,
-                    planName: subscription.planId.name
+                    subscription: subscription,
+                    plan: plan
                 }
             });
             

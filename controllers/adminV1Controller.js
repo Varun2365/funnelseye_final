@@ -2663,6 +2663,97 @@ exports.getPaymentHistory = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Migrate existing subscription payments to RazorpayPayment records
+ * @route   POST /api/admin/v1/financial/migrate-subscription-payments
+ * @access  Private (Admin)
+ */
+exports.migrateSubscriptionPayments = asyncHandler(async (req, res) => {
+    try {
+        console.log('🔄 [ADMIN] Starting subscription payment migration...');
+        
+        const CoachSubscription = require('../schema/CoachSubscription');
+        const RazorpayPayment = require('../schema/RazorpayPayment');
+        
+        // Find all coach subscriptions with payment history
+        const subscriptions = await CoachSubscription.find({
+            'paymentHistory': { $exists: true, $ne: [] }
+        }).populate('planId', 'name price currency').populate('coachId', 'name email');
+        
+        console.log(`📊 [ADMIN] Found ${subscriptions.length} subscriptions with payment history`);
+        
+        let migratedCount = 0;
+        let skippedCount = 0;
+        
+        for (const subscription of subscriptions) {
+            for (const payment of subscription.paymentHistory) {
+                // Check if RazorpayPayment record already exists
+                const existingPayment = await RazorpayPayment.findOne({
+                    razorpayPaymentId: payment.razorpayPaymentId
+                });
+                
+                if (existingPayment) {
+                    console.log(`⏭️ [ADMIN] Skipping existing payment: ${payment.razorpayPaymentId}`);
+                    skippedCount++;
+                    continue;
+                }
+                
+                // Create RazorpayPayment record
+                const razorpayPayment = new RazorpayPayment({
+                    razorpayOrderId: payment.razorpayOrderId,
+                    razorpayPaymentId: payment.razorpayPaymentId,
+                    amount: payment.amount,
+                    currency: payment.currency || 'INR',
+                    status: payment.status === 'success' ? 'captured' : 'failed',
+                    businessType: 'platform_subscription',
+                    userId: subscription.coachId._id,
+                    userType: 'coach',
+                    coachId: subscription.coachId._id,
+                    productType: 'subscription',
+                    productName: `${subscription.planId?.name || 'Unknown Plan'} Subscription`,
+                    productDescription: `Subscription payment for ${subscription.planId?.name || 'Unknown Plan'}`,
+                    paymentMethod: 'other', // Razorpay is the gateway, not the payment method
+                    razorpayResponse: {
+                        order_id: payment.razorpayOrderId,
+                        payment_id: payment.razorpayPaymentId,
+                        signature: payment.razorpaySignature
+                    },
+                    // For subscription payments, the full amount goes to platform (no coach commission)
+                    coachCommission: 0,
+                    platformFee: payment.amount,
+                    netAmount: payment.amount,
+                    createdAt: payment.paymentDate || subscription.createdAt,
+                    updatedAt: payment.paymentDate || subscription.createdAt
+                });
+                
+                await razorpayPayment.save();
+                migratedCount++;
+                console.log(`✅ [ADMIN] Migrated payment: ${payment.razorpayPaymentId}`);
+            }
+        }
+        
+        console.log(`🎉 [ADMIN] Migration completed. Migrated: ${migratedCount}, Skipped: ${skippedCount}`);
+        
+        res.json({
+            success: true,
+            message: 'Subscription payments migration completed',
+            data: {
+                totalSubscriptions: subscriptions.length,
+                migratedPayments: migratedCount,
+                skippedPayments: skippedCount
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ [ADMIN] Error migrating subscription payments:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error migrating subscription payments',
+            error: error.message
+        });
+    }
+});
+
+/**
  * @desc    Process individual coach payout (DEPRECATED - Use /api/paymentsv1/sending/razorpay-payout instead)
  * @route   POST /api/admin/v1/financial/process-payout
  * @access  Private (Admin)
@@ -3699,6 +3790,315 @@ exports.subscribeCoachToPlan = asyncHandler(async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error subscribing coach',
+            error: error.message
+        });
+    }
+});
+
+// ===== ADDITIONAL SUBSCRIPTION MANAGEMENT METHODS =====
+
+/**
+ * @desc    Delete subscription plan
+ * @route   DELETE /api/admin/v1/subscription-plans/:id
+ * @access  Private (Admin)
+ */
+exports.deleteSubscriptionPlan = asyncHandler(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const SubscriptionPlan = require('../schema/SubscriptionPlan');
+        
+        // Check if plan exists
+        const plan = await SubscriptionPlan.findById(id);
+        if (!plan) {
+            return res.status(404).json({
+                success: false,
+                message: 'Subscription plan not found'
+            });
+        }
+        
+        // Check if plan is being used by any active subscriptions
+        const CoachSubscription = require('../schema/CoachSubscription');
+        const activeSubscriptions = await CoachSubscription.countDocuments({
+            planId: id,
+            status: { $in: ['active', 'trial'] }
+        });
+        
+        if (activeSubscriptions > 0) {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot delete plan. ${activeSubscriptions} active subscriptions are using this plan.`
+            });
+        }
+        
+        // Soft delete by setting isActive to false
+        await SubscriptionPlan.findByIdAndUpdate(id, {
+            isActive: false,
+            updatedBy: req.admin._id
+        });
+        
+        res.json({
+            success: true,
+            message: 'Subscription plan deleted successfully'
+        });
+        
+    } catch (error) {
+        console.error('Error deleting subscription plan:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error deleting subscription plan',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Get all coach subscriptions with filtering
+ * @route   GET /api/admin/v1/subscriptions
+ * @access  Private (Admin)
+ */
+exports.getAllSubscriptions = asyncHandler(async (req, res) => {
+    try {
+        const { 
+            page = 1, 
+            limit = 20, 
+            status, 
+            coachId, 
+            planId, 
+            startDate, 
+            endDate,
+            sortBy = 'createdAt', 
+            sortOrder = 'desc' 
+        } = req.query;
+
+        const query = {};
+        
+        if (status && status !== 'all') {
+            query.status = status;
+        }
+        
+        if (coachId) {
+            query.coachId = coachId;
+        }
+        
+        if (planId) {
+            query.planId = planId;
+        }
+        
+        if (startDate || endDate) {
+            query.createdAt = {};
+            if (startDate) {
+                query.createdAt.$gte = new Date(startDate);
+            }
+            if (endDate) {
+                query.createdAt.$lte = new Date(endDate);
+            }
+        }
+
+        const sort = {};
+        sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+        const CoachSubscription = require('../schema/CoachSubscription');
+        
+        const subscriptions = await CoachSubscription.find(query)
+            .populate('coachId', 'name email phone')
+            .populate('planId', 'name price billingCycle')
+            .sort(sort)
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+
+        const total = await CoachSubscription.countDocuments(query);
+
+        res.json({
+            success: true,
+            data: {
+                subscriptions,
+                pagination: {
+                    currentPage: parseInt(page),
+                    totalPages: Math.ceil(total / limit),
+                    totalItems: total,
+                    hasNext: page * limit < total,
+                    hasPrev: page > 1
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting all subscriptions:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error retrieving subscriptions',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Get specific subscription details
+ * @route   GET /api/admin/v1/subscriptions/:id
+ * @access  Private (Admin)
+ */
+exports.getSubscriptionDetails = asyncHandler(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const CoachSubscription = require('../schema/CoachSubscription');
+        
+        const subscription = await CoachSubscription.findById(id)
+            .populate('coachId', 'name email phone createdAt')
+            .populate('planId', 'name description price billingCycle features limits')
+            .populate('paymentHistory.paymentId', 'amount currency status createdAt');
+        
+        if (!subscription) {
+            return res.status(404).json({
+                success: false,
+                message: 'Subscription not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: subscription
+        });
+        
+    } catch (error) {
+        console.error('Error getting subscription details:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error retrieving subscription details',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Cancel coach subscription (Admin)
+ * @route   POST /api/admin/v1/subscriptions/:id/cancel
+ * @access  Private (Admin)
+ */
+exports.cancelCoachSubscription = asyncHandler(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason = 'Admin cancelled subscription' } = req.body;
+        
+        const CoachSubscription = require('../schema/CoachSubscription');
+        
+        const subscription = await CoachSubscription.findById(id);
+        if (!subscription) {
+            return res.status(404).json({
+                success: false,
+                message: 'Subscription not found'
+            });
+        }
+        
+        if (subscription.status === 'cancelled') {
+            return res.status(400).json({
+                success: false,
+                message: 'Subscription is already cancelled'
+            });
+        }
+        
+        // Update subscription status
+        subscription.status = 'cancelled';
+        subscription.cancelledAt = new Date();
+        subscription.cancellationReason = reason;
+        subscription.cancelledBy = req.admin._id;
+        
+        await subscription.save();
+        
+        // Log the action
+        const AdminAuditLog = require('../schema/AdminAuditLog');
+        await AdminAuditLog.create({
+            adminId: req.admin._id,
+            action: 'cancel_subscription',
+            targetType: 'subscription',
+            targetId: id,
+            details: {
+                subscriptionId: id,
+                coachId: subscription.coachId,
+                reason: reason
+            },
+            severity: 'medium'
+        });
+        
+        res.json({
+            success: true,
+            message: 'Subscription cancelled successfully',
+            data: subscription
+        });
+        
+    } catch (error) {
+        console.error('Error cancelling subscription:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error cancelling subscription',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @desc    Renew coach subscription (Admin)
+ * @route   POST /api/admin/v1/subscriptions/:id/renew
+ * @access  Private (Admin)
+ */
+exports.renewCoachSubscription = asyncHandler(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { duration = 1 } = req.body; // duration in months
+        
+        const CoachSubscription = require('../schema/CoachSubscription');
+        
+        const subscription = await CoachSubscription.findById(id);
+        if (!subscription) {
+            return res.status(404).json({
+                success: false,
+                message: 'Subscription not found'
+            });
+        }
+        
+        if (subscription.status === 'active') {
+            // Extend existing active subscription
+            const currentEndDate = new Date(subscription.endDate);
+            subscription.endDate = new Date(currentEndDate.getTime() + (duration * 30 * 24 * 60 * 60 * 1000));
+        } else {
+            // Reactivate cancelled/expired subscription
+            subscription.status = 'active';
+            subscription.startDate = new Date();
+            subscription.endDate = new Date(Date.now() + (duration * 30 * 24 * 60 * 60 * 1000));
+            subscription.reactivatedAt = new Date();
+            subscription.reactivatedBy = req.admin._id;
+        }
+        
+        subscription.lastRenewedAt = new Date();
+        subscription.renewedBy = req.admin._id;
+        
+        await subscription.save();
+        
+        // Log the action
+        const AdminAuditLog = require('../schema/AdminAuditLog');
+        await AdminAuditLog.create({
+            adminId: req.admin._id,
+            action: 'renew_subscription',
+            targetType: 'subscription',
+            targetId: id,
+            details: {
+                subscriptionId: id,
+                coachId: subscription.coachId,
+                duration: duration
+            },
+            severity: 'low'
+        });
+        
+        res.json({
+            success: true,
+            message: 'Subscription renewed successfully',
+            data: subscription
+        });
+        
+    } catch (error) {
+        console.error('Error renewing subscription:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error renewing subscription',
             error: error.message
         });
     }

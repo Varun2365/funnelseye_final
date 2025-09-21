@@ -181,8 +181,107 @@ router.post('/users/bulk-delete',
  */
 router.get('/subscription-plans', 
     verifyAdminToken, 
-    checkAdminPermission('userManagement'), 
+    checkAdminPermission('planManagement'), 
     adminV1Controller.getSubscriptionPlans
+);
+
+/**
+ * @route POST /api/admin/v1/subscription-plans
+ * @desc Create new subscription plan
+ * @access Private (Admin)
+ * @body name, description, price, currency, billingCycle, duration, features, limits
+ * @example POST /api/admin/v1/subscription-plans
+ */
+router.post('/subscription-plans', 
+    verifyAdminToken, 
+    checkAdminPermission('planManagement'), 
+    adminRateLimit(5, 60 * 1000), // 5 requests per minute
+    adminV1Controller.createSubscriptionPlan
+);
+
+/**
+ * @route PUT /api/admin/v1/subscription-plans/:id
+ * @desc Update subscription plan
+ * @access Private (Admin)
+ * @param id: Plan ID
+ * @body name, description, price, currency, billingCycle, duration, features, limits
+ * @example PUT /api/admin/v1/subscription-plans/64a1b2c3d4e5f6789012345
+ */
+router.put('/subscription-plans/:id', 
+    verifyAdminToken, 
+    checkAdminPermission('planManagement'), 
+    adminRateLimit(5, 60 * 1000), // 5 requests per minute
+    adminV1Controller.updateSubscriptionPlan
+);
+
+/**
+ * @route DELETE /api/admin/v1/subscription-plans/:id
+ * @desc Delete subscription plan
+ * @access Private (Admin)
+ * @param id: Plan ID
+ * @example DELETE /api/admin/v1/subscription-plans/64a1b2c3d4e5f6789012345
+ */
+router.delete('/subscription-plans/:id', 
+    verifyAdminToken, 
+    checkAdminPermission('planManagement'), 
+    adminRateLimit(3, 60 * 1000), // 3 requests per minute
+    adminV1Controller.deleteSubscriptionPlan
+);
+
+/**
+ * @route GET /api/admin/v1/subscriptions
+ * @desc Get all coach subscriptions with filtering
+ * @access Private (Admin)
+ * @query page, limit, status, coachId, planId, startDate, endDate
+ * @example GET /api/admin/v1/subscriptions?page=1&limit=20&status=active
+ */
+router.get('/subscriptions', 
+    verifyAdminToken, 
+    checkAdminPermission('userManagement'), 
+    adminV1Controller.getAllSubscriptions
+);
+
+/**
+ * @route GET /api/admin/v1/subscriptions/:id
+ * @desc Get specific subscription details
+ * @access Private (Admin)
+ * @param id: Subscription ID
+ * @example GET /api/admin/v1/subscriptions/64a1b2c3d4e5f6789012345
+ */
+router.get('/subscriptions/:id', 
+    verifyAdminToken, 
+    checkAdminPermission('userManagement'), 
+    adminV1Controller.getSubscriptionDetails
+);
+
+/**
+ * @route POST /api/admin/v1/subscriptions/:id/cancel
+ * @desc Cancel coach subscription (Admin)
+ * @access Private (Admin)
+ * @param id: Subscription ID
+ * @body reason: Cancellation reason
+ * @example POST /api/admin/v1/subscriptions/64a1b2c3d4e5f6789012345/cancel
+ */
+router.post('/subscriptions/:id/cancel', 
+    verifyAdminToken, 
+    checkAdminPermission('userManagement'), 
+    adminRateLimit(3, 60 * 1000), // 3 requests per minute
+    adminV1Controller.cancelCoachSubscription
+);
+
+/**
+ * @route POST /api/admin/v1/subscriptions/:id/renew
+ * @desc Renew coach subscription (Admin)
+ * @access Private (Admin)
+ * @param id: Subscription ID
+ * @body duration: Renewal duration in months
+ * @example POST /api/admin/v1/subscriptions/64a1b2c3d4e5f6789012345/renew
+ */
+router.post('/subscriptions/:id/renew', 
+    verifyAdminToken, 
+    checkAdminPermission('userManagement'), 
+    adminRateLimit(3, 60 * 1000), // 3 requests per minute
+    adminV1Controller.renewCoachSubscription
 );
 
 // ===== FINANCIAL SETTINGS =====
@@ -1139,6 +1238,20 @@ router.get('/financial/payment-history',
     checkAdminPermission('financialManagement'), 
     adminRateLimit(20, 60 * 1000), // 20 requests per minute
     adminV1Controller.getPaymentHistory
+);
+
+/**
+ * @route POST /api/admin/v1/financial/migrate-subscription-payments
+ * @desc Migrate existing subscription payments to RazorpayPayment records
+ * @access Private (Admin)
+ * @example POST /api/admin/v1/financial/migrate-subscription-payments
+ */
+router.post('/financial/migrate-subscription-payments', 
+    verifyAdminToken, 
+    checkAdminPermission('financialManagement'), 
+    adminRateLimit(1, 60 * 1000), // 1 request per minute (migration is expensive)
+    logAdminActivity('subscription_payment_migration'),
+    adminV1Controller.migrateSubscriptionPayments
 );
 
 /**
