@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminV1Controller = require('../controllers/adminV1Controller');
+const courseManagementController = require('../controllers/courseManagementController');
 const { verifyAdminToken, checkAdminPermission, adminRateLimit, logAdminActivity } = require('../middleware/adminAuth');
 
 // Helper middleware to skip activity logging for certain routes
@@ -1296,6 +1297,498 @@ router.post('/financial/refresh-balance',
     checkAdminPermission('financialManagement'), 
     adminRateLimit(10, 60 * 1000), // 10 requests per minute
     adminV1Controller.refreshRazorpayBalance
+);
+
+// ===== COURSE MANAGEMENT =====
+
+/**
+ * @route POST /api/admin/v1/courses/upload-file
+ * @desc Upload file for course content
+ * @access Private (Admin)
+ * @body file: File to upload
+ * @example POST /api/admin/v1/courses/upload-file
+ */
+router.post('/courses/upload-file', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    adminRateLimit(20, 60 * 1000), // 20 requests per minute
+    courseManagementController.uploadFile
+);
+
+/**
+ * @route GET /api/admin/v1/courses/uploaded-files
+ * @desc Get uploaded files with filtering and pagination
+ * @access Private (Admin)
+ * @query page (optional): Page number (default: 1)
+ * @query limit (optional): Items per page (default: 20)
+ * @query fileType (optional): Filter by file type
+ * @query search (optional): Search by filename
+ * @example GET /api/admin/v1/courses/uploaded-files?page=1&limit=20&fileType=video
+ */
+router.get('/courses/uploaded-files', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.getUploadedFiles
+);
+
+/**
+ * @route DELETE /api/admin/v1/courses/uploaded-files/:fileId
+ * @desc Delete uploaded file
+ * @access Private (Admin)
+ * @param fileId: File ID
+ * @example DELETE /api/admin/v1/courses/uploaded-files/64a1b2c3d4e5f6789012345
+ */
+router.delete('/courses/uploaded-files/:fileId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    adminRateLimit(20, 60 * 1000), // 20 requests per minute
+    courseManagementController.deleteUploadedFile
+);
+
+/**
+ * @route GET /api/admin/v1/courses/files/:fileId/serve
+ * @desc Serve uploaded file (public access)
+ * @access Public
+ * @param fileId: File ID
+ * @example GET /api/admin/v1/courses/files/64a1b2c3d4e5f6789012345/serve
+ */
+router.get('/courses/files/:fileId/serve', 
+    courseManagementController.serveFile
+);
+
+/**
+ * @route GET /api/admin/v1/courses/files/:fileId
+ * @desc Get file details
+ * @access Private (Admin)
+ * @param fileId: File ID
+ * @example GET /api/admin/v1/courses/files/64a1b2c3d4e5f6789012345
+ */
+router.get('/courses/files/:fileId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.serveFile
+);
+
+/**
+ * @route POST /api/admin/v1/courses
+ * @desc Create new course
+ * @access Private (Admin)
+ * @body name: Course name
+ * @body description: Course description
+ * @body thumbnail: Course thumbnail URL
+ * @body modules: Course modules array
+ * @example POST /api/admin/v1/courses
+ * @body {
+ *   "name": "Path to Success",
+ *   "description": "Complete success transformation course",
+ *   "thumbnail": "https://example.com/thumbnail.jpg",
+ *   "modules": []
+ * }
+ */
+router.post('/courses', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    adminRateLimit(10, 60 * 1000), // 10 requests per minute
+    courseManagementController.createCourse
+);
+
+/**
+ * @route GET /api/admin/v1/courses
+ * @desc Get all courses with analytics
+ * @access Private (Admin)
+ * @example GET /api/admin/v1/courses
+ */
+router.get('/courses', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.getAllCourses
+);
+
+
+
+/**
+ * @route GET /api/admin/v1/courses/:courseId
+ * @desc Get course details with modules and lessons
+ * @access Private (Admin)
+ * @example GET /api/admin/v1/courses/123
+ */
+router.get('/courses/:courseId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.getCourseDetails
+);
+
+/**
+ * @route GET /api/admin/v1/courses/:courseId/debug
+ * @desc Debug course state - check database consistency
+ * @access Private (Admin)
+ * @example GET /api/admin/v1/courses/123/debug
+ */
+router.get('/courses/:courseId/debug', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.debugCourseState
+);
+
+/**
+ * @route PUT /api/admin/v1/courses/:courseId
+ * @desc Update course
+ * @access Private (Admin)
+ * @example PUT /api/admin/v1/courses/123
+ */
+router.put('/courses/:courseId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.updateCourse
+);
+
+/**
+ * @route DELETE /api/admin/v1/courses/:courseId
+ * @desc Delete course
+ * @access Private (Admin)
+ * @example DELETE /api/admin/v1/courses/123
+ */
+router.delete('/courses/:courseId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.deleteCourse
+);
+
+/**
+ * @route POST /api/admin/v1/courses/:courseId/modules
+ * @desc Create module for course
+ * @access Private (Admin)
+ * @example POST /api/admin/v1/courses/123/modules
+ */
+router.post('/courses/:courseId/modules', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.createModule
+);
+
+/**
+ * @route PUT /api/admin/v1/modules/:moduleId
+ * @desc Update module
+ * @access Private (Admin)
+ * @example PUT /api/admin/v1/modules/123
+ */
+router.put('/modules/:moduleId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.updateModule
+);
+
+/**
+ * @route DELETE /api/admin/v1/modules/:moduleId
+ * @desc Delete module
+ * @access Private (Admin)
+ * @example DELETE /api/admin/v1/modules/123
+ */
+router.delete('/modules/:moduleId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.deleteModule
+);
+
+/**
+ * @route POST /api/admin/v1/courses/modules/:moduleId/lessons
+ * @desc Create lesson for module
+ * @access Private (Admin)
+ * @example POST /api/admin/v1/courses/modules/123/lessons
+ */
+router.post('/courses/modules/:moduleId/lessons', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.createLesson
+);
+
+/**
+ * @route POST /api/admin/v1/modules/:moduleId/lessons
+ * @desc Create lesson for module
+ * @access Private (Admin)
+ * @example POST /api/admin/v1/modules/123/lessons
+ */
+router.post('/modules/:moduleId/lessons', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.createLesson
+);
+
+/**
+ * @route PUT /api/admin/v1/lessons/:lessonId
+ * @desc Update lesson
+ * @access Private (Admin)
+ * @example PUT /api/admin/v1/lessons/123
+ */
+router.put('/lessons/:lessonId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.updateLesson
+);
+
+/**
+ * @route DELETE /api/admin/v1/lessons/:lessonId
+ * @desc Delete lesson
+ * @access Private (Admin)
+ * @example DELETE /api/admin/v1/lessons/123
+ */
+router.delete('/lessons/:lessonId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.deleteLesson
+);
+
+/**
+ * @route GET /api/admin/v1/courses/folder/:folderId/contents
+ * @desc Get contents of a specific folder
+ * @access Private (Admin)
+ * @param folderId: Folder ID (or 'root' for root level)
+ * @example GET /api/admin/v1/courses/folder/64a1b2c3d4e5f6789012345/contents
+ * @example GET /api/admin/v1/courses/folder/root/contents
+ */
+router.get('/courses/folder/:folderId/contents', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.getFolderContents
+);
+
+
+
+
+
+/**
+ * @route PUT /api/admin/v1/courses/modules/:moduleId
+ * @desc Update module
+ * @access Private (Admin)
+ * @param moduleId: Module ID
+ * @body name (optional): Module name
+ * @body description (optional): Module description
+ * @body order (optional): Module order
+ * @example PUT /api/admin/v1/courses/modules/64a1b2c3d4e5f6789012345
+ * @body { "name": "Updated Module Name", "order": 2 }
+ */
+router.put('/courses/modules/:moduleId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    adminRateLimit(15, 60 * 1000), // 15 requests per minute
+    courseManagementController.updateModule
+);
+
+/**
+ * @route DELETE /api/admin/v1/courses/modules/:moduleId
+ * @desc Delete module
+ * @access Private (Admin)
+ * @param moduleId: Module ID
+ * @example DELETE /api/admin/v1/courses/modules/64a1b2c3d4e5f6789012345
+ */
+router.delete('/courses/modules/:moduleId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    adminRateLimit(10, 60 * 1000), // 10 requests per minute
+    courseManagementController.deleteModule
+);
+
+/**
+ * @route POST /api/admin/v1/courses/modules/:moduleId/contents
+ * @desc Add content to module
+ * @access Private (Admin)
+ * @param moduleId: Module ID
+ * @body title: Content title
+ * @body description: Content description
+ * @body contentType: Content type (file/youtube)
+ * @body fileId: File ID (if contentType is file)
+ * @body youtubeEmbed: YouTube embed URL (if contentType is youtube)
+ * @body order: Content order
+ * @example POST /api/admin/v1/courses/modules/64a1b2c3d4e5f6789012345/contents
+ * @body {
+ *   "title": "Introduction Video",
+ *   "description": "Welcome to the course",
+ *   "contentType": "file",
+ *   "fileId": "64a1b2c3d4e5f6789012346",
+ *   "order": 1
+ * }
+ */
+router.post('/courses/modules/:moduleId/contents', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    adminRateLimit(20, 60 * 1000), // 20 requests per minute
+    courseManagementController.addContent
+);
+
+/**
+ * @route PUT /api/admin/v1/courses/contents/:contentId
+ * @desc Update content
+ * @access Private (Admin)
+ * @param contentId: Content ID
+ * @body title (optional): Content title
+ * @body description (optional): Content description
+ * @body contentType (optional): Content type
+ * @body fileId (optional): File ID
+ * @body youtubeEmbed (optional): YouTube embed URL
+ * @body order (optional): Content order
+ * @example PUT /api/admin/v1/courses/contents/64a1b2c3d4e5f6789012345
+ * @body { "title": "Updated Content Title", "order": 2 }
+ */
+router.put('/courses/contents/:contentId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    adminRateLimit(20, 60 * 1000), // 20 requests per minute
+    courseManagementController.updateContent
+);
+
+/**
+ * @route DELETE /api/admin/v1/courses/contents/:contentId
+ * @desc Delete content
+ * @access Private (Admin)
+ * @param contentId: Content ID
+ * @example DELETE /api/admin/v1/courses/contents/64a1b2c3d4e5f6789012345
+ */
+router.delete('/courses/contents/:contentId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    adminRateLimit(15, 60 * 1000), // 15 requests per minute
+    courseManagementController.deleteContent
+);
+
+/**
+ * @route POST /api/admin/v1/courses/assign-course
+ * @desc Assign course to coach
+ * @access Private (Admin)
+ * @body courseId: Course ID
+ * @body coachId: Coach ID
+ * @body permissions: Assignment permissions
+ * @example POST /api/admin/v1/courses/assign-course
+ * @body {
+ *   "courseId": "64a1b2c3d4e5f6789012345",
+ *   "coachId": "64a1b2c3d4e5f6789012346",
+ *   "permissions": {
+ *     "canModify": false,
+ *     "canSell": true,
+ *     "canView": true
+ *   }
+ * }
+ */
+router.post('/courses/assign-course', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    adminRateLimit(10, 60 * 1000), // 10 requests per minute
+    courseManagementController.assignCourseToCoach
+);
+
+/**
+ * @route GET /api/admin/v1/courses/coach-assignments/:coachId
+ * @desc Get coach course assignments
+ * @access Private (Admin)
+ * @param coachId: Coach ID
+ * @example GET /api/admin/v1/courses/coach-assignments/64a1b2c3d4e5f6789012345
+ */
+router.get('/courses/coach-assignments/:coachId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.getCoachAssignments
+);
+
+/**
+ * @route PUT /api/admin/v1/courses/assignments/:assignmentId/permissions
+ * @desc Update assignment permissions
+ * @access Private (Admin)
+ * @param assignmentId: Assignment ID
+ * @body permissions: Updated permissions
+ * @example PUT /api/admin/v1/courses/assignments/64a1b2c3d4e5f6789012345/permissions
+ * @body {
+ *   "permissions": {
+ *     "canModify": true,
+ *     "canSell": true,
+ *     "canView": true
+ *   }
+ * }
+ */
+router.put('/courses/assignments/:assignmentId/permissions', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    adminRateLimit(10, 60 * 1000), // 10 requests per minute
+    courseManagementController.updateAssignmentPermissions
+);
+
+/**
+ * @route POST /api/admin/v1/courses/folders
+ * @desc Create new folder
+ * @access Private (Admin)
+ * @body name: Folder name
+ * @body description: Folder description
+ * @body parentFolder: Parent folder ID (optional)
+ * @example POST /api/admin/v1/courses/folders
+ * @body {
+ *   "name": "Course Videos",
+ *   "description": "Videos for course content",
+ *   "parentFolder": "64a1b2c3d4e5f6789012345"
+ * }
+ */
+router.post('/courses/folders', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    adminRateLimit(20, 60 * 1000), // 20 requests per minute
+    courseManagementController.createFolder
+);
+
+/**
+ * @route GET /api/admin/v1/courses/folders
+ * @desc Get folders
+ * @access Private (Admin)
+ * @query parentFolder (optional): Parent folder ID
+ * @example GET /api/admin/v1/courses/folders?parentFolder=64a1b2c3d4e5f6789012345
+ */
+router.get('/courses/folders', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    courseManagementController.getFolders
+);
+
+/**
+ * @route PUT /api/admin/v1/courses/folders/:folderId
+ * @desc Update folder
+ * @access Private (Admin)
+ * @param folderId: Folder ID
+ * @body name (optional): Folder name
+ * @body description (optional): Folder description
+ * @example PUT /api/admin/v1/courses/folders/64a1b2c3d4e5f6789012345
+ * @body { "name": "Updated Folder Name", "description": "Updated description" }
+ */
+router.put('/courses/folders/:folderId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    adminRateLimit(20, 60 * 1000), // 20 requests per minute
+    courseManagementController.updateFolder
+);
+
+/**
+ * @route DELETE /api/admin/v1/courses/folders/:folderId
+ * @desc Delete folder
+ * @access Private (Admin)
+ * @param folderId: Folder ID
+ * @example DELETE /api/admin/v1/courses/folders/64a1b2c3d4e5f6789012345
+ */
+router.delete('/courses/folders/:folderId', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    adminRateLimit(20, 60 * 1000), // 20 requests per minute
+    courseManagementController.deleteFolder
+);
+
+/**
+ * @route PUT /api/admin/v1/courses/files/:fileId/move
+ * @desc Move file to different folder
+ * @access Private (Admin)
+ * @param fileId: File ID
+ * @body folderId: Target folder ID (null for root)
+ * @example PUT /api/admin/v1/courses/files/64a1b2c3d4e5f6789012345/move
+ * @body { "folderId": "64a1b2c3d4e5f6789012346" }
+ */
+router.put('/courses/files/:fileId/move', 
+    verifyAdminToken, 
+    checkAdminPermission('contentManagement'), 
+    adminRateLimit(15, 60 * 1000), // 15 requests per minute
+    courseManagementController.moveFile
 );
 
 module.exports = router;

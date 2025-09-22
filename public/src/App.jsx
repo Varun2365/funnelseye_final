@@ -20,12 +20,17 @@ import MlmManagement from './components/MlmManagement';
 import AuditLogs from './components/AuditLogs';
 import SecurityDashboard from './components/SecurityDashboard';
 import FinancialDashboard from './components/FinancialDashboard';
-import FinancialManagement from './components/FinancialManagement';
+import FinancialMlmManagement from './components/FinancialMlmManagement';
 import PlatformConfig from './components/PlatformConfig';
 import DebugFinancial from './components/DebugFinancial';
 import WhatsAppMessaging from './components/WhatsAppMessaging';
-import DownlineManagement from './components/DownlineManagement';
+import AdminUploadsManager from './components/AdminUploadsManager';
+import CourseOverview from './components/CourseOverview';
+import CourseEditor from './components/CourseEditor';
+import CoursePreview from './components/CoursePreview';
+import CoursePreviewStandalone from './components/CoursePreviewStandalone';
 import HierarchyRequests from './components/HierarchyRequests';
+import AdminStaffComingSoon from './components/AdminStaffComingSoon';
 import { Toaster } from 'sonner';
 import { ToastProvider } from './contexts/ToastContext';
 
@@ -84,6 +89,7 @@ function AppContent() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/admin-login" element={<AdminLoginPage />} />
+        <Route path="/course-preview-standalone/:courseId" element={<CoursePreviewStandalone />} />
         <Route
           path="/"
           element={
@@ -99,9 +105,13 @@ function AppContent() {
           <Route path="system-settings" element={<SystemSettings />} />
           <Route path="payment-settings" element={<PaymentSettings />} />
           <Route path="payment-management" element={<PaymentManagement />} />
-          <Route path="financial" element={<FinancialManagement />} />
-          <Route path="downline-management" element={<DownlineManagement />} />
+          <Route path="financial-mlm" element={<FinancialMlmManagement />} />
+            <Route path="uploads" element={<AdminUploadsManager />} />
+            <Route path="course-creation" element={<CourseOverview />} />
+            <Route path="course-creation/:courseId" element={<CourseEditor />} />
+            <Route path="course-preview/:courseId" element={<CoursePreview />} />
             <Route path="hierarchy-requests" element={<HierarchyRequests />} />
+            <Route path="admin-staff" element={<AdminStaffComingSoon />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="subscription" element={<SubscriptionManagement />} />
             <Route path="subscription-plans" element={<SubscriptionPlans />} />

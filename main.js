@@ -38,6 +38,7 @@ const cors = require('cors');
 
 // 🛣️ Route Imports
 const authRoutes = require('./routes/authRoutes.js');
+const registerRoutes = require('./routes/registerRoutes.js');
 const funnelRoutes = require('./routes/funnelRoutes');
 const customUrlRoutes = require('./routes/customUrlRoutes');
 const customDomainRoutes = require('./routes/customDomainRoutes');
@@ -191,6 +192,9 @@ app.use(async (req, res, next) => {
 // 🔗 Mount API Routes
 // ===== CORE AUTHENTICATION & USER MANAGEMENT =====
 app.use('/api/auth', authRoutes);
+
+// ===== REGISTER PAGES (UI) =====
+app.use('/register', registerRoutes);
 
 // ===== FUNNEL & LEAD MANAGEMENT =====
 app.use('/api/funnels', funnelRoutes);

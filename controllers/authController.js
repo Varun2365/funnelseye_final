@@ -220,8 +220,17 @@ const signup = async (req, res) => {
             userData.currentLevel = currentLevel;
             userData.hierarchyLocked = false; // Will be locked after first save
             
-            // Add sponsor information (only digital coach)
-            userData.sponsorId = sponsorId;
+            // Look up sponsor by selfCoachId and convert to MongoDB ObjectId
+            if (sponsorId) {
+                const sponsor = await User.findOne({ selfCoachId: sponsorId, role: 'coach' });
+                if (!sponsor) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: `Sponsor with Coach ID "${sponsorId}" not found. Please enter a valid Coach ID.` 
+                    });
+                }
+                userData.sponsorId = sponsor._id; // Use MongoDB ObjectId
+            }
             
             // Add optional team rank fields
             if (teamRankName) userData.teamRankName = teamRankName;
@@ -580,8 +589,17 @@ const upgradeToCoach = async (req, res) => {
         user.currentLevel = currentLevel;
         user.hierarchyLocked = false; // Will be locked after first save
         
-        // Add sponsor information (only digital coach)
-        user.sponsorId = sponsorId;
+        // Look up sponsor by selfCoachId and convert to MongoDB ObjectId
+        if (sponsorId) {
+            const sponsor = await User.findOne({ selfCoachId: sponsorId, role: 'coach' });
+            if (!sponsor) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Sponsor with Coach ID "${sponsorId}" not found. Please enter a valid Coach ID.` 
+                });
+            }
+            user.sponsorId = sponsor._id; // Use MongoDB ObjectId
+        }
         
         // Add optional team rank fields
         if (teamRankName) user.teamRankName = teamRankName;

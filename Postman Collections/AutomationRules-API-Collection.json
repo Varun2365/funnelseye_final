@@ -1,0 +1,469 @@
+{
+  "info": {
+    "name": "Automation Rules API",
+    "description": "Complete API collection for testing Automation Rules system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000/api/automation-rules",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "your_jwt_token_here",
+      "type": "string"
+    },
+    {
+      "key": "coach_id",
+      "value": "507f1f77bcf86cd799439012",
+      "type": "string"
+    },
+    {
+      "key": "rule_id",
+      "value": "507f1f77bcf86cd799439014",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Public Endpoints",
+      "item": [
+        {
+          "name": "Get Events and Actions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/events-actions",
+              "host": ["{{base_url}}"],
+              "path": ["events-actions"]
+            },
+            "description": "Get all available trigger events and actions for creating automation rules"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication Tests",
+      "item": [
+        {
+          "name": "Unauthorized Access - Missing Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Rule\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"actions\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Test unauthorized access without token"
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer invalid_token"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Rule\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"actions\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Test with invalid token"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Create Rule Tests",
+      "item": [
+        {
+          "name": "Create Valid Rule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Welcome New Lead\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"Welcome! Thank you for your interest.\",\n        \"templateId\": \"welcome_template\"\n      }\n    },\n    {\n      \"type\": \"add_lead_tag\",\n      \"config\": {\n        \"tag\": \"new_lead\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Create a valid automation rule"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Rule - Missing Required Fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Incomplete Rule\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Test missing required fields"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Rule - Invalid Trigger Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invalid Trigger Rule\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"invalid_event\",\n  \"actions\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Test invalid trigger event"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Rule - Invalid Action Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invalid Action Rule\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"actions\": [\n    {\n      \"type\": \"invalid_action\",\n      \"config\": {}\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Test invalid action type"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Rule - Duplicate Name",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Welcome New Lead\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"actions\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Test duplicate rule name"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Get Rules Tests",
+      "item": [
+        {
+          "name": "Get All Rules",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Get all automation rules"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Rule by ID - Success",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/{{rule_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["{{rule_id}}"]
+            },
+            "description": "Get specific rule by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Rule by ID - Not Found",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/507f1f77bcf86cd799439011",
+              "host": ["{{base_url}}"],
+              "path": ["507f1f77bcf86cd799439011"]
+            },
+            "description": "Test getting non-existent rule"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Update Rule Tests",
+      "item": [
+        {
+          "name": "Update Rule - Success",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Welcome Rule\",\n  \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/{{rule_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["{{rule_id}}"]
+            },
+            "description": "Update existing rule"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Rule - Not Found",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Rule\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/507f1f77bcf86cd799439011",
+              "host": ["{{base_url}}"],
+              "path": ["507f1f77bcf86cd799439011"]
+            },
+            "description": "Test updating non-existent rule"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Delete Rule Tests",
+      "item": [
+        {
+          "name": "Delete Rule - Success",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/{{rule_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["{{rule_id}}"]
+            },
+            "description": "Delete existing rule"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Rule - Not Found",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/507f1f77bcf86cd799439011",
+              "host": ["{{base_url}}"],
+              "path": ["507f1f77bcf86cd799439011"]
+            },
+            "description": "Test deleting non-existent rule"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Complex Rule Examples",
+      "item": [
+        {
+          "name": "Appointment Booking Rule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Appointment Booking Automation\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"appointment_booked\",\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"Your appointment has been confirmed! We'll send you a reminder 24 hours before.\",\n        \"templateId\": \"appointment_confirmation\"\n      }\n    },\n    {\n      \"type\": \"create_calendar_event\",\n      \"config\": {\n        \"title\": \"Client Appointment\",\n        \"startTime\": \"{{appointment_time}}\",\n        \"endTime\": \"{{appointment_end_time}}\",\n        \"attendees\": [\"{{client_email}}\"]\n      }\n    },\n    {\n      \"type\": \"add_note_to_lead\",\n      \"config\": {\n        \"note\": \"Appointment booked successfully\",\n        \"noteType\": \"appointment\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Complex rule for appointment booking"
+          },
+          "response": []
+        },
+        {
+          "name": "Payment Success Rule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Payment Success Automation\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"payment_successful\",\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"Thank you for your payment! Your access has been activated.\",\n        \"templateId\": \"payment_success\"\n      }\n    },\n    {\n      \"type\": \"add_lead_tag\",\n      \"config\": {\n        \"tag\": \"paid_customer\"\n      }\n    },\n    {\n      \"type\": \"move_to_funnel_stage\",\n      \"config\": {\n        \"funnelId\": \"onboarding_funnel\",\n        \"stageId\": \"welcome_stage\"\n      }\n    },\n    {\n      \"type\": \"create_invoice\",\n      \"config\": {\n        \"amount\": \"{{payment_amount}}\",\n        \"description\": \"Service payment\",\n        \"dueDate\": \"{{payment_date}}\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Complex rule for payment success"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

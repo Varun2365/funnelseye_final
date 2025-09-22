@@ -101,7 +101,7 @@ const WhatsAppMessaging = () => {
   const fetchOverview = async () => {
     try {
       console.log('🔄 [WHATSAPP] Fetching overview...');
-      const result = await apiCall('/admin/whatsapp/overview');
+      const result = await apiCall('/admin/v1/whatsapp/overview');
       setOverview(result.data);
       console.log('✅ [WHATSAPP] Overview fetched successfully');
     } catch (err) {
@@ -122,7 +122,7 @@ const WhatsAppMessaging = () => {
       if (filters.deviceStatus && filters.deviceStatus !== 'all') params.append('status', filters.deviceStatus);
       if (filters.coachId) params.append('coachId', filters.coachId);
       
-      const result = await apiCall(`/admin/whatsapp/devices?${params}`);
+      const result = await apiCall(`/admin/v1/whatsapp/devices?${params}`);
       setDevices(result.data.devices);
       setDevicesTotal(result.data.pagination.total);
       setDevicesPage(page);
@@ -147,7 +147,7 @@ const WhatsAppMessaging = () => {
       if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
       if (filters.dateTo) params.append('dateTo', filters.dateTo);
       
-      const result = await apiCall(`/admin/whatsapp/messages?${params}`);
+      const result = await apiCall(`/admin/v1/whatsapp/messages?${params}`);
       setMessages(result.data.messages);
       setMessagesTotal(result.data.pagination.total);
       setMessagesPage(page);
@@ -169,7 +169,7 @@ const WhatsAppMessaging = () => {
       
       if (filters.coachId) params.append('coachId', filters.coachId);
       
-      const result = await apiCall(`/admin/whatsapp/conversations?${params}`);
+      const result = await apiCall(`/admin/v1/whatsapp/conversations?${params}`);
       setConversations(result.data.conversations);
       setConversationsTotal(result.data.pagination.total);
       setConversationsPage(page);
@@ -184,7 +184,7 @@ const WhatsAppMessaging = () => {
   const fetchTemplates = async () => {
     try {
       console.log('🔄 [WHATSAPP] Fetching templates...');
-      const result = await apiCall('/admin/whatsapp/templates');
+      const result = await apiCall('/admin/v1/whatsapp/templates');
       setTemplates(result.data.templates);
       console.log('✅ [WHATSAPP] Templates fetched successfully');
     } catch (err) {
@@ -252,7 +252,7 @@ const WhatsAppMessaging = () => {
   const updateDeviceStatus = async (deviceId, isActive) => {
     try {
       setLoading(true);
-      await apiCall(`/admin/whatsapp/devices/${deviceId}/status`, {
+      await apiCall(`/admin/v1/whatsapp/devices/${deviceId}/status`, {
         method: 'PUT',
         data: { isActive, reason: isActive ? 'Admin activated' : 'Admin deactivated' }
       });

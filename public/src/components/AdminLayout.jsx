@@ -17,6 +17,8 @@ import {
   Shield,
   BookOpen,
   Package,
+  Upload,
+  PlusCircle,
   MessageCircle,
   TrendingUp,
   Lock,
@@ -48,21 +50,41 @@ const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'User Management', href: '/users', icon: Users },
-    { name: 'Subscription Plans', href: '/subscription-plans', icon: Package },
-    { name: 'Financial & MLM', href: '/financial', icon: DollarSign },
-    { name: 'Downline Management', href: '/downline-management', icon: Layers },
-    { name: 'Hierarchy Requests', href: '/hierarchy-requests', icon: UserCheck },
-    { name: 'Platform Configuration', href: '/platform-config', icon: Cog },
-    // { name: 'Debug Financial', href: '/debug-financial', icon: Monitor },
-    { name: 'Content Management', href: '/courses', icon: BookOpen },
-    // { name: 'Support Center', href: '/support', icon: HelpCircle },
-    { name: 'Analytics & Reports', href: '/analytics', icon: BarChart3 },
-    { name: 'Messaging', href: '/messaging', icon: MessageCircle },
-    { name: 'Admin Staff', href: '/admin-staff', icon: UserCheck },
-    // { name: 'Security & Compliance', href: '/security', icon: Shield }
+  const navigationGroups = [
+    // Group 1: Dashboard, User Management, Hierarchy
+    {
+      title: 'Core Management',
+      items: [
+        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'User Management', href: '/users', icon: Users },
+        { name: 'Hierarchy Requests', href: '/hierarchy-requests', icon: UserCheck },
+      ]
+    },
+    // Group 2: Financial & MLM, Subscription Plans, Analytics & Reports
+    {
+      title: 'Financial & Analytics',
+      items: [
+        { name: 'Financial & MLM', href: '/financial-mlm', icon: DollarSign },
+        { name: 'Subscription Plans', href: '/subscription-plans', icon: Package },
+        { name: 'Analytics & Reports', href: '/analytics', icon: BarChart3 },
+      ]
+    },
+    // Group 3: Content Creation, Uploads
+    {
+      title: 'Content Management',
+      items: [
+        { name: 'Course Creation', href: '/course-creation', icon: PlusCircle },
+        { name: 'Uploads', href: '/uploads', icon: Upload },
+      ]
+    },
+    // Group 4: Messaging, Admin Staff
+    {
+      title: 'Communication & Staff',
+      items: [
+        { name: 'Messaging', href: '/messaging', icon: MessageCircle },
+        { name: 'Admin Staff', href: '/admin-staff', icon: UserCheck },
+      ]
+    }
   ];
 
   const handleLogout = async () => {
@@ -105,27 +127,48 @@ const AdminLayout = () => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            {navigation.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Button
-                  key={item.name}
-                  variant={isActive ? "secondary" : "ghost"}
-                  className={cn(
-                    "w-full justify-start nav-item",
-                    isActive && "bg-secondary text-secondary-foreground"
-                  )}
-                  onClick={() => {
-                    navigate(item.href);
-                    setSidebarOpen(false);
-                  }}
-                >
-                  <item.icon className="mr-3 h-4 w-4" />
-                  {item.name}
-                </Button>
-              );
-            })}
+          <nav className="flex-1 px-4 py-6 space-y-6 overflow-y-auto">
+            {navigationGroups.map((group, groupIndex) => (
+              <div key={group.title}>
+                {/* Group Title */}
+                <div className="px-3 mb-3">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    {group.title}
+                  </h3>
+                </div>
+                
+                {/* Group Items */}
+                <div className="space-y-1">
+                  {group.items.map((item) => {
+                    const isActive = location.pathname === item.href;
+                    return (
+                      <Button
+                        key={item.name}
+                        variant={isActive ? "secondary" : "ghost"}
+                        className={cn(
+                          "w-full justify-start nav-item",
+                          isActive && "bg-secondary text-secondary-foreground"
+                        )}
+                        onClick={() => {
+                          navigate(item.href);
+                          setSidebarOpen(false);
+                        }}
+                      >
+                        <item.icon className="mr-3 h-4 w-4" />
+                        {item.name}
+                      </Button>
+                    );
+                  })}
+                </div>
+                
+                {/* Divider (except for last group) */}
+                {groupIndex < navigationGroups.length - 1 && (
+                  <div className="mt-6 mb-2">
+                    <div className="h-px bg-border"></div>
+                  </div>
+                )}
+              </div>
+            ))}
           </nav>
 
           {/* User info and logout */}
