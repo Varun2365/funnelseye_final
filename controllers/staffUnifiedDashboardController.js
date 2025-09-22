@@ -299,6 +299,22 @@ class StaffUnifiedDashboardController {
             });
         }
 
+        // Check subscription limits for lead creation
+        const SubscriptionLimitsMiddleware = require('../middleware/subscriptionLimits');
+        const limitCheck = await SubscriptionLimitsMiddleware.checkLeadLimit(coachId);
+        
+        if (!limitCheck.allowed) {
+            return res.status(403).json({
+                success: false,
+                message: limitCheck.reason,
+                error: 'LEAD_LIMIT_REACHED',
+                currentCount: limitCheck.currentCount,
+                maxLimit: limitCheck.maxLimit,
+                upgradeRequired: limitCheck.upgradeRequired,
+                subscriptionRequired: true
+            });
+        }
+
         req.body.coachId = coachId;
         const lead = await Lead.create(req.body);
 
@@ -1298,6 +1314,22 @@ class StaffUnifiedDashboardController {
             return res.status(403).json({
                 success: false,
                 message: 'Insufficient permissions to create funnels'
+            });
+        }
+
+        // Check subscription limits for funnel creation
+        const SubscriptionLimitsMiddleware = require('../middleware/subscriptionLimits');
+        const limitCheck = await SubscriptionLimitsMiddleware.checkFunnelLimit(coachId);
+        
+        if (!limitCheck.allowed) {
+            return res.status(403).json({
+                success: false,
+                message: limitCheck.reason,
+                error: 'FUNNEL_LIMIT_REACHED',
+                currentCount: limitCheck.currentCount,
+                maxLimit: limitCheck.maxLimit,
+                upgradeRequired: limitCheck.upgradeRequired,
+                subscriptionRequired: true
             });
         }
 

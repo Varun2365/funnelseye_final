@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Textarea } from './ui/textarea';
 import { Alert, AlertDescription } from './ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { 
   MessageSquare, 
   Smartphone, 
@@ -23,7 +24,18 @@ import {
   Search,
   Download,
   Eye,
-  MoreHorizontal
+  MoreHorizontal,
+  Settings,
+  Plus,
+  TestTube,
+  FileText,
+  Phone,
+  Mail,
+  Image,
+  Video,
+  File,
+  Key,
+  Shield
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -33,34 +45,57 @@ const WhatsAppMessaging = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Overview data
-  const [overview, setOverview] = useState(null);
+  // Central WhatsApp Configuration
+  const [config, setConfig] = useState(null);
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
   
-  // Devices data
-  const [devices, setDevices] = useState([]);
-  const [devicesPage, setDevicesPage] = useState(1);
-  const [devicesTotal, setDevicesTotal] = useState(0);
+  // Debug config dialog state changes
+  useEffect(() => {
+    console.log('🔄 [WHATSAPP] configDialogOpen changed to:', configDialogOpen);
+  }, [configDialogOpen]);
+  
+  // Debug config state changes
+  useEffect(() => {
+    console.log('🔄 [WHATSAPP] config changed to:', config);
+  }, [config]);
+  const [configForm, setConfigForm] = useState({
+    phoneNumberId: '',
+    accessToken: '',
+    businessAccountId: ''
+  });
+
+  // Analytics data
+  const [analytics, setAnalytics] = useState(null);
   
   // Messages data
   const [messages, setMessages] = useState([]);
   const [messagesPage, setMessagesPage] = useState(1);
   const [messagesTotal, setMessagesTotal] = useState(0);
   
-  // Conversations data
-  const [conversations, setConversations] = useState([]);
-  const [conversationsPage, setConversationsPage] = useState(1);
-  const [conversationsTotal, setConversationsTotal] = useState(0);
-  
   // Templates data
   const [templates, setTemplates] = useState([]);
   
+  // Send message dialog
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [sendForm, setSendForm] = useState({
+    to: '',
+    message: '',
+    templateName: '',
+    parameters: '',
+    mediaUrl: '',
+    mediaType: 'image',
+    leadId: '',
+    clientId: ''
+  });
+  
   // Filters
   const [filters, setFilters] = useState({
-    deviceStatus: 'all',
-    messageStatus: 'all',
-    coachId: '',
-    dateFrom: '',
-    dateTo: ''
+    status: 'all',
+    messageType: 'all',
+    senderType: 'all',
+    startDate: '',
+    endDate: '',
+    search: ''
   });
 
   // Custom hook for API calls with timeout
@@ -68,15 +103,46 @@ const WhatsAppMessaging = () => {
     const [apiLoading, setApiLoading] = useState(false);
     const [apiError, setApiError] = useState(null);
 
-    const apiCall = async (endpoint, options = {}) => {
+    const apiCall = useCallback(async (endpoint, options = {}) => {
       setApiLoading(true);
       setApiError(null);
       try {
+        // Get base URL from environment or use default
+        const getBaseUrl = () => {
+          // Check for manual override first
+          if (window.MANUAL_API_URL) {
+            return window.MANUAL_API_URL;
+          }
+          
+          // Check for global config
+          if (window.API_CONFIG && window.API_CONFIG.API_ENDPOINT) {
+            return window.API_CONFIG.API_ENDPOINT;
+          }
+          
+          // Default to localhost for development
+          const hostname = window.location.hostname;
+          if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            return 'http://localhost:8080/api';
+          }
+          
+          // Fallback to current origin
+          return `${window.location.origin}/api`;
+        };
+        
+        const baseUrl = getBaseUrl();
+        const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+        const fullUrl = `${baseUrl}${cleanEndpoint}`;
+        
+        console.log('🌐 [API] Making request to:', fullUrl);
+        
+        // Set longer timeout for setup operations
+        const timeout = fullUrl.includes('/setup') ? 30000 : 10000; // 30s for setup, 10s for others
+        
         const response = await axios({
-          url: endpoint,
+          url: fullUrl,
           method: options.method || 'GET',
           data: options.data,
-          timeout: 10000, // 10 second timeout
+          timeout: timeout,
           ...options
         });
         if (!response.data.success) {
@@ -84,114 +150,270 @@ const WhatsAppMessaging = () => {
         }
         return response.data;
       } catch (err) {
-        const errorMessage = err.response?.data?.message || err.message || 'Unknown error occurred';
+        let errorMessage;
+        if (err.code === 'ECONNABORTED' || err.message.includes('timeout')) {
+          errorMessage = 'Request timed out. The operation is taking longer than expected. Please try again.';
+        } else {
+          errorMessage = err.response?.data?.message || err.message || 'Unknown error occurred';
+        }
         setApiError(errorMessage);
         throw new Error(errorMessage);
       } finally {
         setApiLoading(false);
       }
-    };
+    }, []);
 
     return { apiCall, loading: apiLoading, error: apiError };
   };
 
   const { apiCall } = useWhatsAppAPI();
 
-  // Fetch overview data
-  const fetchOverview = async () => {
+  // Fetch Central WhatsApp configuration
+  const fetchConfig = async () => {
     try {
-      console.log('🔄 [WHATSAPP] Fetching overview...');
-      const result = await apiCall('/admin/v1/whatsapp/overview');
-      setOverview(result.data);
-      console.log('✅ [WHATSAPP] Overview fetched successfully');
+      console.log('🔄 [WHATSAPP] Fetching configuration...');
+      const result = await apiCall('/whatsapp/v1/config');
+      setConfig(result.data);
+      console.log('✅ [WHATSAPP] Configuration fetched successfully');
     } catch (err) {
-      console.error('❌ [WHATSAPP] Error fetching overview:', err.message);
-      setError(`Failed to load overview: ${err.message}`);
+      console.error('❌ [WHATSAPP] Error fetching configuration:', err.message);
+      if (err.message.includes('not configured')) {
+        setConfig(null);
+      } else {
+        setError(`Failed to load configuration: ${err.message}`);
+      }
     }
   };
 
-  // Fetch devices
-  const fetchDevices = async (page = 1) => {
+  // Test configuration
+  const testConfiguration = useCallback(async () => {
     try {
-      console.log('🔄 [WHATSAPP] Fetching devices...');
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '20'
+      setLoading(true);
+      console.log('🔄 [WHATSAPP] Testing configuration...');
+      
+      const result = await apiCall('/whatsapp/v1/test-config');
+      setSuccess('Configuration test successful! WhatsApp API is working properly.');
+      console.log('✅ [WHATSAPP] Configuration test successful');
+    } catch (err) {
+      console.error('❌ [WHATSAPP] Error testing configuration:', err.message);
+      
+      // Handle specific error types
+      if (err.response?.status === 401) {
+        const errorData = err.response.data;
+        if (errorData?.errorCode === 'TOKEN_EXPIRED') {
+          setError('WhatsApp access token has expired. Please reconfigure your WhatsApp settings using the "Reconfigure" button.');
+        } else if (errorData?.errorCode === 'OAUTH_ERROR') {
+          setError('WhatsApp authentication failed. Please check your credentials and reconfigure.');
+        } else {
+          setError(`Configuration test failed: ${err.message}`);
+        }
+      } else {
+        setError(`Configuration test failed: ${err.message}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [apiCall]);
+
+  // Setup Central WhatsApp
+  const setupCentralWhatsApp = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      console.log('🔄 [WHATSAPP] Setting up Central WhatsApp...');
+      
+      // Prepare data for update - only include fields that have values
+      const updateData = {};
+      if (configForm.phoneNumberId) {
+        updateData.phoneNumberId = configForm.phoneNumberId;
+      }
+      if (configForm.accessToken) {
+        updateData.accessToken = configForm.accessToken;
+      }
+      
+      // If reconfiguring and no fields provided, show error
+      if (config && Object.keys(updateData).length === 0) {
+        setError('Please provide at least one field to update');
+        return;
+      }
+      
+      const result = await apiCall('/whatsapp/v1/setup', {
+        method: 'POST',
+        data: config ? { ...configForm, isUpdate: true } : configForm
       });
       
-      if (filters.deviceStatus && filters.deviceStatus !== 'all') params.append('status', filters.deviceStatus);
-      if (filters.coachId) params.append('coachId', filters.coachId);
-      
-      const result = await apiCall(`/admin/v1/whatsapp/devices?${params}`);
-      setDevices(result.data.devices);
-      setDevicesTotal(result.data.pagination.total);
-      setDevicesPage(page);
-      console.log('✅ [WHATSAPP] Devices fetched successfully');
+      const isUpdate = result.data.isUpdate;
+      setSuccess(isUpdate ? 'Central WhatsApp configuration updated successfully!' : 'Central WhatsApp configured successfully!');
+      setConfigDialogOpen(false);
+      setConfigForm({ phoneNumberId: '', accessToken: '' });
+      await fetchConfig();
+      console.log('✅ [WHATSAPP] Central WhatsApp setup successful');
     } catch (err) {
-      console.error('❌ [WHATSAPP] Error fetching devices:', err.message);
-      setError(`Failed to load devices: ${err.message}`);
+      console.error('❌ [WHATSAPP] Error setting up Central WhatsApp:', err.message);
+      setError(`Failed to ${config ? 'update' : 'configure'} Central WhatsApp: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [config, configForm, apiCall]);
+
+  // Fetch analytics data
+  const fetchAnalytics = async () => {
+    try {
+      console.log('🔄 [WHATSAPP] Fetching analytics...');
+      const result = await apiCall('/whatsapp/v1/analytics');
+      setAnalytics(result.data);
+      console.log('✅ [WHATSAPP] Analytics fetched successfully');
+    } catch (err) {
+      console.error('❌ [WHATSAPP] Error fetching analytics:', err.message);
+      
+      // Handle specific error types
+      if (err.response?.status === 401) {
+        const errorData = err.response.data;
+        if (errorData?.errorCode === 'TOKEN_EXPIRED') {
+          setError('WhatsApp access token has expired. Please reconfigure your WhatsApp settings.');
+        } else if (errorData?.errorCode === 'OAUTH_ERROR') {
+          setError('WhatsApp authentication failed. Please check your credentials.');
+        } else {
+          setError(`Failed to load analytics: ${err.message}`);
+        }
+      } else {
+        setError(`Failed to load analytics: ${err.message}`);
+      }
     }
   };
 
   // Fetch messages
-  const fetchMessages = async (page = 1) => {
+  const fetchMessages = useCallback(async (page = 1) => {
     try {
       console.log('🔄 [WHATSAPP] Fetching messages...');
       const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '50'
+        limit: '50',
+        offset: ((page - 1) * 50).toString()
       });
       
-      if (filters.messageStatus && filters.messageStatus !== 'all') params.append('status', filters.messageStatus);
-      if (filters.coachId) params.append('coachId', filters.coachId);
-      if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
-      if (filters.dateTo) params.append('dateTo', filters.dateTo);
+      if (filters.status && filters.status !== 'all') params.append('status', filters.status);
+      if (filters.messageType && filters.messageType !== 'all') params.append('messageType', filters.messageType);
+      if (filters.senderType && filters.senderType !== 'all') params.append('senderType', filters.senderType);
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+      if (filters.search) params.append('search', filters.search);
       
-      const result = await apiCall(`/admin/v1/whatsapp/messages?${params}`);
+      const result = await apiCall(`/whatsapp/v1/messages?${params}`);
       setMessages(result.data.messages);
-      setMessagesTotal(result.data.pagination.total);
+      setMessagesTotal(result.data.total);
       setMessagesPage(page);
       console.log('✅ [WHATSAPP] Messages fetched successfully');
     } catch (err) {
       console.error('❌ [WHATSAPP] Error fetching messages:', err.message);
       setError(`Failed to load messages: ${err.message}`);
     }
-  };
-
-  // Fetch conversations
-  const fetchConversations = async (page = 1) => {
-    try {
-      console.log('🔄 [WHATSAPP] Fetching conversations...');
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '20'
-      });
-      
-      if (filters.coachId) params.append('coachId', filters.coachId);
-      
-      const result = await apiCall(`/admin/v1/whatsapp/conversations?${params}`);
-      setConversations(result.data.conversations);
-      setConversationsTotal(result.data.pagination.total);
-      setConversationsPage(page);
-      console.log('✅ [WHATSAPP] Conversations fetched successfully');
-    } catch (err) {
-      console.error('❌ [WHATSAPP] Error fetching conversations:', err.message);
-      setError(`Failed to load conversations: ${err.message}`);
-    }
-  };
+  }, [filters, apiCall]);
 
   // Fetch templates
   const fetchTemplates = async () => {
     try {
       console.log('🔄 [WHATSAPP] Fetching templates...');
-      const result = await apiCall('/admin/v1/whatsapp/templates');
-      setTemplates(result.data.templates);
+      const result = await apiCall('/whatsapp/v1/templates');
+      setTemplates(result.data);
       console.log('✅ [WHATSAPP] Templates fetched successfully');
     } catch (err) {
       console.error('❌ [WHATSAPP] Error fetching templates:', err.message);
-      setError(`Failed to load templates: ${err.message}`);
+      
+      // Handle specific error types
+      if (err.response?.status === 401) {
+        const errorData = err.response.data;
+        if (errorData?.errorCode === 'TOKEN_EXPIRED') {
+          setError('WhatsApp access token has expired. Please reconfigure your WhatsApp settings.');
+        } else if (errorData?.errorCode === 'OAUTH_ERROR') {
+          setError('WhatsApp authentication failed. Please check your credentials.');
+        } else {
+          setError(`Failed to load templates: ${err.message}`);
+        }
+      } else {
+        setError(`Failed to load templates: ${err.message}`);
+      }
     }
   };
+
+  // Send message
+  const sendMessage = useCallback(async () => {
+    try {
+      setLoading(true);
+      console.log('🔄 [WHATSAPP] Sending message...');
+      
+      const messageData = {
+        to: sendForm.to,
+        leadId: sendForm.leadId || null,
+        clientId: sendForm.clientId || null
+      };
+
+      if (sendForm.templateName) {
+        messageData.templateName = sendForm.templateName;
+        if (sendForm.parameters) {
+          messageData.parameters = sendForm.parameters.split(',').map(p => p.trim());
+        }
+      } else if (sendForm.mediaUrl) {
+        messageData.mediaUrl = sendForm.mediaUrl;
+        messageData.mediaType = sendForm.mediaType;
+        if (sendForm.message) {
+          messageData.message = sendForm.message;
+        }
+      } else {
+        messageData.message = sendForm.message;
+      }
+
+      const result = await apiCall('/whatsapp/v1/send-message', {
+        method: 'POST',
+        data: messageData
+      });
+      
+      setSuccess('Message sent successfully!');
+      setSendDialogOpen(false);
+      setSendForm({
+        to: '',
+        message: '',
+        templateName: '',
+        parameters: '',
+        mediaUrl: '',
+        mediaType: 'image',
+        leadId: '',
+        clientId: ''
+      });
+      await fetchMessages(messagesPage);
+      console.log('✅ [WHATSAPP] Message sent successfully');
+    } catch (err) {
+      console.error('❌ [WHATSAPP] Error sending message:', err.message);
+      setError(`Failed to send message: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [sendForm, apiCall, messagesPage, fetchMessages]);
+
+  // Test message
+  const testMessage = useCallback(async () => {
+    try {
+      setLoading(true);
+      console.log('🔄 [WHATSAPP] Sending test message...');
+      
+      const testData = {
+        to: sendForm.to,
+        message: sendForm.message || 'Test message from Central WhatsApp'
+      };
+
+      const result = await apiCall('/whatsapp/v1/test-message', {
+        method: 'POST',
+        data: testData
+      });
+      
+      setSuccess('Test message sent successfully!');
+      console.log('✅ [WHATSAPP] Test message sent successfully');
+    } catch (err) {
+      console.error('❌ [WHATSAPP] Error sending test message:', err.message);
+      setError(`Failed to send test message: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [sendForm, apiCall]);
 
   // Load data based on active tab
   useEffect(() => {
@@ -200,18 +422,15 @@ const WhatsAppMessaging = () => {
       setError('');
       
       try {
+        // Always fetch config first
+        await fetchConfig();
+        
         switch (activeTab) {
           case 'overview':
-            await fetchOverview();
-            break;
-          case 'devices':
-            await fetchDevices();
+            await fetchAnalytics();
             break;
           case 'messages':
             await fetchMessages();
-            break;
-          case 'conversations':
-            await fetchConversations();
             break;
           case 'templates':
             await fetchTemplates();
@@ -231,37 +450,14 @@ const WhatsAppMessaging = () => {
   const refreshData = () => {
     switch (activeTab) {
       case 'overview':
-        fetchOverview();
-        break;
-      case 'devices':
-        fetchDevices(devicesPage);
+        fetchAnalytics();
         break;
       case 'messages':
         fetchMessages(messagesPage);
         break;
-      case 'conversations':
-        fetchConversations(conversationsPage);
-        break;
       case 'templates':
         fetchTemplates();
         break;
-    }
-  };
-
-  // Handle device status update
-  const updateDeviceStatus = async (deviceId, isActive) => {
-    try {
-      setLoading(true);
-      await apiCall(`/admin/v1/whatsapp/devices/${deviceId}/status`, {
-        method: 'PUT',
-        data: { isActive, reason: isActive ? 'Admin activated' : 'Admin deactivated' }
-      });
-      setSuccess(`Device ${isActive ? 'activated' : 'deactivated'} successfully`);
-      fetchDevices(devicesPage);
-    } catch (err) {
-      setError(`Failed to update device status: ${err.message}`);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -282,261 +478,227 @@ const WhatsAppMessaging = () => {
     }
   };
 
+  // Get message type icon
+  const getMessageTypeIcon = (type) => {
+    switch (type) {
+      case 'text':
+        return <MessageSquare className="h-4 w-4" />;
+      case 'template':
+        return <FileText className="h-4 w-4" />;
+      case 'media':
+        return <Image className="h-4 w-4" />;
+      default:
+        return <MessageSquare className="h-4 w-4" />;
+    }
+  };
+
+  // Pre-populate form when reconfiguring
+  const handleConfigDialogOpen = (open) => {
+    console.log('🔄 [WHATSAPP] handleConfigDialogOpen called with:', open, 'config:', config);
+    if (open) {
+      // Only reset form when opening the dialog
+      if (config) {
+        // Pre-populate with existing config
+        setConfigForm({
+          phoneNumberId: config.phoneNumberId || '',
+          accessToken: '', // Don't show existing token for security
+          businessAccountId: config.businessAccountId || ''
+        });
+      } else {
+        // Reset form for new setup
+        setConfigForm({
+          phoneNumberId: '',
+          accessToken: '',
+          businessAccountId: ''
+        });
+      }
+    }
+    setConfigDialogOpen(open);
+  };
+
+  // Handle message type change
+  const handleMessageTypeChange = (value) => {
+    if (value === 'text') {
+      setSendForm({...sendForm, templateName: '', mediaUrl: '', message: ''});
+    } else if (value === 'template') {
+      setSendForm({...sendForm, mediaUrl: '', message: ''});
+    } else {
+      setSendForm({...sendForm, templateName: '', message: ''});
+    }
+  };
+
   // Overview Tab Content
   const OverviewContent = () => (
     <div className="space-y-6">
-      {overview ? (
-        <>
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Devices</CardTitle>
-                <Smartphone className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{overview.devices.total}</div>
-                <p className="text-xs text-muted-foreground">
-                  {overview.devices.active} active, {overview.devices.inactive} inactive
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Messages</CardTitle>
-                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{overview.messages.total}</div>
-                <p className="text-xs text-muted-foreground">
-                  {overview.messages.today} sent today
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Conversations</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{overview.conversations.total}</div>
-                <p className="text-xs text-muted-foreground">
-                  Active conversations
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Coaches</CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{overview.coaches.total}</div>
-                <p className="text-xs text-muted-foreground">
-                  Using WhatsApp
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Recent Messages */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Messages</CardTitle>
-              <CardDescription>Latest WhatsApp messages sent by coaches</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Content</TableHead>
-                    <TableHead>Recipient</TableHead>
-                    <TableHead>Coach</TableHead>
-                    <TableHead>Device</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Time</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {overview.messages.recent.map((message) => (
-                    <TableRow key={message.id}>
-                      <TableCell className="max-w-xs truncate">
-                        {message.content}
-                      </TableCell>
-                      <TableCell>{message.recipient}</TableCell>
-                      <TableCell>{message.coach}</TableCell>
-                      <TableCell>{message.device}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusBadgeColor(message.status)}>
-                          {message.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(message.createdAt).toLocaleString()}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </>
-      ) : (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading overview...</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  // Devices Tab Content
-  const DevicesContent = () => (
-    <div className="space-y-6">
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="deviceStatus">Device Status</Label>
-              <Select 
-                value={filters.deviceStatus} 
-                onValueChange={(value) => setFilters({...filters, deviceStatus: value})}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="coachId">Coach</Label>
-              <Input
-                id="coachId"
-                placeholder="Coach ID"
-                value={filters.coachId}
-                onChange={(e) => setFilters({...filters, coachId: e.target.value})}
-              />
-            </div>
-            <div className="flex items-end">
-              <Button onClick={() => fetchDevices()} className="w-full">
-                <Filter className="h-4 w-4 mr-2" />
-                Apply Filters
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Devices Table */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>WhatsApp Devices</CardTitle>
-            <CardDescription>Manage all WhatsApp devices across coaches</CardDescription>
-          </div>
-          <Button onClick={refreshData} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Device Name</TableHead>
-                <TableHead>Phone Number</TableHead>
-                <TableHead>Coach</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Messages</TableHead>
-                <TableHead>Last Seen</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {devices.map((device) => (
-                <TableRow key={device.id}>
-                  <TableCell>{device.deviceName}</TableCell>
-                  <TableCell>{device.phoneNumber}</TableCell>
-                  <TableCell>
-                    {device.coach ? (
-                      <div>
-                        <div className="font-medium">{device.coach.name}</div>
-                        <div className="text-sm text-muted-foreground">{device.coach.email}</div>
-                      </div>
+      {/* Configuration Status */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center justify-between text-lg">
+            <span className="flex items-center space-x-2">
+              <Shield className="h-5 w-5 text-blue-600" />
+              <span>Central WhatsApp Configuration</span>
+            </span>
+            <div className="flex items-center space-x-2">
+              {!config ? (
+                <Button onClick={() => handleConfigDialogOpen(true)} size="sm">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Setup
+                </Button>
+              ) : (
+                <>
+                  <Badge className={`${error && error.includes('expired') ? 'bg-red-100 text-red-800 border-red-200' : 'bg-green-100 text-green-800 border-green-200'}`}>
+                    {error && error.includes('expired') ? (
+                      <>
+                        <XCircle className="h-3 w-3 mr-1" />
+                        Token Expired
+                      </>
                     ) : (
-                      'Unknown'
+                      <>
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Configured
+                      </>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusBadgeColor(device.isActive ? 'active' : 'inactive')}>
-                      {device.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{device.messageCount}</TableCell>
-                  <TableCell>
-                    {device.lastSeen ? new Date(device.lastSeen).toLocaleString() : 'Never'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        variant={device.isActive ? "destructive" : "default"}
-                        onClick={() => updateDeviceStatus(device.id, !device.isActive)}
-                        disabled={loading}
-                      >
-                        {device.isActive ? 'Deactivate' : 'Activate'}
-                      </Button>
-                      <Button size="sm" variant="outline">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          {/* Pagination */}
-          {devicesTotal > 20 && (
-            <div className="flex items-center justify-between mt-4">
-              <p className="text-sm text-muted-foreground">
-                Showing {((devicesPage - 1) * 20) + 1} to {Math.min(devicesPage * 20, devicesTotal)} of {devicesTotal} devices
-              </p>
-              <div className="flex space-x-2">
+                  </Badge>
                 <Button
+                    onClick={testConfiguration} 
                   variant="outline"
                   size="sm"
-                  onClick={() => fetchDevices(devicesPage - 1)}
-                  disabled={devicesPage === 1}
+                    disabled={loading}
                 >
-                  Previous
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Test
                 </Button>
                 <Button
+                    onClick={() => handleConfigDialogOpen(true)} 
                   variant="outline"
                   size="sm"
-                  onClick={() => fetchDevices(devicesPage + 1)}
-                  disabled={devicesPage * 20 >= devicesTotal}
                 >
-                  Next
+                    <Settings className="h-4 w-4 mr-2" />
+                    Reconfigure
                 </Button>
+                </>
+              )}
               </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {config ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Phone Number ID:</span>
+                <span className="text-sm text-muted-foreground">{config.phoneNumberId}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Business Account ID:</span>
+                <span className="text-sm text-muted-foreground">{config.businessAccountId}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Status:</span>
+                <Badge className="bg-green-100 text-green-800">Active</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Templates:</span>
+                <span className="text-sm text-muted-foreground">{config.templatesCount || 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Contacts:</span>
+                <span className="text-sm text-muted-foreground">{config.contactsCount || 0}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Shield className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">WhatsApp Not Configured</h3>
+              <p className="text-muted-foreground mb-4">
+                Set up your WhatsApp Business API credentials to enable centralized messaging.
+              </p>
+              <Button onClick={() => handleConfigDialogOpen(true)}>
+                <Settings className="h-4 w-4 mr-2" />
+                Setup Now
+              </Button>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Analytics */}
+      {analytics && (
+        <>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Messages</CardTitle>
+                <MessageSquare className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-gray-900">{analytics.overview.totalMessages}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {analytics.overview.sentMessages} sent, {analytics.overview.deliveredMessages} delivered
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Delivery Rate</CardTitle>
+                <BarChart3 className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-gray-900">{analytics.overview.deliveryRate}%</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {analytics.overview.readRate}% read rate
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Failed Messages</CardTitle>
+                <XCircle className="h-4 w-4 text-red-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-gray-900">{analytics.overview.failedMessages}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {analytics.overview.totalMessages > 0 ? 
+                    ((analytics.overview.failedMessages / analytics.overview.totalMessages) * 100).toFixed(1) : 0}% failure rate
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Credits Used</CardTitle>
+                <Users className="h-4 w-4 text-purple-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-gray-900">{analytics.totalCreditsUsed}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Total credits consumed
+                </p>
+        </CardContent>
+      </Card>
+          </div>
+
+          {/* Message Type Breakdown */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Message Types</CardTitle>
+              <CardDescription>Breakdown of message types sent</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {analytics.messageTypeBreakdown.map((type) => (
+                  <div key={type._id} className="flex items-center justify-between">
+                    <span className="text-sm font-medium capitalize">{type._id}</span>
+                    <Badge variant="outline">{type.count}</Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 
@@ -544,59 +706,102 @@ const WhatsAppMessaging = () => {
   const MessagesContent = () => (
     <div className="space-y-6">
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Message Filters</CardTitle>
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg flex items-center space-x-2">
+            <MessageSquare className="h-5 w-5 text-blue-600" />
+            <span>Message Filters</span>
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <Label htmlFor="messageStatus">Status</Label>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="status" className="text-sm font-medium">Status</Label>
               <Select 
-                value={filters.messageStatus} 
-                onValueChange={(value) => setFilters({...filters, messageStatus: value})}
+                value={filters.status} 
+                onValueChange={(value) => setFilters({...filters, status: value})}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All statuses</SelectItem>
                   <SelectItem value="sent">Sent</SelectItem>
                   <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="read">Read</SelectItem>
                   <SelectItem value="failed">Failed</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label htmlFor="coachId">Coach ID</Label>
+            <div className="space-y-2">
+              <Label htmlFor="messageType" className="text-sm font-medium">Message Type</Label>
+              <Select 
+                value={filters.messageType} 
+                onValueChange={(value) => setFilters({...filters, messageType: value})}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All types</SelectItem>
+                  <SelectItem value="text">Text</SelectItem>
+                  <SelectItem value="template">Template</SelectItem>
+                  <SelectItem value="media">Media</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="senderType" className="text-sm font-medium">Sender Type</Label>
+              <Select 
+                value={filters.senderType} 
+                onValueChange={(value) => setFilters({...filters, senderType: value})}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All senders" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All senders</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="coach">Coach</SelectItem>
+                  <SelectItem value="system">System</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="startDate" className="text-sm font-medium">Start Date</Label>
               <Input
-                id="coachId"
-                placeholder="Coach ID"
-                value={filters.coachId}
-                onChange={(e) => setFilters({...filters, coachId: e.target.value})}
+                id="startDate"
+                type="date"
+                value={filters.startDate}
+                onChange={(e) => setFilters({...filters, startDate: e.target.value})}
+                className="w-full"
               />
             </div>
-            <div>
-              <Label htmlFor="dateFrom">From Date</Label>
+            <div className="space-y-2">
+              <Label htmlFor="endDate" className="text-sm font-medium">End Date</Label>
               <Input
-                id="dateFrom"
+                id="endDate"
                 type="date"
-                value={filters.dateFrom}
-                onChange={(e) => setFilters({...filters, dateFrom: e.target.value})}
+                value={filters.endDate}
+                onChange={(e) => setFilters({...filters, endDate: e.target.value})}
+                className="w-full"
               />
             </div>
-            <div>
-              <Label htmlFor="dateTo">To Date</Label>
+            <div className="space-y-2">
+              <Label htmlFor="search" className="text-sm font-medium">Search</Label>
               <Input
-                id="dateTo"
-                type="date"
-                value={filters.dateTo}
-                onChange={(e) => setFilters({...filters, dateTo: e.target.value})}
+                id="search"
+                placeholder="Search messages..."
+                value={filters.search}
+                onChange={(e) => setFilters({...filters, search: e.target.value})}
+                className="w-full"
               />
             </div>
           </div>
-          <div className="mt-4">
-            <Button onClick={() => fetchMessages()} className="w-full">
+          <div className="flex justify-end pt-2">
+            <Button onClick={() => fetchMessages()} size="sm">
               <Filter className="h-4 w-4 mr-2" />
               Apply Filters
             </Button>
@@ -605,20 +810,23 @@ const WhatsAppMessaging = () => {
       </Card>
 
       {/* Messages Table */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between pb-4">
           <div>
-            <CardTitle>Message History</CardTitle>
-            <CardDescription>All WhatsApp messages sent by coaches</CardDescription>
+            <CardTitle className="text-lg flex items-center space-x-2">
+              <MessageSquare className="h-5 w-5 text-blue-600" />
+              <span>Message History</span>
+            </CardTitle>
+            <CardDescription className="mt-1">All WhatsApp messages sent through Central WhatsApp</CardDescription>
           </div>
           <div className="flex space-x-2">
-            <Button onClick={refreshData} variant="outline">
+            <Button onClick={refreshData} variant="outline" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Export
+            <Button onClick={() => setSendDialogOpen(true)} size="sm">
+              <Send className="h-4 w-4 mr-2" />
+              Send Message
             </Button>
           </div>
         </CardHeader>
@@ -626,10 +834,10 @@ const WhatsAppMessaging = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Type</TableHead>
                 <TableHead>Content</TableHead>
                 <TableHead>Recipient</TableHead>
-                <TableHead>Coach</TableHead>
-                <TableHead>Device</TableHead>
+                <TableHead>Sender</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Sent</TableHead>
                 <TableHead>Delivered</TableHead>
@@ -638,30 +846,36 @@ const WhatsAppMessaging = () => {
             </TableHeader>
             <TableBody>
               {messages.map((message) => (
-                <TableRow key={message.id}>
+                <TableRow key={message._id}>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      {getMessageTypeIcon(message.messageType)}
+                      <span className="text-sm capitalize">{message.messageType}</span>
+                    </div>
+                  </TableCell>
                   <TableCell className="max-w-xs">
-                    <div className="truncate">{message.content}</div>
-                  </TableCell>
-                  <TableCell>{message.recipient}</TableCell>
-                  <TableCell>
-                    {message.coach ? (
-                      <div>
-                        <div className="font-medium">{message.coach.name}</div>
-                        <div className="text-sm text-muted-foreground">{message.coach.email}</div>
-                      </div>
-                    ) : (
-                      'Unknown'
-                    )}
+                    <div className="truncate">
+                      {message.content?.text || 
+                       message.content?.templateName || 
+                       message.content?.mediaUrl || 
+                       'N/A'}
+                    </div>
                   </TableCell>
                   <TableCell>
-                    {message.device ? (
                       <div>
-                        <div className="font-medium">{message.device.name}</div>
-                        <div className="text-sm text-muted-foreground">{message.device.phoneNumber}</div>
-                      </div>
-                    ) : (
-                      'Unknown'
-                    )}
+                      <div className="font-medium">{message.recipientPhone}</div>
+                      {message.recipientName && (
+                        <div className="text-sm text-muted-foreground">{message.recipientName}</div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                      <div>
+                      <div className="font-medium capitalize">{message.senderType}</div>
+                      {message.senderId?.name && (
+                        <div className="text-sm text-muted-foreground">{message.senderId.name}</div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge className={getStatusBadgeColor(message.status)}>
@@ -669,7 +883,7 @@ const WhatsAppMessaging = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {new Date(message.createdAt).toLocaleString()}
+                    {new Date(message.sentAt).toLocaleString()}
                   </TableCell>
                   <TableCell>
                     {message.deliveredAt ? new Date(message.deliveredAt).toLocaleString() : '-'}
@@ -713,130 +927,26 @@ const WhatsAppMessaging = () => {
     </div>
   );
 
-  // Conversations Tab Content
-  const ConversationsContent = () => (
-    <div className="space-y-6">
-      {/* Conversations Table */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Conversations</CardTitle>
-            <CardDescription>WhatsApp conversations across all coaches</CardDescription>
-          </div>
-          <Button onClick={refreshData} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Contact</TableHead>
-                <TableHead>Coach</TableHead>
-                <TableHead>Device</TableHead>
-                <TableHead>Messages</TableHead>
-                <TableHead>Last Message</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {conversations.map((conversation) => (
-                <TableRow key={conversation.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{conversation.contactName || 'Unknown'}</div>
-                      <div className="text-sm text-muted-foreground">{conversation.contactNumber}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {conversation.coach ? (
-                      <div>
-                        <div className="font-medium">{conversation.coach.name}</div>
-                        <div className="text-sm text-muted-foreground">{conversation.coach.email}</div>
-                      </div>
-                    ) : (
-                      'Unknown'
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {conversation.device ? (
-                      <div>
-                        <div className="font-medium">{conversation.device.name}</div>
-                        <div className="text-sm text-muted-foreground">{conversation.device.phoneNumber}</div>
-                      </div>
-                    ) : (
-                      'Unknown'
-                    )}
-                  </TableCell>
-                  <TableCell>{conversation.messageCount}</TableCell>
-                  <TableCell>
-                    {conversation.lastMessageAt ? new Date(conversation.lastMessageAt).toLocaleString() : 'Never'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusBadgeColor(conversation.status)}>
-                      {conversation.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="outline">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          {/* Pagination */}
-          {conversationsTotal > 20 && (
-            <div className="flex items-center justify-between mt-4">
-              <p className="text-sm text-muted-foreground">
-                Showing {((conversationsPage - 1) * 20) + 1} to {Math.min(conversationsPage * 20, conversationsTotal)} of {conversationsTotal} conversations
-              </p>
-              <div className="flex space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fetchConversations(conversationsPage - 1)}
-                  disabled={conversationsPage === 1}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fetchConversations(conversationsPage + 1)}
-                  disabled={conversationsPage * 20 >= conversationsTotal}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-
   // Templates Tab Content
   const TemplatesContent = () => (
     <div className="space-y-6">
       {/* Templates Table */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between pb-4">
           <div>
-            <CardTitle>WhatsApp Templates</CardTitle>
-            <CardDescription>Manage WhatsApp message templates</CardDescription>
+            <CardTitle className="text-lg flex items-center space-x-2">
+              <File className="h-5 w-5 text-purple-600" />
+              <span>WhatsApp Templates</span>
+            </CardTitle>
+            <CardDescription className="mt-1">Manage WhatsApp message templates</CardDescription>
           </div>
           <div className="flex space-x-2">
-            <Button onClick={refreshData} variant="outline">
+            <Button onClick={refreshData} variant="outline" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
-            <Button>
-              <Send className="h-4 w-4 mr-2" />
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-2" />
               Create Template
             </Button>
           </div>
@@ -849,14 +959,13 @@ const WhatsAppMessaging = () => {
                 <TableHead>Category</TableHead>
                 <TableHead>Language</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Coach</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {templates.map((template) => (
-                <TableRow key={template.id}>
+                <TableRow key={template.name}>
                   <TableCell className="font-medium">{template.name}</TableCell>
                   <TableCell>{template.category}</TableCell>
                   <TableCell>{template.language}</TableCell>
@@ -864,16 +973,6 @@ const WhatsAppMessaging = () => {
                     <Badge className={getStatusBadgeColor(template.status)}>
                       {template.status}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {template.coach ? (
-                      <div>
-                        <div className="font-medium">{template.coach.name}</div>
-                        <div className="text-sm text-muted-foreground">{template.coach.email}</div>
-                      </div>
-                    ) : (
-                      'System'
-                    )}
                   </TableCell>
                   <TableCell>
                     {new Date(template.createdAt).toLocaleString()}
@@ -898,19 +997,27 @@ const WhatsAppMessaging = () => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto p-6 space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">WhatsApp Messaging</h1>
-          <p className="text-muted-foreground">
-            Central WhatsApp management and message history
+          <h1 className="text-3xl font-bold tracking-tight">Central WhatsApp Management</h1>
+          <p className="text-muted-foreground mt-2">
+            Manage centralized WhatsApp messaging and templates
           </p>
         </div>
-        <Button onClick={refreshData} variant="outline">
+        <div className="flex items-center space-x-3">
+          <Button onClick={refreshData} variant="outline" size="sm">
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh All
         </Button>
+          {config && (
+            <Button onClick={() => setSendDialogOpen(true)} size="sm">
+              <Send className="h-4 w-4 mr-2" />
+              Send Message
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Error/Success Messages */}
@@ -929,34 +1036,262 @@ const WhatsAppMessaging = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="devices">Devices</TabsTrigger>
-          <TabsTrigger value="messages">Messages</TabsTrigger>
-          <TabsTrigger value="conversations">Conversations</TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
+        <TabsList className="grid grid-cols-3 w-fit">
+          <TabsTrigger value="overview" className="flex items-center space-x-2 px-6">
+            <BarChart3 className="h-4 w-4" />
+            <span>Overview</span>
+          </TabsTrigger>
+          <TabsTrigger value="messages" className="flex items-center space-x-2 px-6">
+            <MessageSquare className="h-4 w-4" />
+            <span>Messages</span>
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="flex items-center space-x-2 px-6">
+            <File className="h-4 w-4" />
+            <span>Templates</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
           <OverviewContent />
         </TabsContent>
 
-        <TabsContent value="devices">
-          <DevicesContent />
-        </TabsContent>
-
         <TabsContent value="messages">
           <MessagesContent />
-        </TabsContent>
-
-        <TabsContent value="conversations">
-          <ConversationsContent />
         </TabsContent>
 
         <TabsContent value="templates">
           <TemplatesContent />
         </TabsContent>
       </Tabs>
+
+      {/* Dialogs */}
+      <Dialog open={configDialogOpen} onOpenChange={handleConfigDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {config ? 'Update Central WhatsApp Configuration' : 'Setup Central WhatsApp'}
+            </DialogTitle>
+            <DialogDescription>
+              {loading 
+                ? (config ? 'Updating your WhatsApp configuration. This may take a few moments...' : 'Setting up your WhatsApp configuration. This may take a few moments...')
+                : (config 
+                  ? 'Update your WhatsApp Business API credentials. All fields are required for updates.'
+                  : 'Configure your WhatsApp Business API credentials to enable centralized messaging.'
+                )
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="phoneNumberId">Phone Number ID</Label>
+              <Input
+                id="phoneNumberId"
+                placeholder="Enter your WhatsApp Business Phone Number ID"
+                value={configForm.phoneNumberId}
+                onChange={(e) => setConfigForm({...configForm, phoneNumberId: e.target.value})}
+              />
+              {config && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Current: {config.phoneNumberId}
+                </p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="accessToken">Access Token</Label>
+              <Input
+                id="accessToken"
+                type="password"
+                placeholder="Enter your WhatsApp Business Access Token"
+                value={configForm.accessToken}
+                onChange={(e) => setConfigForm({...configForm, accessToken: e.target.value})}
+              />
+              {config && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Current: ••••••••••••••••••••••••••••••••
+                </p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="businessAccountId">Business Account ID</Label>
+              <Input
+                id="businessAccountId"
+                placeholder="Enter your WhatsApp Business Account ID"
+                value={configForm.businessAccountId}
+                onChange={(e) => setConfigForm({...configForm, businessAccountId: e.target.value})}
+              />
+              {config && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Current: {config.businessAccountId}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setConfigDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={setupCentralWhatsApp}
+                disabled={loading || !configForm.phoneNumberId || !configForm.accessToken || !configForm.businessAccountId}
+              >
+                {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Settings className="h-4 w-4 mr-2" />}
+                {loading ? (config ? 'Updating...' : 'Setting up...') : (config ? 'Update Configuration' : 'Setup')}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Send WhatsApp Message</DialogTitle>
+            <DialogDescription>
+              Send a message using the Central WhatsApp configuration.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="to">Recipient Phone Number</Label>
+              <Input
+                id="to"
+                placeholder="+1234567890"
+                value={sendForm.to}
+                onChange={(e) => setSendForm({...sendForm, to: e.target.value})}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="leadId">Lead ID (Optional)</Label>
+                <Input
+                  id="leadId"
+                  placeholder="Lead ID"
+                  value={sendForm.leadId}
+                  onChange={(e) => setSendForm({...sendForm, leadId: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="clientId">Client ID (Optional)</Label>
+                <Input
+                  id="clientId"
+                  placeholder="Client ID"
+                  value={sendForm.clientId}
+                  onChange={(e) => setSendForm({...sendForm, clientId: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Message Type</Label>
+              <Select 
+                value={sendForm.templateName ? 'template' : sendForm.mediaUrl ? 'media' : 'text'} 
+                onValueChange={handleMessageTypeChange}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="text">Text Message</SelectItem>
+                  <SelectItem value="template">Template Message</SelectItem>
+                  <SelectItem value="media">Media Message</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {!sendForm.templateName && !sendForm.mediaUrl && (
+              <div>
+                <Label htmlFor="message">Message</Label>
+                <Textarea
+                  id="message"
+                  placeholder="Enter your message..."
+                  value={sendForm.message}
+                  onChange={(e) => setSendForm({...sendForm, message: e.target.value})}
+                />
+              </div>
+            )}
+
+            {sendForm.templateName && (
+              <>
+                <div>
+                  <Label htmlFor="templateName">Template Name</Label>
+                  <Select value={sendForm.templateName} onValueChange={(value) => setSendForm({...sendForm, templateName: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select template" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map((template) => (
+                        <SelectItem key={template.name} value={template.name}>
+                          {template.name} ({template.status})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="parameters">Template Parameters (comma-separated)</Label>
+                  <Input
+                    id="parameters"
+                    placeholder="param1, param2, param3"
+                    value={sendForm.parameters}
+                    onChange={(e) => setSendForm({...sendForm, parameters: e.target.value})}
+                  />
+                </div>
+              </>
+            )}
+
+            {sendForm.mediaUrl && (
+              <>
+                <div>
+                  <Label htmlFor="mediaUrl">Media URL</Label>
+                  <Input
+                    id="mediaUrl"
+                    placeholder="https://example.com/image.jpg"
+                    value={sendForm.mediaUrl}
+                    onChange={(e) => setSendForm({...sendForm, mediaUrl: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="mediaType">Media Type</Label>
+                  <Select value={sendForm.mediaType} onValueChange={(value) => setSendForm({...sendForm, mediaType: value})}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="image">Image</SelectItem>
+                      <SelectItem value="video">Video</SelectItem>
+                      <SelectItem value="audio">Audio</SelectItem>
+                      <SelectItem value="document">Document</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="caption">Caption (Optional)</Label>
+                  <Textarea
+                    id="caption"
+                    placeholder="Enter caption..."
+                    value={sendForm.message}
+                    onChange={(e) => setSendForm({...sendForm, message: e.target.value})}
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setSendDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="outline" onClick={testMessage} disabled={loading || !sendForm.to}>
+                <TestTube className="h-4 w-4 mr-2" />
+                Test
+              </Button>
+              <Button onClick={sendMessage} disabled={loading || !sendForm.to || (!sendForm.message && !sendForm.templateName && !sendForm.mediaUrl)}>
+                {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                Send
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -120,6 +120,71 @@ router.post('/test-message',
     centralWhatsAppController.sendTestMessage
 );
 
+// ===== MESSAGE MANAGEMENT =====
+
+// @route   GET /api/admin/central-whatsapp/messages
+// @desc    Get All WhatsApp Messages
+// @access  Private (Admin)
+router.get('/messages',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.getAllMessages
+);
+
+// @route   GET /api/admin/central-whatsapp/messages/conversation/:conversationId
+// @desc    Get Conversation Messages
+// @access  Private (Admin)
+router.get('/messages/conversation/:conversationId',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.getConversationMessages
+);
+
+// @route   GET /api/admin/central-whatsapp/messages/coach/:coachId
+// @desc    Get Messages by Coach
+// @access  Private (Admin)
+router.get('/messages/coach/:coachId',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.getMessagesByCoach
+);
+
+// @route   GET /api/admin/central-whatsapp/messages/lead/:leadId
+// @desc    Get Messages by Lead
+// @access  Private (Admin)
+router.get('/messages/lead/:leadId',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.getMessagesByLead
+);
+
+// @route   POST /api/admin/central-whatsapp/send-message
+// @desc    Send Message as Admin
+// @access  Private (Admin)
+router.post('/send-message',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.sendAdminMessage
+);
+
+// @route   GET /api/whatsapp/v1/test-config
+// @desc    Test WhatsApp Configuration
+// @access  Private (Admin)
+router.get('/test-config',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.testConfiguration
+);
+
+// @route   GET /api/admin/central-whatsapp/analytics
+// @desc    Get WhatsApp Analytics
+// @access  Private (Admin)
+router.get('/analytics',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.getWhatsAppAnalytics
+);
+
 // ===== COACH WHATSAPP ROUTES =====
 // These routes are mounted at /api/centralwhatsapp
 // All coach routes use protect middleware (coach authentication)

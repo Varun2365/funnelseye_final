@@ -33,6 +33,22 @@ class CoachStaffManagementController {
     createStaffMember = asyncHandler(async (req, res) => {
         const coachId = req.user.id;
         
+        // Check subscription limits for staff creation
+        const SubscriptionLimitsMiddleware = require('../middleware/subscriptionLimits');
+        const limitCheck = await SubscriptionLimitsMiddleware.checkStaffLimit(coachId);
+        
+        if (!limitCheck.allowed) {
+            return res.status(403).json({
+                success: false,
+                message: limitCheck.reason,
+                error: 'STAFF_LIMIT_REACHED',
+                currentCount: limitCheck.currentCount,
+                maxLimit: limitCheck.maxLimit,
+                upgradeRequired: limitCheck.upgradeRequired,
+                subscriptionRequired: true
+            });
+        }
+        
         // Validate required fields
         const { name, email, password, permissions = [] } = req.body;
         

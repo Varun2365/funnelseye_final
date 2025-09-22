@@ -15,6 +15,22 @@ async function createCampaign(req, res) {
     const coachId = req.user.id;
     const { coachMetaAccountId, campaignData, useAI = false } = req.body;
     
+    // Check subscription limits for campaign creation
+    const SubscriptionLimitsMiddleware = require('../middleware/subscriptionLimits');
+    const limitCheck = await SubscriptionLimitsMiddleware.checkCampaignLimit(coachId);
+    
+    if (!limitCheck.allowed) {
+        return res.status(403).json({
+            success: false,
+            message: limitCheck.reason,
+            error: 'CAMPAIGN_LIMIT_REACHED',
+            currentCount: limitCheck.currentCount,
+            maxLimit: limitCheck.maxLimit,
+            upgradeRequired: limitCheck.upgradeRequired,
+            subscriptionRequired: true
+        });
+    }
+    
     try {
         let enhancedCampaignData = campaignData;
         

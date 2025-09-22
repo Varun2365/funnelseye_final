@@ -40,6 +40,23 @@ const createFunnel = asyncHandler(async (req, res, next) => {
     if (req.coachId.toString() !== req.params.coachId.toString()) {
         return next(new ErrorResponse('Forbidden: You can only create funnels for yourself.', 403));
     }
+    
+    // Check subscription limits for funnel creation
+    const SubscriptionLimitsMiddleware = require('../middleware/subscriptionLimits');
+    const limitCheck = await SubscriptionLimitsMiddleware.checkFunnelLimit(req.coachId);
+    
+    if (!limitCheck.allowed) {
+        return res.status(403).json({
+            success: false,
+            message: limitCheck.reason,
+            error: 'FUNNEL_LIMIT_REACHED',
+            currentCount: limitCheck.currentCount,
+            maxLimit: limitCheck.maxLimit,
+            upgradeRequired: limitCheck.upgradeRequired,
+            subscriptionRequired: true
+        });
+    }
+    
     // Validate customDomain if provided
     if (req.body.customDomain) {
         const customDomain = await CustomDomain.findOne({

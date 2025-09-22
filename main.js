@@ -64,10 +64,10 @@ const staffDashboardRoutes = require('./routes/staffDashboardRoutes');
 const unifiedStaffDashboardRoutes = require('./routes/unifiedStaffDashboardRoutes');
 const staffUnifiedDashboardRoutes = require('./routes/staffUnifiedDashboardRoutes');
 const permissionsRoutes = require('./routes/permissionsRoutes');
-const coachStaffManagementRoutes = require('./routes/coachStaffManagementRoutes');
-const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const coachSubscriptionLimitsRoutes = require('./routes/coachSubscriptionLimitsRoutes');
 const subscriptionManagementTask = require('./tasks/subscriptionManagement');
 const coachPaymentRoutes = require('./routes/coachPaymentRoutes');
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const nurturingSequenceRoutes = require('./routes/nurturingSequenceRoutes');
 const leadMagnetsRoutes = require('./routes/leadMagnetsRoutes');
@@ -80,6 +80,27 @@ const messageTemplateRoutes = require('./routes/messageTemplateRoutes');
 // WhatsApp routes moved to dustbin/whatsapp-dump/
 const coachHierarchyRoutes = require('./routes/coachHierarchyRoutes');
 const apiDocsRoutes = require('./routes/apiDocsRoutes');
+const unifiedPaymentRoutes = require('./routes/unifiedPaymentRoutes');
+const checkoutPageRoutes = require('./routes/checkoutPageRoutes');
+const coachPlanRoutes = require('./routes/coachPlanRoutes');
+const paymentsv1Routes = require('./routes/paymentsv1Routes');
+const coachTransactionRoutes = require('./routes/coachTransactionRoutes');
+const coachMarketingCredentialsRoutes = require('./routes/coachMarketingCredentialsRoutes');
+const marketingV1Routes = require('./routes/marketingV1Routes');
+const coachFinancialRoutes = require('./routes/coachFinancialRoutes');
+const adminHierarchyRoutes = require('./routes/adminHierarchyRoutes');
+const adminV1Routes = require('./routes/adminV1Routes');
+const centralWhatsAppRoutes = require('./routes/centralWhatsAppRoutes');
+const newAdminAuthRoutes = require('./routes/adminAuthRoutes');
+const newAdminSystemRoutes = require('./routes/adminSystemRoutes');
+const newAdminUserRoutes = require('./routes/adminUserRoutes');
+const newAdminAuditRoutes = require('./routes/adminAuditRoutes');
+const newAdminMlmRoutes = require('./routes/adminMlmRoutes');
+const newAdminFinancialRoutes = require('./routes/adminFinancialRoutes');
+const newAdminSecurityRoutes = require('./routes/adminSecurityRoutes');
+const platformConfigRoutes = require('./routes/platformConfigRoutes');
+const staffAuthRoutes = require('./routes/staffAuthRoutes');
+const coachStaffManagementRoutes = require('./routes/coachStaffManagementRoutes');
 
 // --- Import the worker initialization functions ---
 const initRulesEngineWorker = require('./workers/worker_rules_engine');
@@ -232,9 +253,6 @@ app.use('/api/cart', cartRoutes);
 // app.use('/api/funnelseye-payments', funnelseyePaymentRoutes);
 
 // ===== UNIFIED PAYMENT SYSTEM =====
-const unifiedPaymentRoutes = require('./routes/unifiedPaymentRoutes');
-const checkoutPageRoutes = require('./routes/checkoutPageRoutes');
-const coachPlanRoutes = require('./routes/coachPlanRoutes');
 
 // Mount unified payment routes
 app.use('/api/unified-payments', unifiedPaymentRoutes);
@@ -242,11 +260,9 @@ app.use('/api/checkout-pages', checkoutPageRoutes);
 app.use('/api/coach-plans', coachPlanRoutes);
 
 // ===== NEW PAYMENT SYSTEM V1 =====
-const paymentsv1Routes = require('./routes/paymentsv1Routes');
 app.use('/api/paymentsv1', paymentsv1Routes);
 
 // ===== COACH TRANSACTION ROUTES =====
-const coachTransactionRoutes = require('./routes/coachTransactionRoutes');
 
 // Mount coach transaction routes
 app.use('/api/coach-transactions', coachTransactionRoutes);
@@ -255,29 +271,23 @@ app.use('/api/coach-transactions', coachTransactionRoutes);
 // ===== MARKETING & ADVERTISING =====
 app.use('/api/ads', adsRoutes);
 app.use('/api/ai-ads', aiAdsRoutes);
-const coachMarketingCredentialsRoutes = require('./routes/coachMarketingCredentialsRoutes');
 app.use('/api/coach-marketing-credentials', coachMarketingCredentialsRoutes);
 
 // ===== NEW MARKETING V1 API =====
-const marketingV1Routes = require('./routes/marketingV1Routes');
 app.use('/api/marketing/v1', marketingV1Routes);
 
 // ===== COACH FINANCIAL MANAGEMENT =====
-const coachFinancialRoutes = require('./routes/coachFinancialRoutes');
 app.use('/api/coach/financial', coachFinancialRoutes);
 
 // ===== ADMIN HIERARCHY MANAGEMENT =====
-const adminHierarchyRoutes = require('./routes/adminHierarchyRoutes');
 app.use('/api/admin/hierarchy', adminHierarchyRoutes);
 
 // ===== ADMIN V1 MASTER API =====
-const adminV1Routes = require('./routes/adminV1Routes');
 app.use('/api/admin/v1', adminV1Routes);
 
 
 // ===== UNIFIED WHATSAPP V1 SYSTEM =====
 // Single endpoint for all WhatsApp functionality - Admin and Coach
-const centralWhatsAppRoutes = require('./routes/centralWhatsAppRoutes');
 app.use('/api/whatsapp/v1', centralWhatsAppRoutes);
 
 // ===== PERMISSIONS & SYSTEM =====
@@ -285,6 +295,9 @@ app.use('/api/permissions', permissionsRoutes);
 
 // ===== COACH STAFF MANAGEMENT =====
 app.use('/api/coach/staff', coachStaffManagementRoutes);
+
+// ===== COACH SUBSCRIPTION LIMITS =====
+app.use('/api/coach', coachSubscriptionLimitsRoutes);
 
 // ===== STAFF & TEAM MANAGEMENT =====
 app.use('/api/staff', staffRoutes);
@@ -313,17 +326,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/funnels', webpageRenderRoutes);
 
 // ===== NEW ADMIN SYSTEM =====
-const newAdminAuthRoutes = require('./routes/adminAuthRoutes');
-const newAdminSystemRoutes = require('./routes/adminSystemRoutes');
 // const newAdminPaymentRoutes = require('./routes/adminPaymentRoutes');
-const newAdminUserRoutes = require('./routes/adminUserRoutes');
-const newAdminAuditRoutes = require('./routes/adminAuditRoutes');
-// Admin WhatsApp routes moved to dustbin/whatsapp-dump/
-const newAdminMlmRoutes = require('./routes/adminMlmRoutes');
-const newAdminFinancialRoutes = require('./routes/adminFinancialRoutes');
-const newAdminSecurityRoutes = require('./routes/adminSecurityRoutes');
-const platformConfigRoutes = require('./routes/platformConfigRoutes');
-const staffAuthRoutes = require('./routes/staffAuthRoutes');
 // const adminWhatsappRoutes = require('./routes/adminWhatsappRoutes'); // Commented out - using unified WhatsApp v1
 
 // Mount new admin auth routes first (login, logout, etc.)

@@ -12,6 +12,10 @@ const centralWhatsAppSchema = new mongoose.Schema({
         required: true,
         select: false // Don't include in queries by default for security
     },
+    businessAccountId: {
+        type: String,
+        required: true
+    },
     
     // Configuration
     isActive: {

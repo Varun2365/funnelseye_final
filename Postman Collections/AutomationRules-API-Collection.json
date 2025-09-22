@@ -409,6 +409,827 @@
       ]
     },
     {
+      "name": "Trigger Event Configurations",
+      "item": [
+        {
+          "name": "Lead Created - Welcome Sequence",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Welcome New Lead\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"triggerCondition\": {\n    \"field\": \"source\",\n    \"operator\": \"equals\",\n    \"value\": \"website\"\n  },\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"Welcome! Thank you for your interest in our coaching program.\",\n        \"templateId\": \"welcome_template\"\n      }\n    },\n    {\n      \"type\": \"add_lead_tag\",\n      \"config\": {\n        \"tag\": \"new_lead\"\n      }\n    },\n    {\n      \"type\": \"add_to_funnel\",\n      \"config\": {\n        \"funnelId\": \"onboarding_funnel\",\n        \"stageId\": \"welcome_stage\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Trigger: lead_created - Welcome new leads with specific source"
+          },
+          "response": []
+        },
+        {
+          "name": "Lead Status Changed - Follow Up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lead Status Follow Up\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_status_changed\",\n  \"triggerCondition\": {\n    \"field\": \"status\",\n    \"operator\": \"equals\",\n    \"value\": \"qualified\"\n  },\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"Great! You've been qualified as a potential client. Let's schedule a call.\",\n        \"templateId\": \"qualified_lead_template\"\n      }\n    },\n    {\n      \"type\": \"create_task\",\n      \"config\": {\n        \"title\": \"Follow up with qualified lead\",\n        \"description\": \"Contact qualified lead within 24 hours\",\n        \"assignee\": \"{{coach_id}}\",\n        \"dueDate\": \"{{current_date_plus_1_day}}\"\n      }\n    },\n    {\n      \"type\": \"add_lead_tag\",\n      \"config\": {\n        \"tag\": \"qualified\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Trigger: lead_status_changed - Follow up when lead becomes qualified"
+          },
+          "response": []
+        },
+        {
+          "name": "Lead Temperature Changed - Hot Lead Alert",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Hot Lead Alert\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_temperature_changed\",\n  \"triggerCondition\": {\n    \"field\": \"temperature\",\n    \"operator\": \"equals\",\n    \"value\": \"hot\"\n  },\n  \"actions\": [\n    {\n      \"type\": \"send_internal_notification\",\n      \"config\": {\n        \"message\": \"🔥 HOT LEAD ALERT: {{lead_name}} just became a hot lead!\",\n        \"recipients\": [\"{{coach_id}}\", \"sales_team\"]\n      }\n    },\n    {\n      \"type\": \"create_task\",\n      \"config\": {\n        \"title\": \"URGENT: Contact Hot Lead\",\n        \"description\": \"Immediate follow-up required for hot lead\",\n        \"assignee\": \"{{coach_id}}\",\n        \"dueDate\": \"{{current_time_plus_30_minutes}}\"\n      }\n    },\n    {\n      \"type\": \"update_lead_score\",\n      \"config\": {\n        \"score\": 90,\n        \"reason\": \"Lead temperature changed to hot\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Trigger: lead_temperature_changed - Alert when lead becomes hot"
+          },
+          "response": []
+        },
+        {
+          "name": "Form Submitted - Lead Nurturing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Form Submission Nurturing\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"form_submitted\",\n  \"triggerCondition\": {\n    \"field\": \"form_type\",\n    \"operator\": \"equals\",\n    \"value\": \"contact_form\"\n  },\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"Thanks for reaching out! We'll get back to you within 2 hours.\",\n        \"templateId\": \"form_submission_acknowledgment\"\n      }\n    },\n    {\n      \"type\": \"schedule_drip_sequence\",\n      \"config\": {\n        \"sequenceId\": \"form_submission_sequence\",\n        \"delay\": 3600\n      }\n    },\n    {\n      \"type\": \"add_lead_tag\",\n      \"config\": {\n        \"tag\": \"form_submitted\"\n      }\n    },\n    {\n      \"type\": \"create_task\",\n      \"config\": {\n        \"title\": \"Follow up form submission\",\n        \"description\": \"Contact lead who submitted form\",\n        \"assignee\": \"{{coach_id}}\",\n        \"dueDate\": \"{{current_time_plus_2_hours}}\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Trigger: form_submitted - Nurture leads who submit forms"
+          },
+          "response": []
+        },
+        {
+          "name": "Appointment Booked - Confirmation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Appointment Booking Confirmation\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"appointment_booked\",\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"Your appointment has been confirmed for {{appointment_date}} at {{appointment_time}}. We'll send a reminder 24 hours before.\",\n        \"templateId\": \"appointment_confirmation\"\n      }\n    },\n    {\n      \"type\": \"create_calendar_event\",\n      \"config\": {\n        \"title\": \"Coaching Session with {{client_name}}\",\n        \"startTime\": \"{{appointment_start_time}}\",\n        \"endTime\": \"{{appointment_end_time}}\",\n        \"attendees\": [\"{{client_email}}\"]\n      }\n    },\n    {\n      \"type\": \"add_note_to_lead\",\n      \"config\": {\n        \"note\": \"Appointment booked for {{appointment_date}} at {{appointment_time}}\",\n        \"noteType\": \"appointment\"\n      }\n    },\n    {\n      \"type\": \"add_lead_tag\",\n      \"config\": {\n        \"tag\": \"appointment_scheduled\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Trigger: appointment_booked - Confirm appointment booking"
+          },
+          "response": []
+        },
+        {
+          "name": "Payment Successful - Access Activation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Payment Success Activation\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"payment_successful\",\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"🎉 Payment successful! Your access has been activated. Welcome to our coaching program!\",\n        \"templateId\": \"payment_success\"\n      }\n    },\n    {\n      \"type\": \"add_lead_tag\",\n      \"config\": {\n        \"tag\": \"paid_customer\"\n      }\n    },\n    {\n      \"type\": \"move_to_funnel_stage\",\n      \"config\": {\n        \"funnelId\": \"onboarding_funnel\",\n        \"stageId\": \"welcome_stage\"\n      }\n    },\n    {\n      \"type\": \"create_invoice\",\n      \"config\": {\n        \"amount\": \"{{payment_amount}}\",\n        \"description\": \"Coaching program payment\",\n        \"dueDate\": \"{{payment_date}}\"\n      }\n    },\n    {\n      \"type\": \"create_task\",\n      \"config\": {\n        \"title\": \"Onboard new customer\",\n        \"description\": \"Welcome call and program introduction\",\n        \"assignee\": \"{{coach_id}}\",\n        \"dueDate\": \"{{current_date_plus_1_day}}\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Trigger: payment_successful - Activate access and onboard customer"
+          },
+          "response": []
+        },
+        {
+          "name": "Funnel Stage Entered - Progress Tracking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Funnel Progress Tracking\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"funnel_stage_entered\",\n  \"triggerCondition\": {\n    \"field\": \"stage_name\",\n    \"operator\": \"equals\",\n    \"value\": \"consideration\"\n  },\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"Great progress! You're now in the consideration stage. Here's what's next...\",\n        \"templateId\": \"funnel_progress_template\"\n      }\n    },\n    {\n      \"type\": \"add_note_to_lead\",\n      \"config\": {\n        \"note\": \"Entered consideration stage in {{funnel_name}}\",\n        \"noteType\": \"funnel_progress\"\n      }\n    },\n    {\n      \"type\": \"update_lead_score\",\n      \"config\": {\n        \"score\": 60,\n        \"reason\": \"Advanced to consideration stage\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Trigger: funnel_stage_entered - Track funnel progress"
+          },
+          "response": []
+        },
+        {
+          "name": "Appointment Rescheduled - Update Handling",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Appointment Reschedule Handling\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"appointment_rescheduled\",\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"Your appointment has been rescheduled to {{new_appointment_date}} at {{new_appointment_time}}.\",\n        \"templateId\": \"appointment_rescheduled\"\n      }\n    },\n    {\n      \"type\": \"add_note_to_lead\",\n      \"config\": {\n        \"note\": \"Appointment rescheduled from {{old_date}} to {{new_date}}\",\n        \"noteType\": \"appointment_change\"\n      }\n    },\n    {\n      \"type\": \"create_task\",\n      \"config\": {\n        \"title\": \"Update calendar for rescheduled appointment\",\n        \"description\": \"Update calendar event for {{client_name}}\",\n        \"assignee\": \"{{coach_id}}\",\n        \"dueDate\": \"{{current_time_plus_1_hour}}\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Trigger: appointment_rescheduled - Handle appointment changes"
+          },
+          "response": []
+        },
+        {
+          "name": "Appointment Cancelled - Follow Up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Appointment Cancellation Follow Up\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"appointment_cancelled\",\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"We're sorry to hear you had to cancel. Let's reschedule when you're ready!\",\n        \"templateId\": \"appointment_cancelled\"\n      }\n    },\n    {\n      \"type\": \"add_note_to_lead\",\n      \"config\": {\n        \"note\": \"Appointment cancelled for {{appointment_date}} - Reason: {{cancellation_reason}}\",\n        \"noteType\": \"appointment_cancellation\"\n      }\n    },\n    {\n      \"type\": \"create_task\",\n      \"config\": {\n        \"title\": \"Follow up on cancelled appointment\",\n        \"description\": \"Contact {{client_name}} to reschedule\",\n        \"assignee\": \"{{coach_id}}\",\n        \"dueDate\": \"{{current_date_plus_2_days}}\"\n      }\n    },\n    {\n      \"type\": \"add_followup_date\",\n      \"config\": {\n        \"followupDate\": \"{{current_date_plus_1_week}}\",\n        \"notes\": \"Check if client wants to reschedule\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Trigger: appointment_cancelled - Handle cancellations"
+          },
+          "response": []
+        },
+        {
+          "name": "Payment Failed - Recovery Sequence",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Payment Failure Recovery\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"payment_failed\",\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"We encountered an issue with your payment. Please update your payment method.\",\n        \"templateId\": \"payment_failed\"\n      }\n    },\n    {\n      \"type\": \"add_lead_tag\",\n      \"config\": {\n        \"tag\": \"payment_issue\"\n      }\n    },\n    {\n      \"type\": \"create_task\",\n      \"config\": {\n        \"title\": \"Follow up on failed payment\",\n        \"description\": \"Contact {{client_name}} about payment issue\",\n        \"assignee\": \"{{coach_id}}\",\n        \"dueDate\": \"{{current_time_plus_2_hours}}\"\n      }\n    },\n    {\n      \"type\": \"add_followup_date\",\n      \"config\": {\n        \"followupDate\": \"{{current_date_plus_3_days}}\",\n        \"notes\": \"Retry payment or offer alternative payment methods\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Trigger: payment_failed - Handle payment failures"
+          },
+          "response": []
+        },
+        {
+          "name": "Subscription Cancelled - Retention",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Subscription Cancellation Retention\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"subscription_cancelled\",\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"We're sorry to see you go! Is there anything we can do to keep you?\",\n        \"templateId\": \"subscription_cancelled\"\n      }\n    },\n    {\n      \"type\": \"add_lead_tag\",\n      \"config\": {\n        \"tag\": \"churned_customer\"\n      }\n    },\n    {\n      \"type\": \"create_task\",\n      \"config\": {\n        \"title\": \"Retention call for cancelled subscription\",\n        \"description\": \"Call {{client_name}} to understand cancellation reason\",\n        \"assignee\": \"{{coach_id}}\",\n        \"dueDate\": \"{{current_time_plus_1_hour}}\"\n      }\n    },\n    {\n      \"type\": \"schedule_drip_sequence\",\n      \"config\": {\n        \"sequenceId\": \"retention_sequence\",\n        \"delay\": 86400\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Trigger: subscription_cancelled - Retention efforts"
+          },
+          "response": []
+        },
+        {
+          "name": "Task Overdue - Escalation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Task Overdue Escalation\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"task_overdue\",\n  \"actions\": [\n    {\n      \"type\": \"send_internal_notification\",\n      \"config\": {\n        \"message\": \"⚠️ OVERDUE TASK: {{task_title}} is overdue by {{overdue_days}} days\",\n        \"recipients\": [\"{{task_assignee}}\", \"{{coach_id}}\"]\n      }\n    },\n    {\n      \"type\": \"create_task\",\n      \"config\": {\n        \"title\": \"Follow up on overdue task\",\n        \"description\": \"Check status of overdue task: {{task_title}}\",\n        \"assignee\": \"{{coach_id}}\",\n        \"dueDate\": \"{{current_time_plus_1_hour}}\"\n      }\n    },\n    {\n      \"type\": \"add_note_to_lead\",\n      \"config\": {\n        \"note\": \"Task '{{task_title}}' is overdue - requires immediate attention\",\n        \"noteType\": \"system_alert\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Trigger: task_overdue - Escalate overdue tasks"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Action Type Configurations",
+      "item": [
+        {
+          "name": "Lead Data Actions - Complete Example",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lead Data Management\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"actions\": [\n    {\n      \"type\": \"update_lead_score\",\n      \"config\": {\n        \"score\": 75,\n        \"reason\": \"Initial lead score based on source\"\n      }\n    },\n    {\n      \"type\": \"add_lead_tag\",\n      \"config\": {\n        \"tag\": \"high_value_lead\"\n      }\n    },\n    {\n      \"type\": \"update_lead_field\",\n      \"config\": {\n        \"field\": \"priority\",\n        \"value\": \"high\"\n      }\n    },\n    {\n      \"type\": \"create_deal\",\n      \"config\": {\n        \"dealName\": \"Coaching Program - {{lead_name}}\",\n        \"amount\": 5000,\n        \"stage\": \"prospecting\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Lead Data & Funnel Actions - Complete configuration examples"
+          },
+          "response": []
+        },
+        {
+          "name": "Communication Actions - Complete Example",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Multi-Channel Communication\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"Welcome! Here's your exclusive access link: {{access_link}}\",\n        \"templateId\": \"welcome_template\"\n      }\n    },\n    {\n      \"type\": \"create_email_message\",\n      \"config\": {\n        \"subject\": \"Welcome to Our Coaching Program\",\n        \"body\": \"Dear {{lead_name}}, welcome to our exclusive coaching program...\",\n        \"templateId\": \"welcome_email_template\"\n      }\n    },\n    {\n      \"type\": \"send_push_notification\",\n      \"config\": {\n        \"title\": \"Welcome! 🎉\",\n        \"body\": \"Your coaching journey starts now!\",\n        \"data\": {\n          \"type\": \"welcome\",\n          \"action\": \"open_app\"\n        }\n      }\n    },\n    {\n      \"type\": \"schedule_drip_sequence\",\n      \"config\": {\n        \"sequenceId\": \"welcome_sequence\",\n        \"delay\": 3600\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Communication Actions - Complete configuration examples"
+          },
+          "response": []
+        },
+        {
+          "name": "Task & Workflow Actions - Complete Example",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Workflow Automation\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"actions\": [\n    {\n      \"type\": \"create_task\",\n      \"config\": {\n        \"title\": \"Initial contact with {{lead_name}}\",\n        \"description\": \"Make first contact within 24 hours\",\n        \"assignee\": \"{{coach_id}}\",\n        \"dueDate\": \"{{current_date_plus_1_day}}\"\n      }\n    },\n    {\n      \"type\": \"create_calendar_event\",\n      \"config\": {\n        \"title\": \"Follow-up call with {{lead_name}}\",\n        \"startTime\": \"{{current_time_plus_2_days}}\",\n        \"endTime\": \"{{current_time_plus_2_days_plus_30_minutes}}\",\n        \"attendees\": [\"{{lead_email}}\"]\n      }\n    },\n    {\n      \"type\": \"add_note_to_lead\",\n      \"config\": {\n        \"note\": \"Lead created from {{source}} - Initial assessment needed\",\n        \"noteType\": \"system\"\n      }\n    },\n    {\n      \"type\": \"add_followup_date\",\n      \"config\": {\n        \"followupDate\": \"{{current_date_plus_3_days}}\",\n        \"notes\": \"Check lead engagement and interest level\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Task & Workflow Actions - Complete configuration examples"
+          },
+          "response": []
+        },
+        {
+          "name": "Zoom Integration Actions - Complete Example",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Zoom Meeting Automation\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"appointment_booked\",\n  \"actions\": [\n    {\n      \"type\": \"create_zoom_meeting\",\n      \"config\": {\n        \"topic\": \"Coaching Session with {{client_name}}\",\n        \"startTime\": \"{{appointment_start_time}}\",\n        \"duration\": 60,\n        \"attendees\": [\"{{client_email}}\"]\n      }\n    },\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"Your Zoom meeting link: {{zoom_meeting_link}}\",\n        \"templateId\": \"zoom_meeting_link\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Zoom Integration Actions - Complete configuration examples"
+          },
+          "response": []
+        },
+        {
+          "name": "Payment Actions - Complete Example",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Payment Processing Automation\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"payment_successful\",\n  \"actions\": [\n    {\n      \"type\": \"create_invoice\",\n      \"config\": {\n        \"amount\": \"{{payment_amount}}\",\n        \"description\": \"Coaching Program - {{program_name}}\",\n        \"dueDate\": \"{{payment_date}}\"\n      }\n    },\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"Invoice #{{invoice_number}} has been generated for your payment.\",\n        \"templateId\": \"invoice_generated\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Payment Actions - Complete configuration examples"
+          },
+          "response": []
+        },
+        {
+          "name": "System Actions - Complete Example",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"System Integration Automation\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"actions\": [\n    {\n      \"type\": \"call_webhook\",\n      \"config\": {\n        \"url\": \"https://external-crm.com/api/leads\",\n        \"method\": \"POST\",\n        \"headers\": {\n          \"Authorization\": \"Bearer {{external_api_token}}\",\n          \"Content-Type\": \"application/json\"\n        },\n        \"payload\": {\n          \"name\": \"{{lead_name}}\",\n          \"email\": \"{{lead_email}}\",\n          \"source\": \"{{lead_source}}\"\n        }\n      }\n    },\n    {\n      \"type\": \"trigger_another_automation\",\n      \"config\": {\n        \"automationRuleId\": \"{{welcome_sequence_rule_id}}\",\n        \"delay\": 300\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "System Actions - Complete configuration examples"
+          },
+          "response": []
+        },
+        {
+          "name": "Individual Action Examples - Lead Scoring",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lead Scoring Example\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"content_consumed\",\n  \"actions\": [\n    {\n      \"type\": \"update_lead_score\",\n      \"config\": {\n        \"score\": 85,\n        \"reason\": \"Engaged with premium content\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Action: update_lead_score - Update lead score based on engagement"
+          },
+          "response": []
+        },
+        {
+          "name": "Individual Action Examples - Lead Tagging",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lead Tagging Example\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"actions\": [\n    {\n      \"type\": \"add_lead_tag\",\n      \"config\": {\n        \"tag\": \"vip_client\"\n      }\n    },\n    {\n      \"type\": \"remove_lead_tag\",\n      \"config\": {\n        \"tag\": \"cold_lead\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Actions: add_lead_tag, remove_lead_tag - Manage lead tags"
+          },
+          "response": []
+        },
+        {
+          "name": "Individual Action Examples - Funnel Management",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Funnel Management Example\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_converted_to_client\",\n  \"actions\": [\n    {\n      \"type\": \"add_to_funnel\",\n      \"config\": {\n        \"funnelId\": \"customer_onboarding\",\n        \"stageId\": \"welcome_stage\"\n      }\n    },\n    {\n      \"type\": \"move_to_funnel_stage\",\n      \"config\": {\n        \"funnelId\": \"sales_funnel\",\n        \"stageId\": \"closed_won\"\n      }\n    },\n    {\n      \"type\": \"remove_from_funnel\",\n      \"config\": {\n        \"funnelId\": \"prospect_funnel\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Actions: add_to_funnel, move_to_funnel_stage, remove_from_funnel - Funnel management"
+          },
+          "response": []
+        },
+        {
+          "name": "Individual Action Examples - Lead Field Updates",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lead Field Update Example\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_status_changed\",\n  \"actions\": [\n    {\n      \"type\": \"update_lead_field\",\n      \"config\": {\n        \"field\": \"priority\",\n        \"value\": \"high\"\n      }\n    },\n    {\n      \"type\": \"create_deal\",\n      \"config\": {\n        \"dealName\": \"Coaching Package - {{lead_name}}\",\n        \"amount\": 2500,\n        \"stage\": \"negotiation\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Actions: update_lead_field, create_deal - Lead data management"
+          },
+          "response": []
+        },
+        {
+          "name": "Individual Action Examples - Communication",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Communication Actions Example\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"appointment_reminder_time\",\n  \"actions\": [\n    {\n      \"type\": \"send_whatsapp_message\",\n      \"config\": {\n        \"message\": \"Reminder: Your appointment is in 1 hour!\",\n        \"templateId\": \"appointment_reminder\"\n      }\n    },\n    {\n      \"type\": \"create_email_message\",\n      \"config\": {\n        \"subject\": \"Appointment Reminder - {{appointment_date}}\",\n        \"body\": \"This is a reminder about your upcoming appointment...\",\n        \"templateId\": \"appointment_reminder_email\"\n      }\n    },\n    {\n      \"type\": \"send_internal_notification\",\n      \"config\": {\n        \"message\": \"Appointment reminder sent to {{client_name}}\",\n        \"recipients\": [\"{{coach_id}}\"]\n      }\n    },\n    {\n      \"type\": \"send_push_notification\",\n      \"config\": {\n        \"title\": \"Appointment Reminder\",\n        \"body\": \"Your appointment starts in 1 hour\",\n        \"data\": {\n          \"type\": \"appointment_reminder\",\n          \"appointment_id\": \"{{appointment_id}}\"\n        }\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Communication Actions - WhatsApp, Email, Notifications"
+          },
+          "response": []
+        },
+        {
+          "name": "Individual Action Examples - Drip Sequences",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Drip Sequence Example\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"form_submitted\",\n  \"actions\": [\n    {\n      \"type\": \"schedule_drip_sequence\",\n      \"config\": {\n        \"sequenceId\": \"welcome_series\",\n        \"delay\": 0\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Action: schedule_drip_sequence - Start automated email sequences"
+          },
+          "response": []
+        },
+        {
+          "name": "Individual Action Examples - Task Management",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Task Management Example\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"actions\": [\n    {\n      \"type\": \"create_task\",\n      \"config\": {\n        \"title\": \"Initial contact with {{lead_name}}\",\n        \"description\": \"Make first contact and assess needs\",\n        \"assignee\": \"{{coach_id}}\",\n        \"dueDate\": \"{{current_date_plus_1_day}}\"\n      }\n    },\n    {\n      \"type\": \"add_note_to_lead\",\n      \"config\": {\n        \"note\": \"Lead created from {{source}} - Initial assessment pending\",\n        \"noteType\": \"system\"\n      }\n    },\n    {\n      \"type\": \"add_followup_date\",\n      \"config\": {\n        \"followupDate\": \"{{current_date_plus_3_days}}\",\n        \"notes\": \"Check engagement level and interest\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Task Management Actions - create_task, add_note_to_lead, add_followup_date"
+          },
+          "response": []
+        },
+        {
+          "name": "Individual Action Examples - Calendar Events",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Calendar Event Example\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"appointment_booked\",\n  \"actions\": [\n    {\n      \"type\": \"create_calendar_event\",\n      \"config\": {\n        \"title\": \"Coaching Session - {{client_name}}\",\n        \"startTime\": \"{{appointment_start_time}}\",\n        \"endTime\": \"{{appointment_end_time}}\",\n        \"attendees\": [\"{{client_email}}\"]\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Action: create_calendar_event - Schedule calendar events"
+          },
+          "response": []
+        },
+        {
+          "name": "Individual Action Examples - Payment Processing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Payment Processing Example\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"payment_successful\",\n  \"actions\": [\n    {\n      \"type\": \"create_invoice\",\n      \"config\": {\n        \"amount\": \"{{payment_amount}}\",\n        \"description\": \"Coaching Program Payment\",\n        \"dueDate\": \"{{payment_date}}\"\n      }\n    },\n    {\n      \"type\": \"issue_refund\",\n      \"config\": {\n        \"amount\": 500,\n        \"reason\": \"Partial refund for early cancellation\",\n        \"paymentId\": \"{{original_payment_id}}\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Payment Actions - create_invoice, issue_refund"
+          },
+          "response": []
+        },
+        {
+          "name": "Individual Action Examples - System Integration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"System Integration Example\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_converted_to_client\",\n  \"actions\": [\n    {\n      \"type\": \"call_webhook\",\n      \"config\": {\n        \"url\": \"https://crm.example.com/api/leads/convert\",\n        \"method\": \"POST\",\n        \"headers\": {\n          \"Authorization\": \"Bearer {{crm_api_token}}\",\n          \"Content-Type\": \"application/json\"\n        },\n        \"payload\": {\n          \"lead_id\": \"{{lead_id}}\",\n          \"conversion_date\": \"{{current_date}}\",\n          \"conversion_value\": \"{{deal_amount}}\"\n        }\n      }\n    },\n    {\n      \"type\": \"trigger_another_automation\",\n      \"config\": {\n        \"automationRuleId\": \"{{welcome_sequence_rule_id}}\",\n        \"delay\": 300\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "System Actions - call_webhook, trigger_another_automation"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Trigger Condition Examples",
+      "item": [
+        {
+          "name": "Simple Condition - Field Equals",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"High Value Lead Automation\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"triggerCondition\": {\n    \"field\": \"source\",\n    \"operator\": \"equals\",\n    \"value\": \"referral\"\n  },\n  \"actions\": [\n    {\n      \"type\": \"add_lead_tag\",\n      \"config\": {\n        \"tag\": \"referral_lead\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Simple condition: field equals value"
+          },
+          "response": []
+        },
+        {
+          "name": "Complex Condition - Multiple Fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"VIP Lead Automation\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"triggerCondition\": {\n    \"operator\": \"AND\",\n    \"conditions\": [\n      {\n        \"field\": \"source\",\n        \"operator\": \"equals\",\n        \"value\": \"referral\"\n      },\n      {\n        \"field\": \"company_size\",\n        \"operator\": \"greater_than\",\n        \"value\": 100\n      }\n    ]\n  },\n  \"actions\": [\n    {\n      \"type\": \"add_lead_tag\",\n      \"config\": {\n        \"tag\": \"vip_referral\"\n      }\n    },\n    {\n      \"type\": \"update_lead_score\",\n      \"config\": {\n        \"score\": 95,\n        \"reason\": \"VIP referral from large company\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Complex condition: AND logic with multiple fields"
+          },
+          "response": []
+        },
+        {
+          "name": "Range Condition - Numeric Values",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Budget-Based Automation\",\n  \"coachId\": \"{{coach_id}}\",\n  \"triggerEvent\": \"lead_created\",\n  \"triggerCondition\": {\n    \"field\": \"budget\",\n    \"operator\": \"between\",\n    \"value\": {\n      \"min\": 5000,\n      \"max\": 15000\n    }\n  },\n  \"actions\": [\n    {\n      \"type\": \"add_lead_tag\",\n      \"config\": {\n        \"tag\": \"mid_budget_lead\"\n      }\n    },\n    {\n      \"type\": \"create_task\",\n      \"config\": {\n        \"title\": \"Follow up with mid-budget lead\",\n        \"description\": \"Lead has budget between $5k-$15k\",\n        \"assignee\": \"{{coach_id}}\",\n        \"dueDate\": \"{{current_date_plus_1_day}}\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Range condition: field between min and max values"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Complex Rule Examples",
       "item": [
         {
@@ -460,6 +1281,95 @@
               "host": ["{{base_url}}"]
             },
             "description": "Complex rule for payment success"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Documentation & Reference",
+      "item": [
+        {
+          "name": "All Available Trigger Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/events-actions",
+              "host": ["{{base_url}}"],
+              "path": ["events-actions"]
+            },
+            "description": "Get complete list of all available trigger events and actions with their configurations"
+          },
+          "response": []
+        },
+        {
+          "name": "Trigger Event Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/events-actions",
+              "host": ["{{base_url}}"],
+              "path": ["events-actions"]
+            },
+            "description": "Trigger Events by Category:\n\n**Lead & Customer Lifecycle:**\n- lead_created: New lead created\n- lead_status_changed: Lead status updated\n- lead_temperature_changed: Lead temperature (hot/warm/cold) changed\n- lead_converted_to_client: Lead becomes paying client\n\n**Funnel & Conversion:**\n- form_submitted: Form submission\n- funnel_stage_entered: Lead enters funnel stage\n- funnel_stage_exited: Lead exits funnel stage\n- funnel_completed: Lead completes entire funnel\n\n**Appointment & Calendar:**\n- appointment_booked: Appointment scheduled\n- appointment_rescheduled: Appointment rescheduled\n- appointment_cancelled: Appointment cancelled\n- appointment_reminder_time: Reminder time reached\n- appointment_finished: Appointment completed\n\n**Communication:**\n- content_consumed: Lead consumes content\n\n**Task & System:**\n- task_created: New task created\n- task_completed: Task marked complete\n- task_overdue: Task becomes overdue\n\n**Payment & Subscription:**\n- payment_successful: Payment processed\n- payment_failed: Payment failed\n- payment_link_clicked: Payment link clicked\n- payment_abandoned: Payment process abandoned\n- invoice_paid: Invoice paid\n- subscription_created: New subscription\n- subscription_cancelled: Subscription cancelled\n- card_expired: Payment card expired"
+          },
+          "response": []
+        },
+        {
+          "name": "Action Type Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/events-actions",
+              "host": ["{{base_url}}"],
+              "path": ["events-actions"]
+            },
+            "description": "Action Types by Category:\n\n**Lead Data & Funnel Actions:**\n- update_lead_score: Update lead score with reason\n- add_lead_tag: Add tag to lead\n- remove_lead_tag: Remove tag from lead\n- add_to_funnel: Add lead to funnel\n- move_to_funnel_stage: Move lead to different stage\n- remove_from_funnel: Remove lead from funnel\n- update_lead_field: Update specific lead field\n- create_deal: Create new deal\n\n**Communication Actions:**\n- send_whatsapp_message: Send WhatsApp message\n- create_email_message: Send email\n- send_internal_notification: Send internal notification\n- send_push_notification: Send push notification\n- schedule_drip_sequence: Schedule email sequence\n\n**Task & Workflow Actions:**\n- create_task: Create new task\n- create_calendar_event: Create calendar event\n- add_note_to_lead: Add note to lead record\n- add_followup_date: Schedule follow-up\n\n**Zoom Integration Actions:**\n- create_zoom_meeting: Create Zoom meeting\n\n**Payment Actions:**\n- create_invoice: Create invoice\n- issue_refund: Issue refund\n\n**System Actions:**\n- call_webhook: Call external webhook\n- trigger_another_automation: Trigger other automation"
+          },
+          "response": []
+        },
+        {
+          "name": "Configuration Field Reference",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/events-actions",
+              "host": ["{{base_url}}"],
+              "path": ["events-actions"]
+            },
+            "description": "Configuration Fields for Each Action Type:\n\n**Lead Data Actions:**\n- update_lead_score: { score: number, reason: string }\n- add_lead_tag: { tag: string }\n- remove_lead_tag: { tag: string }\n- add_to_funnel: { funnelId: string, stageId: string }\n- move_to_funnel_stage: { funnelId: string, stageId: string }\n- remove_from_funnel: { funnelId: string }\n- update_lead_field: { field: string, value: any }\n- create_deal: { dealName: string, amount: number, stage: string }\n\n**Communication Actions:**\n- send_whatsapp_message: { message: string, templateId: string }\n- create_email_message: { subject: string, body: string, templateId: string }\n- send_internal_notification: { message: string, recipients: string[] }\n- send_push_notification: { title: string, body: string, data: object }\n- schedule_drip_sequence: { sequenceId: string, delay: number }\n\n**Task & Workflow Actions:**\n- create_task: { title: string, description: string, assignee: string, dueDate: string }\n- create_calendar_event: { title: string, startTime: string, endTime: string, attendees: string[] }\n- add_note_to_lead: { note: string, noteType: string }\n- add_followup_date: { followupDate: string, notes: string }\n\n**Zoom Integration Actions:**\n- create_zoom_meeting: { topic: string, startTime: string, duration: number, attendees: string[] }\n\n**Payment Actions:**\n- create_invoice: { amount: string, description: string, dueDate: string }\n- issue_refund: { amount: number, reason: string, paymentId: string }\n\n**System Actions:**\n- call_webhook: { url: string, method: string, headers: object, payload: object }\n- trigger_another_automation: { automationRuleId: string, delay: number }"
+          },
+          "response": []
+        },
+        {
+          "name": "Trigger Condition Examples",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/events-actions",
+              "host": ["{{base_url}}"],
+              "path": ["events-actions"]
+            },
+            "description": "Trigger Condition Structure:\n\n**Simple Conditions:**\n```json\n{\n  \"field\": \"source\",\n  \"operator\": \"equals\",\n  \"value\": \"website\"\n}\n```\n\n**Complex Conditions (AND/OR):**\n```json\n{\n  \"operator\": \"AND\",\n  \"conditions\": [\n    {\n      \"field\": \"source\",\n      \"operator\": \"equals\",\n      \"value\": \"referral\"\n    },\n    {\n      \"field\": \"budget\",\n      \"operator\": \"greater_than\",\n      \"value\": 5000\n    }\n  ]\n}\n```\n\n**Range Conditions:**\n```json\n{\n  \"field\": \"budget\",\n  \"operator\": \"between\",\n  \"value\": {\n    \"min\": 5000,\n    \"max\": 15000\n  }\n}\n```\n\n**Available Operators:**\n- equals\n- not_equals\n- greater_than\n- less_than\n- greater_than_or_equal\n- less_than_or_equal\n- contains\n- not_contains\n- between\n- in\n- not_in"
+          },
+          "response": []
+        },
+        {
+          "name": "Variable Substitution Reference",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/events-actions",
+              "host": ["{{base_url}}"],
+              "path": ["events-actions"]
+            },
+            "description": "Available Variables for Dynamic Content:\n\n**Lead Variables:**\n- {{lead_name}}: Lead's full name\n- {{lead_email}}: Lead's email address\n- {{lead_phone}}: Lead's phone number\n- {{lead_company}}: Lead's company name\n- {{lead_source}}: Lead's source\n- {{lead_score}}: Lead's current score\n- {{lead_status}}: Lead's current status\n- {{lead_temperature}}: Lead's temperature (hot/warm/cold)\n\n**Appointment Variables:**\n- {{appointment_date}}: Appointment date\n- {{appointment_time}}: Appointment time\n- {{appointment_start_time}}: Appointment start time\n- {{appointment_end_time}}: Appointment end time\n- {{appointment_id}}: Appointment ID\n\n**Payment Variables:**\n- {{payment_amount}}: Payment amount\n- {{payment_date}}: Payment date\n- {{payment_id}}: Payment ID\n- {{invoice_number}}: Invoice number\n\n**Funnel Variables:**\n- {{funnel_name}}: Funnel name\n- {{stage_name}}: Stage name\n- {{funnel_id}}: Funnel ID\n- {{stage_id}}: Stage ID\n\n**System Variables:**\n- {{current_date}}: Current date\n- {{current_time}}: Current time\n- {{coach_name}}: Coach's name\n- {{coach_email}}: Coach's email\n\n**Dynamic Date Variables:**\n- {{current_date_plus_1_day}}: Tomorrow's date\n- {{current_date_plus_1_week}}: One week from now\n- {{current_time_plus_1_hour}}: One hour from now\n- {{current_time_plus_30_minutes}}: 30 minutes from now"
           },
           "response": []
         }

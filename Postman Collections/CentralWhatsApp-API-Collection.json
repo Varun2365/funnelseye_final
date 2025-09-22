@@ -1,0 +1,844 @@
+{
+  "info": {
+    "name": "Central WhatsApp API Collection",
+    "description": "Complete API collection for testing Central WhatsApp management system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{admin_auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "admin_auth_token",
+      "value": "your_admin_jwt_token_here",
+      "type": "string"
+    },
+    {
+      "key": "coach_auth_token",
+      "value": "your_coach_jwt_token_here",
+      "type": "string"
+    },
+    {
+      "key": "phone_number_id",
+      "value": "123456789012345",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "your_whatsapp_access_token_here",
+      "type": "string"
+    },
+    {
+      "key": "test_phone_number",
+      "value": "+1234567890",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Admin Configuration",
+      "item": [
+        {
+          "name": "Setup Central WhatsApp",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumberId\": \"{{phone_number_id}}\",\n  \"accessToken\": \"{{access_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/setup",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "setup"]
+            },
+            "description": "Setup Central WhatsApp configuration with Meta API credentials"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Configuration",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/config",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "config"]
+            },
+            "description": "Get current Central WhatsApp configuration"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Configuration",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dailyLimit\": 1000,\n  \"monthlyLimit\": 25000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/config",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "config"]
+            },
+            "description": "Update Central WhatsApp configuration limits"
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "health"]
+            },
+            "description": "Check Central WhatsApp health status"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Template Management",
+      "item": [
+        {
+          "name": "Create Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"welcome_message\",\n  \"category\": \"UTILITY\",\n  \"language\": \"en\",\n  \"components\": [\n    {\n      \"type\": \"BODY\",\n      \"text\": \"Welcome to our coaching program! We're excited to have you on board. Your journey starts now.\"\n    },\n    {\n      \"type\": \"FOOTER\",\n      \"text\": \"Best regards, The Coaching Team\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/templates",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "templates"]
+            },
+            "description": "Create a new WhatsApp template"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Templates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/templates",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "templates"]
+            },
+            "description": "Get all WhatsApp templates"
+          },
+          "response": []
+        },
+        {
+          "name": "Sync Templates from Meta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/templates/sync",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "templates", "sync"]
+            },
+            "description": "Sync templates from Meta WhatsApp Business API"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Contact Management",
+      "item": [
+        {
+          "name": "Get Contacts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/contacts?limit=100&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "contacts"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Get WhatsApp contacts"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Message Management",
+      "item": [
+        {
+          "name": "Get All Messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/messages?limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "messages"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Get all WhatsApp messages with pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Messages with Filters",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/messages?limit=50&offset=0&status=sent&messageType=text&senderType=admin&startDate=2024-01-01&endDate=2024-12-31&search=test",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "messages"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "status",
+                  "value": "sent"
+                },
+                {
+                  "key": "messageType",
+                  "value": "text"
+                },
+                {
+                  "key": "senderType",
+                  "value": "admin"
+                },
+                {
+                  "key": "startDate",
+                  "value": "2024-01-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2024-12-31"
+                },
+                {
+                  "key": "search",
+                  "value": "test"
+                }
+              ]
+            },
+            "description": "Get messages with various filters applied"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Messages by Coach",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/messages/coach/{{coach_id}}?limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "messages", "coach", "{{coach_id}}"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Get messages sent by a specific coach"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Messages by Lead",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/messages/lead/{{lead_id}}?limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "messages", "lead", "{{lead_id}}"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Get messages related to a specific lead"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Conversation Messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/messages/conversation/{{conversation_id}}?limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "messages", "conversation", "{{conversation_id}}"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Get messages in a specific conversation"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Message Sending",
+      "item": [
+        {
+          "name": "Send Text Message (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{test_phone_number}}\",\n  \"message\": \"Hello! This is a test message from Central WhatsApp.\",\n  \"leadId\": \"{{lead_id}}\",\n  \"clientId\": \"{{client_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/send-message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "send-message"]
+            },
+            "description": "Send a text message as admin"
+          },
+          "response": []
+        },
+        {
+          "name": "Send Template Message (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{test_phone_number}}\",\n  \"templateName\": \"welcome_message\",\n  \"parameters\": [\"John\", \"Premium Coaching Program\"],\n  \"leadId\": \"{{lead_id}}\",\n  \"clientId\": \"{{client_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/send-message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "send-message"]
+            },
+            "description": "Send a template message as admin"
+          },
+          "response": []
+        },
+        {
+          "name": "Send Media Message (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{test_phone_number}}\",\n  \"mediaUrl\": \"https://example.com/image.jpg\",\n  \"mediaType\": \"image\",\n  \"message\": \"Check out this image!\",\n  \"leadId\": \"{{lead_id}}\",\n  \"clientId\": \"{{client_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/send-message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "send-message"]
+            },
+            "description": "Send a media message as admin"
+          },
+          "response": []
+        },
+        {
+          "name": "Send Test Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{test_phone_number}}\",\n  \"message\": \"This is a test message to verify Central WhatsApp setup.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/test-message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "test-message"]
+            },
+            "description": "Send a test message to verify configuration"
+          },
+          "response": []
+        },
+        {
+          "name": "Send Test Template Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{test_phone_number}}\",\n  \"templateName\": \"welcome_message\",\n  \"parameters\": [\"Test User\", \"Test Program\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/test-message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "test-message"]
+            },
+            "description": "Send a test template message"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Coach Messaging",
+      "item": [
+        {
+          "name": "Send Text Message (Coach)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{test_phone_number}}\",\n  \"message\": \"Hello! This is a message from your coach.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/centralwhatsapp/send-message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "centralwhatsapp", "send-message"]
+            },
+            "description": "Send a text message as coach"
+          },
+          "response": []
+        },
+        {
+          "name": "Send Template Message (Coach)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{test_phone_number}}\",\n  \"templateName\": \"welcome_message\",\n  \"parameters\": [\"Client Name\", \"Coaching Program\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/centralwhatsapp/send-message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "centralwhatsapp", "send-message"]
+            },
+            "description": "Send a template message as coach"
+          },
+          "response": []
+        },
+        {
+          "name": "Send Media Message (Coach)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{test_phone_number}}\",\n  \"mediaUrl\": \"https://example.com/document.pdf\",\n  \"mediaType\": \"document\",\n  \"message\": \"Here's the document you requested.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/centralwhatsapp/send-message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "centralwhatsapp", "send-message"]
+            },
+            "description": "Send a media message as coach"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Coach Templates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/centralwhatsapp/templates",
+              "host": ["{{base_url}}"],
+              "path": ["api", "centralwhatsapp", "templates"]
+            },
+            "description": "Get available templates for coach"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Coach Contacts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/centralwhatsapp/contacts?limit=50&offset=0&search=test",
+              "host": ["{{base_url}}"],
+              "path": ["api", "centralwhatsapp", "contacts"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "search",
+                  "value": "test"
+                }
+              ]
+            },
+            "description": "Get contacts for coach with search"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Coach Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/centralwhatsapp/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "centralwhatsapp", "status"]
+            },
+            "description": "Get Central WhatsApp status for coach"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Get WhatsApp Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/analytics?startDate=2024-01-01&endDate=2024-12-31",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "analytics"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2024-01-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2024-12-31"
+                }
+              ]
+            },
+            "description": "Get comprehensive WhatsApp analytics"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error Testing",
+      "item": [
+        {
+          "name": "Setup with Invalid Credentials",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumberId\": \"invalid_id\",\n  \"accessToken\": \"invalid_token\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/setup",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "setup"]
+            },
+            "description": "Test setup with invalid credentials"
+          },
+          "response": []
+        },
+        {
+          "name": "Send Message without Configuration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"{{test_phone_number}}\",\n  \"message\": \"Test message\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/send-message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "send-message"]
+            },
+            "description": "Test sending message without proper configuration"
+          },
+          "response": []
+        },
+        {
+          "name": "Send Message with Missing Fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Test message without recipient\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/central-whatsapp/send-message",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "central-whatsapp", "send-message"]
+            },
+            "description": "Test sending message with missing required fields"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -254,15 +254,10 @@ class CentralWhatsAppService {
         try {
             const config = await this.getConfig();
             
-            // First, get the business account ID from the phone number
-            const phoneInfo = await this.makeApiCall(
-                `/${config.phoneNumberId}`,
-                'GET'
-            );
-            
-            const businessAccountId = phoneInfo.waba_id;
+            // Use the stored business account ID
+            const businessAccountId = config.businessAccountId;
             if (!businessAccountId) {
-                throw new Error('Could not retrieve WhatsApp Business Account ID');
+                throw new Error('WhatsApp Business Account ID not configured');
             }
             
             const response = await this.makeApiCall(
@@ -422,6 +417,27 @@ class CentralWhatsAppService {
 
         } catch (error) {
             logger.error(`[CentralWhatsApp] API call failed:`, error.response?.data || error.message);
+            
+            // Check for specific error types
+            if (error.response?.status === 401) {
+                const errorData = error.response.data;
+                if (errorData?.error?.code === 190) {
+                    // Token expired or invalid
+                    const errorMessage = errorData.error.message || 'Access token is invalid or expired';
+                    const enhancedError = new Error(`WhatsApp Access Token Error: ${errorMessage}`);
+                    enhancedError.code = 'TOKEN_EXPIRED';
+                    enhancedError.originalError = errorData;
+                    throw enhancedError;
+                } else if (errorData?.error?.type === 'OAuthException') {
+                    // General OAuth error
+                    const errorMessage = errorData.error.message || 'OAuth authentication failed';
+                    const enhancedError = new Error(`WhatsApp OAuth Error: ${errorMessage}`);
+                    enhancedError.code = 'OAUTH_ERROR';
+                    enhancedError.originalError = errorData;
+                    throw enhancedError;
+                }
+            }
+            
             throw error;
         }
     }
