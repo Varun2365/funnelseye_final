@@ -9,7 +9,6 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Checkbox } from './ui/checkbox';
 import { Eye, EyeOff, Loader2, Shield, Users, BarChart3, Settings } from 'lucide-react';
 import { toast } from 'sonner';
-import ThemeSwitcher from './ThemeSwitcher';
 
 const AdminLoginPage = () => {
   const [formData, setFormData] = useState({
@@ -83,10 +82,6 @@ const AdminLoginPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex">
-      {/* Theme Switcher */}
-      <div className="absolute top-4 right-4 z-50">
-        <ThemeSwitcher variant="simple" />
-      </div>
       {/* Left Section - Branding & Features */}
       <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 text-white p-12 flex-col justify-between">
         <div className="space-y-8">

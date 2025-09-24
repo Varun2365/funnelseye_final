@@ -343,52 +343,73 @@ const qualifyClientLead = (clientQuestions) => {
     const maxScore = 100;
     const insights = [];
     
-    // Basic engagement (20 points)
+    // Video engagement (15 points)
     if (clientQuestions.watchedVideo === 'Yes') {
-        score += 20;
+        score += 15;
         insights.push('Watched full video - high engagement');
     } else if (clientQuestions.watchedVideo === 'I plan to watch it soon') {
-        score += 10;
+        score += 8;
         insights.push('Plans to watch video - moderate engagement');
     }
     
-    // Readiness to start (25 points)
-    if (clientQuestions.readyToStart === 'Yes') {
-        score += 25;
-        insights.push('Ready to start within 7 days - high urgency');
-    } else if (clientQuestions.readyToStart === 'Not sure') {
-        score += 10;
-        insights.push('Uncertain about timeline - needs nurturing');
-    }
-    
-    // Investment willingness (25 points)
-    if (clientQuestions.willingToInvest === 'Yes') {
-        score += 25;
-        insights.push('Willing to invest - high conversion potential');
-    } else if (clientQuestions.willingToInvest === 'Need a flexible option') {
-        score += 15;
-        insights.push('Open to investment with flexibility - moderate potential');
-    }
-    
-    // Seriousness scale (20 points)
-    if (clientQuestions.seriousnessScale >= 8) {
+    // Health goal specificity (20 points)
+    if (clientQuestions.healthGoal && clientQuestions.healthGoal.includes('Lose Weight (15+ kg)')) {
         score += 20;
-        insights.push('High seriousness level (8-10) - strong commitment');
-    } else if (clientQuestions.seriousnessScale >= 6) {
+        insights.push('Significant weight loss goal - high motivation');
+    } else if (clientQuestions.healthGoal && (clientQuestions.healthGoal.includes('Lose Weight (5-15 kg)') || clientQuestions.healthGoal.includes('Manage Health Condition'))) {
         score += 15;
-        insights.push('Moderate seriousness level (6-7) - good potential');
-    } else if (clientQuestions.seriousnessScale >= 4) {
+        insights.push('Specific health goal - good motivation');
+    } else if (clientQuestions.healthGoal && clientQuestions.healthGoal.includes('General Wellness')) {
         score += 10;
-        insights.push('Lower seriousness level (4-5) - needs motivation');
+        insights.push('General wellness goal - moderate motivation');
     }
     
-    // Activity level bonus (10 points)
-    if (clientQuestions.activityLevel === 'Very active') {
+    // Timeline urgency (20 points)
+    if (clientQuestions.timelineForResults === '1-3 months (Urgent)') {
+        score += 20;
+        insights.push('Urgent timeline - high priority');
+    } else if (clientQuestions.timelineForResults === '3-6 months (Moderate)') {
+        score += 15;
+        insights.push('Moderate timeline - good commitment');
+    } else if (clientQuestions.timelineForResults === '6-12 months (Gradual)') {
         score += 10;
-        insights.push('Very active lifestyle - likely to follow through');
-    } else if (clientQuestions.activityLevel === 'Moderately active') {
+        insights.push('Gradual timeline - patient approach');
+    }
+    
+    // Seriousness level (25 points)
+    if (clientQuestions.seriousnessLevel === 'Very serious - willing to invest time and money') {
+        score += 25;
+        insights.push('Very serious - high conversion potential');
+    } else if (clientQuestions.seriousnessLevel === 'Serious - depends on the approach') {
+        score += 20;
+        insights.push('Serious with conditions - good potential');
+    } else if (clientQuestions.seriousnessLevel === 'Somewhat serious - exploring options') {
+        score += 10;
+        insights.push('Exploring options - needs nurturing');
+    }
+    
+    // Investment range (15 points)
+    if (clientQuestions.investmentRange && clientQuestions.investmentRange.includes('₹1,00,000+')) {
+        score += 15;
+        insights.push('High investment capacity - premium client');
+    } else if (clientQuestions.investmentRange && clientQuestions.investmentRange.includes('₹50,000 - ₹1,00,000')) {
+        score += 12;
+        insights.push('Good investment capacity - solid client');
+    } else if (clientQuestions.investmentRange && clientQuestions.investmentRange.includes('₹25,000 - ₹50,000')) {
+        score += 8;
+        insights.push('Moderate investment capacity - budget conscious');
+    } else if (clientQuestions.investmentRange === 'Need to understand value first') {
         score += 5;
-        insights.push('Moderately active - good foundation');
+        insights.push('Needs value education - requires nurturing');
+    }
+    
+    // Start timeline (5 points)
+    if (clientQuestions.startTimeline === 'Immediately (This week)') {
+        score += 5;
+        insights.push('Immediate start - high urgency');
+    } else if (clientQuestions.startTimeline === 'Within 2 weeks') {
+        score += 3;
+        insights.push('Quick start - good urgency');
     }
     
     return { score, maxScore, insights };
@@ -399,45 +420,80 @@ const qualifyCoachLead = (coachQuestions) => {
     const maxScore = 100;
     const insights = [];
     
-    // Video engagement (20 points)
-    if (coachQuestions.watchedVideo === 'Yes, 100%') {
-        score += 20;
+    // Video engagement (15 points)
+    if (coachQuestions.watchedVideo === 'Yes') {
+        score += 15;
         insights.push('Watched full video - high engagement');
-    } else if (coachQuestions.watchedVideo === 'Partially') {
-        score += 10;
-        insights.push('Watched partially - moderate engagement');
     }
     
-    // Business readiness (30 points)
-    if (coachQuestions.readiness === '100% ready') {
-        score += 30;
-        insights.push('100% ready to start business - high conversion');
-    } else if (coachQuestions.readiness === 'Curious but exploring') {
-        insights.push('Curious and exploring - good potential');
-    }
-    
-    // Commitment level (25 points)
-    if (coachQuestions.commitment === 'Yes, fully committed') {
-        score += 25;
-        insights.push('Fully committed - high success probability');
-    } else if (coachQuestions.commitment === 'Maybe, depends on the plan') {
+    // Professional background (20 points)
+    if (coachQuestions.currentProfession && ['Fitness Trainer/Gym Instructor', 'Nutritionist/Dietitian', 'Healthcare Professional'].includes(coachQuestions.currentProfession)) {
+        score += 20;
+        insights.push('Relevant professional background - high potential');
+    } else if (coachQuestions.currentProfession && ['Sales Professional', 'Business Owner'].includes(coachQuestions.currentProfession)) {
         score += 15;
-        insights.push('Conditional commitment - needs convincing');
+        insights.push('Business/sales background - good potential');
+    } else if (coachQuestions.currentProfession && ['Corporate Employee', 'Student'].includes(coachQuestions.currentProfession)) {
+        score += 10;
+        insights.push('Professional background - moderate potential');
     }
     
-    // Time availability (15 points)
-    if (coachQuestions.timeCommitment === '3-4 hours/day') {
+    // Interest reasons (multiple select) (20 points)
+    if (coachQuestions.interestReasons && Array.isArray(coachQuestions.interestReasons)) {
+        const highValueReasons = ['Want financial freedom', 'Passionate about helping people transform', 'Already in fitness, want to scale'];
+        const matchingReasons = coachQuestions.interestReasons.filter(reason => highValueReasons.includes(reason));
+        if (matchingReasons.length >= 2) {
+            score += 20;
+            insights.push('Multiple high-value motivations - strong drive');
+        } else if (matchingReasons.length === 1) {
+            score += 15;
+            insights.push('Good motivation - solid potential');
+        } else {
+            score += 10;
+            insights.push('Basic motivation - needs nurturing');
+        }
+    }
+    
+    // Income goal ambition (20 points)
+    if (coachQuestions.incomeGoal && coachQuestions.incomeGoal.includes('₹5,00,000+/month')) {
+        score += 20;
+        insights.push('Empire building mindset - high ambition');
+    } else if (coachQuestions.incomeGoal && coachQuestions.incomeGoal.includes('₹2,00,000 - ₹5,00,000/month')) {
         score += 15;
-        insights.push('High time commitment - serious about business');
-    } else if (coachQuestions.timeCommitment === '1-2 hours/day') {
-        score += 10;
-        insights.push('Moderate time commitment - realistic approach');
+        insights.push('Advanced income goal - strong ambition');
+    } else if (coachQuestions.incomeGoal && coachQuestions.incomeGoal.includes('₹1,00,000 - ₹2,00,000/month')) {
+        score += 12;
+        insights.push('Professional income goal - good ambition');
+    } else if (coachQuestions.incomeGoal && coachQuestions.incomeGoal.includes('₹50,000 - ₹1,00,000/month')) {
+        score += 8;
+        insights.push('Full-time income goal - moderate ambition');
     }
     
-    // Understanding (10 points)
-    if (coachQuestions.understandsOpportunity === 'Yes') {
+    // Investment capacity (15 points)
+    if (coachQuestions.investmentCapacity && coachQuestions.investmentCapacity.includes('₹3,00,000+')) {
+        score += 15;
+        insights.push('High investment capacity - serious commitment');
+    } else if (coachQuestions.investmentCapacity && coachQuestions.investmentCapacity.includes('₹2,00,000 - ₹3,00,000')) {
+        score += 12;
+        insights.push('Good investment capacity - solid commitment');
+    } else if (coachQuestions.investmentCapacity && coachQuestions.investmentCapacity.includes('₹1,00,000 - ₹2,00,000')) {
+        score += 8;
+        insights.push('Moderate investment capacity - reasonable commitment');
+    } else if (coachQuestions.investmentCapacity === 'Need to understand business model first') {
+        score += 5;
+        insights.push('Needs education - requires nurturing');
+    }
+    
+    // Time availability (10 points)
+    if (coachQuestions.timeAvailability && coachQuestions.timeAvailability.includes('8+ hours/day')) {
         score += 10;
-        insights.push('Understands business opportunity - informed decision');
+        insights.push('Full commitment - maximum potential');
+    } else if (coachQuestions.timeAvailability && coachQuestions.timeAvailability.includes('6-8 hours/day')) {
+        score += 8;
+        insights.push('Full-time availability - strong potential');
+    } else if (coachQuestions.timeAvailability && coachQuestions.timeAvailability.includes('4-6 hours/day')) {
+        score += 5;
+        insights.push('Serious part-time - good potential');
     }
     
     return { score, maxScore, insights };

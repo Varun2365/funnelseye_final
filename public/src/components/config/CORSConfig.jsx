@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import environmentConfig from '../../config/environment.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -8,17 +9,32 @@ import { Alert, AlertDescription } from '../ui/alert';
 import { Globe, Save, AlertCircle, Plus, Trash2 } from 'lucide-react';
 
 const CORSConfig = ({ config, onSave, saving }) => {
-  const [formData, setFormData] = useState({
-    // CORS Origins
-    allowedOrigins: config?.allowedOrigins || [
+  // Get current environment and base URL
+  const currentEnv = environmentConfig.ENVIRONMENT;
+  const apiBaseUrl = environmentConfig.API_BASE_URL;
+  
+  // Generate development origins dynamically
+  const getDevelopmentOrigins = () => {
+    const baseUrl = apiBaseUrl.replace(/^https?:\/\//, '');
+    const [host, port] = baseUrl.split(':');
+    const protocol = apiBaseUrl.startsWith('https') ? 'https' : 'http';
+    
+    return [
       'http://localhost:3000',
       'http://localhost:5000',
-      'http://localhost:8080',
       'http://localhost:5173',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:5000',
-      'http://127.0.0.1:8080',
       'http://127.0.0.1:5173',
+      `${protocol}://${host}${port ? `:${port}` : ''}`,
+      `${protocol}://127.0.0.1${port ? `:${port}` : ''}`
+    ];
+  };
+
+  const [formData, setFormData] = useState({
+    // CORS Origins
+    allowedOrigins: config?.allowedOrigins || [
+      ...getDevelopmentOrigins(),
       'https://funnelseye.com',
       'https://www.funnelseye.com',
       'https://app.funnelseye.com',
@@ -50,16 +66,7 @@ const CORSConfig = ({ config, onSave, saving }) => {
     enableCredentials: config?.enableCredentials || true,
     
     // Environment-specific Origins
-    developmentOrigins: config?.developmentOrigins || [
-      'http://localhost:3000',
-      'http://localhost:5000',
-      'http://localhost:8080',
-      'http://localhost:5173',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:5000',
-      'http://127.0.0.1:8080',
-      'http://127.0.0.1:5173'
-    ],
+    developmentOrigins: config?.developmentOrigins || getDevelopmentOrigins(),
     
     stagingOrigins: config?.stagingOrigins || [
       'https://staging.funnelseye.com',

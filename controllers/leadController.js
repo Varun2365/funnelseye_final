@@ -12,52 +12,73 @@ const qualifyClientLead = (clientQuestions) => {
     const maxScore = 100;
     const insights = [];
     
-    // Basic engagement (20 points)
+    // Video engagement (15 points)
     if (clientQuestions.watchedVideo === 'Yes') {
-        score += 20;
+        score += 15;
         insights.push('Watched full video - high engagement');
     } else if (clientQuestions.watchedVideo === 'I plan to watch it soon') {
-        score += 10;
+        score += 8;
         insights.push('Plans to watch video - moderate engagement');
     }
     
-    // Readiness to start (25 points)
-    if (clientQuestions.readyToStart === 'Yes') {
-        score += 25;
-        insights.push('Ready to start within 7 days - high urgency');
-    } else if (clientQuestions.readyToStart === 'Not sure') {
-        score += 10;
-        insights.push('Uncertain about timeline - needs nurturing');
-    }
-    
-    // Investment willingness (25 points)
-    if (clientQuestions.willingToInvest === 'Yes') {
-        score += 25;
-        insights.push('Willing to invest - high conversion potential');
-    } else if (clientQuestions.willingToInvest === 'Need a flexible option') {
-        score += 15;
-        insights.push('Open to investment with flexibility - moderate potential');
-    }
-    
-    // Seriousness scale (20 points)
-    if (clientQuestions.seriousnessScale >= 8) {
+    // Health goal specificity (20 points)
+    if (clientQuestions.healthGoal && clientQuestions.healthGoal.includes('Lose Weight (15+ kg)')) {
         score += 20;
-        insights.push('High seriousness level (8-10) - strong commitment');
-    } else if (clientQuestions.seriousnessScale >= 6) {
+        insights.push('Significant weight loss goal - high motivation');
+    } else if (clientQuestions.healthGoal && (clientQuestions.healthGoal.includes('Lose Weight (5-15 kg)') || clientQuestions.healthGoal.includes('Manage Health Condition'))) {
         score += 15;
-        insights.push('Moderate seriousness level (6-7) - good potential');
-    } else if (clientQuestions.seriousnessScale >= 4) {
+        insights.push('Specific health goal - good motivation');
+    } else if (clientQuestions.healthGoal && clientQuestions.healthGoal.includes('General Wellness')) {
         score += 10;
-        insights.push('Lower seriousness level (4-5) - needs motivation');
+        insights.push('General wellness goal - moderate motivation');
     }
     
-    // Activity level bonus (10 points)
-    if (clientQuestions.activityLevel === 'Very active') {
+    // Timeline urgency (20 points)
+    if (clientQuestions.timelineForResults === '1-3 months (Urgent)') {
+        score += 20;
+        insights.push('Urgent timeline - high priority');
+    } else if (clientQuestions.timelineForResults === '3-6 months (Moderate)') {
+        score += 15;
+        insights.push('Moderate timeline - good commitment');
+    } else if (clientQuestions.timelineForResults === '6-12 months (Gradual)') {
         score += 10;
-        insights.push('Very active lifestyle - likely to follow through');
-    } else if (clientQuestions.activityLevel === 'Moderately active') {
+        insights.push('Gradual timeline - patient approach');
+    }
+    
+    // Seriousness level (25 points)
+    if (clientQuestions.seriousnessLevel === 'Very serious - willing to invest time and money') {
+        score += 25;
+        insights.push('Very serious - high conversion potential');
+    } else if (clientQuestions.seriousnessLevel === 'Serious - depends on the approach') {
+        score += 20;
+        insights.push('Serious with conditions - good potential');
+    } else if (clientQuestions.seriousnessLevel === 'Somewhat serious - exploring options') {
+        score += 10;
+        insights.push('Exploring options - needs nurturing');
+    }
+    
+    // Investment range (15 points)
+    if (clientQuestions.investmentRange && clientQuestions.investmentRange.includes('₹1,00,000+')) {
+        score += 15;
+        insights.push('High investment capacity - premium client');
+    } else if (clientQuestions.investmentRange && clientQuestions.investmentRange.includes('₹50,000 - ₹1,00,000')) {
+        score += 12;
+        insights.push('Good investment capacity - solid client');
+    } else if (clientQuestions.investmentRange && clientQuestions.investmentRange.includes('₹25,000 - ₹50,000')) {
+        score += 8;
+        insights.push('Moderate investment capacity - budget conscious');
+    } else if (clientQuestions.investmentRange === 'Need to understand value first') {
         score += 5;
-        insights.push('Moderately active - good foundation');
+        insights.push('Needs value education - requires nurturing');
+    }
+    
+    // Start timeline (5 points)
+    if (clientQuestions.startTimeline === 'Immediately (This week)') {
+        score += 5;
+        insights.push('Immediate start - high urgency');
+    } else if (clientQuestions.startTimeline === 'Within 2 weeks') {
+        score += 3;
+        insights.push('Quick start - good urgency');
     }
     
     return { score, maxScore, insights };
@@ -68,46 +89,80 @@ const qualifyCoachLead = (coachQuestions) => {
     const maxScore = 100;
     const insights = [];
     
-    // Video engagement (20 points)
-    if (coachQuestions.watchedVideo === 'Yes, 100%') {
-        score += 20;
+    // Video engagement (15 points)
+    if (coachQuestions.watchedVideo === 'Yes') {
+        score += 15;
         insights.push('Watched full video - high engagement');
-    } else if (coachQuestions.watchedVideo === 'Partially') {
-        score += 10;
-        insights.push('Watched partially - moderate engagement');
     }
     
-    // Business readiness (30 points)
-    if (coachQuestions.readiness === '100% ready') {
-        score += 30;
-        insights.push('100% ready to start business - high conversion');
-    } else if (coachQuestions.readiness === 'Curious but exploring') {
+    // Professional background (20 points)
+    if (coachQuestions.currentProfession && ['Fitness Trainer/Gym Instructor', 'Nutritionist/Dietitian', 'Healthcare Professional'].includes(coachQuestions.currentProfession)) {
         score += 20;
-        insights.push('Curious and exploring - good potential');
-    }
-    
-    // Commitment level (25 points)
-    if (coachQuestions.commitment === 'Yes, fully committed') {
-        score += 25;
-        insights.push('Fully committed - high success probability');
-    } else if (coachQuestions.commitment === 'Maybe, depends on the plan') {
+        insights.push('Relevant professional background - high potential');
+    } else if (coachQuestions.currentProfession && ['Sales Professional', 'Business Owner'].includes(coachQuestions.currentProfession)) {
         score += 15;
-        insights.push('Conditional commitment - needs convincing');
+        insights.push('Business/sales background - good potential');
+    } else if (coachQuestions.currentProfession && ['Corporate Employee', 'Student'].includes(coachQuestions.currentProfession)) {
+        score += 10;
+        insights.push('Professional background - moderate potential');
     }
     
-    // Time availability (15 points)
-    if (coachQuestions.timeCommitment === '3-4 hours/day') {
+    // Interest reasons (multiple select) (20 points)
+    if (coachQuestions.interestReasons && Array.isArray(coachQuestions.interestReasons)) {
+        const highValueReasons = ['Want financial freedom', 'Passionate about helping people transform', 'Already in fitness, want to scale'];
+        const matchingReasons = coachQuestions.interestReasons.filter(reason => highValueReasons.includes(reason));
+        if (matchingReasons.length >= 2) {
+            score += 20;
+            insights.push('Multiple high-value motivations - strong drive');
+        } else if (matchingReasons.length === 1) {
+            score += 15;
+            insights.push('Good motivation - solid potential');
+        } else {
+            score += 10;
+            insights.push('Basic motivation - needs nurturing');
+        }
+    }
+    
+    // Income goal ambition (20 points)
+    if (coachQuestions.incomeGoal && coachQuestions.incomeGoal.includes('₹5,00,000+/month')) {
+        score += 20;
+        insights.push('Empire building mindset - high ambition');
+    } else if (coachQuestions.incomeGoal && coachQuestions.incomeGoal.includes('₹2,00,000 - ₹5,00,000/month')) {
         score += 15;
-        insights.push('High time commitment - serious about business');
-    } else if (coachQuestions.timeCommitment === '1-2 hours/day') {
-        score += 10;
-        insights.push('Moderate time commitment - realistic approach');
+        insights.push('Advanced income goal - strong ambition');
+    } else if (coachQuestions.incomeGoal && coachQuestions.incomeGoal.includes('₹1,00,000 - ₹2,00,000/month')) {
+        score += 12;
+        insights.push('Professional income goal - good ambition');
+    } else if (coachQuestions.incomeGoal && coachQuestions.incomeGoal.includes('₹50,000 - ₹1,00,000/month')) {
+        score += 8;
+        insights.push('Full-time income goal - moderate ambition');
     }
     
-    // Understanding (10 points)
-    if (coachQuestions.understandsOpportunity === 'Yes') {
+    // Investment capacity (15 points)
+    if (coachQuestions.investmentCapacity && coachQuestions.investmentCapacity.includes('₹3,00,000+')) {
+        score += 15;
+        insights.push('High investment capacity - serious commitment');
+    } else if (coachQuestions.investmentCapacity && coachQuestions.investmentCapacity.includes('₹2,00,000 - ₹3,00,000')) {
+        score += 12;
+        insights.push('Good investment capacity - solid commitment');
+    } else if (coachQuestions.investmentCapacity && coachQuestions.investmentCapacity.includes('₹1,00,000 - ₹2,00,000')) {
+        score += 8;
+        insights.push('Moderate investment capacity - reasonable commitment');
+    } else if (coachQuestions.investmentCapacity === 'Need to understand business model first') {
+        score += 5;
+        insights.push('Needs education - requires nurturing');
+    }
+    
+    // Time availability (10 points)
+    if (coachQuestions.timeAvailability && coachQuestions.timeAvailability.includes('8+ hours/day')) {
         score += 10;
-        insights.push('Understands business opportunity - informed decision');
+        insights.push('Full commitment - maximum potential');
+    } else if (coachQuestions.timeAvailability && coachQuestions.timeAvailability.includes('6-8 hours/day')) {
+        score += 8;
+        insights.push('Full-time availability - strong potential');
+    } else if (coachQuestions.timeAvailability && coachQuestions.timeAvailability.includes('4-6 hours/day')) {
+        score += 5;
+        insights.push('Serious part-time - good potential');
     }
     
     return { score, maxScore, insights };
@@ -261,7 +316,13 @@ const createLead = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            data: lead
+            data: {
+                ...lead.toObject(),
+                score: lead.score || 0,
+                maxScore: lead.maxScore || 100,
+                qualificationInsights: lead.qualificationInsights || [],
+                recommendations: lead.recommendations || []
+            }
         });
     } catch (error) {
         console.error("Error creating lead:", error);
@@ -335,12 +396,21 @@ const getLeads = async (req, res) => {
             pagination.prev = { page: page - 1, limit };
         }
 
+        // Ensure score and qualification data are included
+        const leadsWithScore = leads.map(lead => ({
+            ...lead.toObject(),
+            score: lead.score || 0,
+            maxScore: lead.maxScore || 100,
+            qualificationInsights: lead.qualificationInsights || [],
+            recommendations: lead.recommendations || []
+        }));
+
         res.status(200).json({
             success: true,
             count: leads.length,
             total,
             pagination,
-            data: leads
+            data: leadsWithScore
         });
     } catch (error) {
         console.error("Error fetching leads:", error);
@@ -368,9 +438,18 @@ const getLead = async (req, res) => {
             });
         }
 
+        // Ensure score and qualification data are included
+        const leadWithScore = {
+            ...lead.toObject(),
+            score: lead.score || 0,
+            maxScore: lead.maxScore || 100,
+            qualificationInsights: lead.qualificationInsights || [],
+            recommendations: lead.recommendations || []
+        };
+
         res.status(200).json({
             success: true,
-            data: lead
+            data: leadWithScore
         });
     } catch (error) {
         console.error("Error fetching single lead:", error);
@@ -460,7 +539,13 @@ const updateLead = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            data: updatedLead
+            data: {
+                ...updatedLead.toObject(),
+                score: updatedLead.score || 0,
+                maxScore: updatedLead.maxScore || 100,
+                qualificationInsights: updatedLead.qualificationInsights || [],
+                recommendations: updatedLead.recommendations || []
+            }
         });
     } catch (error) {
         console.error("Error updating lead:", error);
@@ -1258,9 +1343,12 @@ const submitQuestionResponses = async (req, res) => {
             message: 'Question responses submitted successfully',
             data: {
                 leadId: updatedLead._id,
-                score: updatedLead.score,
-                insights: updatedLead.qualificationInsights,
-                status: updatedLead.status
+                score: updatedLead.score || 0,
+                maxScore: updatedLead.maxScore || 100,
+                qualificationInsights: updatedLead.qualificationInsights || [],
+                recommendations: updatedLead.recommendations || [],
+                status: updatedLead.status,
+                leadTemperature: updatedLead.leadTemperature
             }
         });
 
@@ -1289,6 +1377,218 @@ const submitQuestionResponses = async (req, res) => {
     }
 };
 
+// @desc    Get all question types and their expected responses
+// @route   GET /api/leads/question-types
+// @access  Public
+const getQuestionTypes = async (req, res) => {
+    try {
+        const questionTypes = {
+            client: {
+                title: "Fitness Client Lead Questions",
+                description: "Questions for potential fitness clients",
+                questions: [
+                    {
+                        field: "watchedVideo",
+                        question: "Did you watch the full video before booking this call?",
+                        type: "radio",
+                        required: true,
+                        options: ["Yes", "No"]
+                    },
+                    {
+                        field: "healthGoal",
+                        question: "Primary Health Goal",
+                        type: "radio",
+                        required: true,
+                        options: [
+                            "Lose Weight (5-15 kg)",
+                            "Lose Weight (15+ kg)",
+                            "Gain Weight/Muscle",
+                            "Improve Fitness & Energy",
+                            "Manage Health Condition (Diabetes, PCOS, Thyroid)",
+                            "General Wellness & Lifestyle",
+                            "Other"
+                        ]
+                    },
+                    {
+                        field: "timelineForResults",
+                        question: "Timeline for Results",
+                        type: "dropdown",
+                        required: true,
+                        options: [
+                            "1-3 months (Urgent)",
+                            "3-6 months (Moderate)",
+                            "6-12 months (Gradual)",
+                            "No specific timeline"
+                        ]
+                    },
+                    {
+                        field: "seriousnessLevel",
+                        question: "How serious are you about achieving your goal?",
+                        type: "radio",
+                        required: true,
+                        options: [
+                            "Very serious - willing to invest time and money",
+                            "Serious - depends on the approach",
+                            "Somewhat serious - exploring options",
+                            "Just curious about possibilities"
+                        ]
+                    },
+                    {
+                        field: "investmentRange",
+                        question: "Investment Range for Transformation Program",
+                        type: "radio",
+                        required: true,
+                        options: [
+                            "₹10,000 - ₹25,000",
+                            "₹25,000 - ₹50,000",
+                            "₹50,000 - ₹1,00,000",
+                            "₹1,00,000+ (Premium programs)",
+                            "Need to understand value first"
+                        ]
+                    },
+                    {
+                        field: "startTimeline",
+                        question: "When would you like to start?",
+                        type: "radio",
+                        required: true,
+                        options: [
+                            "Immediately (This week)",
+                            "Within 2 weeks",
+                            "Within a month",
+                            "In 2-3 months",
+                            "Just exploring for now"
+                        ]
+                    },
+                    {
+                        field: "additionalInfo",
+                        question: "Anything else we should know about you?",
+                        type: "textarea",
+                        required: false,
+                        placeholder: "Optional additional information"
+                    }
+                ]
+            },
+            coach: {
+                title: "Coach Recruitment Lead Questions",
+                description: "Questions for potential coach recruits",
+                questions: [
+                    {
+                        field: "watchedVideo",
+                        question: "Did you watch the full video before booking this call?",
+                        type: "radio",
+                        required: true,
+                        options: ["Yes", "No"]
+                    },
+                    {
+                        field: "currentProfession",
+                        question: "Current Profession",
+                        type: "dropdown",
+                        required: true,
+                        options: [
+                            "Fitness Trainer/Gym Instructor",
+                            "Nutritionist/Dietitian",
+                            "Healthcare Professional",
+                            "Sales Professional",
+                            "Business Owner",
+                            "Corporate Employee",
+                            "Homemaker",
+                            "Student",
+                            "Unemployed/Looking for Career Change",
+                            "Other"
+                        ]
+                    },
+                    {
+                        field: "interestReasons",
+                        question: "Why are you interested in health coaching business?",
+                        type: "checkbox",
+                        required: true,
+                        options: [
+                            "Want additional income source",
+                            "Passionate about helping people transform",
+                            "Looking for career change",
+                            "Want financial freedom",
+                            "Interested in flexible work schedule",
+                            "Want to build a team/network",
+                            "Already in fitness, want to scale",
+                            "Other"
+                        ]
+                    },
+                    {
+                        field: "incomeGoal",
+                        question: "Income Goal from Coaching Business",
+                        type: "radio",
+                        required: true,
+                        options: [
+                            "₹25,000 - ₹50,000/month (Part-time)",
+                            "₹50,000 - ₹1,00,000/month (Full-time basic)",
+                            "₹1,00,000 - ₹2,00,000/month (Professional)",
+                            "₹2,00,000 - ₹5,00,000/month (Advanced)",
+                            "₹5,00,000+/month (Empire building)"
+                        ]
+                    },
+                    {
+                        field: "investmentCapacity",
+                        question: "Investment Capacity for one time Business Setup",
+                        type: "radio",
+                        required: true,
+                        options: [
+                            "₹50,000 - ₹1,00,000",
+                            "₹1,00,000 - ₹2,00,000",
+                            "₹2,00,000 - ₹3,00,000",
+                            "₹3,00,000+",
+                            "Need to understand business model first"
+                        ]
+                    },
+                    {
+                        field: "timeAvailability",
+                        question: "Time Availability for Business",
+                        type: "radio",
+                        required: true,
+                        options: [
+                            "2-4 hours/day (Part-time)",
+                            "4-6 hours/day (Serious part-time)",
+                            "6-8 hours/day (Full-time)",
+                            "8+ hours/day (Fully committed)",
+                            "Flexible based on results"
+                        ]
+                    },
+                    {
+                        field: "timelineToAchieveGoal",
+                        question: "Timeline to Achieve Income Goal",
+                        type: "radio",
+                        required: true,
+                        options: [
+                            "1-3 months (Very urgent)",
+                            "3-6 months (Moderate urgency)",
+                            "6-12 months (Gradual building)",
+                            "1-2 years (Long-term vision)"
+                        ]
+                    },
+                    {
+                        field: "additionalInfo",
+                        question: "Anything else we should know about you?",
+                        type: "textarea",
+                        required: false,
+                        placeholder: "Optional additional information"
+                    }
+                ]
+            }
+        };
+
+        res.status(200).json({
+            success: true,
+            data: questionTypes
+        });
+
+    } catch (error) {
+        console.error("Error getting question types:", error);
+        res.status(500).json({
+            success: false,
+            message: 'Server Error. Could not retrieve question types.'
+        });
+    }
+};
+
 // Export all functions
 module.exports = {
     createLead,
@@ -1299,6 +1599,7 @@ module.exports = {
     getUpcomingFollowUps,
     deleteLead,
     submitQuestionResponses, // New method for public question responses
+    getQuestionTypes, // New method to get all question types
     // simple AI rescore endpoint handler
     aiRescore: async (req, res) => {
         try {

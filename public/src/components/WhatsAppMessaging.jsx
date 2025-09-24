@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import environmentConfig from '../config/environment.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -119,14 +120,8 @@ const WhatsAppMessaging = () => {
             return window.API_CONFIG.API_ENDPOINT;
           }
           
-          // Default to localhost for development
-          const hostname = window.location.hostname;
-          if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            return 'http://localhost:8080/api';
-          }
-          
-          // Fallback to current origin
-          return `${window.location.origin}/api`;
+          // Use environment config for API URL
+          return environmentConfig.getApiUrl('');
         };
         
         const baseUrl = getBaseUrl();

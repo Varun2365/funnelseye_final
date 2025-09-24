@@ -71,6 +71,8 @@ const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const nurturingSequenceRoutes = require('./routes/nurturingSequenceRoutes');
 const leadMagnetsRoutes = require('./routes/leadMagnetsRoutes');
+const publicLeadMagnetRoutes = require('./routes/publicLeadMagnetRoutes');
+const leadMagnetManagementRoutes = require('./routes/leadMagnetManagementRoutes');
 const leadNurturingRoutes = require('./routes/leadNurturingRoutes');
 const leadScoringTrackingRoutes = require('./routes/leadScoringTrackingRoutes');
 const aiRoutes = require('./routes/aiRoutes');
@@ -223,6 +225,8 @@ app.use('/api/custom-urls', customUrlRoutes);
 app.use('/api/custom-domains', customDomainRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/lead-magnets', leadMagnetsRoutes);
+app.use('/lead-magnets', publicLeadMagnetRoutes); // Public routes (no /api prefix)
+app.use('/api/lead-magnet-management', leadMagnetManagementRoutes);
 app.use('/api/lead-nurturing', leadNurturingRoutes);
 app.use('/api/nurturing-sequences', nurturingSequenceRoutes);
 app.use('/api/lead-scoring', leadScoringTrackingRoutes);

@@ -1,0 +1,64 @@
+const express = require('express');
+const router = express.Router();
+const {
+    getAvailableMagnets,
+    generateShareableUrls,
+    getPredefinedChannels,
+    createCampaign,
+    getAnalytics,
+    getInteractions,
+    getTopPerformers,
+    exportData,
+    getTrends
+} = require('../controllers/leadMagnetManagementController');
+const { protect } = require('../middleware/auth');
+
+// Apply authentication middleware to all routes
+router.use(protect);
+
+// @route   GET /api/lead-magnet-management/available
+// @desc    Get all available lead magnets for coach
+// @access  Private (Coach)
+router.get('/available', getAvailableMagnets);
+
+// @route   POST /api/lead-magnet-management/generate-urls
+// @desc    Generate shareable URLs for a lead magnet
+// @access  Private (Coach)
+router.post('/generate-urls', generateShareableUrls);
+
+// @route   GET /api/lead-magnet-management/channels
+// @desc    Get predefined channel configurations
+// @access  Private (Coach)
+router.get('/channels', getPredefinedChannels);
+
+// @route   POST /api/lead-magnet-management/campaigns
+// @desc    Create campaign with multiple lead magnets
+// @access  Private (Coach)
+router.post('/campaigns', createCampaign);
+
+// @route   GET /api/lead-magnet-management/analytics
+// @desc    Get lead magnet analytics
+// @access  Private (Coach)
+router.get('/analytics', getAnalytics);
+
+// @route   GET /api/lead-magnet-management/interactions
+// @desc    Get lead magnet interaction details
+// @access  Private (Coach)
+router.get('/interactions', getInteractions);
+
+// @route   GET /api/lead-magnet-management/top-performers
+// @desc    Get top performing lead magnets
+// @access  Private (Coach)
+router.get('/top-performers', getTopPerformers);
+
+// @route   GET /api/lead-magnet-management/export
+// @desc    Export lead magnet data
+// @access  Private (Coach)
+router.get('/export', exportData);
+
+// @route   GET /api/lead-magnet-management/trends
+// @desc    Get lead magnet performance trends
+// @access  Private (Coach)
+router.get('/trends', getTrends);
+
+module.exports = router;

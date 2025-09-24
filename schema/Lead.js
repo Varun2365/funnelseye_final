@@ -86,7 +86,23 @@ const LeadSchema = new mongoose.Schema({
         profession: String,
         healthGoal: {
             type: String,
-            enum: ['Weight Loss', 'Weight Gain', 'Muscle Building', 'Increase Energy', 'Better Nutrition Habits', 'Other']
+            enum: ['Lose Weight (5-15 kg)', 'Lose Weight (15+ kg)', 'Gain Weight/Muscle', 'Improve Fitness & Energy', 'Manage Health Condition (Diabetes, PCOS, Thyroid)', 'General Wellness & Lifestyle', 'Other']
+        },
+        timelineForResults: {
+            type: String,
+            enum: ['1-3 months (Urgent)', '3-6 months (Moderate)', '6-12 months (Gradual)', 'No specific timeline']
+        },
+        seriousnessLevel: {
+            type: String,
+            enum: ['Very serious - willing to invest time and money', 'Serious - depends on the approach', 'Somewhat serious - exploring options', 'Just curious about possibilities']
+        },
+        investmentRange: {
+            type: String,
+            enum: ['₹10,000 - ₹25,000', '₹25,000 - ₹50,000', '₹50,000 - ₹1,00,000', '₹1,00,000+ (Premium programs)', 'Need to understand value first']
+        },
+        startTimeline: {
+            type: String,
+            enum: ['Immediately (This week)', 'Within 2 weeks', 'Within a month', 'In 2-3 months', 'Just exploring for now']
         },
         medicalConditions: String,
         age: Number,
@@ -95,21 +111,14 @@ const LeadSchema = new mongoose.Schema({
             enum: ['Very active', 'Moderately active', 'Not active']
         },
         supplements: String,
-        readyToStart: {
-            type: String,
-            enum: ['Yes', 'No', 'Not sure']
-        },
-        willingToInvest: {
-            type: String,
-            enum: ['Yes', 'Need a flexible option', 'No']
-        },
         biggestObstacle: String,
         seriousnessScale: {
             type: Number,
             min: 1,
             max: 10
         },
-        motivation: String
+        motivation: String,
+        additionalInfo: String
     },
     // Coach-specific questions
     coachQuestions: {
@@ -117,13 +126,34 @@ const LeadSchema = new mongoose.Schema({
         email: String,
         whatsappNumber: String,
         instagramUsername: String,
+        watchedVideo: {
+            type: String,
+            enum: ['Yes', 'No']
+        },
+        currentProfession: {
+            type: String,
+            enum: ['Fitness Trainer/Gym Instructor', 'Nutritionist/Dietitian', 'Healthcare Professional', 'Sales Professional', 'Business Owner', 'Corporate Employee', 'Homemaker', 'Student', 'Unemployed/Looking for Career Change', 'Other']
+        },
+        interestReasons: [String], // Multiple select - will store array of selected reasons
+        incomeGoal: {
+            type: String,
+            enum: ['₹25,000 - ₹50,000/month (Part-time)', '₹50,000 - ₹1,00,000/month (Full-time basic)', '₹1,00,000 - ₹2,00,000/month (Professional)', '₹2,00,000 - ₹5,00,000/month (Advanced)', '₹5,00,000+/month (Empire building)']
+        },
+        investmentCapacity: {
+            type: String,
+            enum: ['₹50,000 - ₹1,00,000', '₹1,00,000 - ₹2,00,000', '₹2,00,000 - ₹3,00,000', '₹3,00,000+', 'Need to understand business model first']
+        },
+        timeAvailability: {
+            type: String,
+            enum: ['2-4 hours/day (Part-time)', '4-6 hours/day (Serious part-time)', '6-8 hours/day (Full-time)', '8+ hours/day (Fully committed)', 'Flexible based on results']
+        },
+        timelineToAchieveGoal: {
+            type: String,
+            enum: ['1-3 months (Very urgent)', '3-6 months (Moderate urgency)', '6-12 months (Gradual building)', '1-2 years (Long-term vision)']
+        },
         description: {
             type: String,
             enum: ['Full-time job', 'Student', 'Housewife', 'Business owner', 'Unemployed', 'Other']
-        },
-        watchedVideo: {
-            type: String,
-            enum: ['Yes, 100%', 'Partially', 'Not yet']
         },
         reasonForBooking: String,
         supplements: String,

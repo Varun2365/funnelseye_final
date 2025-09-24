@@ -1,0 +1,878 @@
+{
+  "info": {
+    "name": "WhatsApp Customizable Settings - Complete API Collection",
+    "description": "Complete API collection for WhatsApp AI Auto-Reply & Inbox System with Customizable Settings",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{admin_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080/api",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "your_admin_token_here",
+      "type": "string"
+    },
+    {
+      "key": "coach_token",
+      "value": "your_coach_token_here",
+      "type": "string"
+    },
+    {
+      "key": "settings_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "knowledge_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔧 Admin WhatsApp Settings",
+      "description": "Admin-level WhatsApp configuration and management",
+      "item": [
+        {
+          "name": "Get All Admin Settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/admin/settings?page=1&limit=20&search=",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "admin", "settings"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Default Admin Settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/admin/settings/default",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "admin", "settings", "default"]
+            }
+          }
+        },
+        {
+          "name": "Create Admin Settings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Premium Admin Settings\",\n  \"description\": \"Advanced WhatsApp settings for premium coaches\",\n  \"aiKnowledge\": {\n    \"useDefault\": true,\n    \"customizations\": {\n      \"systemPrompt\": \"You are a premium fitness coach assistant. Provide expert advice with enthusiasm.\",\n      \"businessInfo\": {\n        \"companyName\": \"Elite Fitness Coaching\",\n        \"services\": [\"Premium Personal Training\", \"Nutrition Coaching\", \"Lifestyle Transformation\"]\n      },\n      \"responseSettings\": {\n        \"maxLength\": 200,\n        \"tone\": \"professional\",\n        \"includeEmojis\": true,\n        \"autoReplyEnabled\": true\n      }\n    }\n  },\n  \"businessHours\": {\n    \"useDefault\": false,\n    \"customSchedule\": {\n      \"enabled\": true,\n      \"timezone\": \"Asia/Kolkata\",\n      \"schedule\": [\n        {\n          \"day\": \"monday\",\n          \"startTime\": \"08:00\",\n          \"endTime\": \"20:00\",\n          \"isActive\": true\n        },\n        {\n          \"day\": \"tuesday\",\n          \"startTime\": \"08:00\",\n          \"endTime\": \"20:00\",\n          \"isActive\": true\n        }\n      ]\n    }\n  },\n  \"autoReplyRules\": {\n    \"useDefault\": false,\n    \"customRules\": [\n      {\n        \"name\": \"Pricing Inquiry\",\n        \"trigger\": \"price\",\n        \"condition\": \"contains\",\n        \"response\": \"Our premium programs start from ₹75,000/month! Let me connect you with a specialist 💎\",\n        \"priority\": 10,\n        \"isActive\": true\n      }\n    ]\n  },\n  \"isDefault\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/admin/settings",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "admin", "settings"]
+            }
+          }
+        },
+        {
+          "name": "Update Admin Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Premium Settings\",\n  \"description\": \"Updated settings with new features\",\n  \"aiKnowledge\": {\n    \"customizations\": {\n      \"responseSettings\": {\n        \"maxLength\": 250,\n        \"tone\": \"enthusiastic\"\n      }\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/admin/settings/{{settings_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "admin", "settings", "{{settings_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Set Admin Settings as Default",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/admin/settings/{{settings_id}}/set-default",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "admin", "settings", "{{settings_id}}", "set-default"]
+            }
+          }
+        },
+        {
+          "name": "Test Admin AI Settings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"testMessage\": \"What are your premium programs and pricing?\",\n  \"leadContext\": {\n    \"name\": \"Test User\",\n    \"email\": \"test@example.com\",\n    \"status\": \"Hot\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/admin/settings/{{settings_id}}/test-ai",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "admin", "settings", "{{settings_id}}", "test-ai"]
+            }
+          }
+        },
+        {
+          "name": "Clone Admin Settings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"settingsName\": \"Cloned Premium Settings\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/admin/settings/{{settings_id}}/clone",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "admin", "settings", "{{settings_id}}", "clone"]
+            }
+          }
+        },
+        {
+          "name": "Apply Settings to All Coaches",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"coachIds\": [\"coach1_id\", \"coach2_id\"],\n  \"forceUpdate\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/admin/settings/{{settings_id}}/apply-to-coaches",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "admin", "settings", "{{settings_id}}", "apply-to-coaches"]
+            }
+          }
+        },
+        {
+          "name": "Get Admin Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/admin/settings/analytics?period=7d",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "admin", "settings", "analytics"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "7d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Usage Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/admin/settings/usage-stats",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "admin", "settings", "usage-stats"]
+            }
+          }
+        },
+        {
+          "name": "Delete Admin Settings",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/admin/settings/{{settings_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "admin", "settings", "{{settings_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👨‍💼 Coach WhatsApp Settings",
+      "description": "Coach-level WhatsApp configuration with inheritance",
+      "item": [
+        {
+          "name": "Get Coach Settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/coach/settings",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "coach", "settings"]
+            }
+          }
+        },
+        {
+          "name": "Create/Update Coach Settings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Personal Coach Settings\",\n  \"description\": \"Customized settings for my coaching style\",\n  \"inheritance\": {\n    \"enabled\": true,\n    \"inheritFrom\": \"admin\"\n  },\n  \"aiKnowledge\": {\n    \"useDefault\": false,\n    \"customizations\": {\n      \"systemPrompt\": \"You are John's fitness coach assistant. I specialize in weight loss and strength training.\",\n      \"businessInfo\": {\n        \"companyName\": \"John's Fitness Coaching\",\n        \"services\": [\"Weight Loss Programs\", \"Strength Training\", \"Meal Planning\"]\n      },\n      \"responseSettings\": {\n        \"maxLength\": 180,\n        \"tone\": \"friendly\",\n        \"includeEmojis\": true\n      }\n    }\n  },\n  \"businessHours\": {\n    \"useDefault\": false,\n    \"customSchedule\": {\n      \"enabled\": true,\n      \"schedule\": [\n        {\n          \"day\": \"monday\",\n          \"startTime\": \"07:00\",\n          \"endTime\": \"19:00\",\n          \"isActive\": true\n        }\n      ]\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/coach/settings",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "coach", "settings"]
+            }
+          }
+        },
+        {
+          "name": "Customize Specific Field",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fieldPath\": \"aiKnowledge.customizations.responseSettings.maxLength\",\n  \"value\": 220,\n  \"enableInheritance\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/coach/settings/customize",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "coach", "settings", "customize"]
+            }
+          }
+        },
+        {
+          "name": "Remove Field Customization",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/coach/settings/customize/aiKnowledge.customizations.responseSettings.maxLength",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "coach", "settings", "customize", "aiKnowledge.customizations.responseSettings.maxLength"]
+            }
+          }
+        },
+        {
+          "name": "Get Effective Settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/coach/settings/effective",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "coach", "settings", "effective"]
+            }
+          }
+        },
+        {
+          "name": "Test Coach AI Settings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"testMessage\": \"I want to lose 10kg in 3 months, can you help?\",\n  \"leadContext\": {\n    \"name\": \"Potential Client\",\n    \"email\": \"client@example.com\",\n    \"status\": \"Warm\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/coach/settings/test-ai",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "coach", "settings", "test-ai"]
+            }
+          }
+        },
+        {
+          "name": "Get Coach Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/coach/settings/analytics?period=7d",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "coach", "settings", "analytics"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "7d"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reset Coach Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resetType\": \"ai\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/coach/settings/reset",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "coach", "settings", "reset"]
+            }
+          }
+        },
+        {
+          "name": "Clone Settings from Another Coach",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceCoachId\": \"source_coach_id_here\",\n  \"settingsName\": \"Cloned Settings from Expert Coach\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/coach/settings/clone",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "coach", "settings", "clone"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🧠 AI Knowledge Management",
+      "description": "AI Knowledge Base management for admin",
+      "item": [
+        {
+          "name": "Create AI Knowledge Base",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Elite Fitness AI Knowledge\",\n  \"description\": \"Advanced AI knowledge base for premium coaching\",\n  \"businessInfo\": {\n    \"companyName\": \"Elite Fitness Academy\",\n    \"services\": [\n      \"Personal Training\",\n      \"Nutrition Coaching\",\n      \"Lifestyle Transformation\",\n      \"Corporate Wellness\"\n    ],\n    \"products\": [\n      \"Premium Meal Plans\",\n      \"Advanced Workout Programs\",\n      \"Supplements Package\",\n      \"Wellness Retreats\"\n    ],\n    \"pricing\": \"Personal Training: ₹75,000/month, Nutrition: ₹35,000/month, Complete Package: ₹1,25,000/month\",\n    \"contactInfo\": \"Call: +91-9876543210, WhatsApp: +91-9876543210, Email: elite@fitness.com\",\n    \"website\": \"https://elitefitness.com\",\n    \"socialMedia\": [\n      \"@elitefitness_instagram\",\n      \"@elitefitness_youtube\",\n      \"Elite Fitness Academy - Facebook\"\n    ]\n  },\n  \"systemPrompt\": \"You are an expert fitness coach assistant for Elite Fitness Academy. Provide professional, motivating, and personalized fitness advice. Always be encouraging and supportive. Keep responses concise but informative. Focus on transformation and results. Use fitness emojis appropriately. Never mention you're an AI.\",\n  \"responseSettings\": {\n    \"maxLength\": 200,\n    \"tone\": \"professional\",\n    \"includeEmojis\": true,\n    \"autoReplyEnabled\": true\n  },\n  \"businessHours\": {\n    \"enabled\": true,\n    \"timezone\": \"Asia/Kolkata\",\n    \"schedule\": [\n      {\n        \"dayOfWeek\": 1,\n        \"openTime\": \"06:00\",\n        \"closeTime\": \"22:00\"\n      },\n      {\n        \"dayOfWeek\": 2,\n        \"openTime\": \"06:00\",\n        \"closeTime\": \"22:00\"\n      },\n      {\n        \"dayOfWeek\": 3,\n        \"openTime\": \"06:00\",\n        \"closeTime\": \"22:00\"\n      },\n      {\n        \"dayOfWeek\": 4,\n        \"openTime\": \"06:00\",\n        \"closeTime\": \"22:00\"\n      },\n      {\n        \"dayOfWeek\": 5,\n        \"openTime\": \"06:00\",\n        \"closeTime\": \"22:00\"\n      },\n      {\n        \"dayOfWeek\": 6,\n        \"openTime\": \"07:00\",\n        \"closeTime\": \"20:00\"\n      }\n    ],\n    \"afterHoursMessage\": \"Thanks for reaching out! 🌙 We're currently closed but will get back to you first thing tomorrow. Our hours: Mon-Fri 6AM-10PM, Sat 7AM-8PM. For urgent matters, call +91-9876543210 💪\"\n  },\n  \"autoReplyRules\": [\n    {\n      \"trigger\": \"price\",\n      \"condition\": \"contains\",\n      \"response\": \"Our premium programs start from ₹35K/month! 💎 Personal training from ₹75K. Complete transformation package ₹1.25L. Let's discuss your goals! 🎯\",\n      \"priority\": 10,\n      \"isActive\": true\n    },\n    {\n      \"trigger\": \"weight loss\",\n      \"condition\": \"contains\",\n      \"response\": \"Amazing choice! 🔥 Our weight loss programs have helped 1000+ clients transform. Average loss: 8-15kg in 3 months! Ready to start your journey? 💪\",\n      \"priority\": 9,\n      \"isActive\": true\n    },\n    {\n      \"trigger\": \"hello\",\n      \"condition\": \"equals\",\n      \"response\": \"Hello there! 👋 Welcome to Elite Fitness Academy! How can I help you achieve your fitness goals today? 🏆\",\n      \"priority\": 5,\n      \"isActive\": true\n    },\n    {\n      \"trigger\": \"diet\",\n      \"condition\": \"contains\",\n      \"response\": \"Great question! 🍎 Our nutrition coaches create personalized meal plans for your goals. 80% of transformation is nutrition! Want to know more? 🥗\",\n      \"priority\": 8,\n      \"isActive\": true\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/ai-knowledge",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "ai-knowledge"]
+            }
+          }
+        },
+        {
+          "name": "Get All AI Knowledge Bases",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/ai-knowledge",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "ai-knowledge"]
+            }
+          }
+        },
+        {
+          "name": "Update AI Knowledge Base",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Elite Fitness AI\",\n  \"systemPrompt\": \"You are an expert fitness coach assistant for Elite Fitness Academy. Updated with latest fitness trends and methods.\",\n  \"responseSettings\": {\n    \"maxLength\": 250,\n    \"tone\": \"enthusiastic\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/ai-knowledge/{{knowledge_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "ai-knowledge", "{{knowledge_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Set as Default Knowledge Base",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/ai-knowledge/{{knowledge_id}}/set-default",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "ai-knowledge", "{{knowledge_id}}", "set-default"]
+            }
+          }
+        },
+        {
+          "name": "Test AI Knowledge Base",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messageContent\": \"I need help with weight loss and building muscle\",\n  \"leadContext\": {\n    \"name\": \"Sarah Johnson\",\n    \"email\": \"sarah@example.com\",\n    \"phone\": \"+919876543210\",\n    \"status\": \"Hot\",\n    \"leadTemperature\": \"Hot\",\n    \"notes\": \"Interested in premium package\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/ai-knowledge/{{knowledge_id}}/test",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "ai-knowledge", "{{knowledge_id}}", "test"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📥 WhatsApp Inbox",
+      "description": "WhatsApp inbox management for coaches and admins",
+      "item": [
+        {
+          "name": "Get Inbox Messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/inbox?page=1&limit=20&category=sales&priority=high",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "inbox"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "category",
+                  "value": "sales"
+                },
+                {
+                  "key": "priority",
+                  "value": "high"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Send Message from Inbox",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"+919876543210\",\n  \"message\": \"Thank you for your interest in our fitness programs! 💪 I'm excited to help you achieve your goals. When would be a good time for a consultation call?\",\n  \"messageType\": \"text\",\n  \"conversationId\": \"+919876543210\",\n  \"leadId\": \"lead_id_here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/inbox/send",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "inbox", "send"]
+            }
+          }
+        },
+        {
+          "name": "Get Inbox Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coach_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/inbox/stats",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "inbox", "stats"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔗 Webhook Integration",
+      "description": "Webhook management and testing",
+      "item": [
+        {
+          "name": "Webhook Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/webhook/status",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "webhook", "status"]
+            }
+          }
+        },
+        {
+          "name": "Test Webhook (Simulate Incoming Message)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"object\": \"whatsapp_business_account\",\n  \"entry\": [\n    {\n      \"id\": \"ENTRY_ID\",\n      \"changes\": [\n        {\n          \"value\": {\n            \"messaging_product\": \"whatsapp\",\n            \"metadata\": {\n              \"display_phone_number\": \"15550559999\",\n              \"phone_number_id\": \"PHONE_NUMBER_ID\"\n            },\n            \"contacts\": [\n              {\n                \"profile\": {\n                  \"name\": \"Test User\"\n                },\n                \"wa_id\": \"919876543210\"\n              }\n            ],\n            \"messages\": [\n              {\n                \"from\": \"919876543210\",\n                \"id\": \"wamid.test123\",\n                \"timestamp\": \"1669233778\",\n                \"text\": {\n                  \"body\": \"Hi, I'm interested in your fitness programs. What are the prices?\"\n                },\n                \"type\": \"text\"\n              }\n            ]\n          },\n          \"field\": \"messages\"\n        }\n      ]\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/webhook",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "webhook"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⚙️ Central WhatsApp Configuration",
+      "description": "Original central WhatsApp configuration endpoints",
+      "item": [
+        {
+          "name": "Setup Central WhatsApp",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accessToken\": \"your_whatsapp_access_token\",\n  \"phoneNumberId\": \"your_phone_number_id\",\n  \"businessAccountId\": \"your_business_account_id\",\n  \"verifyToken\": \"your_verify_token\",\n  \"webhookUrl\": \"https://yourdomain.com/api/whatsapp/v1/webhook\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/setup",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "setup"]
+            }
+          }
+        },
+        {
+          "name": "Get WhatsApp Configuration",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/config",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "config"]
+            }
+          }
+        },
+        {
+          "name": "Get WhatsApp Templates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/templates",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "templates"]
+            }
+          }
+        },
+        {
+          "name": "Test Configuration",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whatsapp/v1/test-config",
+              "host": ["{{base_url}}"],
+              "path": ["whatsapp", "v1", "test-config"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

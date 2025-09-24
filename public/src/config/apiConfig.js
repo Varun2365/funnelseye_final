@@ -3,8 +3,9 @@
  * This file manages all API endpoints and base URLs for the application
  * 
  * Usage:
- * - For development: Set BASE_URL to 'http://localhost:8080'
- * - For production: Set BASE_URL to 'https://api.funnelseye.com'
+ * - API URLs are automatically configured based on environment detection
+ * - See src/config/environment.js for environment-specific URL configuration
+ * - For manual override during testing, use: window.setApiUrl('http://localhost:8080')
  */
 
 import environmentConfig from './environment.js';

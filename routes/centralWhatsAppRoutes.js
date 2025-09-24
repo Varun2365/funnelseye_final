@@ -3,6 +3,11 @@ const router = express.Router();
 
 // Import controllers
 const centralWhatsAppController = require('../controllers/centralWhatsAppController');
+const whatsappInboxController = require('../controllers/whatsappInboxController');
+const whatsappAIKnowledgeController = require('../controllers/whatsappAIKnowledgeController');
+const whatsappWebhookController = require('../controllers/whatsappWebhookController');
+const whatsappCoachSettingsController = require('../controllers/whatsappCoachSettingsController');
+const whatsappAdminSettingsController = require('../controllers/whatsappAdminSettingsController');
 
 // Import middleware
 const { verifyAdminToken, noLogActivity } = require('../middleware/adminAuth');
@@ -219,6 +224,354 @@ router.get('/contacts',
 router.get('/status',
     protect,
     centralWhatsAppController.getCoachStatus
+);
+
+// ===== WHATSAPP INBOX ROUTES =====
+// These routes are accessible by Admin, Coach, and Staff
+
+// @route   GET /api/whatsapp/v1/inbox
+// @desc    Get inbox messages for user
+// @access  Private (Admin/Coach/Staff)
+router.get('/inbox',
+    protect,
+    whatsappInboxController.getInboxMessages
+);
+
+// @route   GET /api/whatsapp/v1/inbox/conversation/:conversationId
+// @desc    Get conversation messages
+// @access  Private (Admin/Coach/Staff)
+router.get('/inbox/conversation/:conversationId',
+    protect,
+    whatsappInboxController.getConversationMessages
+);
+
+// @route   POST /api/whatsapp/v1/inbox/send
+// @desc    Send message from inbox
+// @access  Private (Admin/Coach/Staff)
+router.post('/inbox/send',
+    protect,
+    whatsappInboxController.sendInboxMessage
+);
+
+// @route   PUT /api/whatsapp/v1/inbox/messages/:messageId/read
+// @desc    Mark message as read
+// @access  Private (Admin/Coach/Staff)
+router.put('/inbox/messages/:messageId/read',
+    protect,
+    whatsappInboxController.markMessageAsRead
+);
+
+// @route   PUT /api/whatsapp/v1/inbox/messages/:messageId/assign
+// @desc    Assign message to user
+// @access  Private (Admin/Coach/Staff)
+router.put('/inbox/messages/:messageId/assign',
+    protect,
+    whatsappInboxController.assignMessage
+);
+
+// @route   PUT /api/whatsapp/v1/inbox/messages/:messageId/archive
+// @desc    Archive message
+// @access  Private (Admin/Coach/Staff)
+router.put('/inbox/messages/:messageId/archive',
+    protect,
+    whatsappInboxController.archiveMessage
+);
+
+// @route   GET /api/whatsapp/v1/inbox/stats
+// @desc    Get inbox statistics
+// @access  Private (Admin/Coach/Staff)
+router.get('/inbox/stats',
+    protect,
+    whatsappInboxController.getInboxStats
+);
+
+// ===== AI KNOWLEDGE MANAGEMENT ROUTES =====
+// These routes are Admin only
+
+// @route   POST /api/whatsapp/v1/ai-knowledge
+// @desc    Create AI Knowledge Base
+// @access  Private (Admin)
+router.post('/ai-knowledge',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAIKnowledgeController.createAIKnowledge
+);
+
+// @route   GET /api/whatsapp/v1/ai-knowledge
+// @desc    Get all AI Knowledge Bases
+// @access  Private (Admin)
+router.get('/ai-knowledge',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAIKnowledgeController.getAIKnowledgeBases
+);
+
+// @route   GET /api/whatsapp/v1/ai-knowledge/:id
+// @desc    Get single AI Knowledge Base
+// @access  Private (Admin)
+router.get('/ai-knowledge/:id',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAIKnowledgeController.getAIKnowledgeBase
+);
+
+// @route   PUT /api/whatsapp/v1/ai-knowledge/:id
+// @desc    Update AI Knowledge Base
+// @access  Private (Admin)
+router.put('/ai-knowledge/:id',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAIKnowledgeController.updateAIKnowledgeBase
+);
+
+// @route   DELETE /api/whatsapp/v1/ai-knowledge/:id
+// @desc    Delete AI Knowledge Base
+// @access  Private (Admin)
+router.delete('/ai-knowledge/:id',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAIKnowledgeController.deleteAIKnowledgeBase
+);
+
+// @route   PUT /api/whatsapp/v1/ai-knowledge/:id/set-default
+// @desc    Set default AI Knowledge Base
+// @access  Private (Admin)
+router.put('/ai-knowledge/:id/set-default',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAIKnowledgeController.setDefaultAIKnowledgeBase
+);
+
+// @route   POST /api/whatsapp/v1/ai-knowledge/:id/test
+// @desc    Test AI Knowledge Base
+// @access  Private (Admin)
+router.post('/ai-knowledge/:id/test',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAIKnowledgeController.testAIKnowledgeBase
+);
+
+// @route   GET /api/whatsapp/v1/ai-knowledge/:id/stats
+// @desc    Get AI Knowledge Base statistics
+// @access  Private (Admin)
+router.get('/ai-knowledge/:id/stats',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAIKnowledgeController.getAIKnowledgeStats
+);
+
+// ===== WEBHOOK ROUTES =====
+
+// @route   POST /api/whatsapp/v1/webhook
+// @desc    Handle WhatsApp webhook from Meta
+// @access  Public (Meta webhook)
+router.post('/webhook',
+    whatsappWebhookController.handleWebhook
+);
+
+// @route   GET /api/whatsapp/v1/webhook/status
+// @desc    Get webhook status
+// @access  Private (Admin)
+router.get('/webhook/status',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappWebhookController.getWebhookStatus
+);
+
+// ===== COACH WHATSAPP SETTINGS ROUTES =====
+// These routes are mounted at /api/whatsapp/v1/coach/settings
+// All coach routes use protect middleware
+
+// @route   GET /api/whatsapp/v1/coach/settings
+// @desc    Get coach's WhatsApp settings
+// @access  Private (Coach)
+router.get('/coach/settings',
+    protect,
+    whatsappCoachSettingsController.getCoachSettings
+);
+
+// @route   POST /api/whatsapp/v1/coach/settings
+// @desc    Create or update coach's WhatsApp settings
+// @access  Private (Coach)
+router.post('/coach/settings',
+    protect,
+    whatsappCoachSettingsController.createOrUpdateCoachSettings
+);
+
+// @route   PUT /api/whatsapp/v1/coach/settings/customize
+// @desc    Customize specific field in coach settings
+// @access  Private (Coach)
+router.put('/coach/settings/customize',
+    protect,
+    whatsappCoachSettingsController.customizeCoachField
+);
+
+// @route   DELETE /api/whatsapp/v1/coach/settings/customize/:fieldPath
+// @desc    Remove customization for specific field
+// @access  Private (Coach)
+router.delete('/coach/settings/customize/:fieldPath',
+    protect,
+    whatsappCoachSettingsController.removeCoachCustomization
+);
+
+// @route   PUT /api/whatsapp/v1/coach/settings/set-default
+// @desc    Set coach settings as default
+// @access  Private (Coach)
+router.put('/coach/settings/set-default',
+    protect,
+    whatsappCoachSettingsController.setCoachSettingsAsDefault
+);
+
+// @route   GET /api/whatsapp/v1/coach/settings/effective
+// @desc    Get coach's effective settings (with inheritance applied)
+// @access  Private (Coach)
+router.get('/coach/settings/effective',
+    protect,
+    whatsappCoachSettingsController.getCoachEffectiveSettings
+);
+
+// @route   POST /api/whatsapp/v1/coach/settings/test-ai
+// @desc    Test coach's AI settings
+// @access  Private (Coach)
+router.post('/coach/settings/test-ai',
+    protect,
+    whatsappCoachSettingsController.testCoachAISettings
+);
+
+// @route   GET /api/whatsapp/v1/coach/settings/analytics
+// @desc    Get coach's WhatsApp analytics
+// @access  Private (Coach)
+router.get('/coach/settings/analytics',
+    protect,
+    whatsappCoachSettingsController.getCoachAnalytics
+);
+
+// @route   PUT /api/whatsapp/v1/coach/settings/reset
+// @desc    Reset coach settings to inherit from parent
+// @access  Private (Coach)
+router.put('/coach/settings/reset',
+    protect,
+    whatsappCoachSettingsController.resetCoachSettings
+);
+
+// @route   POST /api/whatsapp/v1/coach/settings/clone
+// @desc    Clone settings from another coach
+// @access  Private (Coach)
+router.post('/coach/settings/clone',
+    protect,
+    whatsappCoachSettingsController.cloneCoachSettings
+);
+
+// ===== ADMIN WHATSAPP SETTINGS ROUTES =====
+// These routes are mounted at /api/whatsapp/v1/admin/settings
+// All admin routes use verifyAdminToken middleware
+
+// @route   GET /api/whatsapp/v1/admin/settings
+// @desc    Get all admin WhatsApp settings
+// @access  Private (Admin)
+router.get('/admin/settings',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAdminSettingsController.getAllAdminSettings
+);
+
+// @route   GET /api/whatsapp/v1/admin/settings/:id
+// @desc    Get specific admin WhatsApp settings
+// @access  Private (Admin)
+router.get('/admin/settings/:id',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAdminSettingsController.getAdminSettings
+);
+
+// @route   GET /api/whatsapp/v1/admin/settings/default
+// @desc    Get default admin WhatsApp settings
+// @access  Private (Admin)
+router.get('/admin/settings/default',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAdminSettingsController.getDefaultAdminSettings
+);
+
+// @route   POST /api/whatsapp/v1/admin/settings
+// @desc    Create new admin WhatsApp settings
+// @access  Private (Admin)
+router.post('/admin/settings',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAdminSettingsController.createAdminSettings
+);
+
+// @route   PUT /api/whatsapp/v1/admin/settings/:id
+// @desc    Update admin WhatsApp settings
+// @access  Private (Admin)
+router.put('/admin/settings/:id',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAdminSettingsController.updateAdminSettings
+);
+
+// @route   PUT /api/whatsapp/v1/admin/settings/:id/set-default
+// @desc    Set admin settings as default
+// @access  Private (Admin)
+router.put('/admin/settings/:id/set-default',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAdminSettingsController.setAdminSettingsAsDefault
+);
+
+// @route   DELETE /api/whatsapp/v1/admin/settings/:id
+// @desc    Delete admin WhatsApp settings
+// @access  Private (Admin)
+router.delete('/admin/settings/:id',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAdminSettingsController.deleteAdminSettings
+);
+
+// @route   POST /api/whatsapp/v1/admin/settings/:id/test-ai
+// @desc    Test admin AI settings
+// @access  Private (Admin)
+router.post('/admin/settings/:id/test-ai',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAdminSettingsController.testAdminAISettings
+);
+
+// @route   GET /api/whatsapp/v1/admin/settings/analytics
+// @desc    Get admin WhatsApp analytics
+// @access  Private (Admin)
+router.get('/admin/settings/analytics',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAdminSettingsController.getAdminAnalytics
+);
+
+// @route   POST /api/whatsapp/v1/admin/settings/:id/clone
+// @desc    Clone admin settings
+// @access  Private (Admin)
+router.post('/admin/settings/:id/clone',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAdminSettingsController.cloneAdminSettings
+);
+
+// @route   POST /api/whatsapp/v1/admin/settings/:id/apply-to-coaches
+// @desc    Apply settings to all coaches
+// @access  Private (Admin)
+router.post('/admin/settings/:id/apply-to-coaches',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAdminSettingsController.applySettingsToCoaches
+);
+
+// @route   GET /api/whatsapp/v1/admin/settings/usage-stats
+// @desc    Get settings usage statistics
+// @access  Private (Admin)
+router.get('/admin/settings/usage-stats',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    whatsappAdminSettingsController.getSettingsUsageStats
 );
 
 module.exports = router;

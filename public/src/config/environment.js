@@ -12,7 +12,7 @@
 // ========================================
 
 // Development URL (localhost)
-const DEV_API_URL = 'http://localhost:8080';
+const DEV_API_URL = 'https://api.funnelseye.com';
 
 // Production URL
 const PROD_API_URL = 'https://api.funnelseye.com';

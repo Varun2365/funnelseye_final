@@ -42,7 +42,6 @@ import {
   Monitor
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import ThemeSwitcher from './ThemeSwitcher';
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -215,7 +214,6 @@ const AdminLayout = () => {
             <div className="text-sm text-muted-foreground">
               Welcome back, {admin?.firstName}
             </div>
-            <ThemeSwitcher variant="simple" />
             <Button
               variant="ghost"
               size="sm"
