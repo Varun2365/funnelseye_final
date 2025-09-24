@@ -10,81 +10,193 @@ const ErrorResponse = require('../utils/errorResponse');
 const setupZoomIntegration = asyncHandler(async (req, res, next) => {
     const { clientId, clientSecret, zoomEmail, zoomAccountId, meetingSettings } = req.body;
     
+    // ===== STEP 1: VALIDATE REQUIRED FIELDS =====
     if (!clientId || !clientSecret || !zoomEmail || !zoomAccountId) {
-        return next(new ErrorResponse('Client ID, Client Secret, Zoom Email, and Account ID are required', 400));
+        return res.status(400).json({
+            success: false,
+            message: 'Missing required fields',
+            errors: {
+                clientId: !clientId ? 'Client ID is required' : null,
+                clientSecret: !clientSecret ? 'Client Secret is required' : null,
+                zoomEmail: !zoomEmail ? 'Zoom Email is required' : null,
+                zoomAccountId: !zoomAccountId ? 'Zoom Account ID is required' : null
+            }
+        });
     }
 
-    // Check if integration already exists
-    let integration = await ZoomIntegration.findOne({ coachId: req.coachId });
+    // ===== STEP 2: VALIDATE FIELD FORMATS =====
+    const validationErrors = {};
     
-    if (integration) {
-        // Update existing integration
-        integration.clientId = clientId;
-        integration.clientSecret = clientSecret;
-        integration.zoomEmail = zoomEmail;
-        integration.zoomAccountId = zoomAccountId;
-        if (meetingSettings) {
-            integration.meetingSettings = { ...integration.meetingSettings, ...meetingSettings };
-        }
-    } else {
-        // Create new integration
-        integration = new ZoomIntegration({
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(zoomEmail)) {
+        validationErrors.zoomEmail = 'Please enter a valid email address';
+    }
+    
+    // Validate client ID format (should be alphanumeric, 20-40 characters)
+    if (!/^[a-zA-Z0-9]{20,40}$/.test(clientId)) {
+        validationErrors.clientId = 'Client ID should be 20-40 alphanumeric characters';
+    }
+    
+    // Validate client secret format (should be alphanumeric, 20-40 characters)
+    if (!/^[a-zA-Z0-9]{20,40}$/.test(clientSecret)) {
+        validationErrors.clientSecret = 'Client Secret should be 20-40 alphanumeric characters';
+    }
+    
+    // Validate account ID format (should be alphanumeric, 8-20 characters)
+    if (!/^[a-zA-Z0-9]{8,20}$/.test(zoomAccountId)) {
+        validationErrors.zoomAccountId = 'Account ID should be 8-20 alphanumeric characters';
+    }
+    
+    // If there are validation errors, return them
+    if (Object.keys(validationErrors).length > 0) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid field formats',
+            errors: validationErrors
+        });
+    }
+
+    // ===== STEP 3: CREATE TEMPORARY INTEGRATION FOR TESTING =====
+    let tempIntegration;
+    try {
+        tempIntegration = new ZoomIntegration({
             coachId: req.coachId,
             clientId,
             clientSecret,
             zoomEmail,
             zoomAccountId,
-            meetingSettings: meetingSettings || {}
+            meetingSettings: meetingSettings || {},
+            isActive: false // Don't activate until verified
+        });
+        
+        // Validate the schema (this will catch any schema validation errors)
+        await tempIntegration.validate();
+        
+    } catch (validationError) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid integration data',
+            errors: {
+                schema: validationError.message
+            }
         });
     }
 
-    // Save the integration first
-    await integration.save();
-    
-    // Then test the connection
+    // ===== STEP 4: TEST CREDENTIALS WITHOUT SAVING =====
     try {
-        const testResult = await zoomService.testConnection(req.coachId);
+        console.log('[ZoomIntegration] Testing credentials before saving...');
+        
+        // Test the credentials by attempting to generate an OAuth token
+        const testResult = await zoomService.testCredentials({
+            clientId,
+            clientSecret,
+            zoomEmail,
+            zoomAccountId
+        });
+        
         if (!testResult.success) {
-            // If test fails, update integration status and return error
-            integration.lastSync = {
-                timestamp: new Date(),
-                status: 'failed',
-                error: testResult.message
-            };
-            await integration.save();
-            
-            return next(new ErrorResponse(`Zoom connection test failed: ${testResult.message}`, 400));
+            return res.status(400).json({
+                success: false,
+                message: 'Zoom credentials verification failed',
+                errors: {
+                    credentials: testResult.message || 'Invalid credentials or network error',
+                    details: testResult.details || null
+                },
+                suggestions: [
+                    'Verify your Client ID and Client Secret from Zoom Marketplace',
+                    'Ensure your Zoom account is active and has API access',
+                    'Check that the Account ID matches your Zoom account',
+                    'Verify your email address is associated with the Zoom account'
+                ]
+            });
         }
         
-        // Update integration with success status
-        integration.lastSync = {
-            timestamp: new Date(),
-            status: 'success'
-        };
+        console.log('[ZoomIntegration] Credentials verified successfully');
         
-        await integration.save();
+    } catch (error) {
+        console.error('[ZoomIntegration] Credential test error:', error);
+        return res.status(400).json({
+            success: false,
+            message: 'Failed to verify Zoom credentials',
+            errors: {
+                network: 'Unable to connect to Zoom API',
+                details: error.message
+            },
+            suggestions: [
+                'Check your internet connection',
+                'Verify Zoom API endpoints are accessible',
+                'Try again in a few moments'
+            ]
+        });
+    }
+
+    // ===== STEP 5: SAVE TO DATABASE ONLY AFTER VERIFICATION =====
+    try {
+        // Check if integration already exists
+        let existingIntegration = await ZoomIntegration.findOne({ coachId: req.coachId });
+        
+        if (existingIntegration) {
+            // Update existing integration with verified credentials
+            existingIntegration.clientId = clientId;
+            existingIntegration.clientSecret = clientSecret;
+            existingIntegration.zoomEmail = zoomEmail;
+            existingIntegration.zoomAccountId = zoomAccountId;
+            if (meetingSettings) {
+                existingIntegration.meetingSettings = { ...existingIntegration.meetingSettings, ...meetingSettings };
+            }
+            existingIntegration.isActive = true;
+            existingIntegration.lastSync = {
+                timestamp: new Date(),
+                status: 'success',
+                message: 'Credentials verified and integration updated successfully'
+            };
+            
+            await existingIntegration.save();
+            integration = existingIntegration;
+            
+        } else {
+            // Create new integration with verified credentials
+            tempIntegration.isActive = true;
+            tempIntegration.lastSync = {
+                timestamp: new Date(),
+                status: 'success',
+                message: 'Credentials verified and integration created successfully'
+            };
+            
+            integration = await tempIntegration.save();
+        }
+        
+        console.log('[ZoomIntegration] Integration saved successfully for coach:', req.coachId);
         
         res.status(200).json({
             success: true,
-            message: 'Zoom integration setup successfully',
+            message: 'Zoom integration setup completed successfully',
             data: {
-                integrationId: integration._id,
+                _id: integration._id,
                 zoomAccountId: integration.zoomAccountId,
                 zoomEmail: integration.zoomEmail,
-                isActive: integration.isActive
+                isActive: integration.isActive,
+                lastSync: integration.lastSync,
+                meetingSettings: integration.meetingSettings
+            },
+            verification: {
+                credentials: 'verified',
+                connection: 'successful',
+                timestamp: new Date().toISOString()
             }
         });
         
     } catch (error) {
-        // Update integration with error status
-        integration.lastSync = {
-            timestamp: new Date(),
-            status: 'failed',
-            error: error.message
-        };
-        await integration.save();
-        
-        return next(new ErrorResponse(`Failed to setup Zoom integration: ${error.message}`, 400));
+        console.error('[ZoomIntegration] Database save error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to save Zoom integration',
+            errors: {
+                database: 'Unable to save integration to database',
+                details: error.message
+            }
+        });
     }
 });
 
@@ -92,175 +204,295 @@ const setupZoomIntegration = asyncHandler(async (req, res, next) => {
 // @route   GET /api/zoom-integration
 // @access  Private (Coaches)
 const getZoomIntegration = asyncHandler(async (req, res, next) => {
-    const integration = await ZoomIntegration.findOne({ coachId: req.coachId });
-    
-    if (!integration) {
-        return next(new ErrorResponse('Zoom integration not found', 404));
+    try {
+        const integration = await ZoomIntegration.findOne({ coachId: req.coachId });
+        
+        if (!integration) {
+            return res.status(200).json({
+                success: false,
+                message: 'Zoom integration not found. Please set up your Zoom integration first.',
+                data: null,
+                error: 'Integration not found'
+            });
+        }
+
+        // Don't send sensitive data
+        const safeIntegration = {
+            _id: integration._id,
+            zoomAccountId: integration.zoomAccountId,
+            zoomEmail: integration.zoomEmail,
+            isActive: integration.isActive,
+            meetingSettings: integration.meetingSettings,
+            lastSync: integration.lastSync,
+            usageStats: integration.usageStats,
+            createdAt: integration.createdAt,
+            updatedAt: integration.updatedAt
+        };
+
+        res.status(200).json({
+            success: true,
+            data: safeIntegration
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to get Zoom integration details',
+            error: error.message,
+            details: error.stack || 'No additional details available'
+        });
     }
-
-    // Don't send sensitive data
-    const safeIntegration = {
-        _id: integration._id,
-        zoomAccountId: integration.zoomAccountId,
-        zoomEmail: integration.zoomEmail,
-        isActive: integration.isActive,
-        meetingSettings: integration.meetingSettings,
-        lastSync: integration.lastSync,
-        usageStats: integration.usageStats,
-        createdAt: integration.createdAt,
-        updatedAt: integration.updatedAt
-    };
-
-    res.status(200).json({
-        success: true,
-        data: safeIntegration
-    });
 });
 
 // @desc    Update Zoom integration settings
 // @route   PUT /api/zoom-integration
 // @access  Private (Coaches)
 const updateZoomIntegration = asyncHandler(async (req, res, next) => {
-    const { meetingSettings, isActive } = req.body;
-    
-    let integration = await ZoomIntegration.findOne({ coachId: req.coachId });
-    
-    if (!integration) {
-        return next(new ErrorResponse('Zoom integration not found', 404));
-    }
-
-    if (meetingSettings) {
-        integration.meetingSettings = { ...integration.meetingSettings, ...meetingSettings };
-    }
-    
-    if (isActive !== undefined) {
-        integration.isActive = isActive;
-    }
-
-    await integration.save();
-
-    res.status(200).json({
-        success: true,
-        message: 'Zoom integration updated successfully',
-        data: {
-            meetingSettings: integration.meetingSettings,
-            isActive: integration.isActive
+    try {
+        const { meetingSettings, isActive } = req.body;
+        
+        let integration = await ZoomIntegration.findOne({ coachId: req.coachId });
+        
+        if (!integration) {
+            return res.status(200).json({
+                success: false,
+                message: 'Zoom integration not found. Please set up your Zoom integration first.',
+                data: null,
+                error: 'Integration not found'
+            });
         }
-    });
+
+        if (meetingSettings) {
+            integration.meetingSettings = { ...integration.meetingSettings, ...meetingSettings };
+        }
+        
+        if (isActive !== undefined) {
+            integration.isActive = isActive;
+        }
+
+        await integration.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Zoom integration updated successfully',
+            data: {
+                meetingSettings: integration.meetingSettings,
+                isActive: integration.isActive
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to update Zoom integration',
+            error: error.message,
+            details: error.stack || 'No additional details available'
+        });
+    }
 });
 
 // @desc    Test Zoom connection
 // @route   POST /api/zoom-integration/test
 // @access  Private (Coaches)
 const testZoomConnection = asyncHandler(async (req, res, next) => {
-    const result = await zoomService.testConnection(req.coachId);
-    
-    res.status(200).json(result);
+    try {
+        const result = await zoomService.testConnection(req.coachId);
+        res.status(200).json(result);
+    } catch (error) {
+        if (error.message.includes('Zoom integration not found')) {
+            return res.status(200).json({
+                success: false,
+                message: 'Zoom integration not found. Please set up your Zoom integration first.',
+                data: null,
+                error: error.message
+            });
+        }
+        
+        // Include error details for frontend debugging
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to test Zoom connection',
+            error: error.message,
+            details: error.stack || 'No additional details available'
+        });
+    }
 });
 
 // @desc    Get Zoom usage statistics
 // @route   GET /api/zoom-integration/usage
 // @access  Private (Coaches)
 const getZoomUsage = asyncHandler(async (req, res, next) => {
-    const result = await zoomService.getAccountUsage(req.coachId);
-    
-    res.status(200).json(result);
+    try {
+        const result = await zoomService.getAccountUsage(req.coachId);
+        res.status(200).json(result);
+    } catch (error) {
+        if (error.message.includes('Zoom integration not found')) {
+            return res.status(200).json({
+                success: false,
+                message: 'Zoom integration not found. Please set up your Zoom integration first.',
+                data: null,
+                error: error.message
+            });
+        }
+        
+        // Include error details for frontend debugging
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to get Zoom usage statistics',
+            error: error.message,
+            details: error.stack || 'No additional details available'
+        });
+    }
 });
 
 // @desc    Create a meeting template
 // @route   POST /api/zoom-integration/meeting-templates
 // @access  Private (Coaches)
 const createMeetingTemplate = asyncHandler(async (req, res, next) => {
-    const { name, description, duration, settings, isDefault } = req.body;
-    
-    if (!name || !duration) {
-        return next(new ErrorResponse('Name and duration are required', 400));
+    try {
+        const { name, description, duration, settings, isDefault } = req.body;
+        
+        if (!name || !duration) {
+            return res.status(400).json({
+                success: false,
+                message: 'Name and duration are required',
+                error: 'Missing required fields',
+                details: `Missing: ${!name ? 'name' : ''} ${!duration ? 'duration' : ''}`.trim()
+            });
+        }
+
+        const integration = await ZoomIntegration.findOne({ coachId: req.coachId });
+        
+        if (!integration) {
+            return res.status(200).json({
+                success: false,
+                message: 'Zoom integration not found. Please set up your Zoom integration first.',
+                data: null,
+                error: 'Integration not found'
+            });
+        }
+
+        await integration.createMeetingTemplate({
+            name,
+            description,
+            duration,
+            settings,
+            isDefault
+        });
+
+        res.status(201).json({
+            success: true,
+            message: 'Meeting template created successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to create meeting template',
+            error: error.message,
+            details: error.stack || 'No additional details available'
+        });
     }
-
-    const integration = await ZoomIntegration.findOne({ coachId: req.coachId });
-    
-    if (!integration) {
-        return next(new ErrorResponse('Zoom integration not found', 404));
-    }
-
-    await integration.createMeetingTemplate({
-        name,
-        description,
-        duration,
-        settings,
-        isDefault
-    });
-
-    res.status(201).json({
-        success: true,
-        message: 'Meeting template created successfully'
-    });
 });
 
 // @desc    Get meeting templates
 // @route   GET /api/zoom-integration/meeting-templates
 // @access  Private (Coaches)
 const getMeetingTemplates = asyncHandler(async (req, res, next) => {
-    const integration = await ZoomIntegration.findOne({ coachId: req.coachId });
-    
-    if (!integration) {
-        return next(new ErrorResponse('Zoom integration not found', 404));
-    }
+    try {
+        const integration = await ZoomIntegration.findOne({ coachId: req.coachId });
+        
+        if (!integration) {
+            return res.status(200).json({
+                success: false,
+                message: 'Zoom integration not found. Please set up your Zoom integration first.',
+                data: [],
+                error: 'Integration not found'
+            });
+        }
 
-    res.status(200).json({
-        success: true,
-        data: integration.meetingSettings.templates
-    });
+        res.status(200).json({
+            success: true,
+            data: integration.meetingSettings.templates
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to get meeting templates',
+            error: error.message,
+            details: error.stack || 'No additional details available'
+        });
+    }
 });
 
 // @desc    Delete Zoom integration
 // @route   DELETE /api/zoom-integration
 // @access  Private (Coaches)
 const deleteZoomIntegration = asyncHandler(async (req, res, next) => {
-    const integration = await ZoomIntegration.findOne({ coachId: req.coachId });
-    
-    if (!integration) {
-        return next(new ErrorResponse('Zoom integration not found', 404));
+    try {
+        const integration = await ZoomIntegration.findOne({ coachId: req.coachId });
+        
+        if (!integration) {
+            return res.status(200).json({
+                success: false,
+                message: 'Zoom integration not found. Please set up your Zoom integration first.',
+                data: null,
+                error: 'Integration not found'
+            });
+        }
+
+        await integration.deleteOne();
+
+        res.status(200).json({
+            success: true,
+            message: 'Zoom integration deleted successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to delete Zoom integration',
+            error: error.message,
+            details: error.stack || 'No additional details available'
+        });
     }
-
-    await integration.deleteOne();
-
-    res.status(200).json({
-        success: true,
-        message: 'Zoom integration deleted successfully'
-    });
 });
 
 // @desc    Get Zoom integration status
 // @route   GET /api/zoom-integration/status
 // @access  Private (Coaches)
 const getIntegrationStatus = asyncHandler(async (req, res, next) => {
-    const integration = await ZoomIntegration.findOne({ coachId: req.coachId });
-    
-    if (!integration) {
-        return res.status(200).json({
-            success: true,
-            data: {
-                isConnected: false,
-                message: 'No Zoom integration found'
+    try {
+        const integration = await ZoomIntegration.findOne({ coachId: req.coachId });
+        
+        if (!integration) {
+            return res.status(200).json({
+                success: true,
+                data: {
+                    isConnected: false,
+                    message: 'No Zoom integration found'
+                }
+            });
+        }
+
+        const status = {
+            isConnected: integration.isValid(),
+            isActive: integration.isActive,
+            lastSync: integration.lastSync,
+            accountInfo: {
+                zoomAccountId: integration.zoomAccountId,
+                zoomEmail: integration.zoomEmail
             }
+        };
+
+        res.status(200).json({
+            success: true,
+            data: status
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to get integration status',
+            error: error.message,
+            details: error.stack || 'No additional details available'
         });
     }
-
-    const status = {
-        isConnected: integration.isValid(),
-        isActive: integration.isActive,
-        lastSync: integration.lastSync,
-        accountInfo: {
-            zoomAccountId: integration.zoomAccountId,
-            zoomEmail: integration.zoomEmail
-        }
-    };
-
-    res.status(200).json({
-        success: true,
-        data: status
-    });
 });
 
 // @desc    Get Zoom meeting details for a specific appointment
@@ -277,7 +509,23 @@ const getZoomMeetingForAppointment = asyncHandler(async (req, res, next) => {
             data: meetingDetails
         });
     } catch (error) {
-        return next(new ErrorResponse(error.message, 404));
+        if (error.message.includes('Zoom integration not found')) {
+            return res.status(200).json({
+                success: false,
+                message: 'Zoom integration not found. Please set up your Zoom integration first.',
+                data: null,
+                error: error.message
+            });
+        }
+        
+        // Include error details for frontend debugging
+        return res.status(404).json({
+            success: false,
+            message: 'Failed to get Zoom meeting details',
+            error: error.message,
+            details: error.stack || 'No additional details available',
+            appointmentId: appointmentId
+        });
     }
 });
 
@@ -293,7 +541,22 @@ const getCoachZoomMeetings = asyncHandler(async (req, res, next) => {
             data: meetings
         });
     } catch (error) {
-        return next(new ErrorResponse(error.message, 500));
+        if (error.message.includes('Zoom integration not found')) {
+            return res.status(200).json({
+                success: false,
+                message: 'Zoom integration not found. Please set up your Zoom integration first.',
+                data: [],
+                error: error.message
+            });
+        }
+        
+        // Include error details for frontend debugging
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to get Zoom meetings',
+            error: error.message,
+            details: error.stack || 'No additional details available'
+        });
     }
 });
 
@@ -303,95 +566,160 @@ const getCoachZoomMeetings = asyncHandler(async (req, res, next) => {
 // @route   POST /api/zoom-integration/cleanup/start
 // @access  Private (Coaches)
 const startCleanup = asyncHandler(async (req, res, next) => {
-    const { retentionDays = 2, interval = 'daily' } = req.body;
-    
-    if (retentionDays < 1) {
-        return next(new ErrorResponse('Retention period must be at least 1 day', 400));
-    }
-    
-    if (!['daily', 'weekly', 'manual'].includes(interval)) {
-        return next(new ErrorResponse('Invalid interval. Must be daily, weekly, or manual', 400));
-    }
-    
-    zoomCleanupService.startCleanup(retentionDays, interval);
-    
-    res.status(200).json({
-        success: true,
-        message: `Zoom cleanup started with ${retentionDays} days retention, interval: ${interval}`,
-        data: {
-            retentionDays,
-            interval,
-            isRunning: true
+    try {
+        const { retentionDays = 2, interval = 'daily' } = req.body;
+        
+        if (retentionDays < 1) {
+            return res.status(400).json({
+                success: false,
+                message: 'Retention period must be at least 1 day',
+                error: 'Invalid retention period',
+                details: `Provided retentionDays: ${retentionDays}, minimum required: 1`
+            });
         }
-    });
+        
+        if (!['daily', 'weekly', 'manual'].includes(interval)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid interval. Must be daily, weekly, or manual',
+                error: 'Invalid interval',
+                details: `Provided interval: ${interval}, valid options: daily, weekly, manual`
+            });
+        }
+        
+        zoomCleanupService.startCleanup(retentionDays, interval);
+        
+        res.status(200).json({
+            success: true,
+            message: `Zoom cleanup started with ${retentionDays} days retention, interval: ${interval}`,
+            data: {
+                retentionDays,
+                interval,
+                isRunning: true
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to start Zoom cleanup',
+            error: error.message,
+            details: error.stack || 'No additional details available'
+        });
+    }
 });
 
 // @desc    Stop automatic Zoom meeting cleanup
 // @route   POST /api/zoom-integration/cleanup/stop
 // @access  Private (Coaches)
 const stopCleanup = asyncHandler(async (req, res, next) => {
-    zoomCleanupService.stopCleanup();
-    
-    res.status(200).json({
-        success: true,
-        message: 'Zoom cleanup stopped successfully',
-        data: {
-            isRunning: false
-        }
-    });
+    try {
+        zoomCleanupService.stopCleanup();
+        
+        res.status(200).json({
+            success: true,
+            message: 'Zoom cleanup stopped successfully',
+            data: {
+                isRunning: false
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to stop Zoom cleanup',
+            error: error.message,
+            details: error.stack || 'No additional details available'
+        });
+    }
 });
 
 // @desc    Perform manual Zoom meeting cleanup
 // @route   POST /api/zoom-integration/cleanup/manual
 // @access  Private (Coaches)
 const manualCleanup = asyncHandler(async (req, res, next) => {
-    const { retentionDays = 2 } = req.body;
-    
-    if (retentionDays < 1) {
-        return next(new ErrorResponse('Retention period must be at least 1 day', 400));
+    try {
+        const { retentionDays = 2 } = req.body;
+        
+        if (retentionDays < 1) {
+            return res.status(400).json({
+                success: false,
+                message: 'Retention period must be at least 1 day',
+                error: 'Invalid retention period',
+                details: `Provided retentionDays: ${retentionDays}, minimum required: 1`
+            });
+        }
+        
+        const result = await zoomCleanupService.manualCleanup(retentionDays);
+        
+        res.status(200).json({
+            success: true,
+            message: result.message,
+            data: result
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to perform manual Zoom cleanup',
+            error: error.message,
+            details: error.stack || 'No additional details available'
+        });
     }
-    
-    const result = await zoomCleanupService.manualCleanup(retentionDays);
-    
-    res.status(200).json({
-        success: true,
-        message: result.message,
-        data: result
-    });
 });
 
 // @desc    Get Zoom cleanup statistics and status
 // @route   GET /api/zoom-integration/cleanup/stats
 // @access  Private (Coaches)
 const getCleanupStats = asyncHandler(async (req, res, next) => {
-    const stats = await zoomCleanupService.getCleanupStats();
-    
-    res.status(200).json({
-        success: true,
-        data: stats
-    });
+    try {
+        const stats = await zoomCleanupService.getCleanupStats();
+        
+        res.status(200).json({
+            success: true,
+            data: stats
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to get Zoom cleanup statistics',
+            error: error.message,
+            details: error.stack || 'No additional details available'
+        });
+    }
 });
 
 // @desc    Update Zoom cleanup retention period
 // @route   PUT /api/zoom-integration/cleanup/retention
 // @access  Private (Coaches)
 const updateRetentionPeriod = asyncHandler(async (req, res, next) => {
-    const { retentionDays } = req.body;
-    
-    if (!retentionDays || retentionDays < 1) {
-        return next(new ErrorResponse('Retention period must be at least 1 day', 400));
-    }
-    
-    zoomCleanupService.updateRetentionPeriod(retentionDays);
-    
-    res.status(200).json({
-        success: true,
-        message: `Retention period updated to ${retentionDays} days`,
-        data: {
-            retentionDays,
-            isRunning: !!zoomCleanupService.cleanupInterval
+    try {
+        const { retentionDays } = req.body;
+        
+        if (!retentionDays || retentionDays < 1) {
+            return res.status(400).json({
+                success: false,
+                message: 'Retention period must be at least 1 day',
+                error: 'Invalid retention period',
+                details: `Provided retentionDays: ${retentionDays}, minimum required: 1`
+            });
         }
-    });
+        
+        zoomCleanupService.updateRetentionPeriod(retentionDays);
+        
+        res.status(200).json({
+            success: true,
+            message: `Retention period updated to ${retentionDays} days`,
+            data: {
+                retentionDays,
+                isRunning: !!zoomCleanupService.cleanupInterval
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to update retention period',
+            error: error.message,
+            details: error.stack || 'No additional details available'
+        });
+    }
 });
 
 module.exports = {

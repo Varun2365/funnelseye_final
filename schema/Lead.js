@@ -191,6 +191,12 @@ const LeadSchema = new mongoose.Schema({
         type: Number,
         default: 100
     },
+    vslWatchPercentage: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: 0
+    },
     qualificationInsights: [String],
     recommendations: [String],
     // --- END LEAD QUALIFICATION FIELDS ---

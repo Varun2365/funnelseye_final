@@ -54,7 +54,7 @@ const allApiRoutes = {
         { method: 'POST', path: '/api/leads', desc: 'Create New Lead (PUBLIC)', sample: { coachId: '...', funnelId: '...', name: 'Jane', email: 'jane@ex.com', phone: '+11234567890', source: 'Web Form' } },
         { method: 'GET', path: '/api/leads', desc: 'Get All Leads (filters/pagination)' },
         { method: 'GET', path: '/api/leads/:leadId', desc: 'Get Single Lead by ID' },
-        { method: 'PUT', path: '/api/leads/:leadId', desc: 'Update Lead', sample: { status: 'Contacted', leadTemperature: 'Hot' } },
+        { method: 'PUT', path: '/api/leads/:leadId', desc: 'Update Lead (PUBLIC - No Auth Required)', sample: { status: 'Contacted', leadTemperature: 'Hot', vslWatchPercentage: 75.5 } },
         { method: 'DELETE', path: '/api/leads/:leadId', desc: 'Delete Lead' },
         { method: 'POST', path: '/api/leads/:leadId/followup', desc: 'Add Follow-up Note', sample: { note: 'Called the lead', nextFollowUpAt: '2025-01-20T10:00:00Z' } },
         { method: 'GET', path: '/api/leads/followups/upcoming', desc: 'Get Leads for Upcoming Follow-ups' },

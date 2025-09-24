@@ -27,6 +27,9 @@ const router = express.Router();
 // --- Public Route for creating a Lead ---
 router.route('/').post(createLead);
 
+// --- PUBLIC ROUTE: Update Lead (No Auth Required) ---
+router.route('/:leadId').put(updateLead);
+
 // --- PUBLIC ROUTE: Submit Question Responses (No Auth Required) ---
 router.post('/question-responses', submitQuestionResponses);
 
@@ -39,7 +42,6 @@ router.use(protect, updateLastActive, authorizeCoach());
 router.route('/').get(getLeads);
 router.route('/:leadId')
     .get(getLead)
-    .put(updateLead)
     .delete(deleteLead);
 // AI rescore endpoint (protected)
 router.post('/:leadId/ai-rescore', require('../controllers/leadController').aiRescore);

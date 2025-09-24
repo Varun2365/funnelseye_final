@@ -188,59 +188,59 @@ router.use(protect, updateLastActive);
 // ===== ZOOM INTEGRATION SETUP & MANAGEMENT =====
 
 // Setup Zoom integration
-router.post('/setup', authorizeCoach(), setupZoomIntegration);
+router.post('/setup', authorizeCoach('coach','staff'), setupZoomIntegration);
 
 // Get Zoom integration details
-router.get('/', authorizeCoach(), getZoomIntegration);
+router.get('/', authorizeCoach('coach','staff'), getZoomIntegration);
 
 // Update Zoom integration settings
-router.put('/', authorizeCoach(), updateZoomIntegration);
+router.put('/', authorizeCoach('coach','staff'), updateZoomIntegration);
 
 // Test Zoom connection
-router.post('/test', authorizeCoach(), testZoomConnection);
+router.post('/test', authorizeCoach('coach','staff'), testZoomConnection);
 
 // Get Zoom usage statistics
-router.get('/usage', authorizeCoach(), getZoomUsage);
+router.get('/usage', authorizeCoach('coach','staff'), getZoomUsage);
 
 // Get integration status
-router.get('/status', authorizeCoach(), getIntegrationStatus);
+router.get('/status', authorizeCoach('coach','staff'), getIntegrationStatus);
 
 // ===== ZOOM MEETING MANAGEMENT =====
 
 // Get Zoom meeting details for an appointment
-router.get('/meetings/appointment/:appointmentId', authorizeCoach(), getZoomMeetingForAppointment);
+router.get('/meetings/appointment/:appointmentId', authorizeCoach('coach','staff'), getZoomMeetingForAppointment);
 
 // Get all Zoom meetings for a coach
-router.get('/meetings', authorizeCoach(), getCoachZoomMeetings);
+router.get('/meetings', authorizeCoach('coach','staff'), getCoachZoomMeetings);
 
 // ===== MEETING TEMPLATES =====
 
 // Create meeting template
-router.post('/meeting-templates', authorizeCoach(), createMeetingTemplate);
+router.post('/meeting-templates', authorizeCoach('coach','staff'), createMeetingTemplate);
 
 // Get meeting templates
-router.get('/meeting-templates', authorizeCoach(), getMeetingTemplates);
+router.get('/meeting-templates', authorizeCoach('coach','staff'), getMeetingTemplates);
 
 // ===== INTEGRATION MANAGEMENT =====
 
 // Delete Zoom integration
-router.delete('/', authorizeCoach(), deleteZoomIntegration);
+router.delete('/', authorizeCoach('coach','staff'), deleteZoomIntegration);
 
 // ===== ZOOM CLEANUP MANAGEMENT =====
 
 // Start automatic cleanup
-router.post('/cleanup/start', authorizeCoach(), startCleanup);
+router.post('/cleanup/start', authorizeCoach('coach','staff'), startCleanup);
 
 // Stop automatic cleanup
-router.post('/cleanup/stop', authorizeCoach(), stopCleanup);
+router.post('/cleanup/stop', authorizeCoach('coach','staff'), stopCleanup);
 
 // Manual cleanup
-router.post('/cleanup/manual', authorizeCoach(), manualCleanup);
+router.post('/cleanup/manual', authorizeCoach('coach','staff'), manualCleanup);
 
 // Get cleanup statistics
-router.get('/cleanup/stats', authorizeCoach(), getCleanupStats);
+router.get('/cleanup/stats', authorizeCoach('coach','staff'), getCleanupStats);
 
 // Update retention period
-router.put('/cleanup/retention', authorizeCoach(), updateRetentionPeriod);
+router.put('/cleanup/retention', authorizeCoach('coach','staff'), updateRetentionPeriod);
 
 module.exports = router;

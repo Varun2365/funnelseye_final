@@ -7,7 +7,7 @@ const leadScoringService = require('../services/leadScoringService');
 const aiService = require('../services/aiService');
 
 // Lead qualification logic (integrated)
-const qualifyClientLead = (clientQuestions) => {
+const qualifyClientLead = (clientQuestions, vslWatchPercentage = 0) => {
     let score = 0;
     const maxScore = 100;
     const insights = [];
@@ -19,6 +19,24 @@ const qualifyClientLead = (clientQuestions) => {
     } else if (clientQuestions.watchedVideo === 'I plan to watch it soon') {
         score += 8;
         insights.push('Plans to watch video - moderate engagement');
+    }
+    
+    // VSL Engagement scoring (up to 20 points based on watch percentage)
+    if (vslWatchPercentage >= 100) {
+        score += 20;
+        insights.push('Watched complete VSL (100%) - maximum engagement');
+    } else if (vslWatchPercentage >= 75) {
+        score += 18;
+        insights.push(`Watched ${vslWatchPercentage}% of VSL - very high engagement`);
+    } else if (vslWatchPercentage >= 50) {
+        score += 15;
+        insights.push(`Watched ${vslWatchPercentage}% of VSL - high engagement`);
+    } else if (vslWatchPercentage >= 25) {
+        score += 10;
+        insights.push(`Watched ${vslWatchPercentage}% of VSL - moderate engagement`);
+    } else if (vslWatchPercentage > 0) {
+        score += 5;
+        insights.push(`Watched ${vslWatchPercentage}% of VSL - low engagement`);
     }
     
     // Health goal specificity (20 points)
@@ -261,7 +279,7 @@ const createLead = async (req, res) => {
             let qualification;
             
             if (targetAudience === 'client' && clientQuestions) {
-                qualification = qualifyClientLead(clientQuestions);
+                qualification = qualifyClientLead(clientQuestions, otherLeadData.vslWatchPercentage || 0);
             } else if (targetAudience === 'coach' && coachQuestions) {
                 qualification = qualifyCoachLead(coachQuestions);
             }
@@ -466,17 +484,18 @@ const getLead = async (req, res) => {
     }
 };
 
-// @desc    Update Lead for the authenticated coach
-// @route   PUT /api/leads/:id
-// @access  Private (Coaches/Admins)
+// @desc    Update Lead (Public access - no authentication required)
+// @route   PUT /api/leads/:id
+// @access  Public
 const updateLead = async (req, res) => {
     try {
-        const existingLead = await Lead.findOne({ _id: req.params.leadId, coachId: req.coachId });
+        // Find lead by ID only (no coachId filter for public access)
+        const existingLead = await Lead.findOne({ _id: req.params.leadId });
 
         if (!existingLead) {
             return res.status(404).json({
                 success: false,
-                message: `Lead not found or you do not own this lead.`
+                message: `Lead not found.`
             });
         }
 
@@ -484,7 +503,7 @@ const updateLead = async (req, res) => {
         const oldTemperature = existingLead.leadTemperature;
         const oldAssignedTo = existingLead.assignedTo ? existingLead.assignedTo.toString() : null;
 
-        const updatedLead = await Lead.findOneAndUpdate({ _id: req.params.leadId, coachId: req.coachId }, req.body, {
+        const updatedLead = await Lead.findOneAndUpdate({ _id: req.params.leadId }, req.body, {
             new: true,
             runValidators: true
         });
@@ -499,7 +518,7 @@ const updateLead = async (req, res) => {
                     leadData: updatedLead.toObject(),
                     oldStatus: oldStatus,
                     newStatus: updatedLead.status,
-                    coachId: req.user.id,
+                    coachId: updatedLead.coachId, // Use lead's coachId instead of req.user.id
                 }
             };
             publishEvent(eventName, eventPayload).catch(err => console.error(`[Controller] Failed to publish event: ${eventName}`, err));
@@ -514,7 +533,7 @@ const updateLead = async (req, res) => {
                     leadData: updatedLead.toObject(),
                     oldTemperature: oldTemperature,
                     newTemperature: updatedLead.leadTemperature,
-                    coachId: req.user.id,
+                    coachId: updatedLead.coachId, // Use lead's coachId instead of req.user.id
                 }
             };
             publishEvent(eventName, eventPayload).catch(err => console.error(`[Controller] Failed to publish event: ${eventName}`, err));
@@ -530,7 +549,7 @@ const updateLead = async (req, res) => {
                     leadData: updatedLead.toObject(),
                     oldAssignedTo: oldAssignedTo,
                     newAssignedTo: newAssignedTo,
-                    coachId: req.user.id,
+                    coachId: updatedLead.coachId, // Use lead's coachId instead of req.user.id
                 }
             };
             publishEvent(eventName, eventPayload).catch(err => console.error(`[Controller] Failed to publish event: ${eventName}`, err));
@@ -773,6 +792,26 @@ function calculateLeadScore(lead) {
     if (lead.nextFollowUpAt) {
         score += 10;
         explanation.push('Next follow-up scheduled: +10');
+    }
+    
+    // --- VSL Watch Percentage Scoring ---
+    if (lead.vslWatchPercentage && lead.vslWatchPercentage > 0) {
+        if (lead.vslWatchPercentage >= 100) {
+            score += 20;
+            explanation.push(`VSL watched completely (${lead.vslWatchPercentage}%): +20`);
+        } else if (lead.vslWatchPercentage >= 75) {
+            score += 18;
+            explanation.push(`VSL mostly watched (${lead.vslWatchPercentage}%): +18`);
+        } else if (lead.vslWatchPercentage >= 50) {
+            score += 15;
+            explanation.push(`VSL half watched (${lead.vslWatchPercentage}%): +15`);
+        } else if (lead.vslWatchPercentage >= 25) {
+            score += 10;
+            explanation.push(`VSL partially watched (${lead.vslWatchPercentage}%): +10`);
+        } else {
+            score += 5;
+            explanation.push(`VSL started (${lead.vslWatchPercentage}%): +5`);
+        }
     }
     
     // --- NEW: Lead Magnet Interaction Scoring ---
@@ -1259,6 +1298,11 @@ const submitQuestionResponses = async (req, res) => {
                 updateData.appointmentNotes = appointmentData.notes;
             }
         }
+        
+        // Update VSL watch percentage if provided
+        if (questionResponses.vslWatchPercentage !== undefined) {
+            updateData.vslWatchPercentage = Math.max(0, Math.min(100, questionResponses.vslWatchPercentage));
+        }
 
         // Update lead status to indicate questions have been answered
         if (lead.status === 'New' || lead.status === 'Contacted') {
@@ -1281,6 +1325,26 @@ const submitQuestionResponses = async (req, res) => {
         } else if (allQuestions.watchedVideo === 'Partially') {
             newScore += 10;
             insights.push('Partially watched video - moderate engagement');
+        }
+        
+        // VSL Watch Percentage scoring
+        if (updateData.vslWatchPercentage !== undefined) {
+            if (updateData.vslWatchPercentage >= 100) {
+                newScore += 20;
+                insights.push(`VSL watched completely (${updateData.vslWatchPercentage}%) - maximum engagement`);
+            } else if (updateData.vslWatchPercentage >= 75) {
+                newScore += 18;
+                insights.push(`VSL mostly watched (${updateData.vslWatchPercentage}%) - very high engagement`);
+            } else if (updateData.vslWatchPercentage >= 50) {
+                newScore += 15;
+                insights.push(`VSL half watched (${updateData.vslWatchPercentage}%) - high engagement`);
+            } else if (updateData.vslWatchPercentage >= 25) {
+                newScore += 10;
+                insights.push(`VSL partially watched (${updateData.vslWatchPercentage}%) - moderate engagement`);
+            } else if (updateData.vslWatchPercentage > 0) {
+                newScore += 5;
+                insights.push(`VSL started (${updateData.vslWatchPercentage}%) - low engagement`);
+            }
         }
 
         if (allQuestions.readyToStart === 'Yes') {
