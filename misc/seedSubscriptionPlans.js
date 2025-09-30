@@ -13,8 +13,8 @@ const samplePlans = [
             billingCycle: 'monthly'
         },
         features: {
-            maxFunnels: 3,
-            maxLeads: 500,
+            maxFunnels: -1, // Unlimited
+            maxLeads: -1, // Unlimited
             maxStaff: 1,
             maxAutomationRules: 5,
             aiFeatures: false,
@@ -35,7 +35,7 @@ const samplePlans = [
         },
         features: {
             maxFunnels: 10,
-            maxLeads: 2000,
+            maxLeads: -1, // Unlimited
             maxStaff: 3,
             maxAutomationRules: 15,
             aiFeatures: true,
@@ -55,8 +55,8 @@ const samplePlans = [
             billingCycle: 'monthly'
         },
         features: {
-            maxFunnels: 25,
-            maxLeads: 5000,
+            maxFunnels: -1, // Unlimited
+            maxLeads: -1, // Unlimited
             maxStaff: 8,
             maxAutomationRules: 30,
             aiFeatures: true,
@@ -76,8 +76,8 @@ const samplePlans = [
             billingCycle: 'monthly'
         },
         features: {
-            maxFunnels: 100,
-            maxLeads: 15000,
+            maxFunnels: -1, // Unlimited
+            maxLeads: -1, // Unlimited
             maxStaff: 25,
             maxAutomationRules: 100,
             aiFeatures: true,
@@ -97,8 +97,8 @@ const samplePlans = [
             billingCycle: 'yearly'
         },
         features: {
-            maxFunnels: 3,
-            maxLeads: 500,
+            maxFunnels: -1, // Unlimited
+            maxLeads: -1, // Unlimited
             maxStaff: 1,
             maxAutomationRules: 5,
             aiFeatures: false,
@@ -119,7 +119,7 @@ const samplePlans = [
         },
         features: {
             maxFunnels: 10,
-            maxLeads: 2000,
+            maxLeads: -1, // Unlimited
             maxStaff: 3,
             maxAutomationRules: 15,
             aiFeatures: true,

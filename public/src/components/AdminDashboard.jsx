@@ -24,7 +24,8 @@ import {
     List,
     Send,
     Eye,
-    Play
+    Play,
+    MessageSquare
 } from 'lucide-react';
 import adminApiService from '../services/adminApiService';
 

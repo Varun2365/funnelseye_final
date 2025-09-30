@@ -804,29 +804,8 @@ router.put('/ai-settings',
 );
 
 // ===== ADMIN AUTHENTICATION =====
-
-/**
- * @route POST /api/admin/v1/auth/login
- * @desc Admin login
- * @access Public
- * @body email, password, rememberMe (optional)
- * @example POST /api/admin/v1/auth/login
- * @body { "email": "admin@example.com", "password": "password123", "rememberMe": true }
- */
-router.post('/auth/login', adminV1Controller.adminLogin);
-
-/**
- * @route POST /api/admin/v1/auth/logout
- * @desc Admin logout
- * @access Private (Admin)
- * @body sessionToken (optional)
- * @example POST /api/admin/v1/auth/logout
- * @body { "sessionToken": "session_token_here" }
- */
-router.post('/auth/logout', 
-    verifyAdminToken, 
-    adminV1Controller.adminLogout
-);
+// NOTE: Admin login/logout routes have been moved to adminAuthRoutes.js
+// Use /api/admin/auth/login and /api/admin/auth/logout instead of /api/admin/v1/auth/*
 
 /**
  * @route GET /api/admin/v1/auth/profile

@@ -51,9 +51,10 @@ const verifyAdminToken = async (req, res, next) => {
 
         // Verify token
         //console.log('🔐 [ADMIN_AUTH] verifyAdminToken - Attempting JWT verification...');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'thisisaverysecretkeywhichcantbehacked');
+        console.log(process.env.JWT_SECRET);
         //console.log('✅ [ADMIN_AUTH] verifyAdminToken - JWT verification successful');
-        //console.log('🔐 [ADMIN_AUTH] verifyAdminToken - Decoded payload:', decoded);
+        console.log('🔐 [ADMIN_AUTH] verifyAdminToken - Decoded payload:', decoded);
         
         // Check if token is for admin
         //console.log('🔐 [ADMIN_AUTH] verifyAdminToken - Checking token type:', decoded.type);
@@ -110,7 +111,7 @@ const verifyAdminToken = async (req, res, next) => {
         next();
 
     } catch (error) {
-        //console.error('Admin token verification error:', error);
+        console.error('Admin token verification error:', error);
         
         if (error.name === 'JsonWebTokenError') {
             return res.status(401).json({

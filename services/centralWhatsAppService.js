@@ -4,7 +4,7 @@ const logger = require('../utils/logger');
 
 class CentralWhatsAppService {
     constructor() {
-        this.baseUrl = 'https://graph.facebook.com/v18.0';
+        this.baseUrl = 'https://graph.facebook.com/v23.0';
         this.centralConfig = null;
     }
 
@@ -34,6 +34,79 @@ class CentralWhatsAppService {
             await this.initialize();
         }
         return this.centralConfig;
+    }
+
+    // Format components for Meta API v23.0 (based on official Meta documentation)
+    formatComponentsForMeta(components) {
+        console.log('🔧 [CentralWhatsApp] formatComponentsForMeta called with:', JSON.stringify(components, null, 2));
+        
+        return components.map((component, index) => {
+            console.log(`🔧 [CentralWhatsApp] Processing component ${index}:`, JSON.stringify(component, null, 2));
+            
+            if (component.type === 'BODY') {
+                // Extract variables from text (e.g., {{1}}, {{2}}, {{3}})
+                const variables = component.text.match(/\{\{(\d+)\}\}/g) || [];
+                const variableCount = variables.length;
+                
+                let formattedComponent = {
+                    type: 'BODY',
+                    text: component.text
+                };
+                
+                // Add example if there are variables (as per Meta documentation)
+                if (variableCount > 0) {
+                    // Create example values array - Meta expects nested array for multiple variables
+                    const exampleValues = [];
+                    for (let i = 1; i <= variableCount; i++) {
+                        exampleValues.push(`sample_value_${i}`);
+                    }
+                    
+                    formattedComponent.example = {
+                        body_text: [exampleValues] // Note: nested array as per Meta docs
+                    };
+                }
+                
+                console.log(`🔧 [CentralWhatsApp] Formatted BODY component:`, JSON.stringify(formattedComponent, null, 2));
+                return formattedComponent;
+                
+            } else if (component.type === 'HEADER') {
+                let formattedComponent = {
+                    type: 'HEADER',
+                    format: component.format || 'TEXT',
+                    text: component.text
+                };
+                
+                // Add example if there are variables (as per Meta documentation)
+                const variables = component.text.match(/\{\{(\d+)\}\}/g) || [];
+                if (variables.length > 0) {
+                    formattedComponent.example = {
+                        header_text: [`sample_header_value`]
+                    };
+                }
+                
+                console.log(`🔧 [CentralWhatsApp] Formatted HEADER component:`, JSON.stringify(formattedComponent, null, 2));
+                return formattedComponent;
+                
+            } else if (component.type === 'FOOTER') {
+                // FOOTER doesn't need example (as per Meta documentation)
+                const formattedComponent = {
+                    type: 'FOOTER',
+                    text: component.text
+                };
+                console.log(`🔧 [CentralWhatsApp] Formatted FOOTER component:`, JSON.stringify(formattedComponent, null, 2));
+                return formattedComponent;
+                
+            } else if (component.type === 'BUTTONS') {
+                const formattedComponent = {
+                    type: 'BUTTONS',
+                    buttons: component.buttons || []
+                };
+                console.log(`🔧 [CentralWhatsApp] Formatted BUTTONS component:`, JSON.stringify(formattedComponent, null, 2));
+                return formattedComponent;
+            }
+            
+            return component;
+        });
     }
 
     // Send text message
@@ -79,7 +152,7 @@ class CentralWhatsAppService {
     }
 
     // Send template message
-    async sendTemplateMessage(to, templateName, language = 'en', parameters = [], coachId = null) {
+    async sendTemplateMessage(to, templateName, language = 'en_US', parameters = [], coachId = null) {
         try {
             const config = await this.getConfig();
             
@@ -191,31 +264,27 @@ class CentralWhatsAppService {
         try {
             const config = await this.getConfig();
             
-            // First, get the business account ID from the phone number
-            const phoneInfo = await this.makeApiCall(
-                `/${config.phoneNumberId}`,
-                'GET'
-            );
-            
-            console.log('📱 [CentralWhatsApp] Phone info response:', JSON.stringify(phoneInfo, null, 2));
-            
-            // Try different possible field names for business account ID
-            const businessAccountId = phoneInfo.waba_id || 
-                                    phoneInfo.business_account_id || 
-                                    phoneInfo.whatsapp_business_account_id ||
-                                    phoneInfo.business_account?.id;
-                                    
+            // Use the stored business account ID from configuration
+            const businessAccountId = config.businessAccountId;
             if (!businessAccountId) {
-                console.error('❌ [CentralWhatsApp] Available fields in phone info:', Object.keys(phoneInfo));
-                throw new Error(`Could not retrieve WhatsApp Business Account ID. Available fields: ${Object.keys(phoneInfo).join(', ')}`);
+                throw new Error('WhatsApp Business Account ID not configured. Please set up the central WhatsApp configuration first.');
             }
+            
+            console.log('📱 [CentralWhatsApp] Using stored business account ID:', businessAccountId);
+            
+            // Meta API v23.0 requires specific component structure (based on official docs)
+            const formattedComponents = this.formatComponentsForMeta(templateData.components);
+            console.log('🔧 [CentralWhatsApp] Original components:', JSON.stringify(templateData.components, null, 2));
+            console.log('🔧 [CentralWhatsApp] Formatted components:', JSON.stringify(formattedComponents, null, 2));
             
             const templatePayload = {
                 name: templateData.name,
                 category: templateData.category,
-                language: templateData.language || 'en',
-                components: templateData.components
+                language: templateData.language || 'en_US',
+                components: formattedComponents
             };
+            
+            console.log('🔧 [CentralWhatsApp] Final payload:', JSON.stringify(templatePayload, null, 2));
 
             const response = await this.makeApiCall(
                 `/${businessAccountId}/message_templates`,
@@ -447,15 +516,10 @@ class CentralWhatsAppService {
         try {
             const config = await this.getConfig();
             
-            // First, get the business account ID from the phone number
-            const phoneInfo = await this.makeApiCall(
-                `/${config.phoneNumberId}`,
-                'GET'
-            );
-            
-            const businessAccountId = phoneInfo.waba_id;
+            // Use the stored business account ID from configuration
+            const businessAccountId = config.businessAccountId;
             if (!businessAccountId) {
-                throw new Error('Could not retrieve WhatsApp Business Account ID');
+                throw new Error('WhatsApp Business Account ID not configured. Please set up the central WhatsApp configuration first.');
             }
             
             const response = await this.makeApiCall(

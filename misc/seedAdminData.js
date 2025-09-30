@@ -23,9 +23,9 @@ const samplePlans = [
             aiCredits: { monthly: 100, yearly: 1200 },
             // whatsappCredits: { monthly: 50, yearly: 600 }, // WhatsApp functionality moved to dustbin/whatsapp-dump/
             emailCredits: { monthly: 200, yearly: 2400 },
-            maxLeads: 500,
+            maxLeads: -1, // Unlimited
             maxStaff: 2,
-            maxFunnels: 5,
+            maxFunnels: -1, // Unlimited
             customDomains: 1,
             prioritySupport: false,
             advancedAnalytics: false,
@@ -48,9 +48,9 @@ const samplePlans = [
             aiCredits: { monthly: 300, yearly: 3600 },
             // whatsappCredits: { monthly: 150, yearly: 1800 }, // WhatsApp functionality moved to dustbin/whatsapp-dump/
             emailCredits: { monthly: 500, yearly: 6000 },
-            maxLeads: 2000,
+            maxLeads: -1, // Unlimited
             maxStaff: 5,
-            maxFunnels: 15,
+            maxFunnels: -1, // Unlimited
             customDomains: 3,
             prioritySupport: true,
             advancedAnalytics: true,
@@ -73,9 +73,9 @@ const samplePlans = [
             aiCredits: { monthly: 1000, yearly: 12000 },
             // whatsappCredits: { monthly: 500, yearly: 6000 }, // WhatsApp functionality moved to dustbin/whatsapp-dump/
             emailCredits: { monthly: 1000, yearly: 12000 },
-            maxLeads: 10000,
+            maxLeads: -1, // Unlimited
             maxStaff: 20,
-            maxFunnels: 50,
+            maxFunnels: -1, // Unlimited
             customDomains: 10,
             prioritySupport: true,
             advancedAnalytics: true,

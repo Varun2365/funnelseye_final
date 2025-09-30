@@ -2,6 +2,7 @@ const asyncHandler = require('../middleware/async');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { generateToken } = require('./adminAuthController');
 const razorpayService = require('../services/razorpayService');
 const { 
     User, 
@@ -1169,183 +1170,8 @@ async function buildDownlineRecursive(parentId, parentNode, currentLevel, maxLev
 }
 
 // ===== ADMIN AUTHENTICATION METHODS =====
-
-/**
- * @desc    Admin login
- * @route   POST /api/admin/v1/auth/login
- * @access  Public
- */
-exports.adminLogin = asyncHandler(async (req, res) => {
-    try {
-        const { email, password, rememberMe } = req.body;
-
-        if (!email || !password) {
-            return res.status(400).json({
-                success: false,
-                message: 'Email and password are required'
-            });
-        }
-
-        const admin = await AdminUser.findByEmail(email);
-        if (!admin) {
-            await createAuditLog(null, 'LOGIN_FAILED', {
-                description: `Failed login attempt for email: ${email}`,
-                severity: 'medium',
-                status: 'failed',
-                errorMessage: 'Admin not found'
-            }, req);
-
-            return res.status(401).json({
-                success: false,
-                message: 'Invalid credentials'
-            });
-        }
-
-        if (admin.isLocked()) {
-            await createAuditLog(admin._id, 'LOGIN_FAILED', {
-                description: `Login attempt on locked account: ${email}`,
-                severity: 'high',
-                status: 'failed',
-                errorMessage: 'Account is locked due to too many failed attempts'
-            }, req);
-
-            return res.status(423).json({
-                success: false,
-                message: 'Account is temporarily locked due to too many failed login attempts. Please try again later.'
-            });
-        }
-
-        if (admin.status !== 'active') {
-            await createAuditLog(admin._id, 'LOGIN_FAILED', {
-                description: `Login attempt on inactive account: ${email}`,
-                severity: 'medium',
-                status: 'failed',
-                errorMessage: `Account status: ${admin.status}`
-            }, req);
-
-            return res.status(401).json({
-                success: false,
-                message: 'Account is not active. Please contact system administrator.'
-            });
-        }
-
-        if (!admin.isEmailVerified) {
-            await createAuditLog(admin._id, 'LOGIN_FAILED', {
-                description: `Login attempt with unverified email: ${email}`,
-                severity: 'medium',
-                status: 'failed',
-                errorMessage: 'Email not verified'
-            }, req);
-
-            return res.status(401).json({
-                success: false,
-                message: 'Please verify your email before logging in.'
-            });
-        }
-
-        const isPasswordValid = await admin.comparePassword(password);
-        if (!isPasswordValid) {
-            await admin.incrementLoginAttempts();
-            await createAuditLog(admin._id, 'LOGIN_FAILED', {
-                description: `Invalid password for email: ${email}`,
-                severity: 'medium',
-                status: 'failed',
-                errorMessage: 'Invalid password'
-            }, req);
-
-            return res.status(401).json({
-                success: false,
-                message: 'Invalid credentials'
-            });
-        }
-
-        await admin.resetLoginAttempts();
-        await AdminUser.findByIdAndUpdate(admin._id, {
-            'security.lastLogin': new Date(),
-            'security.lastLoginIP': req.ip || req.connection.remoteAddress
-        });
-
-        const token = generateToken(admin._id, admin.role);
-        const sessionToken = crypto.randomBytes(32).toString('hex');
-        const expiresAt = rememberMe ? 
-            new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : 
-            new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-        await AdminUser.findByIdAndUpdate(admin._id, {
-            $push: {
-                'security.sessionTokens': {
-                    token: sessionToken,
-                    createdAt: new Date(),
-                    expiresAt,
-                    ipAddress: req.ip || req.connection.remoteAddress,
-                    userAgent: req.get('User-Agent')
-                }
-            }
-        });
-
-        await createAuditLog(admin._id, 'LOGIN', {
-            description: `Successful login for admin: ${admin.email}`,
-            severity: 'low',
-            status: 'success'
-        }, req);
-
-        res.json({
-            success: true,
-            message: 'Login successful',
-            data: {
-                token,
-                sessionToken,
-                admin: admin.toSafeObject(),
-                expiresAt
-            }
-        });
-    } catch (error) {
-        console.error('Admin login error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Internal server error',
-            error: error.message
-        });
-    }
-});
-
-/**
- * @desc    Admin logout
- * @route   POST /api/admin/v1/auth/logout
- * @access  Private (Admin)
- */
-exports.adminLogout = asyncHandler(async (req, res) => {
-    try {
-        const { sessionToken } = req.body;
-        const adminId = req.admin.id;
-
-        if (sessionToken) {
-            await AdminUser.findByIdAndUpdate(adminId, {
-                $pull: {
-                    'security.sessionTokens': { token: sessionToken }
-                }
-            });
-        }
-
-        await createAuditLog(adminId, 'LOGOUT', {
-            description: `Admin logout: ${req.admin.email}`,
-            severity: 'low',
-            status: 'success'
-        }, req);
-
-        res.json({
-            success: true,
-            message: 'Logout successful'
-        });
-    } catch (error) {
-        console.error('Admin logout error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Internal server error',
-            error: error.message
-        });
-    }
-});
+// NOTE: Admin login/logout functionality has been moved to adminAuthController.js
+// Use /api/admin/auth/login and /api/admin/auth/logout instead of /api/admin/v1/auth/*
 
 /**
  * @desc    Get current admin profile
@@ -1927,18 +1753,7 @@ exports.createHierarchyRequest = asyncHandler(async (req, res) => {
 });
 
 // ===== HELPER FUNCTIONS =====
-
-function generateToken(adminId, role) {
-    return jwt.sign(
-        { 
-            adminId, 
-            role,
-            type: 'admin'
-        },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '24h' }
-    );
-}
+// NOTE: generateToken function has been moved to adminAuthController.js to avoid duplication
 
 // Removed duplicate getSubscriptionPlans method - using the correct one below
 
@@ -3129,7 +2944,7 @@ exports.createSubscriptionPlan = asyncHandler(async (req, res) => {
             billingCycle,
             duration,
             features: {
-                maxFunnels: features.maxFunnels || 5,
+                maxFunnels: features.maxFunnels || -1, // Unlimited
                 maxStaff: features.maxStaff || 2,
                 maxDevices: features.maxDevices || 1,
                 aiFeatures: features.aiFeatures || false,
@@ -3151,7 +2966,7 @@ exports.createSubscriptionPlan = asyncHandler(async (req, res) => {
                 sso: features.sso || false
             },
             limits: {
-                maxLeads: limits.maxLeads || 100,
+                maxLeads: limits.maxLeads || -1, // Unlimited
                 maxAppointments: limits.maxAppointments || 50,
                 maxCampaigns: limits.maxCampaigns || 5,
                 maxAutomationRules: limits.maxAutomationRules || 10,

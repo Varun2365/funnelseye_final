@@ -38,7 +38,7 @@ class SubscriptionLimitsMiddleware {
     }
     
     /**
-     * Check funnel limit
+     * Check funnel limit - UNLIMITED
      */
     static async checkFunnelLimit(coachId) {
         try {
@@ -47,26 +47,9 @@ class SubscriptionLimitsMiddleware {
                 return { allowed: false, reason: 'No active subscription' };
             }
             
-            const { features } = subscriptionData;
-            const maxFunnels = features.maxFunnels || 0;
-            
-            if (maxFunnels === -1) {
-                return { allowed: true }; // Unlimited
-            }
-            
+            // Always allow unlimited funnels
             const currentFunnelCount = await Funnel.countDocuments({ coachId });
-            
-            if (currentFunnelCount >= maxFunnels) {
-                return {
-                    allowed: false,
-                    reason: 'Funnel limit reached',
-                    currentCount: currentFunnelCount,
-                    maxLimit: maxFunnels,
-                    upgradeRequired: true
-                };
-            }
-            
-            return { allowed: true, currentCount: currentFunnelCount, maxLimit: maxFunnels };
+            return { allowed: true, currentCount: currentFunnelCount, maxLimit: -1 };
         } catch (error) {
             logger.error('[SubscriptionLimits] Error checking funnel limit:', error);
             return { allowed: false, reason: 'Error checking limits' };
@@ -148,7 +131,7 @@ class SubscriptionLimitsMiddleware {
     }
     
     /**
-     * Check lead limit
+     * Check lead limit - UNLIMITED
      */
     static async checkLeadLimit(coachId) {
         try {
@@ -157,26 +140,9 @@ class SubscriptionLimitsMiddleware {
                 return { allowed: false, reason: 'No active subscription' };
             }
             
-            const { limits } = subscriptionData;
-            const maxLeads = limits.maxLeads || 0;
-            
-            if (maxLeads === -1) {
-                return { allowed: true }; // Unlimited
-            }
-            
+            // Always allow unlimited leads
             const currentLeadCount = await Lead.countDocuments({ coachId });
-            
-            if (currentLeadCount >= maxLeads) {
-                return {
-                    allowed: false,
-                    reason: 'Lead limit reached',
-                    currentCount: currentLeadCount,
-                    maxLimit: maxLeads,
-                    upgradeRequired: true
-                };
-            }
-            
-            return { allowed: true, currentCount: currentLeadCount, maxLimit: maxLeads };
+            return { allowed: true, currentCount: currentLeadCount, maxLimit: -1 };
         } catch (error) {
             logger.error('[SubscriptionLimits] Error checking lead limit:', error);
             return { allowed: false, reason: 'Error checking limits' };

@@ -684,9 +684,9 @@ const allApiRoutes = {
 
     // ===== 🎛️ ADMIN V1 MASTER API =====
     '🎛️ Admin V1 Master API': [
-        // Authentication
-        { method: 'POST', path: '/api/admin/v1/auth/login', desc: 'Admin login', sample: { email: 'admin@example.com', password: 'password123', rememberMe: true } },
-        { method: 'POST', path: '/api/admin/v1/auth/logout', desc: 'Admin logout', sample: { sessionToken: 'session_token_here' } },
+        // Authentication - Use unified admin auth endpoints
+        { method: 'POST', path: '/api/admin/auth/login', desc: 'Admin login (unified)', sample: { email: 'admin@example.com', password: 'password123', rememberMe: true } },
+        { method: 'POST', path: '/api/admin/auth/logout', desc: 'Admin logout (unified)', sample: { sessionToken: 'session_token_here' } },
         { method: 'GET', path: '/api/admin/v1/auth/profile', desc: 'Get admin profile' },
         
         // Dashboard & Analytics

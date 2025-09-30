@@ -11,9 +11,10 @@ function generateToken(adminId, role) {
             type: 'admin'
         },
         process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '24h' }
+        { expiresIn: '7d' } // Extended to 7 days instead of 24h
     );
 }
+
 
 // Helper function for creating audit logs
 async function createAuditLog(adminId, action, details, req) {
@@ -523,7 +524,7 @@ class AdminAuthController {
                 message: 'Token refreshed successfully',
                 data: {
                     token,
-                    expiresIn: '24h'
+                    expiresIn: '7d'
                 }
             });
 
@@ -538,4 +539,9 @@ class AdminAuthController {
     }
 }
 
-module.exports = new AdminAuthController();
+// Create controller instance
+const adminAuthController = new AdminAuthController();
+
+// Export both the controller instance and the generateToken function
+module.exports = adminAuthController;
+module.exports.generateToken = generateToken;

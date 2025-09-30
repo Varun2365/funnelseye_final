@@ -22,7 +22,7 @@ import FinancialDashboard from './components/FinancialDashboard';
 import FinancialMlmManagement from './components/FinancialMlmManagement';
 import PlatformConfig from './components/PlatformConfig';
 import DebugFinancial from './components/DebugFinancial';
-import WhatsAppMessaging from './components/WhatsAppMessaging';
+import WhatsAppDashboard from './components/WhatsAppDashboard';
 import AdminUploadsManager from './components/AdminUploadsManager';
 import CourseOverview from './components/CourseOverview';
 import CourseEditor from './components/CourseEditor';
@@ -121,7 +121,7 @@ function AppContent() {
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="platform-config" element={<PlatformConfig />} />
             <Route path="debug-financial" element={<DebugFinancial />} />
-            <Route path="messaging" element={<WhatsAppMessaging />} />
+            <Route path="messaging" element={<WhatsAppDashboard />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

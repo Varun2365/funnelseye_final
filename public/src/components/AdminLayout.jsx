@@ -80,7 +80,7 @@ const AdminLayout = () => {
     {
       title: 'Communication & Staff',
       items: [
-        { name: 'Messaging', href: '/messaging', icon: MessageCircle },
+        { name: 'WhatsApp Dashboard', href: '/messaging', icon: MessageCircle },
         { name: 'Admin Staff', href: '/admin-staff', icon: UserCheck },
       ]
     }

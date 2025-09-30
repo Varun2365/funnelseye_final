@@ -62,7 +62,7 @@ exports.setupCentralWhatsApp = asyncHandler(async (req, res) => {
         // Test the configuration by making a direct API call
         try {
             const axios = require('axios');
-            const testUrl = `https://graph.facebook.com/v18.0/${phoneNumberId}`;
+            const testUrl = `https://graph.facebook.com/v23.0/${phoneNumberId}`;
             const testResponse = await axios.get(testUrl, {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`,
@@ -423,7 +423,7 @@ exports.sendTestMessage = asyncHandler(async (req, res) => {
             result = await centralWhatsAppService.sendTemplateMessage(
                 to,
                 templateName,
-                'en',
+                'en_US',
                 parameters || []
             );
         } else if (message) {
@@ -683,7 +683,7 @@ exports.sendAdminMessage = asyncHandler(async (req, res) => {
             result = await centralWhatsAppService.sendTemplateMessage(
                 to,
                 templateName,
-                'en',
+                'en_US',
                 parameters || [],
                 adminId
             );
@@ -967,7 +967,7 @@ exports.sendCoachMessage = asyncHandler(async (req, res) => {
             result = await centralWhatsAppService.sendTemplateMessage(
                 to,
                 templateName,
-                'en',
+                'en_US',
                 parameters || [],
                 coachId
             );

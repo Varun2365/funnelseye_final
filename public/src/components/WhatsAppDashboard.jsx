@@ -62,7 +62,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-const WhatsAppMessaging = () => {
+const WhatsAppDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -97,6 +97,18 @@ const WhatsAppMessaging = () => {
   
   // Templates data
   const [templates, setTemplates] = useState([]);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [templateSyncLoading, setSyncLoading] = useState(false);
+  const [templateForm, setTemplateForm] = useState({
+    name: '',
+    category: 'UTILITY',
+    language: 'en_US',
+    components: []
+  });
+  
+  // Contacts data
+  const [contacts, setContacts] = useState([]);
+  const [contactsTotal, setContactsTotal] = useState(0);
   
   // Send message dialog
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
@@ -406,31 +418,82 @@ const WhatsAppMessaging = () => {
     }
   }, [sendForm, apiCall, messagesPage, fetchMessages]);
 
-  // Test message
-  const testMessage = useCallback(async () => {
+  // Sync templates from Meta
+  const syncTemplates = async () => {
+    try {
+      setSyncLoading(true);
+      console.log('🔄 [WHATSAPP] Syncing templates...');
+      const result = await apiCall('/admin/central-whatsapp/templates/sync', {
+        method: 'POST'
+      });
+      setSuccess(`Templates synced successfully! ${result.data.syncedCount || 0} templates processed.`);
+      await fetchTemplates();
+      console.log('✅ [WHATSAPP] Templates synced successfully');
+    } catch (err) {
+      console.error('❌ [WHATSAPP] Error syncing templates:', err.message);
+      setError(`Failed to sync templates: ${err.message}`);
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  // Create template
+  const createTemplate = async () => {
     try {
       setLoading(true);
-      console.log('🔄 [WHATSAPP] Sending test message...');
-      
-      const testData = {
-        to: sendForm.to,
-        message: sendForm.message || 'Test message from Central WhatsApp'
-      };
-
-      const result = await apiCall('/whatsapp/v1/test-message', {
+      console.log('🔄 [WHATSAPP] Creating template...');
+      const result = await apiCall('/admin/central-whatsapp/templates', {
         method: 'POST',
-        data: testData
+        data: templateForm
       });
-      
-      setSuccess('Test message sent successfully!');
-      console.log('✅ [WHATSAPP] Test message sent successfully');
+      setSuccess('Template created successfully and submitted for approval!');
+      setTemplateDialogOpen(false);
+      setTemplateForm({
+        name: '',
+        category: 'UTILITY',
+        language: 'en_US',
+        components: []
+      });
+      await fetchTemplates();
+      console.log('✅ [WHATSAPP] Template created successfully');
     } catch (err) {
-      console.error('❌ [WHATSAPP] Error sending test message:', err.message);
-      setError(`Failed to send test message: ${err.message}`);
+      console.error('❌ [WHATSAPP] Error creating template:', err.message);
+      setError(`Failed to create template: ${err.message}`);
     } finally {
       setLoading(false);
     }
-  }, [sendForm, apiCall]);
+  };
+
+  // Fetch contacts
+  const fetchContacts = async () => {
+    try {
+      console.log('🔄 [WHATSAPP] Fetching contacts...');
+      const result = await apiCall('/admin/central-whatsapp/contacts');
+      setContacts(result.data.contacts || []);
+      setContactsTotal(result.data.total || 0);
+      console.log('✅ [WHATSAPP] Contacts fetched successfully');
+    } catch (err) {
+      console.error('❌ [WHATSAPP] Error fetching contacts:', err.message);
+      setError(`Failed to load contacts: ${err.message}`);
+    }
+  };
+
+  // Health check
+  const healthCheck = useCallback(async () => {
+    try {
+      setLoading(true);
+      console.log('🔄 [WHATSAPP] Performing health check...');
+      
+      const result = await apiCall('/admin/central-whatsapp/health');
+      setSuccess('Health check successful! All systems operational.');
+      console.log('✅ [WHATSAPP] Health check successful');
+    } catch (err) {
+      console.error('❌ [WHATSAPP] Error in health check:', err.message);
+      setError(`Health check failed: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiCall]);
 
   // Load data based on active tab
   useEffect(() => {
@@ -444,13 +507,30 @@ const WhatsAppMessaging = () => {
         
         switch (activeTab) {
           case 'overview':
-            await fetchAnalytics();
+            await Promise.all([
+              fetchTemplates(),
+              fetchMessages(),
+              fetchContacts()
+            ]);
             break;
           case 'messages':
             await fetchMessages();
             break;
           case 'templates':
             await fetchTemplates();
+            break;
+          case 'contacts':
+            await fetchContacts();
+            break;
+          case 'settings':
+            await fetchConfig();
+            break;
+          case 'analytics':
+            await Promise.all([
+              fetchTemplates(),
+              fetchMessages(),
+              fetchContacts()
+            ]);
             break;
         }
       } catch (err) {
@@ -1013,6 +1093,190 @@ const WhatsAppMessaging = () => {
     </div>
   );
 
+  // Contacts Tab Content
+  const ContactsContent = () => (
+    <div className="space-y-6">
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between pb-4">
+          <div>
+            <CardTitle className="text-lg flex items-center space-x-2">
+              <Users className="h-5 w-5 text-blue-600" />
+              <span>WhatsApp Contacts</span>
+            </CardTitle>
+            <CardDescription className="mt-1">Manage WhatsApp contacts and conversations</CardDescription>
+          </div>
+          <div className="flex space-x-2">
+            <Button onClick={fetchContacts} variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">No contacts found</h3>
+            <p className="text-muted-foreground mb-4">
+              Contacts will appear here when messages are sent or received
+            </p>
+            <Button onClick={() => setSendDialogOpen(true)}>
+              <Send className="h-4 w-4 mr-2" />
+              Send First Message
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  // Analytics Tab Content
+  const AnalyticsContent = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <MessageSquare className="h-8 w-8 text-blue-600" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Messages</p>
+                <p className="text-2xl font-bold">{messagesTotal}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <FileText className="h-8 w-8 text-purple-600" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Templates</p>
+                <p className="text-2xl font-bold">{templates.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <Users className="h-8 w-8 text-green-600" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Contacts</p>
+                <p className="text-2xl font-bold">{contactsTotal}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-2">
+              <Activity className="h-8 w-8 text-orange-600" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Active</p>
+                <p className="text-2xl font-bold">{config ? 'Yes' : 'No'}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <Card className="border-0 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center space-x-2">
+            <BarChart3 className="h-5 w-5 text-blue-600" />
+            <span>Message Statistics</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">Analytics Coming Soon</h3>
+            <p className="text-muted-foreground">
+              Detailed analytics and reporting features will be available soon
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  // Settings Tab Content
+  const SettingsContent = () => (
+    <div className="space-y-6">
+      <Card className="border-0 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center space-x-2">
+            <Settings className="h-5 w-5 text-blue-600" />
+            <span>WhatsApp Configuration</span>
+          </CardTitle>
+          <CardDescription>Manage your WhatsApp Business API settings</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {config ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Phone Number ID</Label>
+                  <p className="text-sm text-muted-foreground">{config.phoneNumberId}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Business Account ID</Label>
+                  <p className="text-sm text-muted-foreground">{config.businessAccountId}</p>
+                </div>
+              </div>
+              <div className="flex space-x-2">
+                <Button onClick={() => handleConfigDialogOpen(true)} variant="outline">
+                  <Edit className="h-4 w-4 mr-2" />
+                  Update Configuration
+                </Button>
+                <Button onClick={healthCheck} variant="outline">
+                  <TestTube className="h-4 w-4 mr-2" />
+                  Test Connection
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Settings className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">No Configuration Found</h3>
+              <p className="text-muted-foreground mb-4">
+                Set up your WhatsApp Business API configuration to get started
+              </p>
+              <Button onClick={() => handleConfigDialogOpen(true)}>
+                <Settings className="h-4 w-4 mr-2" />
+                Setup Configuration
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      <Card className="border-0 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center space-x-2">
+            <RefreshCw className="h-5 w-5 text-green-600" />
+            <span>Template Management</span>
+          </CardTitle>
+          <CardDescription>Sync and manage your WhatsApp templates</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex space-x-2">
+            <Button onClick={syncTemplates} disabled={templateSyncLoading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${templateSyncLoading ? 'animate-spin' : ''}`} />
+              {templateSyncLoading ? 'Syncing...' : 'Sync Templates'}
+            </Button>
+            <Button onClick={() => setTemplateDialogOpen(true)} variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Template
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-8">
       {/* Header */}
@@ -1053,18 +1317,30 @@ const WhatsAppMessaging = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-3 w-fit">
-          <TabsTrigger value="overview" className="flex items-center space-x-2 px-6">
+        <TabsList className="grid grid-cols-6 w-full">
+          <TabsTrigger value="overview" className="flex items-center space-x-2 px-4">
             <BarChart3 className="h-4 w-4" />
             <span>Overview</span>
           </TabsTrigger>
-          <TabsTrigger value="messages" className="flex items-center space-x-2 px-6">
+          <TabsTrigger value="templates" className="flex items-center space-x-2 px-4">
+            <FileText className="h-4 w-4" />
+            <span>Templates</span>
+          </TabsTrigger>
+          <TabsTrigger value="messages" className="flex items-center space-x-2 px-4">
             <MessageSquare className="h-4 w-4" />
             <span>Messages</span>
           </TabsTrigger>
-          <TabsTrigger value="templates" className="flex items-center space-x-2 px-6">
-            <File className="h-4 w-4" />
-            <span>Templates</span>
+          <TabsTrigger value="contacts" className="flex items-center space-x-2 px-4">
+            <Users className="h-4 w-4" />
+            <span>Contacts</span>
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center space-x-2 px-4">
+            <Activity className="h-4 w-4" />
+            <span>Analytics</span>
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="flex items-center space-x-2 px-4">
+            <Settings className="h-4 w-4" />
+            <span>Settings</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1078,6 +1354,18 @@ const WhatsAppMessaging = () => {
 
         <TabsContent value="templates">
           <TemplatesContent />
+        </TabsContent>
+
+        <TabsContent value="contacts">
+          <ContactsContent />
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <AnalyticsContent />
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <SettingsContent />
         </TabsContent>
       </Tabs>
 

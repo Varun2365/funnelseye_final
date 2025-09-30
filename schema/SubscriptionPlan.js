@@ -39,8 +39,8 @@ const subscriptionPlanSchema = new mongoose.Schema({
         // Core Platform Features
         maxFunnels: {
             type: Number,
-            default: 5,
-            min: 0
+            default: -1, // Unlimited
+            min: -1
         },
         maxStaff: {
             type: Number,
@@ -138,8 +138,8 @@ const subscriptionPlanSchema = new mongoose.Schema({
     limits: {
         maxLeads: {
             type: Number,
-            default: 100,
-            min: 0
+            default: -1, // Unlimited
+            min: -1
         },
         maxAppointments: {
             type: Number,
