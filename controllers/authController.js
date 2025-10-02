@@ -3,14 +3,7 @@ const { User, Coach, Otp, CoachHierarchyLevel } = require('../schema'); // Remov
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: 'varun.kumar.sharma.2365@gmail.com',
-        pass: 'ymrj rltp fyrn ernm'
-    }
-});
+const emailConfigService = require('../services/emailConfigService');
 
 // --- Helper Functions ---
 
@@ -21,7 +14,6 @@ const generateOtp = () => {
 const sendOtp = async (email, otp) => {
     try {
         const mailOptions = {
-            from: '"FunnelsEye" <varun.kumar.sharma.2365@gmail.com>',
             to: email,
             subject: 'FunnelsEye: Your One-Time Password (OTP)',
             html: `
@@ -55,7 +47,7 @@ const sendOtp = async (email, otp) => {
                 </div>
             `
         };
-        await transporter.sendMail(mailOptions);
+        await emailConfigService.sendEmail(mailOptions);
         console.log(`OTP sent successfully to ${email}`);
         return true;
     } catch (error) {
@@ -69,7 +61,6 @@ const sendPasswordResetEmail = async (email, resetToken) => {
         const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/reset-password?token=${resetToken}`;
         
         const mailOptions = {
-            from: '"FunnelsEye" <varun.kumar.sharma.2365@gmail.com>',
             to: email,
             subject: 'FunnelsEye: Password Reset Request',
             html: `
@@ -103,7 +94,7 @@ const sendPasswordResetEmail = async (email, resetToken) => {
                 </div>
             `
         };
-        await transporter.sendMail(mailOptions);
+        await emailConfigService.sendEmail(mailOptions);
         console.log(`Password reset email sent successfully to ${email}`);
         return true;
     } catch (error) {

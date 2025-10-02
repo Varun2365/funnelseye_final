@@ -8,6 +8,14 @@ const whatsappAIKnowledgeController = require('../controllers/whatsappAIKnowledg
 const whatsappWebhookController = require('../controllers/whatsappWebhookController');
 const whatsappCoachSettingsController = require('../controllers/whatsappCoachSettingsController');
 const whatsappAdminSettingsController = require('../controllers/whatsappAdminSettingsController');
+const messagingController = require('../controllers/messagingController');
+const templateController = require('../controllers/templateController');
+const contactController = require('../controllers/contactController');
+const inboxController = require('../controllers/inboxController');
+const unifiedMessagingController = require('../controllers/unifiedMessagingController');
+const unifiedMessagingAdminController = require('../controllers/unifiedMessagingAdminController');
+const whatsappCreditController = require('../controllers/whatsappCreditController');
+const emailConfigController = require('../controllers/emailConfigController');
 
 // Import middleware
 const { verifyAdminToken, noLogActivity } = require('../middleware/adminAuth');
@@ -181,6 +189,99 @@ router.get('/test-config',
     centralWhatsAppController.testConfiguration
 );
 
+// ===== WHATSAPP V1 ADMIN ROUTES =====
+// These routes are mounted at /api/whatsapp/v1 for admin access
+
+// @route   GET /api/whatsapp/v1/config
+// @desc    Get Central WhatsApp Configuration
+// @access  Private (Admin)
+router.get('/config',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.getCentralWhatsAppConfig
+);
+
+// @route   POST /api/whatsapp/v1/setup
+// @desc    Setup Central WhatsApp
+// @access  Private (Admin)
+router.post('/setup',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.setupCentralWhatsApp
+);
+
+// @route   GET /api/whatsapp/v1/templates
+// @desc    Get All Templates
+// @access  Private (Admin)
+router.get('/templates',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.getTemplates
+);
+
+// @route   GET /api/whatsapp/v1/contacts
+// @desc    Get Contacts
+// @access  Private (Admin)
+router.get('/contacts',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.getContacts
+);
+
+// @route   GET /api/whatsapp/v1/analytics
+// @desc    Get WhatsApp Analytics
+// @access  Private (Admin)
+router.get('/analytics',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.getWhatsAppAnalytics
+);
+
+// @route   GET /api/whatsapp/v1/messages
+// @desc    Get All WhatsApp Messages
+// @access  Private (Admin)
+router.get('/messages',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.getAllMessages
+);
+
+// @route   POST /api/whatsapp/v1/send-message
+// @desc    Send Message as Admin
+// @access  Private (Admin)
+router.post('/send-message',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.sendAdminMessage
+);
+
+// @route   POST /api/whatsapp/v1/test-message
+// @desc    Send Test Message
+// @access  Private (Admin)
+router.post('/test-message',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.sendTestMessage
+);
+
+// @route   PUT /api/whatsapp/v1/contacts/update
+// @desc    Update Contact Name
+// @access  Private (Admin)
+router.put('/contacts/update',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.updateContact
+);
+
+// @route   POST /api/whatsapp/v1/send-bulk-messages
+// @desc    Send Bulk Messages
+// @access  Private (Admin)
+router.post('/send-bulk-messages',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.sendBulkMessages
+);
+
 // @route   GET /api/admin/central-whatsapp/analytics
 // @desc    Get WhatsApp Analytics
 // @access  Private (Admin)
@@ -188,6 +289,35 @@ router.get('/analytics',
     verifyAdminToken,
     requirePermission('whatsapp_management'),
     centralWhatsAppController.getWhatsAppAnalytics
+);
+
+// ===== CREDIT & SETTINGS MANAGEMENT =====
+
+// @route   GET /api/admin/central-whatsapp/credit-settings
+// @desc    Get Credit Rates and Settings
+// @access  Private (Admin)
+router.get('/credit-settings',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.getCreditSettings
+);
+
+// @route   PUT /api/admin/central-whatsapp/credit-settings
+// @desc    Update Credit Rates and Settings
+// @access  Private (Admin)
+router.put('/credit-settings',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.updateCreditSettings
+);
+
+// @route   GET /api/admin/central-whatsapp/settings-overview
+// @desc    Get Complete Admin Settings Overview
+// @access  Private (Admin)
+router.get('/settings-overview',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    centralWhatsAppController.getSettingsOverview
 );
 
 // ===== COACH WHATSAPP ROUTES =====

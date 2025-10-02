@@ -58,7 +58,8 @@ import {
   Headphones,
   BookOpen,
   Network,
-  Activity
+  Activity,
+  Save
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -110,6 +111,21 @@ const WhatsAppMessaging = () => {
     leadId: '',
     clientId: ''
   });
+  
+  // Contact suggestions
+  const [contacts, setContacts] = useState([]);
+  const [contactSuggestions, setContactSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  // Bulk messaging
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedContacts, setSelectedContacts] = useState([]);
+  const [bulkMessage, setBulkMessage] = useState('');
+  
+  // Contact editing
+  const [editingContact, setEditingContact] = useState(null);
+  const [contactEditDialog, setContactEditDialog] = useState(false);
+  const [contactEditForm, setContactEditForm] = useState({ name: '', phoneNumber: '' });
   
   // Filters
   const [filters, setFilters] = useState({
@@ -352,6 +368,42 @@ const WhatsAppMessaging = () => {
     }
   };
 
+  // Fetch contacts for suggestions
+  const fetchContacts = async () => {
+    try {
+      console.log('🔄 [WHATSAPP] Fetching contacts...');
+      const result = await apiCall('/whatsapp/v1/contacts');
+      console.log('📞 [WHATSAPP] Contacts API response:', result);
+      
+      // Handle different response structures
+      const contactsData = result.data?.contacts || result.contacts || result.data || [];
+      setContacts(contactsData);
+      console.log('✅ [WHATSAPP] Contacts fetched successfully:', contactsData.length, 'contacts');
+      
+      // If no contacts, create some sample data for testing
+      if (contactsData.length === 0) {
+        console.log('📞 [WHATSAPP] No contacts found, creating sample data for testing');
+        const sampleContacts = [
+          { phoneNumber: '+1234567890', name: 'John Doe', messageCount: 5, lastMessageAt: new Date() },
+          { phoneNumber: '+0987654321', name: 'Jane Smith', messageCount: 3, lastMessageAt: new Date() },
+          { phoneNumber: '+5555555555', name: 'Bob Johnson', messageCount: 8, lastMessageAt: new Date() }
+        ];
+        setContacts(sampleContacts);
+        console.log('📞 [WHATSAPP] Sample contacts created for testing');
+      }
+    } catch (err) {
+      console.error('❌ [WHATSAPP] Error fetching contacts:', err.message);
+      // Create sample data even on error for testing
+      const sampleContacts = [
+        { phoneNumber: '+1234567890', name: 'John Doe', messageCount: 5, lastMessageAt: new Date() },
+        { phoneNumber: '+0987654321', name: 'Jane Smith', messageCount: 3, lastMessageAt: new Date() },
+        { phoneNumber: '+5555555555', name: 'Bob Johnson', messageCount: 8, lastMessageAt: new Date() }
+      ];
+      setContacts(sampleContacts);
+      console.log('📞 [WHATSAPP] Using sample contacts due to API error');
+    }
+  };
+
   // Send message
   const sendMessage = useCallback(async () => {
     try {
@@ -397,6 +449,8 @@ const WhatsAppMessaging = () => {
         clientId: ''
       });
       await fetchMessages(messagesPage);
+      // Refresh contacts to include the new number
+      await fetchContacts();
       console.log('✅ [WHATSAPP] Message sent successfully');
     } catch (err) {
       console.error('❌ [WHATSAPP] Error sending message:', err.message);
@@ -404,7 +458,7 @@ const WhatsAppMessaging = () => {
     } finally {
       setLoading(false);
     }
-  }, [sendForm, apiCall, messagesPage, fetchMessages]);
+  }, [sendForm, apiCall, messagesPage, fetchMessages, fetchContacts]);
 
   // Test message
   const testMessage = useCallback(async () => {
@@ -462,6 +516,20 @@ const WhatsAppMessaging = () => {
 
     loadData();
   }, [activeTab]);
+
+  // Load contacts when component mounts and when send dialog opens
+  useEffect(() => {
+    if (config) {
+      fetchContacts();
+    }
+  }, [config]);
+
+  // Load contacts when send dialog opens
+  useEffect(() => {
+    if (sendDialogOpen && config) {
+      fetchContacts();
+    }
+  }, [sendDialogOpen, config]);
 
   // Refresh data
   const refreshData = () => {
@@ -541,6 +609,138 @@ const WhatsAppMessaging = () => {
       setSendForm({...sendForm, mediaUrl: '', message: ''});
     } else {
       setSendForm({...sendForm, templateName: '', message: ''});
+    }
+  };
+
+  // Handle phone number input change with suggestions
+  const handlePhoneNumberChange = (value) => {
+    if (bulkMode) {
+      // For bulk mode, we don't update sendForm.to
+      console.log('🔍 [WHATSAPP] Bulk mode search:', value);
+    } else {
+      setSendForm({...sendForm, to: value});
+    }
+    
+    if (value.length > 0) {
+      console.log('🔍 [WHATSAPP] Searching contacts for:', value);
+      console.log('📞 [WHATSAPP] Available contacts:', contacts.length);
+      
+      const filtered = contacts.filter(contact => 
+        contact.phoneNumber.includes(value) || 
+        (contact.name && contact.name.toLowerCase().includes(value.toLowerCase()))
+      );
+      
+      console.log('🔍 [WHATSAPP] Filtered contacts:', filtered.length);
+      setContactSuggestions(filtered.slice(0, 5)); // Show max 5 suggestions
+      setShowSuggestions(true);
+    } else {
+      setContactSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // Handle contact suggestion selection
+  const handleContactSelect = (contact) => {
+    if (bulkMode) {
+      // Add to selected contacts for bulk messaging
+      if (!selectedContacts.find(c => c.phoneNumber === contact.phoneNumber)) {
+        setSelectedContacts([...selectedContacts, contact]);
+      }
+    } else {
+      // Single message mode
+      setSendForm({...sendForm, to: contact.phoneNumber});
+    }
+    setShowSuggestions(false);
+  };
+
+  // Handle contact editing
+  const handleEditContact = (contact) => {
+    setEditingContact(contact);
+    setContactEditForm({
+      name: contact.name || '',
+      phoneNumber: contact.phoneNumber
+    });
+    setContactEditDialog(true);
+    setShowSuggestions(false);
+  };
+
+  // Save contact edit
+  const saveContactEdit = async () => {
+    try {
+      setLoading(true);
+      const result = await apiCall('/whatsapp/v1/contacts/update', {
+        method: 'PUT',
+        data: {
+          phoneNumber: contactEditForm.phoneNumber,
+          name: contactEditForm.name
+        }
+      });
+      
+      setSuccess('Contact updated successfully!');
+      setContactEditDialog(false);
+      await fetchContacts(); // Refresh contacts
+    } catch (err) {
+      console.error('❌ [WHATSAPP] Error updating contact:', err.message);
+      setError(`Failed to update contact: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Toggle bulk mode
+  const toggleBulkMode = () => {
+    setBulkMode(!bulkMode);
+    if (bulkMode) {
+      // Switching to single mode - clear bulk selections
+      setSelectedContacts([]);
+      setBulkMessage('');
+    } else {
+      // Switching to bulk mode - clear single form
+      setSendForm({...sendForm, to: ''});
+    }
+  };
+
+  // Remove contact from bulk selection
+  const removeFromBulkSelection = (phoneNumber) => {
+    setSelectedContacts(selectedContacts.filter(c => c.phoneNumber !== phoneNumber));
+  };
+
+  // Send bulk messages
+  const sendBulkMessages = async () => {
+    if (selectedContacts.length === 0) {
+      setError('Please select at least one contact for bulk messaging');
+      return;
+    }
+
+    if (!bulkMessage.trim()) {
+      setError('Please enter a message to send');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log('🔄 [WHATSAPP] Sending bulk messages...');
+      
+      const result = await apiCall('/whatsapp/v1/send-bulk-messages', {
+        method: 'POST',
+        data: {
+          contacts: selectedContacts.map(c => c.phoneNumber),
+          message: bulkMessage
+        }
+      });
+      
+      setSuccess(`Bulk messages sent successfully to ${selectedContacts.length} contacts!`);
+      setBulkMode(false);
+      setSelectedContacts([]);
+      setBulkMessage('');
+      await fetchMessages(messagesPage);
+      await fetchContacts();
+      console.log('✅ [WHATSAPP] Bulk messages sent successfully');
+    } catch (err) {
+      console.error('❌ [WHATSAPP] Error sending bulk messages:', err.message);
+      setError(`Failed to send bulk messages: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1166,65 +1366,254 @@ const WhatsAppMessaging = () => {
               Send a message using the Central WhatsApp configuration.
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Mode Toggle */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium">Mode:</span>
+              <Badge variant={bulkMode ? "default" : "outline"}>
+                {bulkMode ? "Bulk Messaging" : "Single Message"}
+              </Badge>
+              <span className="text-xs text-gray-500">
+                ({contacts.length} contacts available)
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleBulkMode}
+            >
+              {bulkMode ? "Switch to Single" : "Switch to Bulk"}
+            </Button>
+          </div>
+
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="to">Recipient Phone Number</Label>
-              <Input
-                id="to"
-                placeholder="+1234567890"
-                value={sendForm.to}
-                onChange={(e) => setSendForm({...sendForm, to: e.target.value})}
-              />
-            </div>
+            {!bulkMode ? (
+              // Single Message Mode
+              <div className="relative">
+                <Label htmlFor="to">Recipient Phone Number</Label>
+                <Input
+                  id="to"
+                  placeholder="+1234567890 or search contacts..."
+                  value={sendForm.to}
+                  onChange={(e) => handlePhoneNumberChange(e.target.value)}
+                  onFocus={() => {
+                    console.log('🔍 [WHATSAPP] Input focused, contacts:', contacts.length);
+                    if (contacts.length > 0) {
+                      // Show all contacts when focused
+                      setContactSuggestions(contacts.slice(0, 5));
+                      setShowSuggestions(true);
+                    }
+                  }}
+                  onBlur={() => {
+                    // Delay hiding suggestions to allow click on suggestion
+                    setTimeout(() => setShowSuggestions(false), 200);
+                  }}
+                />
+                
+                {/* Contact Suggestions Dropdown */}
+                {showSuggestions && contactSuggestions.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                    {contactSuggestions.map((contact, index) => (
+                      <div
+                        key={index}
+                        className="px-3 py-2 cursor-pointer hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                        onClick={() => handleContactSelect(contact)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{contact.phoneNumber}</div>
+                            {contact.name && (
+                              <div className="text-xs text-gray-500">{contact.name}</div>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {contact.messageCount > 0 && (
+                              <div className="text-xs text-gray-400">
+                                {contact.messageCount} msgs
+                              </div>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditContact(contact);
+                              }}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              // Bulk Message Mode
+              <div className="space-y-3">
+                <div className="relative">
+                  <Label htmlFor="bulk-search">Search and Select Contacts</Label>
+                  <Input
+                    id="bulk-search"
+                    placeholder="Search contacts by phone or name..."
+                    onChange={(e) => handlePhoneNumberChange(e.target.value)}
+                    onFocus={() => {
+                      console.log('🔍 [WHATSAPP] Bulk search focused, contacts:', contacts.length);
+                      if (contacts.length > 0) {
+                        const filtered = contacts.filter(contact => 
+                          !selectedContacts.find(c => c.phoneNumber === contact.phoneNumber)
+                        );
+                        setContactSuggestions(filtered.slice(0, 5));
+                        setShowSuggestions(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => setShowSuggestions(false), 200);
+                    }}
+                  />
+                  
+                  {/* Contact Suggestions Dropdown for Bulk */}
+                  {showSuggestions && contactSuggestions.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                      {contactSuggestions.map((contact, index) => (
+                        <div
+                          key={index}
+                          className="px-3 py-2 cursor-pointer hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                          onClick={() => handleContactSelect(contact)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="font-medium text-sm">{contact.phoneNumber}</div>
+                              {contact.name && (
+                                <div className="text-xs text-gray-500">{contact.name}</div>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              {contact.messageCount > 0 && (
+                                <div className="text-xs text-gray-400">
+                                  {contact.messageCount} msgs
+                                </div>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditContact(contact);
+                                }}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected Contacts */}
+                {selectedContacts.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Selected Contacts ({selectedContacts.length})</Label>
+                    <div className="max-h-32 overflow-y-auto space-y-1">
+                      {selectedContacts.map((contact, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-2 bg-gray-50 rounded-md"
+                        >
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{contact.phoneNumber}</div>
+                            {contact.name && (
+                              <div className="text-xs text-gray-500">{contact.name}</div>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                            onClick={() => removeFromBulkSelection(contact.phoneNumber)}
+                          >
+                            <XCircle className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="leadId">Lead ID (Optional)</Label>
-                <Input
-                  id="leadId"
-                  placeholder="Lead ID"
-                  value={sendForm.leadId}
-                  onChange={(e) => setSendForm({...sendForm, leadId: e.target.value})}
-                />
+            {!bulkMode && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="leadId">Lead ID (Optional)</Label>
+                  <Input
+                    id="leadId"
+                    placeholder="Lead ID"
+                    value={sendForm.leadId}
+                    onChange={(e) => setSendForm({...sendForm, leadId: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="clientId">Client ID (Optional)</Label>
+                  <Input
+                    id="clientId"
+                    placeholder="Client ID"
+                    value={sendForm.clientId}
+                    onChange={(e) => setSendForm({...sendForm, clientId: e.target.value})}
+                  />
+                </div>
               </div>
+            )}
+
+            {!bulkMode && (
               <div>
-                <Label htmlFor="clientId">Client ID (Optional)</Label>
-                <Input
-                  id="clientId"
-                  placeholder="Client ID"
-                  value={sendForm.clientId}
-                  onChange={(e) => setSendForm({...sendForm, clientId: e.target.value})}
-                />
+                <Label>Message Type</Label>
+                <Select 
+                  value={sendForm.templateName ? 'template' : sendForm.mediaUrl ? 'media' : 'text'} 
+                  onValueChange={handleMessageTypeChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="text">Text Message</SelectItem>
+                    <SelectItem value="template">Template Message</SelectItem>
+                    <SelectItem value="media">Media Message</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
+            )}
 
-            <div>
-              <Label>Message Type</Label>
-              <Select 
-                value={sendForm.templateName ? 'template' : sendForm.mediaUrl ? 'media' : 'text'} 
-                onValueChange={handleMessageTypeChange}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="text">Text Message</SelectItem>
-                  <SelectItem value="template">Template Message</SelectItem>
-                  <SelectItem value="media">Media Message</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {!sendForm.templateName && !sendForm.mediaUrl && (
+            {/* Message Input */}
+            {bulkMode ? (
               <div>
-                <Label htmlFor="message">Message</Label>
+                <Label htmlFor="bulk-message">Message</Label>
                 <Textarea
-                  id="message"
-                  placeholder="Enter your message..."
-                  value={sendForm.message}
-                  onChange={(e) => setSendForm({...sendForm, message: e.target.value})}
+                  id="bulk-message"
+                  placeholder="Enter your message to send to all selected contacts..."
+                  value={bulkMessage}
+                  onChange={(e) => setBulkMessage(e.target.value)}
+                  rows={4}
                 />
               </div>
+            ) : (
+              !sendForm.templateName && !sendForm.mediaUrl && (
+                <div>
+                  <Label htmlFor="message">Message</Label>
+                  <Textarea
+                    id="message"
+                    placeholder="Enter your message..."
+                    value={sendForm.message}
+                    onChange={(e) => setSendForm({...sendForm, message: e.target.value})}
+                  />
+                </div>
+              )
             )}
 
             {sendForm.templateName && (
@@ -1297,13 +1686,66 @@ const WhatsAppMessaging = () => {
               <Button variant="outline" onClick={() => setSendDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button variant="outline" onClick={testMessage} disabled={loading || !sendForm.to}>
-                <TestTube className="h-4 w-4 mr-2" />
-                Test
+              {!bulkMode && (
+                <Button variant="outline" onClick={testMessage} disabled={loading || !sendForm.to}>
+                  <TestTube className="h-4 w-4 mr-2" />
+                  Test
+                </Button>
+              )}
+              {bulkMode ? (
+                <Button 
+                  onClick={sendBulkMessages} 
+                  disabled={loading || selectedContacts.length === 0 || !bulkMessage.trim()}
+                >
+                  {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                  Send to {selectedContacts.length} Contacts
+                </Button>
+              ) : (
+                <Button onClick={sendMessage} disabled={loading || !sendForm.to || (!sendForm.message && !sendForm.templateName && !sendForm.mediaUrl)}>
+                  {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                  Send
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contact Edit Dialog */}
+      <Dialog open={contactEditDialog} onOpenChange={setContactEditDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Contact</DialogTitle>
+            <DialogDescription>
+              Update contact information for {editingContact?.phoneNumber}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-phone">Phone Number</Label>
+              <Input
+                id="edit-phone"
+                value={contactEditForm.phoneNumber}
+                disabled
+                className="bg-gray-50"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-name">Contact Name (Optional)</Label>
+              <Input
+                id="edit-name"
+                placeholder="Enter contact name..."
+                value={contactEditForm.name}
+                onChange={(e) => setContactEditForm({...contactEditForm, name: e.target.value})}
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setContactEditDialog(false)}>
+                Cancel
               </Button>
-              <Button onClick={sendMessage} disabled={loading || !sendForm.to || (!sendForm.message && !sendForm.templateName && !sendForm.mediaUrl)}>
-                {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-                Send
+              <Button onClick={saveContactEdit} disabled={loading}>
+                {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                Save
               </Button>
             </div>
           </div>

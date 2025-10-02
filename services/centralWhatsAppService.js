@@ -430,6 +430,91 @@ class CentralWhatsAppService {
         }
     }
 
+    // Update contact name
+    async updateContact(phoneNumber, name) {
+        try {
+            const config = await this.getConfig();
+            
+            const contact = config.contacts.find(c => c.phoneNumber === phoneNumber);
+            if (!contact) {
+                throw new Error('Contact not found');
+            }
+            
+            contact.name = name || null;
+            await config.save();
+            
+            logger.info(`[CentralWhatsApp] Contact updated: ${phoneNumber}`);
+            return {
+                success: true,
+                contact: contact
+            };
+
+        } catch (error) {
+            logger.error(`[CentralWhatsApp] Error updating contact:`, error.message);
+            throw error;
+        }
+    }
+
+    // Send bulk messages
+    async sendBulkMessages(contacts, message, templateName, parameters, mediaUrl, mediaType) {
+        try {
+            const results = [];
+            let sentCount = 0;
+            let failedCount = 0;
+            
+            // Get template language once if sending template messages
+            let templateLanguage = 'en_US';
+            if (templateName && templateName.trim()) {
+                const config = await this.getConfig();
+                const template = config.getTemplateByName(templateName);
+                templateLanguage = template?.language || 'en_US';
+            }
+            
+            for (const phoneNumber of contacts) {
+                try {
+                    let result;
+                    
+                    if (templateName && templateName.trim()) {
+                        // Send template message
+                        result = await this.sendTemplateMessage(phoneNumber, templateName, templateLanguage, parameters || []);
+                    } else if (mediaUrl && mediaUrl.trim()) {
+                        // Send media message
+                        result = await this.sendMediaMessage(phoneNumber, mediaUrl, mediaType || 'image', message || '');
+                    } else {
+                        // Send text message
+                        result = await this.sendTextMessage(phoneNumber, message);
+                    }
+                    
+                    results.push({
+                        phoneNumber,
+                        success: true,
+                        messageId: result.messageId
+                    });
+                    sentCount++;
+                } catch (error) {
+                    results.push({
+                        phoneNumber,
+                        success: false,
+                        error: error.message
+                    });
+                    failedCount++;
+                }
+            }
+            
+            logger.info(`[CentralWhatsApp] Bulk messages sent: ${sentCount} successful, ${failedCount} failed`);
+            return {
+                success: true,
+                sentCount,
+                failedCount,
+                results
+            };
+
+        } catch (error) {
+            logger.error(`[CentralWhatsApp] Error sending bulk messages:`, error.message);
+            throw error;
+        }
+    }
+
     // Health check
     async healthCheck() {
         try {

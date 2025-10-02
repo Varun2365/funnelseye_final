@@ -93,6 +93,8 @@ const coachFinancialRoutes = require('./routes/coachFinancialRoutes');
 const adminHierarchyRoutes = require('./routes/adminHierarchyRoutes');
 const adminV1Routes = require('./routes/adminV1Routes');
 const centralWhatsAppRoutes = require('./routes/centralWhatsAppRoutes');
+const emailConfigRoutes = require('./routes/emailConfigRoutes');
+const messagingRoutes = require('./routes/messagingRoutes');
 const newAdminAuthRoutes = require('./routes/adminAuthRoutes');
 const newAdminSystemRoutes = require('./routes/adminSystemRoutes');
 const newAdminUserRoutes = require('./routes/adminUserRoutes');
@@ -293,6 +295,11 @@ app.use('/api/admin/v1', adminV1Routes);
 // ===== UNIFIED WHATSAPP V1 SYSTEM =====
 // Single endpoint for all WhatsApp functionality - Admin and Coach
 app.use('/api/whatsapp/v1', centralWhatsAppRoutes);
+app.use('/api/messaging', messagingRoutes);
+
+// ===== EMAIL CONFIGURATION SYSTEM =====
+// Email configuration management for admin
+app.use('/api/email/v1', emailConfigRoutes);
 
 // ===== PERMISSIONS & SYSTEM =====
 app.use('/api/permissions', permissionsRoutes);

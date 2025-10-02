@@ -363,7 +363,12 @@ exports.getContacts = asyncHandler(async (req, res) => {
         console.log('✅ [CENTRAL_WHATSAPP] getContacts - Success');
         res.status(200).json({
             success: true,
-            data: result
+            data: {
+                contacts: result.contacts,
+                total: result.total,
+                limit: result.limit,
+                offset: result.offset
+            }
         });
         
     } catch (error) {
@@ -449,6 +454,94 @@ exports.sendTestMessage = asyncHandler(async (req, res) => {
             success: false,
             message: 'Failed to send test message',
             error: error.response?.data?.error?.message || error.message
+        });
+    }
+});
+
+// @desc    Update Contact Name
+// @route   PUT /api/whatsapp/v1/contacts/update
+// @access  Private (Admin)
+exports.updateContact = asyncHandler(async (req, res) => {
+    try {
+        console.log('🔄 [CENTRAL_WHATSAPP] updateContact - Starting...');
+        
+        const { phoneNumber, name } = req.body;
+        
+        if (!phoneNumber) {
+            return res.status(400).json({
+                success: false,
+                message: 'Phone number is required'
+            });
+        }
+        
+        const result = await centralWhatsAppService.updateContact(phoneNumber, name);
+        
+        console.log('✅ [CENTRAL_WHATSAPP] updateContact - Success');
+        res.status(200).json({
+            success: true,
+            message: 'Contact updated successfully',
+            data: result
+        });
+        
+    } catch (error) {
+        console.error('❌ [CENTRAL_WHATSAPP] updateContact - Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update contact',
+            error: error.message
+        });
+    }
+});
+
+// @desc    Send Bulk Messages
+// @route   POST /api/whatsapp/v1/send-bulk-messages
+// @access  Private (Admin)
+exports.sendBulkMessages = asyncHandler(async (req, res) => {
+    try {
+        console.log('🔄 [CENTRAL_WHATSAPP] sendBulkMessages - Starting...');
+        
+        const { contacts, message, templateName, parameters, mediaUrl, mediaType } = req.body;
+        
+        if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Contacts array is required and must not be empty'
+            });
+        }
+        
+        // Validate message content based on type
+        if (templateName && templateName.trim()) {
+            // Template message - parameters are optional but template name is required
+            console.log('📝 [CENTRAL_WHATSAPP] Sending bulk template messages');
+        } else if (mediaUrl && mediaUrl.trim()) {
+            // Media message - mediaUrl is required
+            console.log('📷 [CENTRAL_WHATSAPP] Sending bulk media messages');
+        } else {
+            // Text message - message is required
+            if (!message || !message.trim()) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Message is required for text messages'
+                });
+            }
+            console.log('💬 [CENTRAL_WHATSAPP] Sending bulk text messages');
+        }
+        
+        const result = await centralWhatsAppService.sendBulkMessages(contacts, message, templateName, parameters, mediaUrl, mediaType);
+        
+        console.log('✅ [CENTRAL_WHATSAPP] sendBulkMessages - Success');
+        res.status(200).json({
+            success: true,
+            message: `Bulk messages sent successfully to ${result.sentCount} contacts`,
+            data: result
+        });
+        
+    } catch (error) {
+        console.error('❌ [CENTRAL_WHATSAPP] sendBulkMessages - Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to send bulk messages',
+            error: error.message
         });
     }
 });
@@ -1163,6 +1256,186 @@ exports.getCoachStatus = asyncHandler(async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to get status',
+            error: error.message
+        });
+    }
+});
+
+// ===== ADMIN CREDIT & SETTINGS MANAGEMENT =====
+
+// @desc    Get Credit Rates and Settings
+// @route   GET /api/admin/central-whatsapp/credit-settings
+// @access  Private (Admin)
+exports.getCreditSettings = asyncHandler(async (req, res) => {
+    try {
+        console.log('🔄 [CENTRAL_WHATSAPP] getCreditSettings - Starting...');
+        
+        const AdminSystemSettings = require('../schema/AdminSystemSettings');
+        const settings = await AdminSystemSettings.findOne({ settingId: 'global' })
+            .select('whatsApp');
+        
+        if (!settings || !settings.whatsApp) {
+            return res.status(404).json({
+                success: false,
+                message: 'WhatsApp settings not found'
+            });
+        }
+        
+        console.log('✅ [CENTRAL_WHATSAPP] getCreditSettings - Success');
+        res.status(200).json({
+            success: true,
+            data: {
+                creditPrice: settings.whatsApp.creditPrice || 0.01,
+                autoRecharge: settings.whatsApp.autoRecharge || false,
+                rechargeThreshold: settings.whatsApp.rechargeThreshold || 10,
+                rechargeAmount: settings.whatsApp.rechargeAmount || 100,
+                isEnabled: settings.whatsApp.isEnabled || false,
+                webhookVerifyToken: settings.whatsApp.webhookVerifyToken || '',
+                webhookUrl: settings.whatsApp.webhookUrl || ''
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ [CENTRAL_WHATSAPP] getCreditSettings - Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get credit settings',
+            error: error.message
+        });
+    }
+});
+
+// @desc    Update Credit Rates and Settings
+// @route   PUT /api/admin/central-whatsapp/credit-settings
+// @access  Private (Admin)
+exports.updateCreditSettings = asyncHandler(async (req, res) => {
+    try {
+        console.log('🔄 [CENTRAL_WHATSAPP] updateCreditSettings - Starting...');
+        
+        const {
+            creditPrice,
+            autoRecharge,
+            rechargeThreshold,
+            rechargeAmount,
+            isEnabled,
+            webhookVerifyToken,
+            webhookUrl
+        } = req.body;
+        
+        const AdminSystemSettings = require('../schema/AdminSystemSettings');
+        
+        // Build update object
+        const updateData = {};
+        if (creditPrice !== undefined) updateData['whatsApp.creditPrice'] = creditPrice;
+        if (autoRecharge !== undefined) updateData['whatsApp.autoRecharge'] = autoRecharge;
+        if (rechargeThreshold !== undefined) updateData['whatsApp.rechargeThreshold'] = rechargeThreshold;
+        if (rechargeAmount !== undefined) updateData['whatsApp.rechargeAmount'] = rechargeAmount;
+        if (isEnabled !== undefined) updateData['whatsApp.isEnabled'] = isEnabled;
+        if (webhookVerifyToken !== undefined) updateData['whatsApp.webhookVerifyToken'] = webhookVerifyToken;
+        if (webhookUrl !== undefined) updateData['whatsApp.webhookUrl'] = webhookUrl;
+        
+        // Update settings
+        const settings = await AdminSystemSettings.findOneAndUpdate(
+            { settingId: 'global' },
+            { $set: updateData },
+            { new: true, upsert: true }
+        ).select('whatsApp');
+        
+        console.log('✅ [CENTRAL_WHATSAPP] updateCreditSettings - Success');
+        res.status(200).json({
+            success: true,
+            message: 'Credit settings updated successfully',
+            data: {
+                creditPrice: settings.whatsApp.creditPrice,
+                autoRecharge: settings.whatsApp.autoRecharge,
+                rechargeThreshold: settings.whatsApp.rechargeThreshold,
+                rechargeAmount: settings.whatsApp.rechargeAmount,
+                isEnabled: settings.whatsApp.isEnabled,
+                webhookVerifyToken: settings.whatsApp.webhookVerifyToken,
+                webhookUrl: settings.whatsApp.webhookUrl
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ [CENTRAL_WHATSAPP] updateCreditSettings - Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update credit settings',
+            error: error.message
+        });
+    }
+});
+
+// @desc    Get Complete Admin Settings Overview
+// @route   GET /api/admin/central-whatsapp/settings-overview
+// @access  Private (Admin)
+exports.getSettingsOverview = asyncHandler(async (req, res) => {
+    try {
+        console.log('🔄 [CENTRAL_WHATSAPP] getSettingsOverview - Starting...');
+        
+        // Get Central WhatsApp Config
+        const config = await CentralWhatsApp.findOne({ isActive: true })
+            .select('-accessToken')
+            .populate('configuredBy', 'name email');
+        
+        // Get Admin System Settings
+        const AdminSystemSettings = require('../schema/AdminSystemSettings');
+        const adminSettings = await AdminSystemSettings.findOne({ settingId: 'global' })
+            .select('whatsApp');
+        
+        // Get total credits across all coaches
+        const totalCredits = await WhatsAppCredit.aggregate([
+            { $group: { _id: null, totalBalance: { $sum: '$balance' } } }
+        ]);
+        
+        // Get total coaches using WhatsApp (count all coaches with credit accounts)
+        const totalCoaches = await WhatsAppCredit.countDocuments();
+        
+        // Get message statistics
+        const totalMessages = await WhatsAppMessage.countDocuments();
+        const todayMessages = await WhatsAppMessage.countDocuments({
+            sentAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+        });
+        
+        console.log('✅ [CENTRAL_WHATSAPP] getSettingsOverview - Success');
+        res.status(200).json({
+            success: true,
+            data: {
+                centralWhatsApp: config ? {
+                    id: config._id,
+                    phoneNumberId: config.phoneNumberId,
+                    businessAccountId: config.businessAccountId,
+                    isActive: config.isActive,
+                    templatesCount: config.templates?.length || 0,
+                    contactsCount: config.contacts?.length || 0,
+                    statistics: config.statistics,
+                    configuredBy: config.configuredBy,
+                    configuredAt: config.createdAt,
+                    updatedAt: config.updatedAt
+                } : null,
+                creditSettings: adminSettings?.whatsApp ? {
+                    creditPrice: adminSettings.whatsApp.creditPrice,
+                    autoRecharge: adminSettings.whatsApp.autoRecharge,
+                    rechargeThreshold: adminSettings.whatsApp.rechargeThreshold,
+                    rechargeAmount: adminSettings.whatsApp.rechargeAmount,
+                    isEnabled: adminSettings.whatsApp.isEnabled,
+                    webhookVerifyToken: adminSettings.whatsApp.webhookVerifyToken,
+                    webhookUrl: adminSettings.whatsApp.webhookUrl
+                } : null,
+                systemStats: {
+                    totalCreditsInSystem: totalCredits[0]?.totalBalance || 0,
+                    totalActiveCoaches: totalCoaches,
+                    totalMessages: totalMessages,
+                    todayMessages: todayMessages
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ [CENTRAL_WHATSAPP] getSettingsOverview - Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get settings overview',
             error: error.message
         });
     }

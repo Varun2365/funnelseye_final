@@ -34,67 +34,68 @@ const {
     getZoomMeetingDetails
 } = require('../controllers/coachDashboardController');
 const { protect } = require('../middleware/auth');
+const StaffPermissionMiddleware = require('../middleware/staffPermissionMiddleware');
 
 // Apply authentication middleware to all routes
-router.use(protect);
+router.use(protect, StaffPermissionMiddleware.ensureCoachDataAccess());
 
 // ===== DASHBOARD DATA ENDPOINTS =====
 
 // Get complete dashboard data
-router.get('/data', getDashboardData);
+router.get('/data', StaffPermissionMiddleware.checkDashboardPermission('overview'), getDashboardData);
 
 // Get specific dashboard sections
-router.get('/overview', getOverviewData);
-router.get('/leads', getLeadsData);
-router.get('/tasks', getTasksData);
-router.get('/marketing', getMarketingData);
-router.get('/financial', getFinancialData);
-router.get('/team', getTeamData);
-router.get('/performance', getPerformanceData);
+router.get('/overview', StaffPermissionMiddleware.checkDashboardPermission('overview'), getOverviewData);
+router.get('/leads', StaffPermissionMiddleware.checkDashboardPermission('leads'), getLeadsData);
+router.get('/tasks', StaffPermissionMiddleware.checkDashboardPermission('tasks'), getTasksData);
+router.get('/marketing', StaffPermissionMiddleware.checkDashboardPermission('marketing'), getMarketingData);
+router.get('/financial', StaffPermissionMiddleware.checkDashboardPermission('financial'), getFinancialData);
+router.get('/team', StaffPermissionMiddleware.checkDashboardPermission('team'), getTeamData);
+router.get('/performance', StaffPermissionMiddleware.checkDashboardPermission('performance'), getPerformanceData);
 
 // Get dashboard widgets
-router.get('/widgets', getDashboardWidgets);
-router.get('/widgets/:widgetId', getWidgetData);
+router.get('/widgets', StaffPermissionMiddleware.checkDashboardPermission('overview'), getDashboardWidgets);
+router.get('/widgets/:widgetId', StaffPermissionMiddleware.checkDashboardPermission('overview'), getWidgetData);
 
 // Get performance data
-router.get('/trends', getPerformanceTrends);
-router.get('/alerts', getPerformanceAlerts);
-router.get('/ai-insights', getAIInsights);
-router.get('/kpis', getKPIs);
+router.get('/trends', StaffPermissionMiddleware.checkPerformancePermission('read'), getPerformanceTrends);
+router.get('/alerts', StaffPermissionMiddleware.checkPerformancePermission('read'), getPerformanceAlerts);
+router.get('/ai-insights', StaffPermissionMiddleware.checkAIPermission('read'), getAIInsights);
+router.get('/kpis', StaffPermissionMiddleware.checkPerformancePermission('read'), getKPIs);
 
 // Get configuration and real-time data
-router.get('/sections', getDashboardSections);
-router.get('/real-time', getRealTimeUpdates);
+router.get('/sections', StaffPermissionMiddleware.checkDashboardPermission('overview'), getDashboardSections);
+router.get('/real-time', StaffPermissionMiddleware.checkDashboardPermission('overview'), getRealTimeUpdates);
 
 // Export dashboard data
-router.get('/export', exportDashboardData);
+router.get('/export', StaffPermissionMiddleware.checkPerformancePermission('read'), exportDashboardData);
 
 // ===== NEW: CALENDAR & APPOINTMENT MANAGEMENT =====
 
 // Calendar view and management
-router.get('/calendar', getCalendar);
-router.get('/available-slots', getAvailableSlots);
+router.get('/calendar', StaffPermissionMiddleware.checkCalendarPermission('read'), getCalendar);
+router.get('/available-slots', StaffPermissionMiddleware.checkCalendarPermission('read'), getAvailableSlots);
 
 // Appointment management
-router.post('/appointments', bookAppointment);
-router.get('/appointments/upcoming', getUpcomingAppointments);
-router.get('/appointments/today', getTodayAppointments);
-router.put('/appointments/:appointmentId/reschedule', rescheduleAppointment);
-router.delete('/appointments/:appointmentId', cancelAppointment);
+router.post('/appointments', StaffPermissionMiddleware.checkAppointmentPermission('write'), bookAppointment);
+router.get('/appointments/upcoming', StaffPermissionMiddleware.checkAppointmentPermission('read'), getUpcomingAppointments);
+router.get('/appointments/today', StaffPermissionMiddleware.checkAppointmentPermission('read'), getTodayAppointments);
+router.put('/appointments/:appointmentId/reschedule', StaffPermissionMiddleware.checkAppointmentPermission('reschedule'), rescheduleAppointment);
+router.delete('/appointments/:appointmentId', StaffPermissionMiddleware.checkAppointmentPermission('delete'), cancelAppointment);
 
 // Appointment analytics
-router.get('/appointments/stats', getAppointmentStats);
+router.get('/appointments/stats', StaffPermissionMiddleware.checkAppointmentPermission('read'), getAppointmentStats);
 
 // Coach availability settings
-router.get('/availability', getAvailability);
-router.put('/availability', setAvailability);
+router.get('/availability', StaffPermissionMiddleware.checkCalendarPermission('read'), getAvailability);
+router.put('/availability', StaffPermissionMiddleware.checkCalendarPermission('manage'), setAvailability);
 
 // ===== ZOOM MEETINGS MANAGEMENT =====
 
 // Get all Zoom meetings for the coach
-router.get('/zoom-meetings', getZoomMeetings);
+router.get('/zoom-meetings', StaffPermissionMiddleware.checkAppointmentPermission('read'), getZoomMeetings);
 
 // Get Zoom meeting details for a specific appointment
-router.get('/zoom-meetings/appointment/:appointmentId', getZoomMeetingDetails);
+router.get('/zoom-meetings/appointment/:appointmentId', StaffPermissionMiddleware.checkAppointmentPermission('read'), getZoomMeetingDetails);
 
 module.exports = router;
