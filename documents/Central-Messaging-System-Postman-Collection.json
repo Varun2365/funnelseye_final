@@ -1,0 +1,890 @@
+{
+  "info": {
+    "name": "Central Messaging System",
+    "description": "Complete API collection for WhatsApp messaging, email, templates, and inbox management",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "coachToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔧 Authentication",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"admin_password\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Coach Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"coach@example.com\",\n  \"password\": \"coach_password\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Debug Admin Auth",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/central-whatsapp/debug-auth",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "central-whatsapp", "debug-auth"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👨‍💼 Admin - WhatsApp Management",
+      "item": [
+        {
+          "name": "Setup Central WhatsApp",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accessToken\": \"your_whatsapp_access_token\",\n  \"phoneNumberId\": \"your_phone_number_id\",\n  \"webhookVerifyToken\": \"your_webhook_token\",\n  \"businessAccountId\": \"your_business_account_id\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/central-whatsapp/setup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "central-whatsapp", "setup"]
+            }
+          }
+        },
+        {
+          "name": "Get Configuration",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/central-whatsapp/config",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "central-whatsapp", "config"]
+            }
+          }
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/central-whatsapp/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "central-whatsapp", "health"]
+            }
+          }
+        },
+        {
+          "name": "Create Template",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Welcome Message\",\n  \"category\": \"welcome\",\n  \"language\": \"en_US\",\n  \"components\": [\n    {\n      \"type\": \"BODY\",\n      \"text\": \"Hello {{lead.name}}, welcome to our program!\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/central-whatsapp/templates",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "central-whatsapp", "templates"]
+            }
+          }
+        },
+        {
+          "name": "Get All Templates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/central-whatsapp/templates",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "central-whatsapp", "templates"]
+            }
+          }
+        },
+        {
+          "name": "Send Test Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"+1234567890\",\n  \"message\": \"Test message from admin\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/central-whatsapp/test-message",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "central-whatsapp", "test-message"]
+            }
+          }
+        },
+        {
+          "name": "Send Admin Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"+1234567890\",\n  \"message\": \"Admin message\",\n  \"leadId\": \"lead_id_here\",\n  \"coachId\": \"coach_id_here\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/central-whatsapp/send-message",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "central-whatsapp", "send-message"]
+            }
+          }
+        },
+        {
+          "name": "Get All Contacts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/central-whatsapp/contacts?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "central-whatsapp", "contacts"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get WhatsApp Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/v1/analytics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "v1", "analytics"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💬 Coach - Messaging",
+      "item": [
+        {
+          "name": "Send Single Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"+1234567890\",\n  \"message\": \"Hello from coach!\",\n  \"type\": \"text\",\n  \"leadId\": \"lead_id_here\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messaging/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messaging", "send"]
+            }
+          }
+        },
+        {
+          "name": "Send Template Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"+1234567890\",\n  \"templateId\": \"template_id\",\n  \"templateParameters\": {\n    \"lead.name\": \"John Doe\",\n    \"coach.fullName\": \"Jane Smith\"\n  },\n  \"type\": \"template\",\n  \"leadId\": \"lead_id_here\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messaging/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messaging", "send"]
+            }
+          }
+        },
+        {
+          "name": "Send Bulk Messages",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contacts\": [\n    {\n      \"phone\": \"+1234567890\",\n      \"name\": \"John Doe\",\n      \"leadId\": \"lead_1\"\n    },\n    {\n      \"phone\": \"+1987654321\",\n      \"name\": \"Jane Smith\",\n      \"leadId\": \"lead_2\"\n    }\n  ],\n  \"message\": \"Bulk message from coach\",\n  \"type\": \"text\",\n  \"delay\": 2000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messaging/send-bulk",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messaging", "send-bulk"]
+            }
+          }
+        },
+        {
+          "name": "Get Coach Contacts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messaging/contacts?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messaging", "contacts"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Contacts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messaging/contacts/search?q=john",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messaging", "contacts", "search"],
+              "query": [
+                {"key": "q", "value": "john"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Coach Templates",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messaging/templates",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messaging", "templates"]
+            }
+          }
+        },
+        {
+          "name": "Preview Template",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messaging/templates/:templateId/preview?leadId=lead_id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messaging", "templates", ":templateId", "preview"],
+              "query": [
+                {"key": "leadId", "value": "lead_id"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Message Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messaging/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messaging", "stats"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📥 Coach - Inbox",
+      "item": [
+        {
+          "name": "Get Inbox Messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messaging/inbox?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messaging", "inbox"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Conversation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messaging/inbox/conversation/:contactId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messaging", "inbox", "conversation", ":contactId"]
+            }
+          }
+        },
+        {
+          "name": "Send from Inbox",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contactId\": \"contact_id\",\n  \"message\": \"Reply from inbox\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messaging/inbox/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messaging", "inbox", "send"]
+            }
+          }
+        },
+        {
+          "name": "Mark as Read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messaging/inbox/messages/:messageId/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messaging", "inbox", "messages", ":messageId", "read"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔧 Coach - WhatsApp V1 Features",
+      "item": [
+        {
+          "name": "Get WhatsApp Settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messagingv1/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messagingv1", "settings"]
+            }
+          }
+        },
+        {
+          "name": "Set WhatsApp Settings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"autoReply\": true,\n  \"autoReplyMessage\": \"Thanks for contacting! I'll get back to you soon.\",\n  \"businessHours\": {\n    \"start\": \"09:00\",\n    \"end\": \"17:00\",\n    \"timezone\": \"UTC\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messagingv1/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messagingv1", "settings"]
+            }
+          }
+        },
+        {
+          "name": "Create WhatsApp Device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Main WhatsApp Device\",\n  \"description\": \"Primary WhatsApp device for coaching\",\n  \"phoneNumber\": \"+1234567890\",\n  \"businessProfile\": {\n    \"about\": \"Fitness Coach\",\n    \"description\": \"Personal trainer helping clients achieve their fitness goals\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messagingv1/devices",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messagingv1", "devices"]
+            }
+          }
+        },
+        {
+          "name": "Get WhatsApp Devices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messagingv1/devices",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messagingv1", "devices"]
+            }
+          }
+        },
+        {
+          "name": "Get Device Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messagingv1/devices/:deviceId/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messagingv1", "devices", ":deviceId", "status"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💳 Coach - Credit Management",
+      "item": [
+        {
+          "name": "Get Credit Balance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messagingv1/credits/balance",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messagingv1", "credits", "balance"]
+            }
+          }
+        },
+        {
+          "name": "Check Can Send Message",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messagingv1/credits/check",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messagingv1", "credits", "check"]
+            }
+          }
+        },
+        {
+          "name": "Get Credit Packages",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/messagingv1/credits/packages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messagingv1", "credits", "packages"]
+            }
+          }
+        },
+        {
+          "name": "Purchase Credits",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"package\": \"basic\",\n  \"quantity\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messagingv1/credits/purchase",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messagingv1", "credits", "purchase"]
+            }
+          }
+        },
+        {
+          "name": "Get Credit Transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{coachToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messagingv1/credits/transactions?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messagingv1", "credits", "transactions"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📧 Admin - Email Configuration",
+      "item": [
+        {
+          "name": "Get Email Configuration",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/messaging/admin/email/config",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messaging", "admin", "email", "config"]
+            }
+          }
+        },
+        {
+          "name": "Setup Email Configuration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"smtpHost\": \"smtp.gmail.com\",\n  \"smtpPort\": 587,\n  \"username\": \"your_email@gmail.com\",\n  \"password\": \"your_app_password\",\n  \"fromEmail\": \"your_email@gmail.com\",\n  \"useSSL\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messaging/admin/email/setup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messaging", "admin", "email", "setup"]
+            }
+          }
+        },
+        {
+          "name": "Test Email Configuration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"test@example.com\",\n  \"subject\": \"Test Email\",\n  \"body\": \"This is a test email from the messaging system.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/messaging/admin/email/send-test",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "messaging", "admin", "email", "send-test"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🧠 Admin - AI Knowledge",
+      "item": [
+        {
+          "name": "Create AI Knowledge Base",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Fitness Knowledge Base\",\n  \"description\": \"AI responses for fitness coaching\",\n  \"content\": [\n    {\n      \"question\": \"What exercises help with weight loss?\",\n      \"answer\": \"Cardiovascular exercises like running, cycling, and HIIT workouts are excellent for weight loss...\"\n    }\n  ],\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/v1/ai-knowledge",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "v1", "ai-knowledge"]
+            }
+          }
+        },
+        {
+          "name": "Get AI Knowledge Bases",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/whatsapp/v1/ai-knowledge",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "whatsapp", "v1", "ai-knowledge"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// Auto-set token based on request folder",
+          "if (pm.info.requestName.includes('Admin') || pm.info.requestName.includes('admin')) {",
+          "    pm.request.headers.add({'key': 'Authorization', 'value': 'Bearer ' + pm.environment.get('adminToken')});",
+          "} else if (pm.info.requestName.includes('Coach') || pm.info.requestName.includes('coach')) {",
+          "    pm.request.headers.add({'key': 'Authorization', 'value': 'Bearer ' + pm.environment.get('coachToken')});",
+          "}"
+        ]
+      }
+    }
+  ]
+}
