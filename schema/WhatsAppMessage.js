@@ -152,7 +152,7 @@ WhatsAppMessageSchema.index({ senderId: 1, sentAt: -1 });
 WhatsAppMessageSchema.index({ recipientPhone: 1, sentAt: -1 });
 WhatsAppMessageSchema.index({ conversationId: 1, sentAt: -1 });
 WhatsAppMessageSchema.index({ leadId: 1, sentAt: -1 });
-WhatsAppMessageSchema.index({ messageId: 1 });
+// messageId already has unique: true, no need for explicit index
 WhatsAppMessageSchema.index({ wamid: 1 });
 WhatsAppMessageSchema.index({ status: 1, sentAt: -1 });
 

@@ -233,3 +233,51 @@ exports.checkCanSendMessage = asyncHandler(async (req, res) => {
         });
     }
 });
+
+// @desc    Get system credit rates
+// @route   GET /api/messagingv1/admin/credit-rates
+// @access  Private (Admin)
+exports.getSystemCreditRates = asyncHandler(async (req, res) => {
+    try {
+        // Define system credit rates
+        const creditRates = {
+            text: 1,
+            image: 2,
+            video: 3,
+            document: 2,
+            audio: 2,
+            template: 1,
+            bulk: 0.5 // Bulk messages get 50% discount
+        };
+
+        // Define credit packages
+        const packages = {
+            'starter': { name: 'Starter Pack', credits: 500, price: 9.99, pricePerCredit: 0.02 },
+            'professional': { name: 'Professional Pack', credits: 2000, price: 29.99, pricePerCredit: 0.015 },
+            'business': { name: 'Business Pack', credits: 5000, price: 59.99, pricePerCredit: 0.012 },
+            'enterprise': { name: 'Enterprise Pack', credits: 10000, price: 99.99, pricePerCredit: 0.01 }
+        };
+
+        res.status(200).json({
+            success: true,
+            data: {
+                creditRates,
+                packages,
+                settings: {
+                    currency: 'USD',
+                    minimumPurchase: 500,
+                    maximumPurchase: 50000,
+                    autoRenewDiscount: 0.1 // 10% discount for auto-renew
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ [CREDITS] getSystemCreditRates - Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get system credit rates',
+            error: error.message
+        });
+    }
+});

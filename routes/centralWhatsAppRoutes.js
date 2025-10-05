@@ -19,7 +19,7 @@ const emailConfigController = require('../controllers/emailConfigController');
 
 // Import middleware
 const { verifyAdminToken, noLogActivity } = require('../middleware/adminAuth');
-const { protect } = require('../middleware/auth');
+const { protect, authorizeCoach, authorizeStaff } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/permissionMiddleware');
 
 // ===== ADMIN CENTRAL WHATSAPP ROUTES =====
@@ -329,6 +329,7 @@ router.get('/settings-overview',
 // @access  Private (Coach) - Uses protect middleware
 router.post('/send-message',
     protect,
+    authorizeCoach('coach'),
     centralWhatsAppController.sendCoachMessage
 );
 
@@ -337,6 +338,7 @@ router.post('/send-message',
 // @access  Private (Coach)
 router.get('/templates',
     protect,
+    authorizeCoach('coach'),
     centralWhatsAppController.getCoachTemplates
 );
 
@@ -345,6 +347,7 @@ router.get('/templates',
 // @access  Private (Coach)
 router.get('/contacts',
     protect,
+    authorizeCoach('coach'),
     centralWhatsAppController.getCoachContacts
 );
 
@@ -353,6 +356,7 @@ router.get('/contacts',
 // @access  Private (Coach)
 router.get('/status',
     protect,
+    authorizeCoach('coach'),
     centralWhatsAppController.getCoachStatus
 );
 
@@ -517,6 +521,7 @@ router.get('/webhook/status',
 // @access  Private (Coach)
 router.get('/coach/settings',
     protect,
+    authorizeCoach('coach'),
     whatsappCoachSettingsController.getCoachSettings
 );
 
@@ -525,6 +530,7 @@ router.get('/coach/settings',
 // @access  Private (Coach)
 router.post('/coach/settings',
     protect,
+    authorizeCoach('coach'),
     whatsappCoachSettingsController.createOrUpdateCoachSettings
 );
 
@@ -533,6 +539,7 @@ router.post('/coach/settings',
 // @access  Private (Coach)
 router.put('/coach/settings/customize',
     protect,
+    authorizeCoach('coach'),
     whatsappCoachSettingsController.customizeCoachField
 );
 
@@ -541,6 +548,7 @@ router.put('/coach/settings/customize',
 // @access  Private (Coach)
 router.delete('/coach/settings/customize/:fieldPath',
     protect,
+    authorizeCoach('coach'),
     whatsappCoachSettingsController.removeCoachCustomization
 );
 
@@ -549,6 +557,7 @@ router.delete('/coach/settings/customize/:fieldPath',
 // @access  Private (Coach)
 router.put('/coach/settings/set-default',
     protect,
+    authorizeCoach('coach'),
     whatsappCoachSettingsController.setCoachSettingsAsDefault
 );
 
@@ -557,6 +566,7 @@ router.put('/coach/settings/set-default',
 // @access  Private (Coach)
 router.get('/coach/settings/effective',
     protect,
+    authorizeCoach('coach'),
     whatsappCoachSettingsController.getCoachEffectiveSettings
 );
 
@@ -565,6 +575,7 @@ router.get('/coach/settings/effective',
 // @access  Private (Coach)
 router.post('/coach/settings/test-ai',
     protect,
+    authorizeCoach('coach'),
     whatsappCoachSettingsController.testCoachAISettings
 );
 
@@ -573,6 +584,7 @@ router.post('/coach/settings/test-ai',
 // @access  Private (Coach)
 router.get('/coach/settings/analytics',
     protect,
+    authorizeCoach('coach'),
     whatsappCoachSettingsController.getCoachAnalytics
 );
 
@@ -581,6 +593,7 @@ router.get('/coach/settings/analytics',
 // @access  Private (Coach)
 router.put('/coach/settings/reset',
     protect,
+    authorizeCoach('coach'),
     whatsappCoachSettingsController.resetCoachSettings
 );
 
@@ -589,12 +602,61 @@ router.put('/coach/settings/reset',
 // @access  Private (Coach)
 router.post('/coach/settings/clone',
     protect,
+    authorizeCoach('coach'),
     whatsappCoachSettingsController.cloneCoachSettings
 );
 
 // ===== ADMIN WHATSAPP SETTINGS ROUTES =====
 // These routes are mounted at /api/whatsapp/v1/admin/settings
 // All admin routes use verifyAdminToken middleware
+
+// ===== CENTRAL EMAIL CONFIGURATION =====
+// Email routes must be defined before other /admin/* routes to avoid conflicts
+
+// @route   GET /api/whatsapp/v1/admin/email/config
+// @desc    Get central email configuration
+// @access  Private (Admin)
+router.get('/admin/email/config',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    emailConfigController.getEmailConfig
+);
+
+// @route   POST /api/whatsapp/v1/admin/email/setup
+// @desc    Setup central email configuration
+// @access  Private (Admin)
+router.post('/admin/email/setup',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    emailConfigController.setupEmailConfig
+);
+
+// @route   POST /api/whatsapp/v1/admin/email/test-config
+// @desc    Test central email configuration
+// @access  Private (Admin)
+router.post('/admin/email/test-config',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    emailConfigController.testEmailConfig
+);
+
+// @route   GET /api/whatsapp/v1/admin/email/status
+// @desc    Get central email status
+// @access  Private (Admin)
+router.get('/admin/email/status',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    emailConfigController.getEmailStatus
+);
+
+// @route   POST /api/whatsapp/v1/admin/email/send-test
+// @desc    Send test email via central email system
+// @access  Private (Admin)
+router.post('/admin/email/send-test',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    emailConfigController.sendTestEmail
+);
 
 // @route   GET /api/whatsapp/v1/admin/settings
 // @desc    Get all admin WhatsApp settings
@@ -716,6 +778,7 @@ router.get('/admin/settings/usage-stats',
 // @access  Private (Coach)
 router.post('/send', 
     protect, 
+    authorizeCoach('coach'),
     messagingController.sendMessage
 );
 
@@ -724,6 +787,7 @@ router.post('/send',
 // @access  Private (Coach)
 router.post('/send-bulk', 
     protect, 
+    authorizeCoach('coach'),
     messagingController.sendBulkMessages
 );
 
@@ -732,6 +796,7 @@ router.post('/send-bulk',
 // @access  Private (Coach)
 router.get('/contacts', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     contactController.getCoachContacts
 );
@@ -741,6 +806,7 @@ router.get('/contacts',
 // @access  Private (Coach)
 router.get('/contacts/search', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     contactController.searchContacts
 );
@@ -750,6 +816,7 @@ router.get('/contacts/search',
 // @access  Private (Coach)
 router.get('/templates', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     templateController.getCoachTemplates
 );
@@ -759,6 +826,7 @@ router.get('/templates',
 // @access  Private (Coach)
 router.get('/templates/:templateId/preview', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     templateController.previewTemplate
 );
@@ -768,6 +836,7 @@ router.get('/templates/:templateId/preview',
 // @access  Private (Coach)
 router.get('/templates/parameters', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     templateController.getTemplateParameters
 );
@@ -777,6 +846,7 @@ router.get('/templates/parameters',
 // @access  Private (Coach)
 router.get('/inbox', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     inboxController.getInboxMessages
 );
@@ -786,6 +856,7 @@ router.get('/inbox',
 // @access  Private (Coach)
 router.get('/inbox/conversation/:contactId', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     inboxController.getConversation
 );
@@ -795,6 +866,7 @@ router.get('/inbox/conversation/:contactId',
 // @access  Private (Coach)
 router.post('/inbox/send', 
     protect, 
+    authorizeCoach('coach'),
     inboxController.sendInboxMessage
 );
 
@@ -803,6 +875,7 @@ router.post('/inbox/send',
 // @access  Private (Coach)
 router.put('/inbox/messages/:messageId/read', 
     protect, 
+    authorizeCoach('coach'),
     inboxController.markAsRead
 );
 
@@ -811,6 +884,7 @@ router.put('/inbox/messages/:messageId/read',
 // @access  Private (Coach)
 router.get('/stats', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     messagingController.getMessagingStats
 );
@@ -950,6 +1024,7 @@ router.get('/messagingv1/debug/qr-setup/:deviceId',
 // @access  Private (Coach)
 router.get('/messagingv1/settings', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     unifiedMessagingController.getCoachWhatsAppSettings
 );
@@ -959,6 +1034,7 @@ router.get('/messagingv1/settings',
 // @access  Private (Coach)
 router.post('/messagingv1/settings', 
     protect, 
+    authorizeCoach('coach'),
     unifiedMessagingController.setCoachWhatsAppSettings
 );
 
@@ -967,6 +1043,7 @@ router.post('/messagingv1/settings',
 // @access  Private (Coach)
 router.post('/messagingv1/send', 
     protect, 
+    authorizeCoach('coach'),
     unifiedMessagingController.sendMessage
 );
 
@@ -975,6 +1052,7 @@ router.post('/messagingv1/send',
 // @access  Private (Coach)
 router.get('/messagingv1/inbox', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     unifiedMessagingController.getInboxMessages
 );
@@ -984,6 +1062,7 @@ router.get('/messagingv1/inbox',
 // @access  Private (Coach)
 router.get('/messagingv1/messages/:contact', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     unifiedMessagingController.getMessageHistory
 );
@@ -993,6 +1072,7 @@ router.get('/messagingv1/messages/:contact',
 // @access  Private (Coach)
 router.put('/messagingv1/messages/mark-read', 
     protect, 
+    authorizeCoach('coach'),
     unifiedMessagingController.markMessagesAsRead
 );
 
@@ -1001,6 +1081,7 @@ router.put('/messagingv1/messages/mark-read',
 // @access  Private (Coach)
 router.get('/messagingv1/templates', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     unifiedMessagingController.getMessageTemplates
 );
@@ -1010,6 +1091,7 @@ router.get('/messagingv1/templates',
 // @access  Private (Coach)
 router.post('/messagingv1/templates', 
     protect, 
+    authorizeCoach('coach'),
     unifiedMessagingController.createMessageTemplate
 );
 
@@ -1018,6 +1100,7 @@ router.post('/messagingv1/templates',
 // @access  Private (Coach)
 router.put('/messagingv1/templates/:templateId', 
     protect, 
+    authorizeCoach('coach'),
     unifiedMessagingController.updateMessageTemplate
 );
 
@@ -1026,16 +1109,59 @@ router.put('/messagingv1/templates/:templateId',
 // @access  Private (Coach)
 router.delete('/messagingv1/templates/:templateId', 
     protect, 
+    authorizeCoach('coach'),
     unifiedMessagingController.deleteMessageTemplate
 );
 
-// @route   GET /api/messagingv1/staff/devices
-// @desc    Get staff WhatsApp devices under coach
-// @access  Private (Coach)
-router.get('/messagingv1/staff/devices', 
+// ===== UNIFIED MESSAGING ROUTES =====
+// Unified routes that work for all user types based on token role
+
+// @route   GET /api/messagingv1/unified/inbox
+// @desc    Get inbox messages (role-based access)
+// @access  Private (Coach/Staff/Admin)
+router.get('/messagingv1/unified/inbox', 
     protect, 
+    authorizeStaff('staff', 'coach'),
     noLogActivity, 
-    unifiedMessagingController.getStaffDevices
+    unifiedMessagingController.getUnifiedInboxMessages
+);
+
+// @route   GET /api/messagingv1/unified/templates
+// @desc    Get templates based on user role
+// @access  Private (Coach/Staff/Admin)
+router.get('/messagingv1/unified/templates', 
+    protect, 
+    authorizeStaff('staff', 'coach'),
+    noLogActivity, 
+    unifiedMessagingController.getUnifiedTemplates
+);
+
+// @route   POST /api/messagingv1/unified/send
+// @desc    Send message (role-based permissions)
+// @access  Private (Coach/Staff/Admin)
+router.post('/messagingv1/unified/send', 
+    protect, 
+    authorizeStaff('staff', 'coach'),
+    unifiedMessagingController.sendUnifiedMessage
+);
+
+// @route   POST /api/messagingv1/unified/send-bulk
+// @desc    Send bulk messages (role-based permissions)
+// @access  Private (Coach/Staff/Admin)
+router.post('/messagingv1/unified/send-bulk', 
+    protect, 
+    authorizeStaff('staff', 'coach'),
+    unifiedMessagingController.sendUnifiedBulkMessages
+);
+
+// @route   GET /api/messagingv1/unified/inbox/conversation/:contactId
+// @desc    Get conversation messages (role-based access)
+// @access  Private (Coach/Staff/Admin)
+router.get('/messagingv1/unified/inbox/conversation/:contactId', 
+    protect, 
+    authorizeStaff('staff', 'coach'),
+    noLogActivity, 
+    unifiedMessagingController.getUnifiedConversation
 );
 
 // @route   GET /api/messagingv1/stats
@@ -1043,6 +1169,7 @@ router.get('/messagingv1/staff/devices',
 // @access  Private (Coach)
 router.get('/messagingv1/stats', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     unifiedMessagingController.getMessagingStats
 );
@@ -1052,6 +1179,7 @@ router.get('/messagingv1/stats',
 // @access  Private (Coach)
 router.get('/messagingv1/contacts', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     unifiedMessagingController.getContacts
 );
@@ -1061,6 +1189,7 @@ router.get('/messagingv1/contacts',
 // @access  Private (Coach)
 router.post('/messagingv1/devices', 
     protect, 
+    authorizeCoach('coach'),
     unifiedMessagingController.createWhatsAppDevice
 );
 
@@ -1069,6 +1198,7 @@ router.post('/messagingv1/devices',
 // @access  Private (Coach)
 router.get('/messagingv1/devices', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     unifiedMessagingController.getCoachWhatsAppDevices
 );
@@ -1078,6 +1208,7 @@ router.get('/messagingv1/devices',
 // @access  Private (Coach)
 router.put('/messagingv1/devices/:deviceId', 
     protect, 
+    authorizeCoach('coach'),
     unifiedMessagingController.updateWhatsAppDevice
 );
 
@@ -1086,6 +1217,7 @@ router.put('/messagingv1/devices/:deviceId',
 // @access  Private (Coach)
 router.delete('/messagingv1/devices/:deviceId', 
     protect, 
+    authorizeCoach('coach'),
     unifiedMessagingController.deleteWhatsAppDevice
 );
 
@@ -1094,6 +1226,7 @@ router.delete('/messagingv1/devices/:deviceId',
 // @access  Private (Coach)
 router.get('/messagingv1/devices/:deviceId/status', 
     protect, 
+    authorizeCoach('coach'),
     noLogActivity, 
     unifiedMessagingController.getDeviceStatus
 );
@@ -1103,6 +1236,7 @@ router.get('/messagingv1/devices/:deviceId/status',
 // @access  Private (Coach)
 router.post('/messagingv1/devices/:deviceId/switch', 
     protect, 
+    authorizeCoach('coach'),
     unifiedMessagingController.switchWhatsAppDevice
 );
 
@@ -1218,12 +1352,12 @@ router.delete('/messagingv1/admin/templates/:templateId',
 // @route   GET /api/messagingv1/credits/balance
 // @desc    Get coach's credit balance
 // @access  Private (Coach)
-router.get('/messagingv1/credits/balance', protect, whatsappCreditController.getCreditBalance);
+router.get('/messagingv1/credits/balance', protect, authorizeCoach('coach'), whatsappCreditController.getCreditBalance);
 
 // @route   GET /api/messagingv1/credits/check
 // @desc    Check if user can send messages
 // @access  Private (Coach)
-router.get('/messagingv1/credits/check', protect, whatsappCreditController.checkCanSendMessage);
+router.get('/messagingv1/credits/check', protect, authorizeCoach('coach'), whatsappCreditController.checkCanSendMessage);
 
 // @route   GET /api/messagingv1/credits/packages
 // @desc    Get available credit packages
@@ -1233,7 +1367,7 @@ router.get('/messagingv1/credits/packages', whatsappCreditController.getCreditPa
 // @route   POST /api/messagingv1/credits/purchase
 // @desc    Purchase credits
 // @access  Private (Coach)
-router.post('/messagingv1/credits/purchase', protect, whatsappCreditController.purchaseCredits);
+router.post('/messagingv1/credits/purchase', protect, authorizeCoach('coach'), whatsappCreditController.purchaseCredits);
 
 // @route   GET /api/messagingv1/admin/credit-rates
 // @desc    Get system credit rates
@@ -1247,54 +1381,8 @@ router.get('/messagingv1/admin/credit-rates',
 // *route   GET /api/messagingv1/credits/transactions
 // @desc    Get credit transactions
 // @access  Private (Coach)
-router.get('/messagingv1/credits/transactions', protect, whatsappCreditController.getCreditTransactions);
+router.get('/messagingv1/credits/transactions', protect, authorizeCoach('coach'), whatsappCreditController.getCreditTransactions);
 
-// ===== EMAIL CONFIGURATION =====
-
-// @route   GET /api/messaging/admin/email/config
-// @desc    Get email configuration
-// @access  Private (Admin)
-router.get('/messaging/admin/email/config',
-    verifyAdminToken,
-    requirePermission('whatsapp_management'),
-    emailConfigController.getEmailConfig
-);
-
-// @route   POST /api/messaging/admin/email/setup
-// @desc    Setup email configuration
-// @access  Private (Admin)
-router.post('/messaging/admin/email/setup',
-    verifyAdminToken,
-    requirePermission('whatsapp_management'),
-    emailConfigController.setupEmailConfig
-);
-
-// @route   POST /api/messaging/admin/email/test-config
-// @desc    Test email configuration
-// @access  Private (Admin)
-router.post('/messaging/admin/email/test-config',
-    verifyAdminToken,
-    requirePermission('whatsapp_management'),
-    emailConfigController.testEmailConfig
-);
-
-// @route   GET /api/messaging/admin/email/status
-// @desc    Get email status
-// @access  Private (Admin)
-router.get('/messaging/admin/email/status',
-    verifyAdminToken,
-    requirePermission('whatsapp_management'),
-    emailConfigController.getEmailStatus
-);
-
-// @route   POST /api/messaging/admin/email/send-test
-// @desc    Send test email
-// @access  Private (Admin)
-router.post('/messaging/admin/email/send-test',
-    verifyAdminToken,
-    requirePermission('whatsapp_management'),
-    emailConfigController.sendTestEmail
-);
 
 // ===== MESSAGE TEMPLATES MANAGEMENT =====
 
@@ -1404,6 +1492,268 @@ router.post('/messaging/templates/message-templates/:id/render',
     protect,
     requirePermission('messaging'),
     require('../controllers/messageTemplateController').renderTemplate
+);
+
+// ===== LEGACY MESSAGING ROUTES (moved from /api/messaging) =====
+// These routes are now available under /api/whatsapp/v1/messaging
+
+// @route   POST /api/whatsapp/v1/messaging/send
+// @desc    Send single message (text, template, or media)
+// @access  Private (Coach)
+router.post('/messaging/send', 
+    protect, 
+    messagingController.sendMessage
+);
+
+// @route   POST /api/whatsapp/v1/messaging/send-bulk
+// @desc    Send bulk messages to multiple contacts
+// @access  Private (Coach)
+router.post('/messaging/send-bulk', 
+    protect, 
+    messagingController.sendBulkMessages
+);
+
+// @route   GET /api/whatsapp/v1/messaging/contacts
+// @desc    Get coach's contacts (leads only)
+// @access  Private (Coach)
+router.get('/messaging/contacts', 
+    protect, 
+    noLogActivity, 
+    contactController.getCoachContacts
+);
+
+// @route   GET /api/whatsapp/v1/messaging/contacts/search
+// @desc    Search contacts by name, phone, or email
+// @access  Private (Coach)
+router.get('/messaging/contacts/search', 
+    protect, 
+    noLogActivity, 
+    contactController.searchContacts
+);
+
+// @route   GET /api/whatsapp/v1/messaging/templates
+// @desc    Get available templates for coach
+// @access  Private (Coach)
+router.get('/messaging/templates', 
+    protect, 
+    noLogActivity, 
+    templateController.getCoachTemplates
+);
+
+// @route   GET /api/whatsapp/v1/messaging/templates/:templateId/preview
+// @desc    Preview template with sample data
+// @access  Private (Coach)
+router.get('/messaging/templates/:templateId/preview', 
+    protect, 
+    noLogActivity, 
+    templateController.previewTemplate
+);
+
+// @route   GET /api/whatsapp/v1/messaging/templates/parameters
+// @desc    Get available template parameters from database
+// @access  Private (Coach)
+router.get('/messaging/templates/parameters', 
+    protect, 
+    noLogActivity, 
+    templateController.getTemplateParameters
+);
+
+// @route   GET /api/whatsapp/v1/messaging/inbox
+// @desc    Get inbox messages for coach
+// @access  Private (Coach)
+router.get('/messaging/inbox', 
+    protect, 
+    noLogActivity, 
+    inboxController.getInboxMessages
+);
+
+// @route   GET /api/whatsapp/v1/messaging/inbox/conversation/:contactId
+// @desc    Get conversation with specific contact
+// @access  Private (Coach)
+router.get('/messaging/inbox/conversation/:contactId', 
+    protect, 
+    noLogActivity, 
+    inboxController.getConversation
+);
+
+// @route   POST /api/whatsapp/v1/messaging/inbox/send
+// @desc    Send message from inbox
+// @access  Private (Coach)
+router.post('/messaging/inbox/send', 
+    protect, 
+    inboxController.sendInboxMessage
+);
+
+// @route   PUT /api/whatsapp/v1/messaging/inbox/messages/:messageId/read
+// @desc    Mark message as read
+// @access  Private (Coach)
+router.put('/messaging/inbox/messages/:messageId/read', 
+    protect, 
+    inboxController.markAsRead
+);
+
+// @route   GET /api/whatsapp/v1/messaging/stats
+// @desc    Get messaging statistics for coach
+// @access  Private (Coach)
+router.get('/messaging/stats', 
+    protect, 
+    noLogActivity, 
+    messagingController.getMessagingStats
+);
+
+// ===== ADMIN MESSAGING ROUTES =====
+
+// @route   GET /api/whatsapp/v1/messaging/admin/contacts
+// @desc    Get all contacts across all coaches
+// @access  Private (Admin)
+router.get('/messaging/admin/contacts', 
+    verifyAdminToken, 
+    requirePermission('whatsapp_management'), 
+    noLogActivity, 
+    contactController.getAllContacts
+);
+
+// @route   GET /api/whatsapp/v1/messaging/admin/contacts/search
+// @desc    Search all contacts by name, phone, or email
+// @access  Private (Admin)
+router.get('/messaging/admin/contacts/search', 
+    verifyAdminToken, 
+    requirePermission('whatsapp_management'), 
+    noLogActivity, 
+    contactController.searchAllContacts
+);
+
+// @route   POST /api/whatsapp/v1/messaging/admin/send
+// @desc    Send message as admin to any contact
+// @access  Private (Admin)
+router.post('/messaging/admin/send', 
+    verifyAdminToken, 
+    requirePermission('whatsapp_management'), 
+    messagingController.sendAdminMessage
+);
+
+// @route   POST /api/whatsapp/v1/messaging/admin/send-bulk
+// @desc    Send bulk messages as admin
+// @access  Private (Admin)
+router.post('/messaging/admin/send-bulk', 
+    verifyAdminToken, 
+    requirePermission('whatsapp_management'), 
+    messagingController.sendAdminBulkMessages
+);
+
+// @route   GET /api/whatsapp/v1/messaging/admin/templates
+// @desc    Get all templates across all coaches
+// @access  Private (Admin)
+router.get('/messaging/admin/templates', 
+    verifyAdminToken, 
+    requirePermission('whatsapp_management'), 
+    noLogActivity, 
+    templateController.getAllTemplates
+);
+
+// @route   POST /api/whatsapp/v1/messaging/admin/templates
+// @desc    Create global template
+// @access  Private (Admin)
+router.post('/messaging/admin/templates', 
+    verifyAdminToken, 
+    requirePermission('whatsapp_management'), 
+    templateController.createGlobalTemplate
+);
+
+// @route   PUT /api/whatsapp/v1/messaging/admin/templates/:templateId
+// @desc    Update global template
+// @access  Private (Admin)
+router.put('/messaging/admin/templates/:templateId', 
+    verifyAdminToken, 
+    requirePermission('whatsapp_management'), 
+    templateController.updateGlobalTemplate
+);
+
+// @route   DELETE /api/whatsapp/v1/messaging/admin/templates/:templateId
+// @desc    Delete global template
+// @access  Private (Admin)
+router.delete('/messaging/admin/templates/:templateId', 
+    verifyAdminToken, 
+    requirePermission('whatsapp_management'), 
+    templateController.deleteGlobalTemplate
+);
+
+// @route   GET /api/whatsapp/v1/messaging/admin/inbox
+// @desc    Get all inbox messages across coaches
+// @access  Private (Admin)
+router.get('/messaging/admin/inbox', 
+    verifyAdminToken, 
+    requirePermission('whatsapp_management'), 
+    noLogActivity, 
+    inboxController.getAllInboxMessages
+);
+
+// @route   GET /api/whatsapp/v1/messaging/admin/inbox/conversation/:contactId
+// @desc    Get conversation with specific contact (admin view)
+// @access  Private (Admin)
+router.get('/messaging/admin/inbox/conversation/:contactId', 
+    verifyAdminToken, 
+    requirePermission('whatsapp_management'), 
+    noLogActivity, 
+    inboxController.getAdminConversation
+);
+
+// @route   GET /api/whatsapp/v1/messaging/admin/stats
+// @desc    Get system-wide messaging statistics
+// @access  Private (Admin)
+router.get('/messaging/admin/stats', 
+    verifyAdminToken, 
+    requirePermission('whatsapp_management'), 
+    noLogActivity, 
+    messagingController.getAdminMessagingStats
+);
+
+// @route   GET /api/whatsapp/v1/messaging/admin/coaches/:coachId/messages
+// @desc    Get messages for specific coach
+// @access  Private (Admin)
+router.get('/messaging/admin/coaches/:coachId/messages', 
+    verifyAdminToken, 
+    requirePermission('whatsapp_management'), 
+    noLogActivity, 
+    messagingController.getCoachMessages
+);
+
+// ===== ENHANCED UNIFIED MESSAGING ROUTES =====
+
+// @route   GET /api/messagingv1/unified/parameter-options
+// @desc    Get available parameters for template assignment
+// @access  Private (Coach/Staff/Admin)
+router.get('/messagingv1/unified/parameter-options',
+    protect,
+    authorizeStaff('staff', 'coach'),
+    noLogActivity,
+    unifiedMessagingController.getParameterOptions
+);
+
+// Note: Template assignment functions not yet implemented
+// TODO: Implement assignTemplate and getAssignedTemplates functions
+
+// @route   GET /api/messagingv1/unified/24hr-contacts
+// @desc    Get contacts within Meta 24-hour window
+// @access  Private (Coach/Staff/Admin)
+router.get('/messagingv1/unified/24hr-contacts',
+    protect,
+    authorizeStaff('staff', 'coach'),
+    noLogActivity,
+    unifiedMessagingController.get24HourContacts
+);
+
+// Note: sendMessageWithQueue function not yet implemented
+// TODO: Implement sendMessageWithQueue function
+
+// @route   GET /api/messagingv1/unified/queue-stats
+// @desc    Get RabbitMQ queue statistics
+// @access  Private (Admin only)
+router.get('/messagingv1/unified/queue-stats',
+    verifyAdminToken,
+    requirePermission('whatsapp_management'),
+    noLogActivity,
+    unifiedMessagingController.getQueueStats
 );
 
 module.exports = router;

@@ -5,6 +5,7 @@ const AutomationRule = require('../schema/AutomationRule'); // Needed to find ru
 const { parseTemplateString } = require('../utils/templateParser'); // The utility we just created
 const Lead = require('../schema/Lead'); // Needed for UPDATE_LEAD_STATUS action
 const { emailService, smsService, internalNotificationService, aiService } = require('./actionExecutorService');
+const centralWhatsAppService = require('./centralWhatsAppService');
 
 const evaluateConditions = (conditions, eventData) => {
     // Simple example: all conditions must be true
@@ -38,10 +39,11 @@ const executeAutomationAction = async (action, eventData) => {
             case 'send_whatsapp_message':
                 console.log(`[AutomationProcessor] Executing WhatsApp message action for lead: ${eventData.leadId}`);
                 try {
-                    const unifiedWhatsAppService = require('../whatsapp/services/unifiedWhatsAppService');
+                    // WhatsApp service removed - using centralWhatsAppService only
+                    // const unifiedWhatsAppService = require('../whatsapp/services/unifiedWhatsAppService');
                     
                     // Get the coach's default device
-                    const WhatsAppDevice = require('../whatsapp/schemas').WhatsAppDevice;
+                    const WhatsAppDevice = require('../schema/WhatsAppDevice');
                     const device = await WhatsAppDevice.findOne({
                         coachId: eventData.coachId,
                         isDefault: true,
@@ -61,13 +63,15 @@ const executeAutomationAction = async (action, eventData) => {
                         company: eventData.company || eventData.leadData?.company
                     });
 
-                    // Send the message
-                    await unifiedWhatsAppService.sendMessage(
-                        device._id,
-                        eventData.phone || eventData.leadData?.phone,
-                        { text: messageContent },
-                        { isAutomated: true, automationRuleId: eventData.ruleId }
-                    );
+                    // Send the message using central WhatsApp service
+                    await centralWhatsAppService.sendMessage({
+                        to: eventData.phone || eventData.leadData?.phone,
+                        message: messageContent,
+                        type: 'text',
+                        senderType: 'automation',
+                        senderId: eventData.ruleId,
+                        coachId: eventData.coachId
+                    });
 
                     console.log(`[AutomationProcessor] WhatsApp message sent successfully to ${eventData.phone || eventData.leadData?.phone}`);
                 } catch (error) {

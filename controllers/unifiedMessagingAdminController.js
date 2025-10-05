@@ -1,8 +1,12 @@
 const asyncHandler = require('../middleware/async');
-const { WhatsAppDevice, WhatsAppMessage, WhatsAppConversation, WhatsAppTemplate } = require('../whatsapp/schemas');
-const unifiedService = require('../whatsapp/services/unifiedWhatsAppService');
-const newBaileysService = require('../whatsapp/services/newBaileysWhatsAppService');
-const metaService = require('../whatsapp/services/metaWhatsAppService');
+const WhatsAppMessage = require('../schema/WhatsAppMessage');
+const WhatsAppDevice = require('../schema/WhatsAppDevice');
+const WhatsAppConversation = require('../schema/WhatsAppConversation');
+const WhatsAppTemplate = require('../schema/WhatsAppTemplate');
+// WhatsApp services removed - using centralWhatsAppService only
+// const unifiedService = require('../whatsapp/services/unifiedWhatsAppService');
+// const metaService = require('../whatsapp/services/metaWhatsAppService');
+const centralWhatsAppService = require('../services/centralWhatsAppService');
 const { Coach, Staff } = require('../schema');
 const AdminSystemSettings = require('../schema/AdminSystemSettings');
 const logger = require('../utils/logger');
@@ -382,7 +386,7 @@ exports.sendBroadcastMessage = asyncHandler(async (req, res) => {
         // Send messages
         for (const recipient of targetRecipients) {
             try {
-                const result = await metaService.sendMessage({
+                const result = await centralWhatsAppService.sendMessage({
                     to: recipient,
                     message: templateId ? await getTemplateMessage(templateId, req.body.templateParams) : message,
                     templateId,

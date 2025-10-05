@@ -159,7 +159,12 @@ class CentralWhatsAppService {
             // Get template
             const template = config.getTemplateByName(templateName);
             if (!template) {
-                throw new Error(`Template '${templateName}' not found or not approved`);
+                throw new Error(`Template '${templateName}' not found in local templates`);
+            }
+
+            // Check if template is approved
+            if (template.status !== 'APPROVED') {
+                throw new Error(`Template '${templateName}' is not approved. Current status: ${template.status}`);
             }
 
             const messageData = {
@@ -592,6 +597,19 @@ class CentralWhatsAppService {
                 }
             }
             
+            // Check for template-related errors
+            if (error.response?.status === 404) {
+                const errorData = error.response.data;
+                if (errorData?.error?.code === 132001) {
+                    // Template not found or not approved
+                    const errorMessage = errorData.error.message || 'Template not found or not approved';
+                    const enhancedError = new Error(`WhatsApp Template Error: ${errorMessage}`);
+                    enhancedError.code = 'TEMPLATE_NOT_FOUND';
+                    enhancedError.originalError = errorData;
+                    throw enhancedError;
+                }
+            }
+            
             throw error;
         }
     }
@@ -612,6 +630,14 @@ class CentralWhatsAppService {
                 'GET'
             );
 
+            // Get template IDs from Meta response
+            const metaTemplateIds = new Set(response.data.map(t => t.id));
+            
+            // Track changes for logging
+            let addedCount = 0;
+            let updatedCount = 0;
+            let removedCount = 0;
+            
             // Update local templates
             for (const metaTemplate of response.data) {
                 const existingTemplate = config.templates.find(t => t.templateId === metaTemplate.id);
@@ -624,6 +650,7 @@ class CentralWhatsAppService {
                     if (metaTemplate.status === 'APPROVED') {
                         existingTemplate.approvedAt = new Date();
                     }
+                    updatedCount++;
                 } else {
                     // Add new template
                     config.templates.push({
@@ -636,17 +663,40 @@ class CentralWhatsAppService {
                         createdAt: new Date(),
                         approvedAt: metaTemplate.status === 'APPROVED' ? new Date() : null
                     });
+                    addedCount++;
                 }
             }
+            
+            // Remove templates that are no longer in Meta response
+            const initialTemplateCount = config.templates.length;
+            config.templates = config.templates.filter(template => {
+                const existsInMeta = metaTemplateIds.has(template.templateId);
+                if (!existsInMeta) {
+                    removedCount++;
+                    logger.info(`[CentralWhatsApp] Removing template: ${template.templateName} (${template.templateId}) - no longer found in Meta API`);
+                }
+                return existsInMeta;
+            });
+            
+            logger.info(`[CentralWhatsApp] Template sync completed: +${addedCount} added, ${updatedCount} updated, -${removedCount} removed`);
 
             config.lastSyncAt = new Date();
             await config.save();
+
+            // Clean up orphaned templates in WhatsAppTemplate collection
+            await this.cleanupOrphanedTemplates(config.templates.map(t => t.templateId));
 
             logger.info(`[CentralWhatsApp] Templates synced successfully`);
             return {
                 success: true,
                 syncedTemplates: response.data.length,
-                totalTemplates: config.templates.length
+                totalTemplates: config.templates.length,
+                changes: {
+                    added: addedCount,
+                    updated: updatedCount,
+                    removed: removedCount
+                },
+                summary: `+${addedCount} added, ${updatedCount} updated, -${removedCount} removed`
             };
 
         } catch (error) {
@@ -654,6 +704,54 @@ class CentralWhatsAppService {
             throw error;
         }
     }
+
+    // Clean up orphaned templates from WhatsAppTemplate collection
+    async cleanupOrphanedTemplates(validTemplateIds) {
+        try {
+            const WhatsAppTemplate = require('../schema/WhatsAppTemplate');
+            
+            // Find templates that are no longer valid
+            const orphanedTemplates = await WhatsAppTemplate.find({
+                templateId: { $nin: validTemplateIds }
+            });
+            
+            if (orphanedTemplates.length > 0) {
+                logger.info(`[CentralWhatsApp] Found ${orphanedTemplates.length} orphaned templates to remove`);
+                
+                // Log which templates are being removed
+                for (const template of orphanedTemplates) {
+                    logger.info(`[CentralWhatsApp] Removing orphaned template: ${template.name} (${template.templateId})`);
+                }
+                
+                // Remove orphaned templates
+                const deleteResult = await WhatsAppTemplate.deleteMany({
+                    templateId: { $nin: validTemplateIds }
+                });
+                
+                logger.info(`[CentralWhatsApp] Cleaned up ${deleteResult.deletedCount} orphaned templates from database`);
+                
+                return {
+                    success: true,
+                    removedCount: deleteResult.deletedCount,
+                    orphanedTemplates: orphanedTemplates.map(t => ({
+                        name: t.name,
+                        templateId: t.templateId
+                    }))
+                };
+            }
+            
+            return {
+                success: true,
+                removedCount: 0,
+                message: 'No orphaned templates found'
+            };
+            
+        } catch (error) {
+            logger.error(`[CentralWhatsApp] Error cleaning up orphaned templates:`, error);
+            throw error;
+        }
+    }
 }
 
 module.exports = new CentralWhatsAppService();
+

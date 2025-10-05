@@ -344,7 +344,7 @@ const WhatsAppDashboard = () => {
   const fetchEmailConfig = async () => {
     try {
       console.log('🔄 [EMAIL] Fetching email configuration...');
-      const result = await apiCall('/email/v1/config');
+      const result = await apiCall('/whatsapp/v1/admin/email/config');
       setEmailConfig(result.data);
       console.log('✅ [EMAIL] Email configuration fetched successfully');
     } catch (err) {
@@ -391,7 +391,7 @@ const WhatsAppDashboard = () => {
   const fetchEmailStatus = async () => {
     try {
       console.log('🔄 [EMAIL] Fetching email status...');
-      const result = await apiCall('/email/v1/status');
+      const result = await apiCall('/whatsapp/v1/admin/email/status');
       setEmailStatus(result.data);
       console.log('✅ [EMAIL] Email status fetched successfully');
     } catch (err) {
@@ -406,7 +406,7 @@ const WhatsAppDashboard = () => {
       setLoading(true);
       console.log('🔄 [EMAIL] Testing email configuration...');
       
-      const result = await apiCall('/email/v1/test-config');
+      const result = await apiCall('/whatsapp/v1/admin/email/test-config');
       setSuccess('Email configuration test successful! Email service is working properly.');
       console.log('✅ [EMAIL] Email configuration test successful');
     } catch (err) {
@@ -431,7 +431,7 @@ const WhatsAppDashboard = () => {
       setLoading(true);
       console.log('🔄 [EMAIL] Sending test email...');
       
-      const result = await apiCall('/email/v1/send-test', {
+      const result = await apiCall('/whatsapp/v1/admin/email/send-test', {
         method: 'POST',
         data: {
           to: toEmail,
@@ -503,7 +503,7 @@ const WhatsAppDashboard = () => {
         password: emailConfigForm.password
       };
       
-      const result = await apiCall('/email/v1/setup', {
+      const result = await apiCall('/whatsapp/v1/admin/email/setup', {
         method: 'POST',
         data: emailConfig ? { ...configData, isUpdate: true } : configData
       });

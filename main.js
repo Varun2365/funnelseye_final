@@ -7,13 +7,13 @@ require('dotenv').config({ quiet: true });
 process.on('uncaughtException', (error) => {
     console.error('🚨 [CRITICAL] Uncaught Exception:', error);
     // Don't exit the process, just log the error
-    // This prevents the server from crashing due to Baileys errors
+    // This prevents the server from crashing due to service errors
 });
 
 process.on('unhandledRejection', (reason, promise) => {
     console.error('🚨 [CRITICAL] Unhandled Rejection at:', promise, 'reason:', reason);
     // Don't exit the process, just log the error
-    // This prevents the server from crashing due to Baileys errors
+    // This prevents the server from crashing due to service errors
 });
 
 // 📦 Core Node.js Modules
@@ -93,8 +93,10 @@ const coachFinancialRoutes = require('./routes/coachFinancialRoutes');
 const adminHierarchyRoutes = require('./routes/adminHierarchyRoutes');
 const adminV1Routes = require('./routes/adminV1Routes');
 const centralWhatsAppRoutes = require('./routes/centralWhatsAppRoutes');
-const emailConfigRoutes = require('./routes/emailConfigRoutes');
-const messagingRoutes = require('./routes/messagingRoutes');
+// Email routes moved to centralWhatsAppRoutes
+// const emailConfigRoutes = require('./routes/emailConfigRoutes');
+// Messaging routes moved to centralWhatsAppRoutes
+// const messagingRoutes = require('./routes/messagingRoutes');
 const newAdminAuthRoutes = require('./routes/adminAuthRoutes');
 const newAdminSystemRoutes = require('./routes/adminSystemRoutes');
 const newAdminUserRoutes = require('./routes/adminUserRoutes');
@@ -295,11 +297,12 @@ app.use('/api/admin/v1', adminV1Routes);
 // ===== UNIFIED WHATSAPP V1 SYSTEM =====
 // Single endpoint for all WhatsApp functionality - Admin and Coach
 app.use('/api/whatsapp/v1', centralWhatsAppRoutes);
-app.use('/api/messaging', messagingRoutes);
+// Messaging routes moved to centralWhatsAppRoutes
+// app.use('/api/messaging', messagingRoutes);
 
 // ===== EMAIL CONFIGURATION SYSTEM =====
-// Email configuration management for admin
-app.use('/api/email/v1', emailConfigRoutes);
+// Email configuration management is now integrated into /api/whatsapp/v1
+// app.use('/api/email/v1', emailConfigRoutes); // Merged into centralWhatsAppRoutes
 
 // ===== PERMISSIONS & SYSTEM =====
 app.use('/api/permissions', permissionsRoutes);

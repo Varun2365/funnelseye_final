@@ -76,11 +76,12 @@ const AdminLayout = () => {
         { name: 'Uploads', href: '/uploads', icon: Upload },
       ]
     },
-    // Group 4: Messaging, Admin Staff
+    // Group 4: Messaging, Mail Setup, Admin Staff
     {
       title: 'Communication & Staff',
       items: [
         { name: 'WhatsApp Dashboard', href: '/messaging', icon: MessageCircle },
+        { name: 'Mail Setup', href: '/mail-setup', icon: Mail },
         { name: 'Admin Staff', href: '/admin-staff', icon: UserCheck },
       ]
     }

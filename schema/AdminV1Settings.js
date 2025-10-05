@@ -821,7 +821,6 @@ const adminV1SettingsSchema = new mongoose.Schema({
 });
 
 // Indexes for better performance
-adminV1SettingsSchema.index({ settingId: 1 });
 adminV1SettingsSchema.index({ 'systemStatus.lastUpdated': -1 });
 adminV1SettingsSchema.index({ 'auditTrail.timestamp': -1 });
 
