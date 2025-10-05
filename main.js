@@ -107,6 +107,7 @@ const newAdminSecurityRoutes = require('./routes/adminSecurityRoutes');
 const platformConfigRoutes = require('./routes/platformConfigRoutes');
 const staffAuthRoutes = require('./routes/staffAuthRoutes');
 const coachStaffManagementRoutes = require('./routes/coachStaffManagementRoutes');
+const logsRoutes = require('./routes/logsRoutes');
 
 // --- Import the worker initialization functions ---
 const initRulesEngineWorker = require('./workers/worker_rules_engine');
@@ -128,40 +129,93 @@ const io = new Server(server, {
     }
 });
 
-// Socket.IO event handlers for admin notifications
-// io.on('connection', (socket) => {
-//     // Admin joins admin room
-//     socket.on('admin-join', (adminId) => {
-//         socket.join('admin-room');
-//         socket.join(`admin-${adminId}`);
-//     });
+// Socket.IO event handlers for admin notifications and log streaming
+io.on('connection', (socket) => {
+    // Admin joins admin room
+    socket.on('admin-join', (adminId) => {
+        socket.join('admin-room');
+        socket.join(`admin-${adminId}`);
+    });
 
-//     // Coach joins coach room
-//     socket.on('coach-join', (coachId) => {
-//         socket.join('coach-room');
-//         socket.join(`user-${coachId}`);
-//     });
+    // Coach joins coach room
+    socket.on('coach-join', (coachId) => {
+        socket.join('coach-room');
+        socket.join(`user-${coachId}`);
+    });
 
-//     // User joins specific user room
-//     socket.on('user-join', (userId) => {
-//         socket.join(`user-${userId}`);
-//     });
+    // User joins specific user room
+    socket.on('user-join', (userId) => {
+        socket.join(`user-${userId}`);
+    });
 
-//     // Handle admin notifications
-//     socket.on('admin-notification', (data) => {
-//         socket.to('admin-room').emit('admin-notification', data);
-//     });
+    // Handle admin notifications
+    socket.on('admin-notification', (data) => {
+        socket.to('admin-room').emit('admin-notification', data);
+    });
 
-//     // Handle coach notifications
-//     socket.on('coach-notification', (data) => {
-//         socket.to('coach-room').emit('coach-notification', data);
-//     });
+    // Handle coach notifications
+    socket.on('coach-notification', (data) => {
+        socket.to('coach-room').emit('coach-notification', data);
+    });
 
-//     // Handle global notifications
-//     socket.on('global-notification', (data) => {
-//         io.emit('global-notification', data);
-//     });
-// });
+    // Handle global notifications
+    socket.on('global-notification', (data) => {
+        io.emit('global-notification', data);
+    });
+
+    // Handle log streaming connections
+    socket.on('logs-join', () => {
+        socket.join('logs-room');
+        // Send initial logs to the newly connected client
+        const { getLogs } = require('./routes/logsRoutes');
+        const initialLogs = getLogs(100);
+        socket.emit('initial-logs', initialLogs);
+    });
+
+    socket.on('disconnect', () => {
+        socket.leave('logs-room');
+    });
+});
+
+// Create a single WebSocket server for log streaming
+const WebSocket = require('ws');
+const logWSS = new WebSocket.Server({ noServer: true });
+
+// Set the WebSocket server reference in logsRoutes
+const { setWebSocketServer, getLogs } = require('./routes/logsRoutes');
+setWebSocketServer(logWSS);
+
+logWSS.on('connection', (ws) => {
+    console.log('📡 Log streaming client connected');
+    
+    // Send initial logs
+    const initialLogs = getLogs(100);
+    ws.send(JSON.stringify({
+        type: 'initialLogs',
+        data: initialLogs
+    }));
+    
+    ws.on('close', () => {
+        console.log('📡 Log streaming client disconnected');
+    });
+    
+    ws.on('error', (error) => {
+        console.error('📡 Log streaming WebSocket error:', error);
+    });
+});
+
+// WebSocket upgrade handler for log streaming
+server.on('upgrade', (request, socket, head) => {
+    const pathname = new URL(request.url, `http://${request.headers.host}`).pathname;
+    
+    if (pathname === '/api/logs/stream') {
+        logWSS.handleUpgrade(request, socket, head, (ws) => {
+            logWSS.emit('connection', ws, request);
+        });
+    } else {
+        socket.destroy();
+    }
+});
 
 // ✨ Express Middleware Setup
 app.use(express.json({ limit: '50mb' }));
@@ -309,6 +363,9 @@ app.use('/api/permissions', permissionsRoutes);
 
 // ===== COACH STAFF MANAGEMENT =====
 app.use('/api/coach/staff', coachStaffManagementRoutes);
+
+// ===== REAL-TIME LOGS =====
+app.use('/api/logs', logsRoutes);
 
 // ===== COACH SUBSCRIPTION LIMITS =====
 app.use('/api/coach', coachSubscriptionLimitsRoutes);

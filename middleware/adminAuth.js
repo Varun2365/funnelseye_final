@@ -52,7 +52,7 @@ const verifyAdminToken = async (req, res, next) => {
         // Verify token
         //console.log('🔐 [ADMIN_AUTH] verifyAdminToken - Attempting JWT verification...');
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'thisisaverysecretkeywhichcantbehacked');
-        console.log(process.env.JWT_SECRET);
+
         //console.log('✅ [ADMIN_AUTH] verifyAdminToken - JWT verification successful');
         console.log('🔐 [ADMIN_AUTH] verifyAdminToken - Decoded payload:', decoded);
         
