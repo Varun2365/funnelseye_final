@@ -1,6 +1,8 @@
 // D:\PRJ_YCT_Final\controllers\coachController.js
 
 const { Coach } = require('../schema');
+const { getUserContext } = require('../middleware/unifiedCoachAuth');
+const CoachStaffService = require('../services/coachStaffService');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 
@@ -97,20 +99,36 @@ exports.updateWhatsAppConfig = asyncHandler(async (req, res, next) => {
 // @route   GET /api/coach/me
 // @access  Private (Coach)
 exports.getMyInfo = asyncHandler(async (req, res, next) => {
-    const coach = await Coach.findById(req.user._id);
+    // Get user context (handles both coach and staff)
+    const userContext = CoachStaffService.getUserContext(req);
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'read', 'coach', 'profile', { coachId });
+    
+    const coach = await Coach.findById(coachId);
     
     if (!coach) {
         return res.status(404).json({ success: false, message: 'Coach not found.' });
     }
 
+    // Filter response data based on staff permissions
+    const filteredCoach = CoachStaffService.filterResponseData(req, coach, 'coach');
+
     res.status(200).json({
         success: true,
         data: {
-            id: coach._id,
-            name: coach.name,
-            email: coach.email,
-            credits: coach.credits
+            id: filteredCoach._id,
+            name: filteredCoach.name,
+            email: filteredCoach.email,
+            credits: filteredCoach.credits,
             // WhatsApp functionality moved to dustbin/whatsapp-dump/
+        },
+        userContext: {
+            isStaff: userContext.isStaff,
+            isCoach: userContext.isCoach,
+            permissions: userContext.permissions,
+            staffInfo: userContext.staffInfo
         }
     });
 });

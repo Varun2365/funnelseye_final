@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { CoachPlan, User } = require('../schema');
+const { getUserContext } = require('../middleware/unifiedCoachAuth');
 
 // ===== COACH PLAN CONTROLLER =====
 
@@ -65,7 +66,7 @@ const createCoachPlan = async (req, res) => {
         // Create new plan
         const newPlan = new CoachPlan({
             planId,
-            coachId: req.user.id,
+            coachId: req.coachId,
             title,
             description,
             shortDescription,
@@ -229,7 +230,7 @@ const updateCoachPlan = async (req, res) => {
         }
 
         // Check ownership
-        if (plan.coachId.toString() !== req.user.id) {
+        if (plan.coachId.toString() !== req.coachId) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to update this plan'
@@ -293,7 +294,7 @@ const deleteCoachPlan = async (req, res) => {
         }
 
         // Check ownership
-        if (plan.coachId.toString() !== req.user.id) {
+        if (plan.coachId.toString() !== req.coachId) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to delete this plan'
@@ -530,7 +531,7 @@ const getPlanAnalytics = async (req, res) => {
         const { startDate, endDate } = req.query;
 
         // Check if user is requesting their own analytics or is admin
-        if (req.user.id !== coachId && req.role !== 'admin') {
+        if (req.coachId !== coachId && req.role !== 'admin') {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to view these analytics'

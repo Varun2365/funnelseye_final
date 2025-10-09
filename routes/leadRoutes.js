@@ -19,9 +19,13 @@ const {
     getQuestionTypes
 } = require('../controllers/leadController');
 
-const { protect, authorizeCoach } = require('../middleware/auth');
+const { 
+    unifiedCoachAuth,
+    requireLeadPermission,
+    requireAIPermission,
+    filterResourcesByPermission
+} = require('../middleware/unifiedCoachAuth');
 const { updateLastActive } = require('../middleware/activityMiddleware');
-const StaffPermissionMiddleware = require('../middleware/staffPermissionMiddleware');
 
 const router = express.Router();
 
@@ -38,28 +42,32 @@ router.post('/question-responses', submitQuestionResponses);
 router.get('/question-types', getQuestionTypes);
 
 // --- All Subsequent Routes require Authentication ---
-router.use(protect, updateLastActive, authorizeCoach(), StaffPermissionMiddleware.ensureCoachDataAccess());
+// Apply unified authentication and resource filtering
+router.use(unifiedCoachAuth(), updateLastActive, filterResourcesByPermission('leads'));
 
-router.route('/').get(StaffPermissionMiddleware.checkLeadPermission('read'), getLeads);
+// Lead management routes with permission checking
+router.route('/').get(requireLeadPermission('read'), getLeads);
 router.route('/:leadId')
-    .get(StaffPermissionMiddleware.checkLeadPermission('read'), getLead)
-    .delete(StaffPermissionMiddleware.checkLeadPermission('delete'), deleteLead);
+    .get(requireLeadPermission('read'), getLead)
+    .delete(requireLeadPermission('delete'), deleteLead);
+
 // AI rescore endpoint (protected)
-router.post('/:leadId/ai-rescore', StaffPermissionMiddleware.checkAIPermission('write'), require('../controllers/leadController').aiRescore);
+router.post('/:leadId/ai-rescore', requireAIPermission('write'), require('../controllers/leadController').aiRescore);
+
+// Follow-up management
 router.route('/:leadId/followup')
-    .post(StaffPermissionMiddleware.checkLeadPermission('update'), addFollowUpNote);
+    .post(requireLeadPermission('update'), addFollowUpNote);
 router.route('/followups/upcoming')
-    .get(StaffPermissionMiddleware.checkLeadPermission('read'), getUpcomingFollowUps);
-// Assign a nurturing sequence to a lead
-router.post('/assign-nurturing-sequence', StaffPermissionMiddleware.checkLeadPermission('manage'), assignNurturingSequence);
-// Advance a lead to the next nurturing step
-router.post('/advance-nurturing-step', StaffPermissionMiddleware.checkLeadPermission('update'), advanceNurturingStep);
-// Get nurturing sequence progress for a lead
-router.get('/:leadId/nurturing-progress', StaffPermissionMiddleware.checkLeadPermission('read'), getNurturingProgress);
+    .get(requireLeadPermission('read'), getUpcomingFollowUps);
+
+// Nurturing sequence management
+router.post('/assign-nurturing-sequence', requireLeadPermission('manage'), assignNurturingSequence);
+router.post('/advance-nurturing-step', requireLeadPermission('update'), advanceNurturingStep);
+router.get('/:leadId/nurturing-progress', requireLeadPermission('read'), getNurturingProgress);
 
 // AI-powered lead management endpoints
-router.get('/:leadId/ai-qualify', StaffPermissionMiddleware.checkAIPermission('read'), aiQualifyLead);
-router.post('/:leadId/generate-nurturing-sequence', StaffPermissionMiddleware.checkAIPermission('write'), generateNurturingSequence);
-router.post('/:leadId/generate-followup-message', StaffPermissionMiddleware.checkAIPermission('write'), generateFollowUpMessage);
+router.get('/:leadId/ai-qualify', requireAIPermission('read'), aiQualifyLead);
+router.post('/:leadId/generate-nurturing-sequence', requireAIPermission('write'), generateNurturingSequence);
+router.post('/:leadId/generate-followup-message', requireAIPermission('write'), generateFollowUpMessage);
 
 module.exports = router;

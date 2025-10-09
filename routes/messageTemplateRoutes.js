@@ -15,50 +15,55 @@ const {
     getCommonVariables
 } = require('../controllers/messageTemplateController');
 
-const { protect, authorizeCoach } = require('../middleware/auth');
+const { 
+    unifiedCoachAuth, 
+    requirePermission, 
+    checkResourceOwnership,
+    filterResourcesByPermission 
+} = require('../middleware/unifiedCoachAuth');
 const { updateLastActive } = require('../middleware/activityMiddleware');
 
-// Apply authentication and activity tracking to all routes
-router.use(protect, updateLastActive);
+// Apply unified authentication and resource filtering to all routes
+router.use(unifiedCoachAuth(), updateLastActive, filterResourcesByPermission('templates'));
 
 // ===== TEMPLATE MANAGEMENT =====
 
 // Create a new message template
-router.post('/', authorizeCoach(), createTemplate);
+router.post('/', requirePermission('templates:write'), createTemplate);
 
 // Get all templates for the authenticated coach
-router.get('/', authorizeCoach(), getCoachTemplates);
+router.get('/', requirePermission('templates:read'), getCoachTemplates);
 
 // Get pre-built templates
-router.get('/pre-built', authorizeCoach(), getPreBuiltTemplates);
+router.get('/pre-built', requirePermission('templates:read'), getPreBuiltTemplates);
 
 // Get template categories
-router.get('/categories', authorizeCoach(), getTemplateCategories);
+router.get('/categories', requirePermission('templates:read'), getTemplateCategories);
 
 // Get template types
-router.get('/types', authorizeCoach(), getTemplateTypes);
+router.get('/types', requirePermission('templates:read'), getTemplateTypes);
 
 // Get common template variables
-router.get('/variables', authorizeCoach(), getCommonVariables);
+router.get('/variables', requirePermission('templates:read'), getCommonVariables);
 
 // Seed pre-built templates for the coach
-router.post('/seed', authorizeCoach(), seedPreBuiltTemplates);
+router.post('/seed', requirePermission('templates:manage'), seedPreBuiltTemplates);
 
 // ===== INDIVIDUAL TEMPLATE OPERATIONS =====
 
 // Get a specific template by ID
-router.get('/:id', authorizeCoach(), getTemplateById);
+router.get('/:id', requirePermission('templates:read'), getTemplateById);
 
 // Update a template
-router.put('/:id', authorizeCoach(), updateTemplate);
+router.put('/:id', requirePermission('templates:update'), updateTemplate);
 
 // Delete a template
-router.delete('/:id', authorizeCoach(), deleteTemplate);
+router.delete('/:id', requirePermission('templates:delete'), deleteTemplate);
 
 // Duplicate a template
-router.post('/:id/duplicate', authorizeCoach(), duplicateTemplate);
+router.post('/:id/duplicate', requirePermission('templates:write'), duplicateTemplate);
 
 // Render a template with variables
-router.post('/:id/render', authorizeCoach(), renderTemplate);
+router.post('/:id/render', requirePermission('templates:read'), renderTemplate);
 
 module.exports = router;

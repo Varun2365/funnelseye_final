@@ -16,31 +16,38 @@ const {
     markConversion,
     getInteractionAnalytics
 } = require('../controllers/leadMagnetsController');
-const { protect } = require('../middleware/auth');
 
-// Apply authentication middleware to all routes
-router.use(protect);
+const { 
+    unifiedCoachAuth, 
+    requirePermission, 
+    checkResourceOwnership,
+    filterResourcesByPermission 
+} = require('../middleware/unifiedCoachAuth');
+const { updateLastActive } = require('../middleware/activityMiddleware');
+
+// Apply unified authentication and resource filtering to all routes
+router.use(unifiedCoachAuth(), updateLastActive, filterResourcesByPermission('leads'));
 
 // Coach lead magnet management
-router.get('/coach', getCoachLeadMagnets);
-router.put('/coach', updateCoachLeadMagnets);
+router.get('/coach', requirePermission('leads:read'), getCoachLeadMagnets);
+router.put('/coach', requirePermission('leads:manage'), updateCoachLeadMagnets);
 
 // Lead magnet tools
-router.post('/ai-diet-plan', generateAIDietPlan);
-router.post('/bmi-calculator', calculateBMIAndRecommendations);
-router.post('/ebook-generator', generateEbookContent);
-router.post('/workout-calculator', calculateWorkoutMetrics);
-router.post('/progress-tracker', trackProgress);
-router.post('/sleep-analyzer', analyzeSleepQuality);
-router.post('/stress-assessment', assessStressLevel);
+router.post('/ai-diet-plan', requirePermission('leads:write'), generateAIDietPlan);
+router.post('/bmi-calculator', requirePermission('leads:write'), calculateBMIAndRecommendations);
+router.post('/ebook-generator', requirePermission('leads:write'), generateEbookContent);
+router.post('/workout-calculator', requirePermission('leads:write'), calculateWorkoutMetrics);
+router.post('/progress-tracker', requirePermission('leads:write'), trackProgress);
+router.post('/sleep-analyzer', requirePermission('leads:write'), analyzeSleepQuality);
+router.post('/stress-assessment', requirePermission('leads:write'), assessStressLevel);
 
 // Mark lead magnet conversion
-router.post('/mark-conversion', markConversion);
+router.post('/mark-conversion', requirePermission('leads:update'), markConversion);
 
 // Analytics and history
-router.get('/available', getAvailableLeadMagnets);
-router.get('/analytics', getLeadMagnetAnalytics);
-router.get('/interaction-analytics', getInteractionAnalytics);
-router.get('/history/:leadId', getLeadMagnetHistory);
+router.get('/available', requirePermission('leads:read'), getAvailableLeadMagnets);
+router.get('/analytics', requirePermission('leads:read'), getLeadMagnetAnalytics);
+router.get('/interaction-analytics', requirePermission('leads:read'), getInteractionAnalytics);
+router.get('/history/:leadId', requirePermission('leads:read'), getLeadMagnetHistory);
 
 module.exports = router;

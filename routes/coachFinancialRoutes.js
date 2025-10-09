@@ -1,10 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const coachFinancialController = require('../controllers/coachFinancialController');
-const { protect, authorizeCoach } = require('../middleware/auth');
+const { 
+    unifiedCoachAuth, 
+    requirePermission, 
+    checkResourceOwnership,
+    filterResourcesByPermission 
+} = require('../middleware/unifiedCoachAuth');
+const { updateLastActive } = require('../middleware/activityMiddleware');
 
-// Apply authentication middleware to all routes
-router.use(protect);
+// Apply unified authentication and resource filtering to all routes
+router.use(unifiedCoachAuth(), updateLastActive, filterResourcesByPermission('financial'));
 
 // ===== REVENUE & ANALYTICS =====
 
@@ -16,12 +22,12 @@ router.use(protect);
  * @query period (optional): Period for grouping (daily, weekly, monthly)
  * @example GET /api/coach/financial/revenue?timeRange=30&period=daily
  */
-router.get('/revenue', authorizeCoach('coach'), coachFinancialController.getRevenue);
+router.get('/revenue', requirePermission('performance:read'), coachFinancialController.getRevenue);
 
 /**
  * @route GET /api/coach/financial/payments
  * @desc Get payment history
- * @access Private (Coach)
+ * @access Private (Coach/Staff with permission)
  * @query page (optional): Page number (default: 1)
  * @query limit (optional): Items per page (default: 20)
  * @query status (optional): Filter by payment status
@@ -29,7 +35,7 @@ router.get('/revenue', authorizeCoach('coach'), coachFinancialController.getReve
  * @query to (optional): End date filter
  * @example GET /api/coach/financial/payments?page=1&limit=20&status=active
  */
-router.get('/payments', authorizeCoach('coach'), coachFinancialController.getPaymentHistory);
+router.get('/payments', requirePermission('performance:read'), coachFinancialController.getPaymentHistory);
 
 // ===== RAZORPAY BALANCE & ACCOUNT =====
 
@@ -39,7 +45,7 @@ router.get('/payments', authorizeCoach('coach'), coachFinancialController.getPay
  * @access Private (Coach)
  * @example GET /api/coach/financial/balance
  */
-router.get('/balance', authorizeCoach('coach'), coachFinancialController.getAccountBalance);
+router.get('/balance', requirePermission('performance:read'), coachFinancialController.getAccountBalance);
 
 // ===== PAYOUT MANAGEMENT =====
 
@@ -60,7 +66,7 @@ router.get('/balance', authorizeCoach('coach'), coachFinancialController.getAcco
  *   "notes": "Monthly payout"
  * }
  */
-router.post('/payout', authorizeCoach('coach'), coachFinancialController.createManualPayout);
+router.post('/payout', requirePermission('performance:manage'), coachFinancialController.createManualPayout);
 
 /**
  * @route GET /api/coach/financial/payouts
@@ -73,7 +79,7 @@ router.post('/payout', authorizeCoach('coach'), coachFinancialController.createM
  * @query to (optional): End date filter
  * @example GET /api/coach/financial/payouts?page=1&limit=20&status=processed
  */
-router.get('/payouts', authorizeCoach('coach'), coachFinancialController.getPayoutHistory);
+router.get('/payouts', requirePermission('performance:read'), coachFinancialController.getPayoutHistory);
 
 /**
  * @route PUT /api/coach/financial/payout-settings
@@ -96,7 +102,7 @@ router.get('/payouts', authorizeCoach('coach'), coachFinancialController.getPayo
  *   "commissionPercentage": 10
  * }
  */
-router.put('/payout-settings', authorizeCoach('coach'), coachFinancialController.updatePayoutSettings);
+router.put('/payout-settings', requirePermission('performance:manage'), coachFinancialController.updatePayoutSettings);
 
 // ===== MLM COMMISSION MANAGEMENT =====
 
@@ -106,7 +112,7 @@ router.put('/payout-settings', authorizeCoach('coach'), coachFinancialController
  * @access Private (Coach)
  * @example GET /api/coach/financial/mlm-commission
  */
-router.get('/mlm-commission', authorizeCoach('coach'), coachFinancialController.getMlmCommissionStructure);
+router.get('/mlm-commission', requirePermission('performance:read'), coachFinancialController.getMlmCommissionStructure);
 
 // ===== COACH TO COACH PAYOUTS =====
 
@@ -124,7 +130,7 @@ router.get('/mlm-commission', authorizeCoach('coach'), coachFinancialController.
  *   "notes": "Commission payout"
  * }
  */
-router.post('/payout-to-coach', authorizeCoach('coach'), coachFinancialController.payoutToCoach);
+router.post('/payout-to-coach', requirePermission('performance:manage'), coachFinancialController.payoutToCoach);
 
 // ===== REFUND MANAGEMENT =====
 
@@ -137,6 +143,6 @@ router.post('/payout-to-coach', authorizeCoach('coach'), coachFinancialControlle
  * @query status (optional): Filter by refund status
  * @example GET /api/coach/financial/refunds?page=1&limit=20
  */
-router.get('/refunds', authorizeCoach('coach'), coachFinancialController.getRefundHistory);
+router.get('/refunds', requirePermission('performance:read'), coachFinancialController.getRefundHistory);
 
 module.exports = router;

@@ -5,7 +5,13 @@ const router = express.Router();
 const coachTransactionController = require('../controllers/coachTransactionController');
 
 // Import middleware
-const { protect } = require('../middleware/auth');
+const { 
+    unifiedCoachAuth, 
+    requirePermission, 
+    checkResourceOwnership,
+    filterResourcesByPermission 
+} = require('../middleware/unifiedCoachAuth');
+const { updateLastActive } = require('../middleware/activityMiddleware');
 const { verifyAdminToken } = require('../middleware/adminAuth');
 
 // ==================== COACH TRANSACTION DASHBOARD ROUTES ====================
@@ -13,30 +19,30 @@ const { verifyAdminToken } = require('../middleware/adminAuth');
 /**
  * @route   GET /api/coach-transactions/dashboard/:coachId
  * @desc    Get comprehensive coach transaction dashboard
- * @access  Private (Coach/Admin)
+ * @access  Private (Coach/Staff with permission)
  */
-router.get('/dashboard/:coachId', protect, coachTransactionController.getCoachDashboard);
+router.get('/dashboard/:coachId', unifiedCoachAuth(), updateLastActive, requirePermission('performance:read'), coachTransactionController.getCoachDashboard);
 
 /**
  * @route   GET /api/coach-transactions/history/:coachId
  * @desc    Get coach transaction history with filters
- * @access  Private (Coach/Admin)
+ * @access  Private (Coach/Staff with permission)
  */
-router.get('/history/:coachId', protect, coachTransactionController.getTransactionHistory);
+router.get('/history/:coachId', unifiedCoachAuth(), updateLastActive, requirePermission('performance:read'), coachTransactionController.getTransactionHistory);
 
 /**
  * @route   GET /api/coach-transactions/transaction/:transactionId
  * @desc    Get detailed transaction information
- * @access  Private (Coach/Admin)
+ * @access  Private (Coach/Staff with permission)
  */
-router.get('/transaction/:transactionId', protect, coachTransactionController.getTransactionDetails);
+router.get('/transaction/:transactionId', unifiedCoachAuth(), updateLastActive, requirePermission('performance:read'), coachTransactionController.getTransactionDetails);
 
 /**
  * @route   GET /api/coach-transactions/export/:coachId
  * @desc    Export coach transactions (CSV/JSON)
- * @access  Private (Coach/Admin)
+ * @access  Private (Coach/Staff with permission)
  */
-router.get('/export/:coachId', protect, coachTransactionController.exportTransactions);
+router.get('/export/:coachId', unifiedCoachAuth(), updateLastActive, requirePermission('performance:read'), coachTransactionController.exportTransactions);
 
 /**
  * @route   GET /api/coach-transactions/health

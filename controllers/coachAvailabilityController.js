@@ -4,10 +4,11 @@
 const CoachAvailability = require('../schema/CoachAvailability');
 const Appointment = require('../schema/Appointment');
 const { getAvailableSlots, bookAppointment: bookAppointmentService, rescheduleAppointment, cancelAppointment } = require('../services/calendarService'); // <-- NEW: Import from the new service
+const CoachStaffService = require('../services/coachStaffService');
 
 // Utility to wrap async functions for error handling
 const asyncHandler = (fn) => (req, res, next) => {
-  Promise.resolve(fn(req, res, next)).catch(next);
+  Promise.resolve(fn(req, res, next)).catch(next);
 };
 
 /**
@@ -17,6 +18,15 @@ const asyncHandler = (fn) => (req, res, next) => {
  */
 const getCoachAvailability = asyncHandler(async (req, res) => {
   const { coachId } = req.params;
+  
+  // If this is an authenticated request, get user context
+  let userContext = null;
+  if (req.userId || req.coachId) {
+    userContext = CoachStaffService.getUserContext(req);
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'read', 'calendar', 'availability', { coachId });
+  }
+  
   const availability = await CoachAvailability.findOne({ coachId : coachId });
   if (!availability) {
     return res.status(200).json({
@@ -39,19 +49,25 @@ const getCoachAvailability = asyncHandler(async (req, res) => {
 /**
  * @desc    Set or update the authenticated coach's availability
  * @route   POST /api/coach/availability
- * @access  Private (Coach)
+ * @access  Private (Coach/Staff with permission)
  */
 const setCoachAvailability = asyncHandler(async (req, res) => {
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'manage', 'calendar', 'set_availability', { coachId });
+    
     // Check if the user is authenticated
-    if (!req.user || !req.user._id) {
-        console.error('Authentication Error: req.user is undefined or missing _id');
+    if (!coachId) {
+        console.error('Authentication Error: coachId not found');
         return res.status(401).json({
             success: false,
             message: 'Not authorized. Please log in.'
         });
     }
 
-    const { _id } = req.user;
     // FIX: Use 'defaultAppointmentDuration' to match the schema field name
     const { timeZone, workingHours, unavailableSlots, defaultAppointmentDuration, bufferTime } = req.body;
 

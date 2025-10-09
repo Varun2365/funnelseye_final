@@ -1,49 +1,96 @@
 // D:\PRJ_YCT_Final\controllers/funnelController.js
 
 const { Funnel, FunnelEvent, CustomDomain } = require('../schema'); // Corrected path to the Funnel model
+const CoachStaffService = require('../services/coachStaffService');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 
 // No longer need to import separate stage content schemas
 // No longer need `stageModels` object
 
-// Helper for ownership check
-const checkFunnelOwnership = (funnel, reqCoachId) => {
-    if (funnel.coachId.toString() !== reqCoachId.toString()) {
+// Helper for ownership check (updated for staff context)
+const checkFunnelOwnership = (funnel, req) => {
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    if (funnel.coachId.toString() !== coachId.toString()) {
         throw new ErrorResponse('Forbidden: You are not authorized to access/modify this funnel.', 403);
     }
 };
 
 const getFunnelsByCoachId = asyncHandler(async (req, res, next) => {
-    if (req.coachId.toString() !== req.params.coachId.toString()) {
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'read', 'funnels', 'all', { coachId });
+    
+    if (coachId.toString() !== req.params.coachId.toString()) {
         return next(new ErrorResponse('Forbidden: You can only access your own funnels.', 403));
     }
-    const funnels = await Funnel.find({ coachId: req.params.coachId });
+    
+    // Build query with staff permission filtering
+    const baseQuery = { coachId: req.params.coachId };
+    const filteredQuery = CoachStaffService.buildResourceFilter(req, baseQuery);
+    
+    const funnels = await Funnel.find(filteredQuery);
+    
+    // Filter response data based on staff permissions
+    const filteredFunnels = CoachStaffService.filterResponseData(req, funnels, 'funnels');
+    
     res.status(200).json({
         success: true,
-        count: funnels.length,
-        data: funnels
+        count: filteredFunnels.length,
+        data: filteredFunnels,
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
+        }
     });
 });
 
 const getFunnelById = asyncHandler(async (req, res, next) => {
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'read', 'funnels', req.params.funnelId, { coachId });
+    
     const funnel = await Funnel.findById(req.params.funnelId);
     if (!funnel) {
         return next(new ErrorResponse(`Funnel not found with id of ${req.params.funnelId}`, 404));
     }
-    checkFunnelOwnership(funnel, req.coachId);
-    res.status(200).json({ success: true, data: funnel });
+    checkFunnelOwnership(funnel, req);
+    
+    // Filter response data based on staff permissions
+    const filteredFunnel = CoachStaffService.filterResponseData(req, funnel, 'funnels');
+    
+    res.status(200).json({ 
+        success: true, 
+        data: filteredFunnel,
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
+        }
+    });
 });
 
 const createFunnel = asyncHandler(async (req, res, next) => {
-    req.body.coachId = req.coachId;
-    if (req.coachId.toString() !== req.params.coachId.toString()) {
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'write', 'funnels', 'create', { coachId });
+    
+    req.body.coachId = coachId;
+    if (coachId.toString() !== req.params.coachId.toString()) {
         return next(new ErrorResponse('Forbidden: You can only create funnels for yourself.', 403));
     }
     
     // Check subscription limits for funnel creation
     const SubscriptionLimitsMiddleware = require('../middleware/subscriptionLimits');
-    const limitCheck = await SubscriptionLimitsMiddleware.checkFunnelLimit(req.coachId);
+    const limitCheck = await SubscriptionLimitsMiddleware.checkFunnelLimit(coachId);
     
     if (!limitCheck.allowed) {
         return res.status(403).json({
@@ -61,7 +108,7 @@ const createFunnel = asyncHandler(async (req, res, next) => {
     if (req.body.customDomain) {
         const customDomain = await CustomDomain.findOne({
             domain: req.body.customDomain.toLowerCase(),
-            coachId: req.coachId,
+            coachId: coachId,
             status: 'active'
         });
         if (!customDomain) {
@@ -69,9 +116,17 @@ const createFunnel = asyncHandler(async (req, res, next) => {
         }
     }
     const funnel = await Funnel.create(req.body); // `stages` array comes directly in `req.body`
+    
+    // Filter response data based on staff permissions
+    const filteredFunnel = CoachStaffService.filterResponseData(req, funnel, 'funnels');
+    
     res.status(201).json({
         success: true,
-        data: funnel
+        data: filteredFunnel,
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
+        }
     });
 });
 
@@ -80,7 +135,14 @@ const updateFunnel = asyncHandler(async (req, res, next) => {
     if (!funnel) {
         return next(new ErrorResponse(`Funnel not found with id of ${req.params.funnelId}`, 404));
     }
-    checkFunnelOwnership(funnel, req.coachId);
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'update', 'funnels', req.params.funnelId, { coachId });
+    
+    checkFunnelOwnership(funnel, req);
 
     // If `stages` array is sent in `req.body`, it will entirely replace the existing one.
     // Ensure frontend sends the complete updated `stages` array if modifying stages.
@@ -88,7 +150,7 @@ const updateFunnel = asyncHandler(async (req, res, next) => {
     if (req.body.customDomain) {
         const customDomain = await CustomDomain.findOne({
             domain: req.body.customDomain.toLowerCase(),
-            coachId: req.coachId,
+            coachId: coachId,
             status: 'active'
         });
         if (!customDomain) {
@@ -99,17 +161,42 @@ const updateFunnel = asyncHandler(async (req, res, next) => {
         new: true,
         runValidators: true
     });
-    res.status(200).json({ success: true, data: funnel });
+    
+    // Filter response data based on staff permissions
+    const filteredFunnel = CoachStaffService.filterResponseData(req, funnel, 'funnels');
+    
+    res.status(200).json({ 
+        success: true, 
+        data: filteredFunnel,
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
+        }
+    });
 });
 
 const deleteFunnel = asyncHandler(async (req, res, next) => {
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'delete', 'funnels', req.params.funnelId, { coachId });
+    
     const funnel = await Funnel.findById(req.params.funnelId);
     if (!funnel) {
         return next(new ErrorResponse(`Funnel not found with id of ${req.params.funnelId}`, 404));
     }
-    checkFunnelOwnership(funnel, req.coachId);
+    checkFunnelOwnership(funnel, req);
     await funnel.deleteOne();
-    res.status(200).json({ success: true, message: 'Funnel deleted successfully.' });
+    res.status(200).json({ 
+        success: true, 
+        message: 'Funnel deleted successfully.',
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
+        }
+    });
 });
 
 const addStageToFunnel = asyncHandler(async (req, res, next) => {

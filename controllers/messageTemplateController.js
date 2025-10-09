@@ -1,19 +1,26 @@
 const messageTemplateService = require('../services/messageTemplateService');
+const CoachStaffService = require('../services/coachStaffService');
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
 
 // @desc    Create a new message template
 // @route   POST /api/message-templates
-// @access  Private (Coaches)
+// @access  Private (Coaches/Staff with permission)
 const createTemplate = asyncHandler(async (req, res, next) => {
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
     const { name, description, type, category, content, availableVariables, variables, tags } = req.body;
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'write', 'templates', 'create', { coachId, templateName: name });
     
     if (!name || !type || !content || !content.body) {
         return next(new ErrorResponse('Name, type, and content body are required', 400));
     }
 
     const templateData = {
-        coachId: req.coachId,
+        coachId: coachId,
         name,
         description,
         type,
@@ -34,9 +41,15 @@ const createTemplate = asyncHandler(async (req, res, next) => {
 
 // @desc    Get all templates for a coach
 // @route   GET /api/message-templates
-// @access  Private (Coaches)
+// @access  Private (Coaches/Staff with permission)
 const getCoachTemplates = asyncHandler(async (req, res, next) => {
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
     const { type, category, isActive, tags } = req.query;
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'read', 'templates', 'list', { coachId });
     
     const filters = {};
     if (type) filters.type = type;
@@ -44,7 +57,7 @@ const getCoachTemplates = asyncHandler(async (req, res, next) => {
     if (isActive !== undefined) filters.isActive = isActive === 'true';
     if (tags) filters.tags = tags.split(',');
 
-    const templates = await messageTemplateService.getCoachTemplates(req.coachId, filters);
+    const templates = await messageTemplateService.getCoachTemplates(coachId, filters);
 
     res.status(200).json({
         success: true,

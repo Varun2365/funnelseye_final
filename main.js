@@ -54,15 +54,10 @@ const metaRoutes = require('./routes/metaRoutes.js');
 const staffRoutes = require('./routes/staffRoutes.js');
 const staffCalendarRoutes = require('./routes/staffCalendarRoutes.js');
 const staffAppointmentRoutes = require('./routes/staffAppointmentRoutes.js');
-const staffTaskRoutes = require('./routes/staffTaskRoutes.js');
 const adsRoutes = require('./routes/adsRoutes');
 const aiAdsRoutes = require('./routes/aiAdsRoutes');
 const workflowRoutes = require('./routes/workflowRoutes');
-const staffLeaderboardRoutes = require('./routes/staffLeaderboardRoutes');
 const coachDashboardRoutes = require('./routes/coachDashboardRoutes');
-const staffDashboardRoutes = require('./routes/staffDashboardRoutes');
-const unifiedStaffDashboardRoutes = require('./routes/unifiedStaffDashboardRoutes');
-const staffUnifiedDashboardRoutes = require('./routes/staffUnifiedDashboardRoutes');
 const permissionsRoutes = require('./routes/permissionsRoutes');
 const coachSubscriptionLimitsRoutes = require('./routes/coachSubscriptionLimitsRoutes');
 const subscriptionManagementTask = require('./tasks/subscriptionManagement');
@@ -372,16 +367,8 @@ app.use('/api/coach', coachSubscriptionLimitsRoutes);
 
 // ===== STAFF & TEAM MANAGEMENT =====
 app.use('/api/staff', staffRoutes);
-// Unified Staff Dashboard - replaces individual staff dashboard routes
-app.use('/api/staff-dashboard/unified', unifiedStaffDashboardRoutes);
-// NEW: Staff Unified Dashboard with permission-based access control
-app.use('/api/staff-unified/v1', staffUnifiedDashboardRoutes);
-// Legacy staff routes (kept for backward compatibility)
-app.use('/api/staff-dashboard', staffDashboardRoutes);
-app.use('/api/staff-leaderboard', staffLeaderboardRoutes);
 app.use('/api/staff-calendar', staffCalendarRoutes);
 app.use('/api/staff-appointments', staffAppointmentRoutes);
-app.use('/api/staff-tasks', staffTaskRoutes);
 
 // // ===== MESSAGE TEMPLATES & ZOOM INTEGRATION =====
 app.use('/api/message-templates', messageTemplateRoutes);

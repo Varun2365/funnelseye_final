@@ -5,6 +5,7 @@ const asyncHandler = (fn) => (req, res, next) => {
 };
 
 const { scheduleFutureEvent } = require('../services/automationSchedulerService');
+const CoachStaffService = require('../services/coachStaffService');
 
 // This map will store temporary booking session data
 const bookingSessions = new Map();
@@ -13,13 +14,18 @@ const BOOKING_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 /**
  * @desc    Initializes a booking recovery session
  * @route   POST /api/booking-recovery/initiate
- * @access  Public
+ * @access  Public (with optional staff logging)
  */
 const initiateBookingRecovery = asyncHandler(async (req, res) => {
     const { leadId, coachId, funnelId } = req.body;
 
     if (!leadId || !coachId || !funnelId) {
         return res.status(400).json({ success: false, message: 'leadId, coachId, and funnelId are required.' });
+    }
+    
+    // Log staff action if this is an authenticated request
+    if (req.userId || req.coachId) {
+        CoachStaffService.logStaffAction(req, 'create', 'calendar', 'booking_recovery', { leadId, coachId, funnelId });
     }
 
     const sessionId = `${leadId}-${coachId}-${funnelId}-${Date.now()}`;

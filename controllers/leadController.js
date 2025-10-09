@@ -5,6 +5,7 @@ const { publishEvent } = require('../services/rabbitmqProducer');
 const { scheduleFutureEvent } = require('../services/automationSchedulerService');
 const leadScoringService = require('../services/leadScoringService');
 const aiService = require('../services/aiService');
+const CoachStaffService = require('../services/coachStaffService');
 
 // Lead qualification logic (integrated)
 const qualifyClientLead = (clientQuestions, vslWatchPercentage = 0) => {
@@ -357,7 +358,13 @@ const createLead = async (req, res) => {
 // @access  Private (Coaches/Admins)
 const getLeads = async (req, res) => {
     try {
-        const coachId = req.user.id;
+        // Get coach ID using unified service (handles both coach and staff)
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
+        // Log staff action if applicable
+        CoachStaffService.logStaffAction(req, 'read', 'leads', 'all', { coachId });
+        
         let query;
 
         const reqQuery = { ...req.query };
@@ -379,7 +386,11 @@ const getLeads = async (req, res) => {
             queryStr = JSON.stringify({ ...JSON.parse(queryStr), nextFollowUpAt: nextFollowUpAtFilter });
         }
 
-        query = Lead.find({ ...JSON.parse(queryStr), coachId });
+        // Build query with staff permission filtering
+        const baseQuery = { ...JSON.parse(queryStr), coachId };
+        const filteredQuery = CoachStaffService.buildResourceFilter(req, baseQuery);
+        
+        query = Lead.find(filteredQuery);
 
         if (req.query.select) {
             const fields = req.query.select.split(',').join(' ');
@@ -397,7 +408,7 @@ const getLeads = async (req, res) => {
         const limit = parseInt(req.query.limit, 10) || 25;
         const startIndex = (page - 1) * limit;
         const endIndex = page * limit;
-        const total = await Lead.countDocuments({ coachId });
+        const total = await Lead.countDocuments(filteredQuery);
 
         query = query.skip(startIndex).limit(limit);
 
@@ -405,6 +416,9 @@ const getLeads = async (req, res) => {
         query = query.populate('assignedTo', 'name');
 
         const leads = await query;
+        
+        // Filter response data based on staff permissions
+        const filteredLeads = CoachStaffService.filterResponseData(req, leads, 'leads');
 
         const pagination = {};
         if (endIndex < total) {
@@ -415,7 +429,7 @@ const getLeads = async (req, res) => {
         }
 
         // Ensure score and qualification data are included
-        const leadsWithScore = leads.map(lead => ({
+        const leadsWithScore = filteredLeads.map(lead => ({
             ...lead.toObject(),
             score: lead.score || 0,
             maxScore: lead.maxScore || 100,
@@ -425,10 +439,14 @@ const getLeads = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            count: leads.length,
+            count: leadsWithScore.length,
             total,
             pagination,
-            data: leadsWithScore
+            data: leadsWithScore,
+            userContext: {
+                isStaff: userContext.isStaff,
+                permissions: userContext.permissions
+            }
         });
     } catch (error) {
         console.error("Error fetching leads:", error);
@@ -444,7 +462,14 @@ const getLeads = async (req, res) => {
 // @access  Private (Coaches/Admins)
 const getLead = async (req, res) => {
     try {
-        const lead = await Lead.findOne({ _id: req.params.leadId, coachId: req.coachId })
+        // Get coach ID using unified service (handles both coach and staff)
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
+        // Log staff action if applicable
+        CoachStaffService.logStaffAction(req, 'read', 'leads', req.params.leadId, { coachId });
+        
+        const lead = await Lead.findOne({ _id: req.params.leadId, coachId })
             .populate('funnelId', 'name')
             .populate('assignedTo', 'name')
             .populate('followUpHistory.createdBy', 'name')
@@ -452,22 +477,29 @@ const getLead = async (req, res) => {
         if (!lead) {
             return res.status(404).json({
                 success: false,
-                message: `Lead not found or you do not own this lead.`
+                message: `Lead not found or you do not have access to this lead.`
             });
         }
 
+        // Filter response data based on staff permissions
+        const filteredLead = CoachStaffService.filterResponseData(req, lead, 'leads');
+
         // Ensure score and qualification data are included
         const leadWithScore = {
-            ...lead.toObject(),
-            score: lead.score || 0,
-            maxScore: lead.maxScore || 100,
-            qualificationInsights: lead.qualificationInsights || [],
-            recommendations: lead.recommendations || []
+            ...filteredLead.toObject(),
+            score: filteredLead.score || 0,
+            maxScore: filteredLead.maxScore || 100,
+            qualificationInsights: filteredLead.qualificationInsights || [],
+            recommendations: filteredLead.recommendations || []
         };
 
         res.status(200).json({
             success: true,
-            data: leadWithScore
+            data: leadWithScore,
+            userContext: {
+                isStaff: userContext.isStaff,
+                permissions: userContext.permissions
+            }
         });
     } catch (error) {
         console.error("Error fetching single lead:", error);

@@ -13,8 +13,14 @@ const {
     processAdminRequest
 } = require('../controllers/coachHierarchyController');
 
-const { protect, authorizeCoach } = require('../middleware/auth');
+const { 
+    unifiedCoachAuth, 
+    requirePermission, 
+    checkResourceOwnership,
+    filterResourcesByPermission 
+} = require('../middleware/unifiedCoachAuth');
 const { updateLastActive } = require('../middleware/activityMiddleware');
+const { protect } = require('../middleware/auth');
 
 // ===== PUBLIC ROUTES =====
 
@@ -36,13 +42,13 @@ router.post('/signup', coachSignupWithHierarchy);
 // ===== PRIVATE ROUTES (Coach Only) =====
 
 // Lock hierarchy after first login
-router.post('/lock', protect, updateLastActive, authorizeCoach('coach'), lockHierarchy);
+router.post('/lock', unifiedCoachAuth(), updateLastActive, requirePermission('coach:manage'), lockHierarchy);
 
 // Submit admin request for hierarchy change
-router.post('/admin-request', protect, updateLastActive, authorizeCoach('coach'), submitAdminRequest);
+router.post('/admin-request', unifiedCoachAuth(), updateLastActive, requirePermission('coach:manage'), submitAdminRequest);
 
 // Get coach hierarchy details
-router.get('/details', protect, updateLastActive, authorizeCoach('coach'), getHierarchyDetails);
+router.get('/details', unifiedCoachAuth(), updateLastActive, requirePermission('coach:read'), getHierarchyDetails);
 
 // ===== ADMIN ROUTES =====
 

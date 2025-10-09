@@ -1,11 +1,19 @@
 const { User, CoachPerformance, CoachReport, Lead, Payment, Task, Appointment } = require('../schema');
+const CoachStaffService = require('../services/coachStaffService');
 
 
 
 // @desc    Add a new coach to downline
 // @route   POST /api/mlm/downline
-// @access  Private
+// @access  Private (Coach/Staff with permission)
 const addDownline = async (req, res) => {
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'manage', 'mlm', 'add_downline', { coachId });
+    
     console.log('[MLM Controller] Request body:', req.body);
     console.log('[MLM Controller] Request headers:', req.headers);
     

@@ -2,12 +2,18 @@ const asyncHandler = require('../middleware/async');
 const LeadMagnetInteraction = require('../schema/LeadMagnetInteraction');
 const leadMagnetUrlService = require('../services/leadMagnetUrlService');
 const leadMagnetsService = require('../services/leadMagnetsService');
+const CoachStaffService = require('../services/coachStaffService');
 
 // @desc    Get all available lead magnets for coach
 // @route   GET /api/lead-magnet-management/available
-// @access  Private (Coach)
+// @access  Private (Coach/Staff with permission)
 exports.getAvailableMagnets = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'read', 'lead_magnets', 'available', { coachId });
     
     const magnets = Object.keys(leadMagnetsService.availableLeadMagnets).map(magnetId => ({
         id: magnetId,
@@ -16,19 +22,31 @@ exports.getAvailableMagnets = asyncHandler(async (req, res) => {
         previewUrl: `/lead-magnets/${magnetId}/${coachId}?preview=true`
     }));
     
+    // Filter response data based on staff permissions
+    const filteredMagnets = CoachStaffService.filterResponseData(req, magnets, 'leads');
+    
     res.json({
         success: true,
-        data: magnets,
-        count: magnets.length
+        data: filteredMagnets,
+        count: filteredMagnets.length,
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
+        }
     });
 });
 
 // @desc    Generate shareable URLs for a lead magnet
 // @route   POST /api/lead-magnet-management/generate-urls
-// @access  Private (Coach)
+// @access  Private (Coach/Staff with permission)
 exports.generateShareableUrls = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
     const { magnetType, channels, customOptions } = req.body;
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'write', 'lead_magnets', 'generate_urls', { coachId, magnetType });
     
     if (!magnetType) {
         return res.status(400).json({
@@ -100,7 +118,7 @@ exports.getPredefinedChannels = asyncHandler(async (req, res) => {
 // @route   POST /api/lead-magnet-management/campaigns
 // @access  Private (Coach)
 exports.createCampaign = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { campaignName, magnetTypes, description } = req.body;
     
     if (!campaignName || !magnetTypes || magnetTypes.length === 0) {
@@ -136,7 +154,7 @@ exports.createCampaign = asyncHandler(async (req, res) => {
 // @route   GET /api/lead-magnet-management/analytics
 // @access  Private (Coach)
 exports.getAnalytics = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { timeRange = 30, magnetType, detailed = false } = req.query;
     
     try {
@@ -184,7 +202,7 @@ exports.getAnalytics = asyncHandler(async (req, res) => {
 // @route   GET /api/lead-magnet-management/interactions
 // @access  Private (Coach)
 exports.getInteractions = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { 
         page = 1, 
         limit = 20, 
@@ -230,7 +248,7 @@ exports.getInteractions = asyncHandler(async (req, res) => {
 // @route   GET /api/lead-magnet-management/top-performers
 // @access  Private (Coach)
 exports.getTopPerformers = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { timeRange = 30, metric = 'conversions' } = req.query;
     
     const startDate = new Date();
@@ -317,7 +335,7 @@ exports.getTopPerformers = asyncHandler(async (req, res) => {
 // @route   GET /api/lead-magnet-management/export
 // @access  Private (Coach)
 exports.exportData = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { format = 'json', timeRange = 30, magnetType } = req.query;
     
     const startDate = new Date();
@@ -355,7 +373,7 @@ exports.exportData = asyncHandler(async (req, res) => {
 // @route   GET /api/lead-magnet-management/trends
 // @access  Private (Coach)
 exports.getTrends = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { timeRange = 30, groupBy = 'day' } = req.query;
     
     const endDate = new Date();

@@ -1,6 +1,7 @@
 const asyncHandler = require('../middleware/async');
 const razorpayService = require('../services/razorpayService');
 const { User, CoachPlan, Subscription, MlmCommissionDistribution, PlatformFee } = require('../schema');
+const { getUserContext } = require('../middleware/unifiedCoachAuth');
 const mongoose = require('mongoose');
 
 /**
@@ -16,7 +17,7 @@ class CoachFinancialController {
      */
     getRevenue = asyncHandler(async (req, res) => {
         try {
-            const coachId = req.user.id;
+            const coachId = req.coachId;
             const { timeRange = 30, period = 'daily' } = req.query;
             
             const startDate = new Date();
@@ -89,7 +90,7 @@ class CoachFinancialController {
      */
     getPaymentHistory = asyncHandler(async (req, res) => {
         try {
-            const coachId = req.user.id;
+            const coachId = req.coachId;
             const { page = 1, limit = 20, status, from, to } = req.query;
             
             const query = { coachId };
@@ -189,7 +190,7 @@ class CoachFinancialController {
     createManualPayout = asyncHandler(async (req, res) => {
         try {
             const { amount, payoutMethod, upiId, bankAccount, notes } = req.body;
-            const coachId = req.user.id;
+            const coachId = req.coachId;
 
             if (!amount || !payoutMethod) {
                 return res.status(400).json({
@@ -358,7 +359,7 @@ class CoachFinancialController {
      */
     getRefundHistory = asyncHandler(async (req, res) => {
         try {
-            const coachId = req.user.id;
+            const coachId = req.coachId;
             const { page = 1, limit = 20, status } = req.query;
             
             // Get subscriptions with refunds
@@ -422,7 +423,7 @@ class CoachFinancialController {
      */
     updatePayoutSettings = asyncHandler(async (req, res) => {
         try {
-            const coachId = req.user.id;
+            const coachId = req.coachId;
             const { 
                 autoPayoutEnabled, 
                 payoutMethod, 
@@ -481,7 +482,7 @@ class CoachFinancialController {
      */
     getMlmCommissionStructure = asyncHandler(async (req, res) => {
         try {
-            const coachId = req.user.id;
+            const coachId = req.coachId;
             
             // Get MLM commission structure from system settings
             const AdminSystemSettings = require('../schema/AdminSystemSettings');
@@ -531,7 +532,7 @@ class CoachFinancialController {
     payoutToCoach = asyncHandler(async (req, res) => {
         try {
             const { targetCoachId, amount, notes } = req.body;
-            const coachId = req.user.id;
+            const coachId = req.coachId;
 
             if (!targetCoachId || !amount) {
                 return res.status(400).json({

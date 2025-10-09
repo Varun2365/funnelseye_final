@@ -1,18 +1,47 @@
 const { AdCampaign, AdSet, AdCreative, Ad } = require('../schema');
+const { getUserContext } = require('../middleware/unifiedCoachAuth');
+const CoachStaffService = require('../services/coachStaffService');
 const metaAdsService = require('../services/metaAdsService');
 const aiAdsAgentService = require('../services/aiAdsAgentService');
 
 // List all campaigns for a coach
 async function listCampaigns(req, res) {
-    const coachId = req.user.id;
-    const campaigns = await AdCampaign.find({ coachId });
-    res.json({ success: true, data: campaigns });
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'read', 'ads', 'all', { coachId });
+    
+    // Build query with staff permission filtering
+    const baseQuery = { coachId };
+    const filteredQuery = CoachStaffService.buildResourceFilter(req, baseQuery);
+    
+    const campaigns = await AdCampaign.find(filteredQuery);
+    
+    // Filter response data based on staff permissions
+    const filteredCampaigns = CoachStaffService.filterResponseData(req, campaigns, 'ads');
+    
+    res.json({ 
+        success: true, 
+        data: filteredCampaigns,
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
+        }
+    });
 }
 
 // Create a new campaign with AI optimization
 async function createCampaign(req, res) {
     console.log("Called")
-    const coachId = req.user.id;
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'write', 'ads', 'create', { coachId });
+    
     const { coachMetaAccountId, campaignData, useAI = false } = req.body;
     
     // Check subscription limits for campaign creation
@@ -90,7 +119,7 @@ async function createCampaign(req, res) {
 // Update a campaign
 async function updateCampaign(req, res) {
     const { campaignId } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const updateData = req.body;
     const data = await metaAdsService.updateCampaign(coachId, campaignId, updateData);
     res.json({ success: true, data });
@@ -99,7 +128,7 @@ async function updateCampaign(req, res) {
 // Pause a campaign
 async function pauseCampaign(req, res) {
     const { campaignId } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const data = await metaAdsService.pauseCampaign(coachId, campaignId);
     res.json({ success: true, data });
 }
@@ -107,7 +136,7 @@ async function pauseCampaign(req, res) {
 // Resume a campaign
 async function resumeCampaign(req, res) {
     const { campaignId } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const data = await metaAdsService.resumeCampaign(coachId, campaignId);
     res.json({ success: true, data });
 }
@@ -115,7 +144,7 @@ async function resumeCampaign(req, res) {
 // Fetch analytics/insights for a campaign
 async function getCampaignAnalytics(req, res) {
     const { campaignId } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     
     try {
         const data = await metaAdsService.fetchCampaignInsights(coachId, campaignId);
@@ -176,7 +205,7 @@ function calculateOptimizationScore(data) {
 
 // Sync campaigns from Meta to DB
 async function syncCampaigns(req, res) {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const coachMetaAccountId = req.body.coachMetaAccountId;
     await metaAdsService.syncCampaignsToDB(coachId, coachMetaAccountId);
     res.json({ success: true });
@@ -220,9 +249,9 @@ async function createAdSet(req, res) {
         
         // Save to local database
         await AdSet.findOneAndUpdate(
-            { adSetId: result.id, coachId: req.user.id },
+            { adSetId: result.id, coachId: req.coachId },
             {
-                coachId: req.user.id,
+                coachId: req.coachId,
                 campaignId,
                 adSetId: result.id,
                 name: adSetData.name,
@@ -263,9 +292,9 @@ async function createAdCreative(req, res) {
         
         // Save to local database
         await AdCreative.findOneAndUpdate(
-            { creativeId: result.id, coachId: req.user.id },
+            { creativeId: result.id, coachId: req.coachId },
             {
-                coachId: req.user.id,
+                coachId: req.coachId,
                 campaignId,
                 creativeId: result.id,
                 name: creativeData.name,
@@ -305,9 +334,9 @@ async function createAd(req, res) {
         
         // Save to local database
         await Ad.findOneAndUpdate(
-            { adId: result.id, coachId: req.user.id },
+            { adId: result.id, coachId: req.coachId },
             {
-                coachId: req.user.id,
+                coachId: req.coachId,
                 campaignId,
                 adSetId: adData.adset_id,
                 adId: result.id,
@@ -332,7 +361,7 @@ async function createAd(req, res) {
 async function listAdSets(req, res) {
     try {
         const { campaignId } = req.params;
-        const adSets = await AdSet.find({ campaignId, coachId: req.user.id });
+        const adSets = await AdSet.find({ campaignId, coachId: req.coachId });
         res.json({ success: true, data: adSets });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -343,7 +372,7 @@ async function listAdSets(req, res) {
 async function listAdCreatives(req, res) {
     try {
         const { campaignId } = req.params;
-        const adCreatives = await AdCreative.find({ campaignId, coachId: req.user.id });
+        const adCreatives = await AdCreative.find({ campaignId, coachId: req.coachId });
         res.json({ success: true, data: adCreatives });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -354,7 +383,7 @@ async function listAdCreatives(req, res) {
 async function listAds(req, res) {
     try {
         const { campaignId } = req.params;
-        const ads = await Ad.find({ campaignId, coachId: req.user.id });
+        const ads = await Ad.find({ campaignId, coachId: req.coachId });
         res.json({ success: true, data: ads });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

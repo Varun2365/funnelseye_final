@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { protect, authorizeCoach } = require('../middleware/auth');
+const {
+    unifiedCoachAuth,
+    requirePermission,
+    filterResourcesByPermission
+} = require('../middleware/unifiedCoachAuth');
 const { updateLastActive } = require('../middleware/activityMiddleware');
-const { populateStaffPermissions } = require('../middleware/permissionMiddleware');
 const { 
     createCalendarEvent,
     getCalendarEvents,
@@ -13,20 +16,20 @@ const {
     bulkCreateEvents
 } = require('../controllers/staffCalendarController');
 
-// All calendar routes are protected
-router.use(protect, updateLastActive, populateStaffPermissions);
+// All calendar routes are protected with unified authentication
+router.use(unifiedCoachAuth(), updateLastActive, filterResourcesByPermission('calendar'));
 
 // Calendar event management
-router.post('/', createCalendarEvent);
-router.get('/', getCalendarEvents);
-router.get('/:id', getCalendarEvent);
-router.put('/:id', updateCalendarEvent);
-router.delete('/:id', deleteCalendarEvent);
+router.post('/', requirePermission('calendar:write'), createCalendarEvent);
+router.get('/', requirePermission('calendar:read'), getCalendarEvents);
+router.get('/:id', requirePermission('calendar:read'), getCalendarEvent);
+router.put('/:id', requirePermission('calendar:update'), updateCalendarEvent);
+router.delete('/:id', requirePermission('calendar:delete'), deleteCalendarEvent);
 
 // Staff availability
-router.get('/staff/:staffId/availability', getStaffAvailability);
+router.get('/staff/:staffId/availability', requirePermission('calendar:read'), getStaffAvailability);
 
 // Bulk operations
-router.post('/bulk-create', bulkCreateEvents);
+router.post('/bulk-create', requirePermission('calendar:manage'), bulkCreateEvents);
 
 module.exports = router;

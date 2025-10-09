@@ -1,6 +1,7 @@
 // D:\PRJ_YCT_Final\controllers/workflowTaskController.js
 
 const { Task, Lead } = require('../schema');
+const { getUserContext } = require('../middleware/unifiedCoachAuth');
 const workflowTaskService = require('../services/workflowTaskService');
 const asyncHandler = require('../middleware/async');
 
@@ -18,7 +19,7 @@ exports.createTask = asyncHandler(async (req, res, next) => {
         estimatedHours = 1,
         tags = []
     } = req.body;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     if (!name || !dueDate || !relatedLead) {
         return res.status(400).json({
@@ -52,7 +53,7 @@ exports.createTask = asyncHandler(async (req, res, next) => {
 // @route   GET /api/workflow/kanban-board
 // @access  Private (Coaches)
 exports.getKanbanBoard = asyncHandler(async (req, res, next) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     const boardData = await workflowTaskService.getKanbanBoard(coachId);
 
@@ -68,7 +69,7 @@ exports.getKanbanBoard = asyncHandler(async (req, res, next) => {
 exports.moveTask = asyncHandler(async (req, res, next) => {
     const { taskId } = req.params;
     const { newStage } = req.body;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     if (!newStage) {
         return res.status(400).json({
@@ -90,7 +91,7 @@ exports.moveTask = asyncHandler(async (req, res, next) => {
 // @route   GET /api/workflow/tasks
 // @access  Private (Coaches)
 exports.getTasks = asyncHandler(async (req, res, next) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { 
         status, 
         priority, 
@@ -148,7 +149,7 @@ exports.getTasks = asyncHandler(async (req, res, next) => {
 // @access  Private (Coaches)
 exports.getTask = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     const task = await Task.findOne({ _id: id, coachId })
         .populate('assignedTo', 'name email role')
@@ -173,7 +174,7 @@ exports.getTask = asyncHandler(async (req, res, next) => {
 // @access  Private (Coaches)
 exports.updateTask = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const updateData = req.body;
 
     const task = await Task.findOneAndUpdate(
@@ -202,7 +203,7 @@ exports.updateTask = asyncHandler(async (req, res, next) => {
 // @access  Private (Coaches)
 exports.deleteTask = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     const task = await Task.findOneAndDelete({ _id: id, coachId });
 
@@ -225,7 +226,7 @@ exports.deleteTask = asyncHandler(async (req, res, next) => {
 exports.addComment = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
     const { content } = req.body;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     if (!content) {
         return res.status(400).json({
@@ -257,7 +258,7 @@ exports.addComment = asyncHandler(async (req, res, next) => {
 exports.logTime = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
     const { startTime, endTime, description } = req.body;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     if (!startTime || !endTime) {
         return res.status(400).json({
@@ -289,7 +290,7 @@ exports.logTime = asyncHandler(async (req, res, next) => {
 exports.addSubtask = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
     const { name, description, dueDate } = req.body;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     if (!name) {
         return res.status(400).json({
@@ -319,7 +320,7 @@ exports.addSubtask = asyncHandler(async (req, res, next) => {
 // @route   GET /api/workflow/analytics
 // @access  Private (Coaches)
 exports.getTaskAnalytics = asyncHandler(async (req, res, next) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { dateRange = 30 } = req.query;
 
     const analytics = await workflowTaskService.getTaskAnalytics(coachId, parseInt(dateRange));
@@ -334,7 +335,7 @@ exports.getTaskAnalytics = asyncHandler(async (req, res, next) => {
 // @route   POST /api/workflow/auto-assign
 // @access  Private (Coaches)
 exports.autoAssignTasks = asyncHandler(async (req, res, next) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     const result = await workflowTaskService.autoAssignTasks(coachId);
 
@@ -348,7 +349,7 @@ exports.autoAssignTasks = asyncHandler(async (req, res, next) => {
 // @route   GET /api/workflow/upcoming-tasks
 // @access  Private (Coaches)
 exports.getUpcomingTasks = asyncHandler(async (req, res, next) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { days = 7 } = req.query;
 
     const tasks = await workflowTaskService.getUpcomingTasks(coachId, parseInt(days));
@@ -364,7 +365,7 @@ exports.getUpcomingTasks = asyncHandler(async (req, res, next) => {
 // @access  Private (Coaches)
 exports.bulkUpdateTaskStatus = asyncHandler(async (req, res, next) => {
     const { taskIds, newStatus } = req.body;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     if (!taskIds || !Array.isArray(taskIds) || !newStatus) {
         return res.status(400).json({
@@ -406,7 +407,7 @@ exports.generateSOP = asyncHandler(async (req, res, next) => {
 // @route   GET /api/workflow/overdue-tasks
 // @access  Private (Coaches)
 exports.getOverdueTasks = asyncHandler(async (req, res, next) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     const tasks = await Task.getOverdueTasks(coachId);
 
@@ -422,7 +423,7 @@ exports.getOverdueTasks = asyncHandler(async (req, res, next) => {
 // @access  Private (Coaches)
 exports.getTasksByStage = asyncHandler(async (req, res, next) => {
     const { stage } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     const tasks = await Task.getTasksByStage(coachId, stage);
 
@@ -439,7 +440,7 @@ exports.getTasksByStage = asyncHandler(async (req, res, next) => {
 exports.createTaskFromLead = asyncHandler(async (req, res, next) => {
     const { leadId } = req.params;
     const { name, description, dueDate, priority = 'MEDIUM', stage = 'LEAD_GENERATION' } = req.body;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     // Verify lead exists and belongs to coach
     const lead = await Lead.findOne({ _id: leadId, coachId });
@@ -474,7 +475,7 @@ exports.createTaskFromLead = asyncHandler(async (req, res, next) => {
 // @access  Private (Coaches)
 exports.getTaskDependencies = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     const task = await Task.findOne({ _id: id, coachId }).populate('dependencies');
     if (!task) {
@@ -496,7 +497,7 @@ exports.getTaskDependencies = asyncHandler(async (req, res, next) => {
 exports.addTaskDependency = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
     const { dependencyId } = req.body;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     if (!dependencyId) {
         return res.status(400).json({
@@ -539,7 +540,7 @@ exports.addTaskDependency = asyncHandler(async (req, res, next) => {
 // @access  Private (Coaches)
 exports.removeTaskDependency = asyncHandler(async (req, res, next) => {
     const { id, dependencyId } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     const task = await Task.findOne({ _id: id, coachId });
     if (!task) {

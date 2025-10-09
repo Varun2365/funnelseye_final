@@ -2,7 +2,12 @@
 
 const express = require('express');
 const router = express.Router();
-const { protect, authorizeCoach } = require('../middleware/auth');
+const { 
+    unifiedCoachAuth, 
+    requirePermission, 
+    checkResourceOwnership,
+    filterResourcesByPermission 
+} = require('../middleware/unifiedCoachAuth');
 const { updateLastActive } = require('../middleware/activityMiddleware');
 const {
     // Credentials Management
@@ -46,107 +51,107 @@ const {
     getAutomationStatus
 } = require('../controllers/marketingV1Controller');
 
-// All routes are protected and require coach authentication
-router.use(protect, updateLastActive);
+// Apply unified authentication and resource filtering to all routes
+router.use(unifiedCoachAuth(), updateLastActive, filterResourcesByPermission('ads'));
 
 // ===== CREDENTIALS MANAGEMENT =====
 
 // Get Meta API setup steps
-router.get('/credentials/meta/setup-steps', authorizeCoach('coach'), getMetaSetupSteps);
+router.get('/credentials/meta/setup-steps', requirePermission('ads:read'), getMetaSetupSteps);
 
 // Get OpenAI setup steps
-router.get('/credentials/openai/setup-steps', authorizeCoach('coach'), getOpenAISetupSteps);
+router.get('/credentials/openai/setup-steps', requirePermission('ads:read'), getOpenAISetupSteps);
 
 // Setup Meta API credentials
-router.post('/credentials/meta', authorizeCoach('coach'), setupMetaCredentials);
+router.post('/credentials/meta', requirePermission('ads:manage'), setupMetaCredentials);
 
 // Verify Meta API credentials
-router.post('/credentials/meta/verify', authorizeCoach('coach'), verifyMetaCredentials);
+router.post('/credentials/meta/verify', requirePermission('ads:manage'), verifyMetaCredentials);
 
 // Get Meta account information
-router.get('/credentials/meta/account-info', authorizeCoach('coach'), getMetaAccountInfo);
+router.get('/credentials/meta/account-info', requirePermission('ads:read'), getMetaAccountInfo);
 
 // Setup OpenAI credentials
-router.post('/credentials/openai', authorizeCoach('coach'), setupOpenAICredentials);
+router.post('/credentials/openai', requirePermission('ads:manage'), setupOpenAICredentials);
 
 // Get marketing credentials status
-router.get('/credentials/status', authorizeCoach('coach'), getCredentialsStatus);
+router.get('/credentials/status', requirePermission('ads:read'), getCredentialsStatus);
 
 // ===== CAMPAIGN ANALYSIS & MANAGEMENT =====
 
 // Get comprehensive campaign analysis
-router.get('/campaigns/analysis', authorizeCoach('coach'), getCampaignAnalysis);
+router.get('/campaigns/analysis', requirePermission('ads:analytics'), getCampaignAnalysis);
 
 // Get detailed campaign insights
-router.get('/campaigns/:campaignId/insights', authorizeCoach('coach'), getCampaignInsights);
+router.get('/campaigns/:campaignId/insights', requirePermission('ads:analytics'), getCampaignInsights);
 
 // Get campaign performance metrics
-router.get('/campaigns/:campaignId/metrics', authorizeCoach('coach'), getCampaignMetrics);
+router.get('/campaigns/:campaignId/metrics', requirePermission('ads:analytics'), getCampaignMetrics);
 
 // Get campaign audience insights
-router.get('/campaigns/:campaignId/audience-insights', authorizeCoach('coach'), getCampaignAudienceInsights);
+router.get('/campaigns/:campaignId/audience-insights', requirePermission('ads:analytics'), getCampaignAudienceInsights);
 
 // Get campaign optimization recommendations
-router.get('/campaigns/:campaignId/recommendations', authorizeCoach('coach'), getCampaignRecommendations);
+router.get('/campaigns/:campaignId/recommendations', requirePermission('ads:analytics'), getCampaignRecommendations);
 
 // Create new campaign with AI assistance
-router.post('/campaigns/create', authorizeCoach('coach'), createCampaign);
+router.post('/campaigns/create', requirePermission('ads:write'), createCampaign);
 
 // Update campaign settings
-router.put('/campaigns/:campaignId', authorizeCoach('coach'), updateCampaign);
+router.put('/campaigns/:campaignId', requirePermission('ads:update'), updateCampaign);
 
 // Pause campaign
-router.post('/campaigns/:campaignId/pause', authorizeCoach('coach'), pauseCampaign);
+router.post('/campaigns/:campaignId/pause', requirePermission('ads:manage'), pauseCampaign);
 
 // Resume campaign
-router.post('/campaigns/:campaignId/resume', authorizeCoach('coach'), resumeCampaign);
+router.post('/campaigns/:campaignId/resume', requirePermission('ads:manage'), resumeCampaign);
 
 // Delete campaign
-router.delete('/campaigns/:campaignId', authorizeCoach('coach'), deleteCampaign);
+router.delete('/campaigns/:campaignId', requirePermission('ads:delete'), deleteCampaign);
 
 // Duplicate campaign
-router.post('/campaigns/:campaignId/duplicate', authorizeCoach('coach'), duplicateCampaign);
+router.post('/campaigns/:campaignId/duplicate', requirePermission('ads:write'), duplicateCampaign);
 
 // ===== AI-POWERED FEATURES =====
 
 // Generate AI-powered ad copy
-router.post('/ai/generate-copy', authorizeCoach('coach'), generateAICopy);
+router.post('/ai/generate-copy', requirePermission('ai:write'), generateAICopy);
 
 // Generate AI-powered targeting recommendations
-router.post('/ai/targeting-recommendations', authorizeCoach('coach'), generateAITargeting);
+router.post('/ai/targeting-recommendations', requirePermission('ai:write'), generateAITargeting);
 
 // Optimize campaign with AI
-router.post('/ai/optimize-campaign/:campaignId', authorizeCoach('coach'), optimizeCampaignWithAI);
+router.post('/ai/optimize-campaign/:campaignId', requirePermission('ai:write'), optimizeCampaignWithAI);
 
 // Generate AI-powered creative variations
-router.post('/ai/generate-creatives', authorizeCoach('coach'), generateAICreatives);
+router.post('/ai/generate-creatives', requirePermission('ai:write'), generateAICreatives);
 
 // Get AI-powered performance insights
-router.get('/ai/performance-insights/:campaignId', authorizeCoach('coach'), getAIPerformanceInsights);
+router.get('/ai/performance-insights/:campaignId', requirePermission('ai:read'), getAIPerformanceInsights);
 
 // Generate AI-powered marketing strategy
-router.post('/ai/generate-strategy', authorizeCoach('coach'), generateAIStrategy);
+router.post('/ai/generate-strategy', requirePermission('ai:write'), generateAIStrategy);
 
 // ===== DASHBOARD & ANALYTICS =====
 
 // Get marketing dashboard data
-router.get('/dashboard', authorizeCoach('coach'), getMarketingDashboard);
+router.get('/dashboard', requirePermission('ads:analytics'), getMarketingDashboard);
 
 // Get campaign performance summary
-router.get('/campaigns/performance-summary', authorizeCoach('coach'), getCampaignPerformanceSummary);
+router.get('/campaigns/performance-summary', requirePermission('ads:analytics'), getCampaignPerformanceSummary);
 
 // Export campaign data
-router.get('/campaigns/export', authorizeCoach('coach'), exportCampaignData);
+router.get('/campaigns/export', requirePermission('ads:analytics'), exportCampaignData);
 
 // ===== AUTOMATION & SCHEDULING =====
 
 // Schedule campaign
-router.post('/campaigns/:campaignId/schedule', authorizeCoach('coach'), scheduleCampaign);
+router.post('/campaigns/:campaignId/schedule', requirePermission('ads:manage'), scheduleCampaign);
 
 // Set up campaign automation rules
-router.post('/campaigns/:campaignId/automation', authorizeCoach('coach'), setupCampaignAutomation);
+router.post('/campaigns/:campaignId/automation', requirePermission('ads:manage'), setupCampaignAutomation);
 
 // Get automation status
-router.get('/campaigns/:campaignId/automation/status', authorizeCoach('coach'), getAutomationStatus);
+router.get('/campaigns/:campaignId/automation/status', requirePermission('ads:read'), getAutomationStatus);
 
 module.exports = router;

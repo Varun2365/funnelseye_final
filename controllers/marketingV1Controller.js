@@ -3,6 +3,7 @@
 const asyncHandler = require('../middleware/async');
 const CoachMarketingCredentials = require('../schema/CoachMarketingCredentials');
 const { AdCampaign, AdSet, AdCreative, Ad } = require('../schema');
+const CoachStaffService = require('../services/coachStaffService');
 const marketingV1Service = require('../services/marketingV1Service');
 const aiMarketingService = require('../services/aiMarketingService');
 
@@ -203,9 +204,14 @@ exports.getOpenAISetupSteps = asyncHandler(async (req, res) => {
 
 // @desc    Setup Meta API credentials for coach
 // @route   POST /api/marketing/v1/credentials/meta
-// @access  Private (Coaches)
+// @access  Private (Coaches/Staff with permission)
 exports.setupMetaCredentials = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'manage', 'marketing', 'setup_meta', { coachId });
     const { 
         accessToken, 
         appId, 
@@ -244,7 +250,7 @@ exports.setupMetaCredentials = asyncHandler(async (req, res) => {
 // @route   POST /api/marketing/v1/credentials/meta/verify
 // @access  Private (Coaches)
 exports.verifyMetaCredentials = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     
     const result = await marketingV1Service.verifyMetaCredentials(coachId);
     
@@ -259,7 +265,7 @@ exports.verifyMetaCredentials = asyncHandler(async (req, res) => {
 // @route   GET /api/marketing/v1/credentials/meta/account-info
 // @access  Private (Coaches)
 exports.getMetaAccountInfo = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     
     const accountInfo = await marketingV1Service.getMetaAccountInfo(coachId);
     
@@ -273,7 +279,7 @@ exports.getMetaAccountInfo = asyncHandler(async (req, res) => {
 // @route   POST /api/marketing/v1/credentials/openai
 // @access  Private (Coaches)
 exports.setupOpenAICredentials = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { apiKey, modelPreference = 'gpt-4' } = req.body;
 
     if (!apiKey) {
@@ -299,7 +305,7 @@ exports.setupOpenAICredentials = asyncHandler(async (req, res) => {
 // @route   GET /api/marketing/v1/credentials/status
 // @access  Private (Coaches)
 exports.getCredentialsStatus = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     
     const status = await marketingV1Service.getCredentialsStatus(coachId);
     
@@ -315,7 +321,7 @@ exports.getCredentialsStatus = asyncHandler(async (req, res) => {
 // @route   GET /api/marketing/v1/campaigns/analysis
 // @access  Private (Coaches)
 exports.getCampaignAnalysis = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { 
         dateRange = '30d', 
         campaignIds = [], 
@@ -338,9 +344,14 @@ exports.getCampaignAnalysis = asyncHandler(async (req, res) => {
 
 // @desc    Get detailed campaign insights
 // @route   GET /api/marketing/v1/campaigns/:campaignId/insights
-// @access  Private (Coaches)
+// @access  Private (Coaches/Staff with permission)
 exports.getCampaignInsights = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'read', 'marketing', 'campaign_insights', { coachId, campaignId: req.params.campaignId });
     const { campaignId } = req.params;
     const { 
         dateRange = '30d',
@@ -366,7 +377,7 @@ exports.getCampaignInsights = asyncHandler(async (req, res) => {
 // @route   GET /api/marketing/v1/campaigns/:campaignId/metrics
 // @access  Private (Coaches)
 exports.getCampaignMetrics = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { campaignId } = req.params;
     const { 
         dateRange = '30d',
@@ -388,7 +399,7 @@ exports.getCampaignMetrics = asyncHandler(async (req, res) => {
 // @route   GET /api/marketing/v1/campaigns/:campaignId/audience-insights
 // @access  Private (Coaches)
 exports.getCampaignAudienceInsights = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { campaignId } = req.params;
     const { dateRange = '30d' } = req.query;
 
@@ -406,7 +417,7 @@ exports.getCampaignAudienceInsights = asyncHandler(async (req, res) => {
 // @route   GET /api/marketing/v1/campaigns/:campaignId/recommendations
 // @access  Private (Coaches)
 exports.getCampaignRecommendations = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { campaignId } = req.params;
     const { includeAIRecommendations = true } = req.query;
 
@@ -426,7 +437,7 @@ exports.getCampaignRecommendations = asyncHandler(async (req, res) => {
 // @route   POST /api/marketing/v1/campaigns/create
 // @access  Private (Coaches)
 exports.createCampaign = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const {
         name,
         objective,
@@ -483,7 +494,7 @@ exports.createCampaign = asyncHandler(async (req, res) => {
 // @route   PUT /api/marketing/v1/campaigns/:campaignId
 // @access  Private (Coaches)
 exports.updateCampaign = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { campaignId } = req.params;
     const updateData = req.body;
 
@@ -500,7 +511,7 @@ exports.updateCampaign = asyncHandler(async (req, res) => {
 // @route   POST /api/marketing/v1/campaigns/:campaignId/pause
 // @access  Private (Coaches)
 exports.pauseCampaign = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { campaignId } = req.params;
 
     const result = await marketingV1Service.pauseCampaign(coachId, campaignId);
@@ -516,7 +527,7 @@ exports.pauseCampaign = asyncHandler(async (req, res) => {
 // @route   POST /api/marketing/v1/campaigns/:campaignId/resume
 // @access  Private (Coaches)
 exports.resumeCampaign = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { campaignId } = req.params;
 
     const result = await marketingV1Service.resumeCampaign(coachId, campaignId);
@@ -532,7 +543,7 @@ exports.resumeCampaign = asyncHandler(async (req, res) => {
 // @route   DELETE /api/marketing/v1/campaigns/:campaignId
 // @access  Private (Coaches)
 exports.deleteCampaign = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { campaignId } = req.params;
 
     await marketingV1Service.deleteCampaign(coachId, campaignId);
@@ -547,7 +558,7 @@ exports.deleteCampaign = asyncHandler(async (req, res) => {
 // @route   POST /api/marketing/v1/campaigns/:campaignId/duplicate
 // @access  Private (Coaches)
 exports.duplicateCampaign = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { campaignId } = req.params;
     const { newName, modifications = {} } = req.body;
 
@@ -569,7 +580,7 @@ exports.duplicateCampaign = asyncHandler(async (req, res) => {
 // @route   POST /api/marketing/v1/ai/generate-copy
 // @access  Private (Coaches)
 exports.generateAICopy = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const {
         productInfo,
         targetAudience,
@@ -605,7 +616,7 @@ exports.generateAICopy = asyncHandler(async (req, res) => {
 // @route   POST /api/marketing/v1/ai/targeting-recommendations
 // @access  Private (Coaches)
 exports.generateAITargeting = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const {
         targetAudience,
         budget,
@@ -639,7 +650,7 @@ exports.generateAITargeting = asyncHandler(async (req, res) => {
 // @route   POST /api/marketing/v1/ai/optimize-campaign
 // @access  Private (Coaches)
 exports.optimizeCampaignWithAI = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { campaignId } = req.params;
     const { 
         optimizationType = 'performance',
@@ -665,7 +676,7 @@ exports.optimizeCampaignWithAI = asyncHandler(async (req, res) => {
 // @route   POST /api/marketing/v1/ai/generate-creatives
 // @access  Private (Coaches)
 exports.generateAICreatives = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const {
         baseCreative,
         productInfo,
@@ -701,7 +712,7 @@ exports.generateAICreatives = asyncHandler(async (req, res) => {
 // @route   GET /api/marketing/v1/ai/performance-insights/:campaignId
 // @access  Private (Coaches)
 exports.getAIPerformanceInsights = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { campaignId } = req.params;
     const { 
         dateRange = '30d',
@@ -727,7 +738,7 @@ exports.getAIPerformanceInsights = asyncHandler(async (req, res) => {
 // @route   POST /api/marketing/v1/ai/generate-strategy
 // @access  Private (Coaches)
 exports.generateAIStrategy = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const {
         businessInfo,
         goals,
@@ -765,7 +776,7 @@ exports.generateAIStrategy = asyncHandler(async (req, res) => {
 // @route   GET /api/marketing/v1/dashboard
 // @access  Private (Coaches)
 exports.getMarketingDashboard = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { 
         dateRange = '30d',
         includeAIInsights = true,
@@ -788,7 +799,7 @@ exports.getMarketingDashboard = asyncHandler(async (req, res) => {
 // @route   GET /api/marketing/v1/campaigns/performance-summary
 // @access  Private (Coaches)
 exports.getCampaignPerformanceSummary = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { 
         dateRange = '30d',
         campaignIds = [],
@@ -811,7 +822,7 @@ exports.getCampaignPerformanceSummary = asyncHandler(async (req, res) => {
 // @route   GET /api/marketing/v1/campaigns/export
 // @access  Private (Coaches)
 exports.exportCampaignData = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { 
         format = 'csv',
         dateRange = '30d',
@@ -838,7 +849,7 @@ exports.exportCampaignData = asyncHandler(async (req, res) => {
 // @route   POST /api/marketing/v1/campaigns/:campaignId/schedule
 // @access  Private (Coaches)
 exports.scheduleCampaign = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { campaignId } = req.params;
     const { 
         startDate,
@@ -872,7 +883,7 @@ exports.scheduleCampaign = asyncHandler(async (req, res) => {
 // @route   POST /api/marketing/v1/campaigns/:campaignId/automation
 // @access  Private (Coaches)
 exports.setupCampaignAutomation = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { campaignId } = req.params;
     const { 
         rules,
@@ -904,7 +915,7 @@ exports.setupCampaignAutomation = asyncHandler(async (req, res) => {
 // @route   GET /api/marketing/v1/campaigns/:campaignId/automation/status
 // @access  Private (Coaches)
 exports.getAutomationStatus = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { campaignId } = req.params;
 
     const automationStatus = await marketingV1Service.getAutomationStatus(coachId, campaignId);

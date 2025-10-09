@@ -1,44 +1,51 @@
 const express = require('express');
 const router = express.Router();
 const coachStaffManagementController = require('../controllers/coachStaffManagementController');
-const { protect, authorizeCoach } = require('../middleware/auth');
+const { 
+    unifiedCoachAuth, 
+    requirePermission, 
+    checkResourceOwnership,
+    filterResourcesByPermission 
+} = require('../middleware/unifiedCoachAuth');
 
-// Apply authentication middleware to all routes
-router.use(protect);
+const { updateLastActive } = require('../middleware/activityMiddleware');
 
-// Authorize only coaches
-router.use(authorizeCoach('coach'));
+// Apply unified authentication and resource filtering to all routes
+router.use(unifiedCoachAuth(), updateLastActive, filterResourcesByPermission('staff'));
 
 // ===== STAFF MANAGEMENT ENDPOINTS =====
 
+// Get all permissions grouped by category (for frontend permission management)
+router.get('/permissions', requirePermission('staff:read'), coachStaffManagementController.getPermissionsList);
+
 // Get all staff members
-router.get('/', coachStaffManagementController.getStaffMembers);
+router.get('/', requirePermission('staff:read'), coachStaffManagementController.getStaffMembers);
 
 // Create new staff member
-router.post('/', coachStaffManagementController.createStaffMember);
+router.post('/', requirePermission('staff:write'), coachStaffManagementController.createStaffMember);
 
 // Get staff member details
-router.get('/:staffId', coachStaffManagementController.getStaffDetails);
+router.get('/:staffId', requirePermission('staff:read'), coachStaffManagementController.getStaffDetails);
 
 // Update staff member
-router.put('/:staffId', coachStaffManagementController.updateStaffMember);
+router.put('/:staffId', requirePermission('staff:update'), coachStaffManagementController.updateStaffMember);
 
 // Delete staff member
-router.delete('/:staffId', coachStaffManagementController.deleteStaffMember);
+router.delete('/:staffId', requirePermission('staff:delete'), coachStaffManagementController.deleteStaffMember);
 
 // ===== PERMISSION MANAGEMENT ENDPOINTS =====
 
 // Update staff permissions
-router.put('/:staffId/permissions', coachStaffManagementController.updateStaffPermissions);
+router.put('/:staffId/permissions', requirePermission('staff:manage'), coachStaffManagementController.updateStaffPermissions);
 
 // Assign permission group to staff
-router.post('/:staffId/permission-group', coachStaffManagementController.assignPermissionGroup);
+router.post('/:staffId/permission-group', requirePermission('staff:manage'), coachStaffManagementController.assignPermissionGroup);
 
 // Toggle staff active status
-router.put('/:staffId/toggle-status', coachStaffManagementController.toggleStaffStatus);
+router.put('/:staffId/toggle-status', requirePermission('staff:manage'), coachStaffManagementController.toggleStaffStatus);
 
 // Get staff performance
-router.get('/:staffId/performance', coachStaffManagementController.getStaffPerformance);
+router.get('/:staffId/performance', requirePermission('staff:read'), coachStaffManagementController.getStaffPerformance);
 
 // ===== BULK OPERATIONS =====
 

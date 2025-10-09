@@ -21,7 +21,12 @@ const {
     updateRetentionPeriod
 } = require('../controllers/zoomIntegrationController');
 
-const { protect, authorizeCoach } = require('../middleware/auth');
+const { 
+    unifiedCoachAuth, 
+    requirePermission, 
+    checkResourceOwnership,
+    filterResourcesByPermission 
+} = require('../middleware/unifiedCoachAuth');
 const { updateLastActive } = require('../middleware/activityMiddleware');
 
 // ===== PUBLIC ROUTES (No Authentication Required) =====
@@ -183,64 +188,65 @@ router.get('/setup-guide', (req, res) => {
 });
 
 // Apply authentication and activity tracking to protected routes
-router.use(protect, updateLastActive);
+// Apply unified authentication and resource filtering to all private routes
+router.use(unifiedCoachAuth(), updateLastActive, filterResourcesByPermission('calendar'));
 
 // ===== ZOOM INTEGRATION SETUP & MANAGEMENT =====
 
 // Setup Zoom integration
-router.post('/setup', authorizeCoach('coach','staff'), setupZoomIntegration);
+router.post('/setup', requirePermission('calendar:manage'), setupZoomIntegration);
 
 // Get Zoom integration details
-router.get('/', authorizeCoach('coach','staff'), getZoomIntegration);
+router.get('/', requirePermission('calendar:read'), getZoomIntegration);
 
 // Update Zoom integration settings
-router.put('/', authorizeCoach('coach','staff'), updateZoomIntegration);
+router.put('/', requirePermission('calendar:manage'), updateZoomIntegration);
 
 // Test Zoom connection
-router.post('/test', authorizeCoach('coach','staff'), testZoomConnection);
+router.post('/test', requirePermission('calendar:read'), testZoomConnection);
 
 // Get Zoom usage statistics
-router.get('/usage', authorizeCoach('coach','staff'), getZoomUsage);
+router.get('/usage', requirePermission('calendar:read'), getZoomUsage);
 
 // Get integration status
-router.get('/status', authorizeCoach('coach','staff'), getIntegrationStatus);
+router.get('/status', requirePermission('calendar:read'), getIntegrationStatus);
 
 // ===== ZOOM MEETING MANAGEMENT =====
 
 // Get Zoom meeting details for an appointment
-router.get('/meetings/appointment/:appointmentId', authorizeCoach('coach','staff'), getZoomMeetingForAppointment);
+router.get('/meetings/appointment/:appointmentId', requirePermission('calendar:read'), getZoomMeetingForAppointment);
 
 // Get all Zoom meetings for a coach
-router.get('/meetings', authorizeCoach('coach','staff'), getCoachZoomMeetings);
+router.get('/meetings', requirePermission('calendar:read'), getCoachZoomMeetings);
 
 // ===== MEETING TEMPLATES =====
 
 // Create meeting template
-router.post('/meeting-templates', authorizeCoach('coach','staff'), createMeetingTemplate);
+router.post('/meeting-templates', requirePermission('calendar:write'), createMeetingTemplate);
 
 // Get meeting templates
-router.get('/meeting-templates', authorizeCoach('coach','staff'), getMeetingTemplates);
+router.get('/meeting-templates', requirePermission('calendar:read'), getMeetingTemplates);
 
 // ===== INTEGRATION MANAGEMENT =====
 
 // Delete Zoom integration
-router.delete('/', authorizeCoach('coach','staff'), deleteZoomIntegration);
+router.delete('/', requirePermission('calendar:manage'), deleteZoomIntegration);
 
 // ===== ZOOM CLEANUP MANAGEMENT =====
 
 // Start automatic cleanup
-router.post('/cleanup/start', authorizeCoach('coach','staff'), startCleanup);
+router.post('/cleanup/start', requirePermission('calendar:manage'), startCleanup);
 
 // Stop automatic cleanup
-router.post('/cleanup/stop', authorizeCoach('coach','staff'), stopCleanup);
+router.post('/cleanup/stop', requirePermission('calendar:manage'), stopCleanup);
 
 // Manual cleanup
-router.post('/cleanup/manual', authorizeCoach('coach','staff'), manualCleanup);
+router.post('/cleanup/manual', requirePermission('calendar:manage'), manualCleanup);
 
 // Get cleanup statistics
-router.get('/cleanup/stats', authorizeCoach('coach','staff'), getCleanupStats);
+router.get('/cleanup/stats', requirePermission('calendar:read'), getCleanupStats);
 
 // Update retention period
-router.put('/cleanup/retention', authorizeCoach('coach','staff'), updateRetentionPeriod);
+router.put('/cleanup/retention', requirePermission('calendar:manage'), updateRetentionPeriod);
 
 module.exports = router;

@@ -1,5 +1,6 @@
 const CoachMarketingCredentials = require('../schema/CoachMarketingCredentials');
 const { Coach } = require('../schema');
+const { getUserContext } = require('../middleware/unifiedCoachAuth');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const crypto = require('crypto');

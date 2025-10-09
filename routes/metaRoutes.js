@@ -14,6 +14,7 @@ const router = express.Router();
 
 // This is a sample POST endpoint to trigger an outbound message from your app
 // For example, this could be used by a UI button on the coach dashboard
+// Note: This route is currently disabled as WhatsApp functionality has been moved
 router.post('/send-message', async (req, res) => {
     try {
         const { coachId, recipientPhoneNumber, messageContent, useTemplate = false } = req.body;
@@ -23,7 +24,10 @@ router.post('/send-message', async (req, res) => {
         }
 
         // const result = await sendMessageByCoach(coachId, recipientPhoneNumber, messageContent, useTemplate); // WhatsApp functionality moved to dustbin/whatsapp-dump/
-        res.status(200).json({ success: true, data: result });
+        res.status(200).json({ 
+            success: false, 
+            message: 'WhatsApp functionality has been moved. This endpoint is no longer active.' 
+        });
     } catch (error) {
         console.error('Error in /send-message route:', error);
         res.status(500).json({ success: false, error: error.message });

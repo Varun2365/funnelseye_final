@@ -7,7 +7,10 @@ const {
     getMagnetAnalytics,
     generateShareableUrl
 } = require('../controllers/publicLeadMagnetController');
-const { protect } = require('../middleware/auth');
+const { 
+    unifiedCoachAuth, 
+    requirePermission 
+} = require('../middleware/unifiedCoachAuth');
 
 // ===== PUBLIC ROUTES (No authentication required) =====
 
@@ -30,12 +33,12 @@ router.post('/track', trackInteraction);
 
 // @route   GET /lead-magnets/analytics/:coachId
 // @desc    Get lead magnet analytics for coach
-// @access  Private (Coach)
-router.get('/analytics/:coachId', protect, getMagnetAnalytics);
+// @access  Private (Coach/Staff with permission)
+router.get('/analytics/:coachId', unifiedCoachAuth(), requirePermission('leads:read'), getMagnetAnalytics);
 
 // @route   GET /lead-magnets/generate-url/:magnetType/:coachId
 // @desc    Generate shareable URL for lead magnet
-// @access  Private (Coach)
-router.get('/generate-url/:magnetType/:coachId', protect, generateShareableUrl);
+// @access  Private (Coach/Staff with permission)
+router.get('/generate-url/:magnetType/:coachId', unifiedCoachAuth(), requirePermission('leads:write'), generateShareableUrl);
 
 module.exports = router;

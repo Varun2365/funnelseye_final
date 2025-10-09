@@ -1,38 +1,69 @@
 const leadMagnetsService = require('../services/leadMagnetsService');
+const CoachStaffService = require('../services/coachStaffService');
 const asyncHandler = require('../middleware/async');
 
 // Get all lead magnets for a coach
 exports.getCoachLeadMagnets = asyncHandler(async (req, res, next) => {
-    const coachId = req.user.id;
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'read', 'lead_magnets', 'list', { coachId });
+
     const leadMagnets = await leadMagnetsService.getCoachLeadMagnets(coachId);
+
+    // Filter response data based on staff permissions
+    const filteredLeadMagnets = CoachStaffService.filterResponseData(req, leadMagnets, 'leads');
 
     res.json({
         success: true,
-        data: leadMagnets
+        data: filteredLeadMagnets,
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
+        }
     });
 });
 
 // Update coach's lead magnet settings
 exports.updateCoachLeadMagnets = asyncHandler(async (req, res, next) => {
-    const coachId = req.user.id;
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
     const { leadMagnetSettings } = req.body;
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'update', 'lead_magnets', 'settings', { coachId, leadMagnetSettings });
 
     const updatedLeadMagnets = await leadMagnetsService.updateCoachLeadMagnets(
         coachId, 
         leadMagnetSettings
     );
 
+    // Filter response data based on staff permissions
+    const filteredLeadMagnets = CoachStaffService.filterResponseData(req, updatedLeadMagnets, 'leads');
+
     res.json({
         success: true,
-        data: updatedLeadMagnets,
-        message: 'Lead magnet settings updated successfully'
+        data: filteredLeadMagnets,
+        message: 'Lead magnet settings updated successfully',
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
+        }
     });
 });
 
         // Generate AI Diet Plan via Email (WhatsApp functionality moved to dustbin/whatsapp-dump/)
 exports.generateAIDietPlan = asyncHandler(async (req, res, next) => {
-    const coachId = req.user.id;
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
     const { leadId, userPreferences } = req.body;
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'write', 'lead_magnets', 'ai_diet_plan', { coachId, leadId });
 
     // Validate leadId
     if (!leadId) {
@@ -59,10 +90,17 @@ exports.generateAIDietPlan = asyncHandler(async (req, res, next) => {
             userPreferences
         );
 
+        // Filter response data based on staff permissions
+        const filteredDietPlan = CoachStaffService.filterResponseData(req, dietPlan, 'leads');
+
         res.json({
             success: true,
-            data: dietPlan,
-            message: 'AI diet plan generated successfully'
+            data: filteredDietPlan,
+            message: 'AI diet plan generated successfully',
+            userContext: {
+                isStaff: userContext.isStaff,
+                permissions: userContext.permissions
+            }
         });
     } catch (error) {
         console.error('[generateAIDietPlan] Error:', error);
@@ -85,7 +123,13 @@ exports.generateAIDietPlan = asyncHandler(async (req, res, next) => {
 
 // Calculate BMI and get recommendations
 exports.calculateBMIAndRecommendations = asyncHandler(async (req, res, next) => {
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
     const { weight, height, age, gender, activityLevel } = req.body;
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'write', 'lead_magnets', 'bmi_calculator', { coachId });
 
     const bmiResults = await leadMagnetsService.calculateBMIAndRecommendations(
         weight,
@@ -95,10 +139,17 @@ exports.calculateBMIAndRecommendations = asyncHandler(async (req, res, next) => 
         activityLevel
     );
 
+    // Filter response data based on staff permissions
+    const filteredResults = CoachStaffService.filterResponseData(req, bmiResults, 'leads');
+
     res.json({
         success: true,
-        data: bmiResults,
-        message: 'BMI calculated successfully'
+        data: filteredResults,
+        message: 'BMI calculated successfully',
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
+        }
     });
 });
 
@@ -120,7 +171,13 @@ exports.generateEbookContent = asyncHandler(async (req, res, next) => {
 
 // Calculate workout metrics
 exports.calculateWorkoutMetrics = asyncHandler(async (req, res, next) => {
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
     const { age, weight, height, gender, activityLevel, exerciseData } = req.body;
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'write', 'lead_magnets', 'workout_calculator', { coachId });
 
     const workoutMetrics = leadMagnetsService.calculateWorkoutMetrics(
         age,
@@ -131,16 +188,29 @@ exports.calculateWorkoutMetrics = asyncHandler(async (req, res, next) => {
         exerciseData
     );
 
+    // Filter response data based on staff permissions
+    const filteredMetrics = CoachStaffService.filterResponseData(req, workoutMetrics, 'leads');
+
     res.json({
         success: true,
-        data: workoutMetrics,
-        message: 'Workout metrics calculated successfully'
+        data: filteredMetrics,
+        message: 'Workout metrics calculated successfully',
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
+        }
     });
 });
 
 // Track progress
 exports.trackProgress = asyncHandler(async (req, res, next) => {
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
     const { leadId, progressData } = req.body;
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'write', 'lead_magnets', 'track_progress', { coachId, leadId });
 
     const progressResults = await leadMagnetsService.trackProgress(
         leadId,
@@ -196,7 +266,12 @@ exports.getAvailableLeadMagnets = asyncHandler(async (req, res, next) => {
 
 // Get lead magnet analytics
 exports.getLeadMagnetAnalytics = asyncHandler(async (req, res, next) => {
-    const coachId = req.user.id;
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'read', 'lead_magnets', 'analytics', { coachId });
     const { timeRange = 30 } = req.query;
 
     // This would typically fetch analytics from the database
@@ -218,10 +293,17 @@ exports.getLeadMagnetAnalytics = asyncHandler(async (req, res, next) => {
         ]
     };
 
+    // Filter response data based on staff permissions
+    const filteredAnalytics = CoachStaffService.filterResponseData(req, analytics, 'leads');
+
     res.json({
         success: true,
-        data: analytics,
-        message: 'Lead magnet analytics retrieved successfully'
+        data: filteredAnalytics,
+        message: 'Lead magnet analytics retrieved successfully',
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
+        }
     });
 });
 
@@ -254,7 +336,7 @@ exports.getLeadMagnetHistory = asyncHandler(async (req, res, next) => {
 // Mark lead magnet interaction as converted (when lead actually signs up)
 exports.markConversion = asyncHandler(async (req, res, next) => {
     const { leadId, interactionType } = req.body;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     if (!leadId || !interactionType) {
         return res.status(400).json({
@@ -287,7 +369,7 @@ exports.markConversion = asyncHandler(async (req, res, next) => {
 
 // Get lead magnet interaction analytics
 exports.getInteractionAnalytics = asyncHandler(async (req, res, next) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { timeRange = 30 } = req.query;
 
     try {

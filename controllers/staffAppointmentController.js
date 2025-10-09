@@ -2,6 +2,7 @@ const Appointment = require('../schema/Appointment');
 const Staff = require('../schema/Staff');
 const Lead = require('../schema/Lead');
 const { hasPermission } = require('../utils/permissions');
+const CoachStaffService = require('../services/coachStaffService');
 
 /**
  * Staff Appointment Controller
@@ -10,16 +11,18 @@ const { hasPermission } = require('../utils/permissions');
 
 // Helper function to ensure proper access control
 function ensureAppointmentAccess(req, appointmentDoc) {
-    if (req.role === 'admin' || req.role === 'super_admin') return true;
+    const userContext = CoachStaffService.getUserContext(req);
     
-    if (req.role === 'coach') {
+    if (userContext.role === 'admin' || userContext.role === 'super_admin') return true;
+    
+    if (userContext.role === 'coach') {
         // Coach can access appointments they created
-        if (String(appointmentDoc.coachId) === String(req.coachId)) return true;
+        if (String(appointmentDoc.coachId) === String(userContext.coachId)) return true;
     }
     
-    if (req.role === 'staff') {
+    if (userContext.role === 'staff') {
         // Staff can only access appointments assigned to them
-        if (String(appointmentDoc.assignedStaffId) === String(req.userId)) return true;
+        if (String(appointmentDoc.assignedStaffId) === String(userContext.userId)) return true;
     }
     
     const err = new Error('Access denied');

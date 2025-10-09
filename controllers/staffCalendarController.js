@@ -2,6 +2,7 @@ const StaffCalendar = require('../schema/StaffCalendar');
 const Staff = require('../schema/Staff');
 const User = require('../schema/User');
 const { hasPermission } = require('../utils/permissions');
+const CoachStaffService = require('../services/coachStaffService');
 
 /**
  * Staff Calendar Controller
@@ -10,16 +11,18 @@ const { hasPermission } = require('../utils/permissions');
 
 // Helper function to ensure staff can only access their own calendar or coach can access staff calendar
 function ensureCalendarAccess(req, calendarDoc) {
-    if (req.role === 'admin' || req.role === 'super_admin') return true;
+    const userContext = CoachStaffService.getUserContext(req);
     
-    if (req.role === 'coach') {
+    if (userContext.role === 'admin' || userContext.role === 'super_admin') return true;
+    
+    if (userContext.role === 'coach') {
         // Coach can access any staff calendar under them
-        if (String(calendarDoc.coachId) === String(req.coachId)) return true;
+        if (String(calendarDoc.coachId) === String(userContext.coachId)) return true;
     }
     
-    if (req.role === 'staff') {
+    if (userContext.role === 'staff') {
         // Staff can only access their own calendar
-        if (String(calendarDoc.staffId) === String(req.userId)) return true;
+        if (String(calendarDoc.staffId) === String(userContext.userId)) return true;
     }
     
     const err = new Error('Access denied');

@@ -1,6 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { protect, authorizeCoach } = require('../middleware/auth');
+const { 
+    unifiedCoachAuth, 
+    requirePermission, 
+    checkResourceOwnership,
+    filterResourcesByPermission 
+} = require('../middleware/unifiedCoachAuth');
 const { updateLastActive } = require('../middleware/activityMiddleware');
 const {
     getCredentials,
@@ -15,48 +20,48 @@ const {
     getSetupStatus
 } = require('../controllers/coachMarketingCredentialsController');
 
-// All routes are protected and require coach authentication
-router.use(protect, updateLastActive);
+// Apply unified authentication and resource filtering to all routes
+router.use(unifiedCoachAuth(), updateLastActive, filterResourcesByPermission('marketing'));
 
 // ===== CREDENTIALS MANAGEMENT =====
 
 // Get coach marketing credentials
-router.get('/', authorizeCoach('coach'), getCredentials);
+router.get('/', requirePermission('marketing:read'), getCredentials);
 
 // Get setup status
-router.get('/setup-status', authorizeCoach('coach'), getSetupStatus);
+router.get('/setup-status', requirePermission('marketing:read'), getSetupStatus);
 
 // ===== META ADS CREDENTIALS =====
 
 // Set up Meta Ads credentials
-router.post('/meta-ads', authorizeCoach('coach'), setupMetaAdsCredentials);
+router.post('/meta-ads', requirePermission('marketing:manage'), setupMetaAdsCredentials);
 
 // Verify Meta Ads credentials
-router.post('/verify-meta', authorizeCoach('coach'), verifyMetaCredentials);
+router.post('/verify-meta', requirePermission('marketing:manage'), verifyMetaCredentials);
 
 // Get Meta Ads access token (for internal use)
-router.get('/meta-token', authorizeCoach('coach'), getMetaAccessToken);
+router.get('/meta-token', requirePermission('marketing:read'), getMetaAccessToken);
 
 // ===== OPENAI CREDENTIALS =====
 
 // Set up OpenAI credentials
-router.post('/openai', authorizeCoach('coach'), setupOpenAICredentials);
+router.post('/openai', requirePermission('marketing:manage'), setupOpenAICredentials);
 
 // Verify OpenAI credentials
-router.post('/verify-openai', authorizeCoach('coach'), verifyOpenAICredentials);
+router.post('/verify-openai', requirePermission('marketing:manage'), verifyOpenAICredentials);
 
 // Get OpenAI API key (for internal use)
-router.get('/openai-key', authorizeCoach('coach'), getOpenAIKey);
+router.get('/openai-key', requirePermission('marketing:read'), getOpenAIKey);
 
 // ===== PREFERENCES =====
 
 // Update marketing preferences
-router.put('/preferences', authorizeCoach('coach'), updatePreferences);
+router.put('/preferences', requirePermission('marketing:manage'), updatePreferences);
 
 // ===== CREDENTIALS MANAGEMENT =====
 
 // Delete all marketing credentials
-router.delete('/', authorizeCoach('coach'), deleteCredentials);
+router.delete('/', requirePermission('marketing:manage'), deleteCredentials);
 
 module.exports = router;
 

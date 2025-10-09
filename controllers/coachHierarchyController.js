@@ -133,7 +133,7 @@ const createExternalSponsor = async (req, res) => {
             phone,
             email,
             notes,
-            createdBy: req.user ? req.user.id : null
+            createdBy: req.user ? req.coachId : null
         });
         
         await externalSponsor.save();
@@ -273,7 +273,7 @@ const coachSignupWithHierarchy = async (req, res) => {
 // @access  Private
 const lockHierarchy = async (req, res) => {
     try {
-        const coachId = req.user.id;
+        const coachId = req.coachId;
         
         const coach = await User.findById(coachId);
         if (!coach || coach.role !== 'coach') {
@@ -317,7 +317,7 @@ const lockHierarchy = async (req, res) => {
 // @access  Private
 const submitAdminRequest = async (req, res) => {
     try {
-        const coachId = req.user.id;
+        const coachId = req.coachId;
         const { requestType, requestedData, reason } = req.body;
         
         if (!requestType || !requestedData || !reason) {
@@ -378,7 +378,7 @@ const submitAdminRequest = async (req, res) => {
 // @access  Private
 const getHierarchyDetails = async (req, res) => {
     try {
-        const coachId = req.user.id;
+        const coachId = req.coachId;
         
         const coach = await User.findById(coachId)
             .populate('sponsorId', 'name email selfCoachId currentLevel')
@@ -475,7 +475,7 @@ const processAdminRequest = async (req, res) => {
         
         request.status = status;
         request.adminNotes = adminNotes;
-        request.processedBy = req.user.id;
+        request.processedBy = req.coachId;
         request.processedAt = new Date();
         
         // If approved, update coach hierarchy

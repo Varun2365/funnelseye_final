@@ -7,7 +7,7 @@ const { publishEvent } = require('../services/rabbitmqProducer');
 // Create a new nurturing sequence
 exports.createSequence = asyncHandler(async (req, res) => {
     const { name, description, category, steps, triggerConditions, settings } = req.body;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     // Validate steps
     if (!steps || steps.length === 0) {
@@ -47,7 +47,7 @@ exports.createSequence = asyncHandler(async (req, res) => {
 
 // Get all nurturing sequences for a coach
 exports.getSequences = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { category, isActive, funnelId } = req.query;
 
     let query = { coachId };
@@ -69,7 +69,7 @@ exports.getSequences = asyncHandler(async (req, res) => {
 // Get a single nurturing sequence
 exports.getSequence = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     const sequence = await NurturingSequence.findOne({ _id: id, coachId })
         .populate('assignedFunnels', 'name description');
@@ -90,7 +90,7 @@ exports.getSequence = asyncHandler(async (req, res) => {
 // Update a nurturing sequence
 exports.updateSequence = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const updateData = req.body;
 
     // Remove fields that shouldn't be updated
@@ -121,7 +121,7 @@ exports.updateSequence = asyncHandler(async (req, res) => {
 // Delete a nurturing sequence
 exports.deleteSequence = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     // Check if sequence is assigned to any funnels
     const sequence = await NurturingSequence.findOne({ _id: id, coachId });
@@ -159,7 +159,7 @@ exports.deleteSequence = asyncHandler(async (req, res) => {
 // Assign sequence to funnel
 exports.assignToFunnel = asyncHandler(async (req, res) => {
     const { sequenceId, funnelId } = req.body;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     // Verify sequence exists and belongs to coach
     const sequence = await NurturingSequence.findOne({ _id: sequenceId, coachId });
@@ -199,7 +199,7 @@ exports.assignToFunnel = asyncHandler(async (req, res) => {
 // Remove sequence from funnel
 exports.removeFromFunnel = asyncHandler(async (req, res) => {
     const { sequenceId, funnelId } = req.body;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     const sequence = await NurturingSequence.findOne({ _id: sequenceId, coachId });
     if (!sequence) {
@@ -222,7 +222,7 @@ exports.removeFromFunnel = asyncHandler(async (req, res) => {
 exports.duplicateSequence = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { newName } = req.body;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     const sequence = await NurturingSequence.findOne({ _id: id, coachId });
     if (!sequence) {
@@ -244,7 +244,7 @@ exports.duplicateSequence = asyncHandler(async (req, res) => {
 // Toggle sequence active status
 exports.toggleActive = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     const sequence = await NurturingSequence.findOne({ _id: id, coachId });
     if (!sequence) {
@@ -267,7 +267,7 @@ exports.toggleActive = asyncHandler(async (req, res) => {
 // Get sequence statistics
 exports.getSequenceStats = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     const sequence = await NurturingSequence.findOne({ _id: id, coachId });
     if (!sequence) {
@@ -291,7 +291,7 @@ exports.getSequenceStats = asyncHandler(async (req, res) => {
 
 // Get sequences by category
 exports.getSequencesByCategory = asyncHandler(async (req, res) => {
-    const coachId = req.user.id;
+    const coachId = req.coachId;
     const { category } = req.params;
 
     const sequences = await NurturingSequence.find({ 
@@ -309,7 +309,7 @@ exports.getSequencesByCategory = asyncHandler(async (req, res) => {
 // Bulk assign sequences to funnels
 exports.bulkAssignToFunnels = asyncHandler(async (req, res) => {
     const { sequenceIds, funnelIds } = req.body;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     if (!Array.isArray(sequenceIds) || !Array.isArray(funnelIds)) {
         return res.status(400).json({
@@ -346,7 +346,7 @@ exports.bulkAssignToFunnels = asyncHandler(async (req, res) => {
 // Get funnel assignments for a sequence
 exports.getFunnelAssignments = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     const sequence = await NurturingSequence.findOne({ _id: id, coachId })
         .populate('assignedFunnels', 'name description isActive');
@@ -368,7 +368,7 @@ exports.getFunnelAssignments = asyncHandler(async (req, res) => {
 exports.testSequence = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { leadId } = req.body;
-    const coachId = req.user.id;
+    const coachId = req.coachId;
 
     const sequence = await NurturingSequence.findOne({ _id: id, coachId });
     if (!sequence) {

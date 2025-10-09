@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const tracking = require('../controllers/leadScoringTrackingController');
 
+// These are tracking routes that don't require authentication
+// They are used for external tracking (email opens, link clicks, etc.)
 router.get('/email-opened', tracking.emailOpened);
 router.get('/link-clicked', tracking.linkClicked);
 // router.post('/whatsapp-replied', tracking.whatsappReplied); // WhatsApp functionality moved to dustbin/whatsapp-dump/

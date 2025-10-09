@@ -16,24 +16,32 @@ const {
     initiateBookingRecovery, 
     cancelBookingRecovery 
 } = require('../controllers/bookingRecoveryController'); // <-- NEW: Import booking recovery controller
-const { protect, authorizeCoach } = require('../middleware/auth');
+const { 
+    unifiedCoachAuth, 
+    requirePermission, 
+    checkResourceOwnership,
+    filterResourcesByPermission 
+} = require('../middleware/unifiedCoachAuth');
 const { updateLastActive } = require('../middleware/activityMiddleware');
 
 const router = express.Router();
 
+// Apply unified authentication and resource filtering to all routes
+router.use(unifiedCoachAuth(), updateLastActive, filterResourcesByPermission('dashboard'));
+
 // --- Main Coach & Feed Routes ---
-router.get('/daily-feed', protect, updateLastActive, authorizeCoach('coach', 'admin'), getDailyPriorityFeed);
+router.get('/daily-feed', requirePermission('dashboard:read'), getDailyPriorityFeed);
 
 // --- Coach Availability & Calendar Routes ---
-router.get('/:coachId/availability', getCoachAvailability);
-router.post('/availability', protect, updateLastActive, authorizeCoach('coach', 'admin'), setCoachAvailability);
-router.get('/:coachId/available-slots', getAvailableSlots);
-router.post('/:coachId/book', bookAppointment);
-router.get('/:coachId/calendar', getCoachCalendar);
+router.get('/:coachId/availability', requirePermission('calendar:read'), getCoachAvailability);
+router.post('/availability', requirePermission('calendar:manage'), setCoachAvailability);
+router.get('/:coachId/available-slots', requirePermission('calendar:read'), getAvailableSlots);
+router.post('/:coachId/book', requirePermission('calendar:book'), bookAppointment);
+router.get('/:coachId/calendar', requirePermission('calendar:read'), getCoachCalendar);
 // Appointment management endpoints (protected)
-router.get('/appointments/:id', protect, updateLastActive, authorizeCoach('coach','admin','staff'), getAppointmentDetails);
-router.put('/appointments/:id/reschedule', protect, updateLastActive, authorizeCoach('coach','admin','staff'), rescheduleAppointment);
-router.delete('/appointments/:id', protect, updateLastActive, authorizeCoach('coach','admin','staff'), cancelAppointment);
+router.get('/appointments/:id', requirePermission('calendar:read'), getAppointmentDetails);
+router.put('/appointments/:id/reschedule', requirePermission('calendar:update'), rescheduleAppointment);
+router.delete('/appointments/:id', requirePermission('calendar:delete'), cancelAppointment);
 
 // --- NEW: Booking Recovery Routes ---
 // @desc    Initiate a booking recovery session when a user visits the booking page

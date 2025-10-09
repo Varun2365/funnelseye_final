@@ -1,5 +1,6 @@
 const leadScoringService = require('../services/leadScoringService');
 const { Lead } = require('../schema');
+const { getUserContext } = require('../middleware/unifiedCoachAuth');
 
 // 1x1 transparent GIF for email open tracking
 const pixel = Buffer.from(
