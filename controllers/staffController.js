@@ -1,6 +1,6 @@
 const Staff = require('../schema/Staff');
 const User = require('../schema/User');
-const { validatePermissions } = require('../utils/permissions');
+const { validateSections: validatePermissions } = require('../utils/sectionPermissions');
 const staffPerformanceService = require('../services/staffPerformanceService');
 
 // Helpers
