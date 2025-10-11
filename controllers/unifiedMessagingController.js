@@ -15,6 +15,7 @@ const { Coach, Staff, Lead } = require('../schema');
 const AdminSystemSettings = require('../schema/AdminSystemSettings');
 const WhatsAppCredit = require('../schema/WhatsAppCredit');
 const logger = require('../utils/logger');
+const { SECTIONS } = require('../utils/sectionPermissions');
 
 // Utility function to validate device ID
 function validateDeviceId(deviceId) {

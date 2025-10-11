@@ -1,7 +1,9 @@
 const coachDashboardService = require('../services/coachDashboardService');
+const staffDashboardService = require('../services/staffDashboardService');
 const calendarService = require('../services/calendarService');
 const CoachStaffService = require('../services/coachStaffService');
 const asyncHandler = require('../middleware/async');
+const { SECTIONS } = require('../utils/sectionPermissions');
 
 // Get complete dashboard data
 exports.getDashboardData = asyncHandler(async (req, res, next) => {
@@ -13,19 +15,35 @@ exports.getDashboardData = asyncHandler(async (req, res, next) => {
     // Log staff action if applicable
     CoachStaffService.logStaffAction(req, 'read', 'dashboard', 'overview', { coachId });
 
-    const dashboardData = await coachDashboardService.getDashboardData(
-        coachId, 
-        parseInt(timeRange)
-    );
-
-    // Filter response data based on staff permissions
-    const filteredData = CoachStaffService.filterResponseData(req, dashboardData, 'dashboard');
+    let dashboardData;
+    
+    // Check if user is staff - show personalized staff dashboard
+    if (userContext.isStaff) {
+        // Get staff-specific personalized dashboard
+        dashboardData = await staffDashboardService.getStaffDashboardData(
+            coachId,
+            userContext.userId,
+            req,
+            parseInt(timeRange)
+        );
+    } else {
+        // Get coach dashboard (full coach stats)
+        dashboardData = await coachDashboardService.getDashboardData(
+            coachId, 
+            parseInt(timeRange)
+        );
+        
+        // Filter response data based on permissions (for coach)
+        dashboardData = CoachStaffService.filterResponseData(req, dashboardData, 'dashboard');
+    }
 
     res.json({
         success: true,
-        data: filteredData,
+        data: dashboardData,
         userContext: {
             isStaff: userContext.isStaff,
+            isCoach: userContext.isCoach,
+            userId: userContext.userId,
             permissions: userContext.permissions
         }
     });
@@ -151,7 +169,7 @@ exports.getFinancialData = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to view financial data
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'performance:read')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.DASHBOARD.VIEW)) {
         return res.json({
             success: true,
             data: { message: 'No data found' },
@@ -191,7 +209,7 @@ exports.getTeamData = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to view team data
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'staff:read')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.STAFF_MANAGEMENT.VIEW)) {
         return res.json({
             success: true,
             data: { message: 'No data found' },
@@ -231,7 +249,7 @@ exports.getPerformanceData = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to view performance data
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'performance:read')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.DASHBOARD.VIEW)) {
         return res.json({
             success: true,
             data: { message: 'No data found' },
@@ -301,7 +319,7 @@ exports.getWidgetData = asyncHandler(async (req, res, next) => {
     switch (widgetId) {
         case 'revenue_chart':
             // Check permission for financial data
-            if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'performance:read')) {
+            if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.DASHBOARD.VIEW)) {
                 data = { message: 'No data found' };
             } else {
                 data = await coachDashboardService.getRevenueChartData(coachId);
@@ -309,7 +327,7 @@ exports.getWidgetData = asyncHandler(async (req, res, next) => {
             break;
         case 'lead_funnel':
             // Check permission for lead data
-            if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'leads:read')) {
+            if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.LEADS.VIEW)) {
                 data = { message: 'No data found' };
             } else {
                 data = await coachDashboardService.getLeadFunnelData(coachId);
@@ -317,7 +335,7 @@ exports.getWidgetData = asyncHandler(async (req, res, next) => {
             break;
         case 'team_performance':
             // Check permission for team data
-            if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'staff:read')) {
+            if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.STAFF_MANAGEMENT.VIEW)) {
                 data = { message: 'No data found' };
             } else {
                 const staffLeaderboardService = require('../services/staffLeaderboardService');
@@ -326,7 +344,7 @@ exports.getWidgetData = asyncHandler(async (req, res, next) => {
             break;
         case 'task_overview':
             // Check permission for task data
-            if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'tasks:read')) {
+            if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.DASHBOARD.VIEW)) {
                 data = { message: 'No data found' };
             } else {
                 const workflowTaskService = require('../services/workflowTaskService');
@@ -361,7 +379,7 @@ exports.getPerformanceTrends = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to view performance trends
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'performance:read')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.DASHBOARD.VIEW)) {
         return res.json({
             success: true,
             data: { message: 'No data found' },
@@ -401,7 +419,7 @@ exports.getPerformanceAlerts = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to view performance alerts
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'performance:read')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.DASHBOARD.VIEW)) {
         return res.json({
             success: true,
             data: { message: 'No data found' },
@@ -441,7 +459,7 @@ exports.getAIInsights = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to view AI insights
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'ai:read')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.DASHBOARD.VIEW)) {
         return res.json({
             success: true,
             data: { message: 'No data found' },
@@ -481,7 +499,7 @@ exports.getKPIs = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to view KPIs
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'performance:read')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.DASHBOARD.VIEW)) {
         return res.json({
             success: true,
             data: { message: 'No data found' },
@@ -527,19 +545,19 @@ exports.getDashboardSections = asyncHandler(async (req, res, next) => {
             // Check if staff has permission for this section
             switch (section.key) {
                 case 'leads':
-                    return CoachStaffService.hasPermission(req, 'leads:read');
+                    return CoachStaffService.hasPermission(req, SECTIONS.LEADS.VIEW);
                 case 'funnels':
-                    return CoachStaffService.hasPermission(req, 'funnels:read');
+                    return CoachStaffService.hasPermission(req, SECTIONS.FUNNELS.VIEW);
                 case 'tasks':
-                    return CoachStaffService.hasPermission(req, 'tasks:read');
+                    return CoachStaffService.hasPermission(req, SECTIONS.DASHBOARD.VIEW);
                 case 'financial':
-                    return CoachStaffService.hasPermission(req, 'performance:read');
+                    return CoachStaffService.hasPermission(req, SECTIONS.DASHBOARD.VIEW);
                 case 'team':
-                    return CoachStaffService.hasPermission(req, 'staff:read');
+                    return CoachStaffService.hasPermission(req, SECTIONS.STAFF_MANAGEMENT.VIEW);
                 case 'performance':
-                    return CoachStaffService.hasPermission(req, 'performance:read');
+                    return CoachStaffService.hasPermission(req, SECTIONS.DASHBOARD.VIEW);
                 case 'calendar':
-                    return CoachStaffService.hasPermission(req, 'calendar:read');
+                    return CoachStaffService.hasPermission(req, SECTIONS.CALENDAR.VIEW);
                 default:
                     return true; // Allow access to other sections
             }
@@ -568,7 +586,7 @@ exports.getRealTimeUpdates = asyncHandler(async (req, res, next) => {
     // Get only critical updates that need real-time monitoring
     const [overview, alerts] = await Promise.all([
         coachDashboardService.getOverviewData(coachId, new Date(Date.now() - 24 * 60 * 60 * 1000)), // Last 24 hours
-        userContext.isStaff && !CoachStaffService.hasPermission(req, 'performance:read') 
+        userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.DASHBOARD.VIEW) 
             ? { message: 'No data found' }
             : coachDashboardService.getPerformanceAlerts(coachId, new Date(Date.now() - 24 * 60 * 60 * 1000))
     ]);
@@ -599,7 +617,7 @@ exports.exportDashboardData = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to export data
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'performance:read')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.DASHBOARD.VIEW)) {
         return res.status(403).json({
             success: false,
             message: 'No permission to export data'
@@ -645,7 +663,7 @@ exports.getCalendar = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to view calendar
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'calendar:read')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.CALENDAR.VIEW)) {
         return res.json({
             success: true,
             data: { message: 'No data found' },
@@ -689,7 +707,7 @@ exports.getAvailableSlots = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to view available slots
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'calendar:read')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.CALENDAR.VIEW)) {
         return res.json({
             success: true,
             data: { message: 'No data found' },
@@ -733,7 +751,7 @@ exports.bookAppointment = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to book appointments
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'calendar:book')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.CALENDAR.BOOK)) {
         return res.status(403).json({
             success: false,
             message: 'No permission to book appointments'
@@ -781,7 +799,7 @@ exports.getUpcomingAppointments = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to view appointments
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'calendar:read')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.CALENDAR.VIEW)) {
         return res.json({
             success: true,
             data: { message: 'No data found' },
@@ -855,7 +873,7 @@ exports.rescheduleAppointment = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to reschedule appointments
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'calendar:update')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.CALENDAR.RESCHEDULE)) {
         return res.status(403).json({
             success: false,
             message: 'No permission to reschedule appointments'
@@ -901,7 +919,7 @@ exports.cancelAppointment = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to cancel appointments
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'calendar:delete')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.CALENDAR.DELETE)) {
         return res.status(403).json({
             success: false,
             message: 'No permission to cancel appointments'
@@ -931,7 +949,7 @@ exports.getAppointmentStats = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to view appointment stats
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'calendar:read')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.CALENDAR.VIEW)) {
         return res.json({
             success: true,
             data: { message: 'No data found' },
@@ -967,7 +985,7 @@ exports.getAvailability = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to view availability settings
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'calendar:read')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.CALENDAR.VIEW)) {
         return res.json({
             success: true,
             data: { message: 'No data found' },
@@ -1004,7 +1022,7 @@ exports.setAvailability = asyncHandler(async (req, res, next) => {
     const availabilityData = req.body;
     
     // Check if staff has permission to manage availability settings
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'calendar:manage')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.CALENDAR.MANAGE)) {
         return res.status(403).json({
             success: false,
             message: 'No permission to manage availability settings'
@@ -1056,7 +1074,7 @@ exports.getZoomMeetings = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to view Zoom meetings
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'calendar:read')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.CALENDAR.VIEW)) {
         return res.json({
             success: true,
             data: { message: 'No data found' },
@@ -1102,7 +1120,7 @@ exports.getZoomMeetingDetails = asyncHandler(async (req, res, next) => {
     const userContext = CoachStaffService.getUserContext(req);
     
     // Check if staff has permission to view Zoom meeting details
-    if (userContext.isStaff && !CoachStaffService.hasPermission(req, 'calendar:read')) {
+    if (userContext.isStaff && !CoachStaffService.hasPermission(req, SECTIONS.CALENDAR.VIEW)) {
         return res.json({
             success: true,
             data: { message: 'No data found' },

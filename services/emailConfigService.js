@@ -9,7 +9,7 @@ class EmailConfigService {
     }
 
     /**
-     * Get email configuration from database
+     * Get email configuration from database (Gmail only)
      */
     async getEmailConfig() {
         try {
@@ -29,20 +29,19 @@ class EmailConfigService {
                 return null;
             }
 
-            if (!emailConfig.smtpConfig?.host || !emailConfig.smtpConfig?.username || !emailConfig.smtpConfig?.password) {
-                console.log('❌ [EMAIL_CONFIG] Incomplete SMTP configuration');
+            // Simple validation - just need Gmail ID and app password
+            if (!emailConfig.gmailId || !emailConfig.appPassword) {
+                console.log('❌ [EMAIL_CONFIG] Gmail ID or app password not configured');
                 return null;
             }
 
             const config = {
-                host: emailConfig.smtpConfig.host,
-                port: emailConfig.smtpConfig.port || 587,
-                secure: emailConfig.smtpConfig.secure || false,
+                service: 'gmail',
                 auth: {
-                    user: emailConfig.smtpConfig.username,
-                    pass: emailConfig.smtpConfig.password
+                    user: emailConfig.gmailId,
+                    pass: emailConfig.appPassword
                 },
-                fromEmail: emailConfig.fromEmail || emailConfig.smtpConfig.username,
+                fromEmail: emailConfig.fromEmail || emailConfig.gmailId,
                 fromName: emailConfig.fromName || 'FunnelsEye'
             };
 
@@ -55,23 +54,7 @@ class EmailConfigService {
     }
 
     /**
-     * Get service name from email address
-     */
-    getServiceFromEmail(email) {
-        if (!email) return 'gmail';
-        
-        const domain = email.toLowerCase().split('@')[1];
-        
-        if (domain.includes('gmail')) return 'gmail';
-        if (domain.includes('yahoo')) return 'yahoo';
-        if (domain.includes('outlook') || domain.includes('hotmail') || domain.includes('live')) return 'hotmail';
-        
-        // Default to gmail for unknown domains
-        return 'gmail';
-    }
-
-    /**
-     * Create or update nodemailer transporter
+     * Create or update nodemailer transporter (Gmail only)
      */
     async getTransporter() {
         try {
@@ -89,24 +72,24 @@ class EmailConfigService {
                 return this.transporter;
             }
 
-            console.log('🔄 [EMAIL_CONFIG] Creating new transporter...');
+            console.log('🔄 [EMAIL_CONFIG] Creating new Gmail transporter...');
             
-            // Create transporter using service detection (simplified)
+            // Simple Gmail transporter
             this.transporter = nodemailer.createTransport({
-                service: this.getServiceFromEmail(config.auth.user),
+                service: 'gmail',
                 auth: {
                     user: config.auth.user,
                     pass: config.auth.pass
                 }
             });
 
-            // Verify connection with better error handling
+            // Verify connection
             try {
                 await this.transporter.verify();
-                console.log('✅ [EMAIL_CONFIG] Transporter created and verified successfully');
+                console.log('✅ [EMAIL_CONFIG] Gmail transporter verified successfully');
             } catch (verifyError) {
-                console.warn('⚠️ [EMAIL_CONFIG] Transporter verification failed, but continuing:', verifyError.message);
-                // Don't throw error here, let the actual email sending handle it
+                console.warn('⚠️ [EMAIL_CONFIG] Gmail verification failed:', verifyError.message);
+                console.warn('⚠️ Make sure you are using a Gmail App Password, not your regular password');
             }
 
             // Cache the config

@@ -1,6 +1,6 @@
 const { protect, authorizeCoach } = require('./auth');
 const StaffPermissionMiddleware = require('./staffPermissionMiddleware');
-const { PERMISSIONS } = require('../utils/permissions');
+const { SECTIONS } = require('../utils/sectionPermissions');
 
 /**
  * Unified Coach Authentication Middleware
@@ -111,11 +111,12 @@ const filterResourcesByPermission = (resourceType) => {
 // Lead Management
 const requireLeadPermission = (action = 'read') => {
     return requirePermission(
-        action === 'read' ? PERMISSIONS.LEADS.READ :
-        action === 'write' ? PERMISSIONS.LEADS.WRITE :
-        action === 'update' ? PERMISSIONS.LEADS.UPDATE :
-        action === 'delete' ? PERMISSIONS.LEADS.DELETE :
-        PERMISSIONS.LEADS.MANAGE,
+        action === 'read' ? SECTIONS.LEADS.VIEW :        // VIEW instead of READ
+        action === 'write' ? SECTIONS.LEADS.CREATE :     // CREATE for write operations
+        action === 'update' ? SECTIONS.LEADS.UPDATE :
+        action === 'delete' ? SECTIONS.LEADS.DELETE :
+        action === 'manage' ? SECTIONS.LEADS.MANAGE :
+        SECTIONS.LEADS.VIEW,                             // Default to VIEW
         action
     );
 };
@@ -123,52 +124,56 @@ const requireLeadPermission = (action = 'read') => {
 // Funnel Management
 const requireFunnelPermission = (action = 'read') => {
     return requirePermission(
-        action === 'read' ? PERMISSIONS.FUNNELS.READ :
-        action === 'write' ? PERMISSIONS.FUNNELS.WRITE :
-        action === 'update' ? PERMISSIONS.FUNNELS.UPDATE :
-        action === 'delete' ? PERMISSIONS.FUNNELS.DELETE :
-        action === 'publish' ? PERMISSIONS.FUNNELS.PUBLISH :
-        action === 'analytics' ? PERMISSIONS.FUNNELS.VIEW_ANALYTICS :
-        PERMISSIONS.FUNNELS.MANAGE,
+        action === 'read' ? SECTIONS.FUNNELS.VIEW :
+        action === 'write' ? SECTIONS.FUNNELS.CREATE :
+        action === 'update' ? SECTIONS.FUNNELS.UPDATE :
+        action === 'delete' ? SECTIONS.FUNNELS.DELETE :
+        action === 'publish' ? SECTIONS.FUNNELS.PUBLISH :
+        action === 'unpublish' ? SECTIONS.FUNNELS.UNPUBLISH :
+        action === 'analytics' ? SECTIONS.FUNNELS.VIEW_ANALYTICS :
+        action === 'manage_stages' ? SECTIONS.FUNNELS.MANAGE :
+        SECTIONS.FUNNELS.MANAGE,
         action
     );
 };
 
-// Task Management
+// Task Management (Dashboard-related)
 const requireTaskPermission = (action = 'read') => {
     return requirePermission(
-        action === 'read' ? PERMISSIONS.TASKS.READ :
-        action === 'write' ? PERMISSIONS.TASKS.WRITE :
-        action === 'update' ? PERMISSIONS.TASKS.UPDATE :
-        action === 'delete' ? PERMISSIONS.TASKS.DELETE :
-        action === 'assign' ? PERMISSIONS.TASKS.ASSIGN :
-        PERMISSIONS.TASKS.MANAGE,
+        action === 'read' ? SECTIONS.DASHBOARD.VIEW :
+        action === 'write' ? SECTIONS.DASHBOARD.VIEW :
+        action === 'update' ? SECTIONS.DASHBOARD.VIEW :
+        action === 'delete' ? SECTIONS.DASHBOARD.VIEW :
+        action === 'assign' ? SECTIONS.DASHBOARD.VIEW :
+        SECTIONS.DASHBOARD.VIEW,
         action
     );
 };
 
-// Ads Management
+// Ads Management (Marketing)
 const requireAdsPermission = (action = 'read') => {
     return requirePermission(
-        action === 'read' ? PERMISSIONS.ADS.READ :
-        action === 'write' ? PERMISSIONS.ADS.WRITE :
-        action === 'update' ? PERMISSIONS.ADS.UPDATE :
-        action === 'delete' ? PERMISSIONS.ADS.DELETE :
-        action === 'publish' ? PERMISSIONS.ADS.PUBLISH :
-        action === 'analytics' ? PERMISSIONS.ADS.ANALYTICS :
-        PERMISSIONS.ADS.MANAGE,
+        action === 'read' ? SECTIONS.MARKETING.VIEW :
+        action === 'write' ? SECTIONS.MARKETING.CREATE_CAMPAIGN :
+        action === 'update' ? SECTIONS.MARKETING.UPDATE_CAMPAIGN :
+        action === 'delete' ? SECTIONS.MARKETING.DELETE_CAMPAIGN :
+        action === 'publish' ? SECTIONS.MARKETING.MANAGE :
+        action === 'analytics' ? SECTIONS.MARKETING.VIEW_ANALYTICS :
+        SECTIONS.MARKETING.MANAGE,
         action
     );
 };
 
-// WhatsApp Management
+// WhatsApp Management (Messaging)
 const requireWhatsAppPermission = (action = 'read') => {
     return requirePermission(
-        action === 'read' ? PERMISSIONS.WHATSAPP.READ :
-        action === 'write' ? PERMISSIONS.WHATSAPP.WRITE :
-        action === 'send' ? PERMISSIONS.WHATSAPP.SEND :
-        action === 'templates' ? PERMISSIONS.WHATSAPP.TEMPLATES :
-        PERMISSIONS.WHATSAPP.MANAGE,
+        action === 'read' ? SECTIONS.MESSAGING.VIEW :
+        action === 'write' ? SECTIONS.MESSAGING.SEND :
+        action === 'send' ? SECTIONS.MESSAGING.SEND :
+        action === 'reply' ? SECTIONS.MESSAGING.REPLY :
+        action === 'delete' ? SECTIONS.MESSAGING.DELETE :
+        action === 'templates' ? SECTIONS.TEMPLATES.VIEW :
+        SECTIONS.MESSAGING.MANAGE,
         action
     );
 };
@@ -176,12 +181,12 @@ const requireWhatsAppPermission = (action = 'read') => {
 // Automation Management
 const requireAutomationPermission = (action = 'read') => {
     return requirePermission(
-        action === 'read' ? PERMISSIONS.AUTOMATION.READ :
-        action === 'write' ? PERMISSIONS.AUTOMATION.WRITE :
-        action === 'update' ? PERMISSIONS.AUTOMATION.UPDATE :
-        action === 'delete' ? PERMISSIONS.AUTOMATION.DELETE :
-        action === 'execute' ? PERMISSIONS.AUTOMATION.EXECUTE :
-        PERMISSIONS.AUTOMATION.MANAGE,
+        action === 'read' ? SECTIONS.AUTOMATION.VIEW :
+        action === 'write' ? SECTIONS.AUTOMATION.CREATE :
+        action === 'update' ? SECTIONS.AUTOMATION.UPDATE :
+        action === 'delete' ? SECTIONS.AUTOMATION.DELETE :
+        action === 'execute' ? SECTIONS.AUTOMATION.EXECUTE :
+        SECTIONS.AUTOMATION.MANAGE,
         action
     );
 };
@@ -189,43 +194,44 @@ const requireAutomationPermission = (action = 'read') => {
 // Calendar/Appointment Management
 const requireCalendarPermission = (action = 'read') => {
     return requirePermission(
-        action === 'read' ? PERMISSIONS.CALENDAR.READ :
-        action === 'write' ? PERMISSIONS.CALENDAR.WRITE :
-        action === 'update' ? PERMISSIONS.CALENDAR.UPDATE :
-        action === 'delete' ? PERMISSIONS.CALENDAR.DELETE :
-        action === 'book' ? PERMISSIONS.CALENDAR.BOOK :
-        PERMISSIONS.CALENDAR.MANAGE,
+        action === 'read' ? SECTIONS.CALENDAR.VIEW :
+        action === 'write' ? SECTIONS.CALENDAR.CREATE :
+        action === 'update' ? SECTIONS.CALENDAR.UPDATE :
+        action === 'delete' ? SECTIONS.CALENDAR.DELETE :
+        action === 'book' ? SECTIONS.CALENDAR.BOOK :
+        action === 'reschedule' ? SECTIONS.CALENDAR.RESCHEDULE :
+        SECTIONS.CALENDAR.MANAGE,
         action
     );
 };
 
-// Performance/Analytics
+// Performance/Analytics (Dashboard)
 const requirePerformancePermission = (action = 'read') => {
     return requirePermission(
-        action === 'read' ? PERMISSIONS.PERFORMANCE.READ :
-        action === 'write' ? PERMISSIONS.PERFORMANCE.WRITE :
-        PERMISSIONS.PERFORMANCE.MANAGE,
+        action === 'read' ? SECTIONS.DASHBOARD.VIEW :
+        action === 'write' ? SECTIONS.DASHBOARD.VIEW :
+        SECTIONS.DASHBOARD.VIEW,
         action
     );
 };
 
-// File Management
+// File Management (not in new structure, use dashboard)
 const requireFilePermission = (action = 'read') => {
     return requirePermission(
-        action === 'read' ? PERMISSIONS.FILES.READ :
-        action === 'write' ? PERMISSIONS.FILES.WRITE :
-        action === 'delete' ? PERMISSIONS.FILES.DELETE :
-        PERMISSIONS.FILES.MANAGE,
+        action === 'read' ? SECTIONS.DASHBOARD.VIEW :
+        action === 'write' ? SECTIONS.DASHBOARD.VIEW :
+        action === 'delete' ? SECTIONS.DASHBOARD.VIEW :
+        SECTIONS.DASHBOARD.VIEW,
         action
     );
 };
 
-// AI Features
+// AI Features (not in new structure, use dashboard)
 const requireAIPermission = (action = 'read') => {
     return requirePermission(
-        action === 'read' ? PERMISSIONS.AI.READ :
-        action === 'write' ? PERMISSIONS.AI.WRITE :
-        PERMISSIONS.AI.MANAGE,
+        action === 'read' ? SECTIONS.DASHBOARD.VIEW :
+        action === 'write' ? SECTIONS.DASHBOARD.VIEW :
+        SECTIONS.DASHBOARD.VIEW,
         action
     );
 };

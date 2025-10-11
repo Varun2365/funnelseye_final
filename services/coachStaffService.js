@@ -1,5 +1,5 @@
 const { getUserContext, hasStaffPermission, getCoachId } = require('../middleware/unifiedCoachAuth');
-const { PERMISSIONS } = require('../utils/permissions');
+const { SECTIONS } = require('../utils/sectionPermissions');
 
 /**
  * Coach-Staff Service
@@ -77,14 +77,26 @@ class CoachStaffService {
         const filters = {};
 
         if (context.isStaff) {
-            // Example: If staff doesn't have delete permission, exclude deleted items
-            if (!this.hasPermission(req, PERMISSIONS.LEADS.DELETE)) {
-                filters.isDeleted = { $ne: true };
+            // IMPORTANT: Staff can only see leads assigned to them
+            // Check if this is a lead-related query
+            const isLeadQuery = req.path.includes('/lead') || additionalFilters._isLeadQuery;
+            
+            if (isLeadQuery) {
+                // Staff can only see leads where:
+                // 1. assignedTo matches their user ID, OR
+                // 2. assignedStaffId matches their user ID (in appointment object)
+                // 3. UNLESS they have MANAGE_ALL permission
+                if (!this.hasPermission(req, SECTIONS.LEADS.MANAGE_ALL)) {
+                    filters.$or = [
+                        { assignedTo: context.userId },
+                        { 'appointment.assignedStaffId': context.userId }
+                    ];
+                }
             }
 
-            // Example: If staff doesn't have analytics permission, exclude sensitive data
-            if (!this.hasPermission(req, PERMISSIONS.PERFORMANCE.READ)) {
-                filters.includeAnalytics = false;
+            // If staff doesn't have delete permission, exclude deleted items
+            if (!this.hasPermission(req, SECTIONS.LEADS.DELETE)) {
+                filters.isDeleted = { $ne: true };
             }
 
             // Add more permission-based filters as needed
@@ -187,13 +199,13 @@ class CoachStaffService {
     static filterLeadData(req, lead) {
         const filtered = { ...lead };
 
-        if (!this.hasPermission(req, PERMISSIONS.LEADS.UPDATE)) {
+        if (!this.hasPermission(req, SECTIONS.LEADS.UPDATE)) {
             // Remove fields that require update permission
             delete filtered.lastContacted;
             delete filtered.notes;
         }
 
-        if (!this.hasPermission(req, PERMISSIONS.LEADS.DELETE)) {
+        if (!this.hasPermission(req, SECTIONS.LEADS.DELETE)) {
             // Remove delete-related fields
             delete filtered.deletedAt;
             delete filtered.deletedBy;
@@ -208,20 +220,83 @@ class CoachStaffService {
     static filterFunnelData(req, funnel) {
         const filtered = { ...funnel };
 
-        if (!this.hasPermission(req, PERMISSIONS.FUNNELS.VIEW_ANALYTICS)) {
+        if (!this.hasPermission(req, SECTIONS.FUNNELS.VIEW_ANALYTICS)) {
             // Remove analytics data
             delete filtered.analytics;
             delete filtered.conversionRates;
             delete filtered.revenue;
         }
 
-        if (!this.hasPermission(req, PERMISSIONS.FUNNELS.EDIT_STAGES)) {
+        if (!this.hasPermission(req, SECTIONS.FUNNELS.MANAGE)) {
             // Remove stage editing fields
             delete filtered.stagePermissions;
             delete filtered.editableStages;
         }
 
         return filtered;
+    }
+    
+    /**
+     * Build lead query filter that includes assignment check for staff
+     * @param {Object} req - Request object
+     * @param {Object} additionalFilters - Additional filters
+     * @returns {Object} - Complete query filter
+     */
+    static buildLeadQueryFilter(req, additionalFilters = {}) {
+        return this.buildResourceFilter(req, { ...additionalFilters, _isLeadQuery: true });
+    }
+    
+    /**
+     * Get messaging contacts filter for staff
+     * Staff can message:
+     * 1. Leads assigned to them
+     * 2. Contacts they have previously messaged with
+     * @param {Object} req - Request object
+     * @returns {Object} - Messaging contact filter
+     */
+    static async buildMessagingContactFilter(req) {
+        const context = this.getUserContext(req);
+        
+        if (context.isCoach) {
+            // Coaches can message all their leads
+            return { coachId: context.coachId };
+        }
+        
+        if (context.isStaff) {
+            const WhatsAppMessage = require('../schema/WhatsAppMessage');
+            const EmailMessage = require('../schema/EmailMessage');
+            
+            // Get contacts the staff has previously messaged
+            const [whatsappContacts, emailContacts] = await Promise.all([
+                WhatsAppMessage.distinct('to', {
+                    coachId: context.coachId,
+                    senderId: context.userId,
+                    senderType: 'staff'
+                }),
+                EmailMessage.distinct('to', {
+                    coachId: context.coachId,
+                    senderId: context.userId,
+                    senderType: 'staff'
+                })
+            ]);
+            
+            const previouslyMessagedContacts = [...new Set([...whatsappContacts, ...emailContacts])];
+            
+            // Staff can see:
+            // 1. Leads assigned to them
+            // 2. Contacts they've previously messaged
+            return {
+                coachId: context.coachId,
+                $or: [
+                    { assignedTo: context.userId },
+                    { 'appointment.assignedStaffId': context.userId },
+                    { phone: { $in: previouslyMessagedContacts } },
+                    { email: { $in: previouslyMessagedContacts } }
+                ]
+            };
+        }
+        
+        return { coachId: context.coachId };
     }
 
     /**

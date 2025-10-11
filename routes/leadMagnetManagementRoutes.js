@@ -25,47 +25,47 @@ router.use(unifiedCoachAuth(), updateLastActive, filterResourcesByPermission('le
 
 // @route   GET /api/lead-magnet-management/available
 // @desc    Get all available lead magnets for coach
-// @access  Private (Coach)
-router.get('/available', requirePermission('leads:read'), getAvailableMagnets);
+// @access  Private (Coach/Staff)
+router.get('/available', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.VIEW), getAvailableMagnets);
 
 // @route   POST /api/lead-magnet-management/generate-urls
 // @desc    Generate shareable URLs for a lead magnet
-// @access  Private (Coach)
-router.post('/generate-urls', requirePermission('leads:write'), generateShareableUrls);
+// @access  Private (Coach/Staff)
+router.post('/generate-urls', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.CREATE), generateShareableUrls);
 
 // @route   GET /api/lead-magnet-management/channels
 // @desc    Get predefined channel configurations
-// @access  Private (Coach)
-router.get('/channels', requirePermission('leads:read'), getPredefinedChannels);
+// @access  Private (Coach/Staff)
+router.get('/channels', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.VIEW), getPredefinedChannels);
 
 // @route   POST /api/lead-magnet-management/campaigns
 // @desc    Create campaign with multiple lead magnets
-// @access  Private (Coach)
-router.post('/campaigns', requirePermission('leads:manage'), createCampaign);
+// @access  Private (Coach/Staff)
+router.post('/campaigns', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.MANAGE), createCampaign);
 
 // @route   GET /api/lead-magnet-management/analytics
 // @desc    Get lead magnet analytics
-// @access  Private (Coach)
-router.get('/analytics', requirePermission('leads:read'), getAnalytics);
+// @access  Private (Coach/Staff)
+router.get('/analytics', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.VIEW), getAnalytics);
 
 // @route   GET /api/lead-magnet-management/interactions
 // @desc    Get lead magnet interaction details
-// @access  Private (Coach)
-router.get('/interactions', requirePermission('leads:read'), getInteractions);
+// @access  Private (Coach/Staff)
+router.get('/interactions', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.VIEW), getInteractions);
 
 // @route   GET /api/lead-magnet-management/top-performers
 // @desc    Get top performing lead magnets
-// @access  Private (Coach)
-router.get('/top-performers', requirePermission('leads:read'), getTopPerformers);
+// @access  Private (Coach/Staff)
+router.get('/top-performers', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.VIEW), getTopPerformers);
 
 // @route   GET /api/lead-magnet-management/export
 // @desc    Export lead magnet data
-// @access  Private (Coach)
-router.get('/export', requirePermission('leads:read'), exportData);
+// @access  Private (Coach/Staff)
+router.get('/export', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.EXPORT), exportData);
 
 // @route   GET /api/lead-magnet-management/trends
 // @desc    Get lead magnet performance trends
-// @access  Private (Coach)
-router.get('/trends', requirePermission('leads:read'), getTrends);
+// @access  Private (Coach/Staff)
+router.get('/trends', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.VIEW), getTrends);
 
 module.exports = router;

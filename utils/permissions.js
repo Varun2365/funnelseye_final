@@ -7,7 +7,7 @@
 const PERMISSIONS = {
     // Lead Management
     LEADS: {
-        READ: 'leads:read',
+        READ: 'leads:view',        // Changed from 'leads:read' to match section permissions
         WRITE: 'leads:write', 
         UPDATE: 'leads:update',
         DELETE: 'leads:delete',
@@ -140,7 +140,7 @@ const PERMISSIONS = {
 // ===== PERMISSION GROUPS =====
 const PERMISSION_GROUPS = {
     'Lead Manager': [
-        PERMISSIONS.LEADS.READ,
+        PERMISSIONS.LEADS.READ,  // This now correctly maps to 'leads:view'
         PERMISSIONS.LEADS.WRITE,
         PERMISSIONS.LEADS.UPDATE,
         PERMISSIONS.LEADS.MANAGE

@@ -1,7 +1,7 @@
 const Appointment = require('../schema/Appointment');
 const Staff = require('../schema/Staff');
 const Lead = require('../schema/Lead');
-const { hasPermission } = require('../utils/permissions');
+const { hasPermission } = require('../utils/unifiedPermissions');
 const CoachStaffService = require('../services/coachStaffService');
 
 /**

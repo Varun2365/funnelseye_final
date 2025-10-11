@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const { PERMISSIONS, PERMISSION_GROUPS } = require('../utils/permissions');
+const { PERMISSIONS, getPermissionsGroupedByCategory } = require('../utils/unifiedPermissions');
 
 /**
  * Get all available permissions

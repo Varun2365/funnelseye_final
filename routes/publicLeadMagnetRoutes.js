@@ -34,7 +34,7 @@ router.post('/track', trackInteraction);
 // @route   GET /lead-magnets/analytics/:coachId
 // @desc    Get lead magnet analytics for coach
 // @access  Private (Coach/Staff with permission)
-router.get('/analytics/:coachId', unifiedCoachAuth(), requirePermission('leads:read'), getMagnetAnalytics);
+router.get('/analytics/:coachId', unifiedCoachAuth(), requirePermission('leads:view'), getMagnetAnalytics);
 
 // @route   GET /lead-magnets/generate-url/:magnetType/:coachId
 // @desc    Generate shareable URL for lead magnet

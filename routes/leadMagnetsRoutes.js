@@ -29,25 +29,25 @@ const { updateLastActive } = require('../middleware/activityMiddleware');
 router.use(unifiedCoachAuth(), updateLastActive, filterResourcesByPermission('leads'));
 
 // Coach lead magnet management
-router.get('/coach', requirePermission('leads:read'), getCoachLeadMagnets);
-router.put('/coach', requirePermission('leads:manage'), updateCoachLeadMagnets);
+router.get('/coach', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.VIEW), getCoachLeadMagnets);
+router.put('/coach', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.MANAGE), updateCoachLeadMagnets);
 
 // Lead magnet tools
-router.post('/ai-diet-plan', requirePermission('leads:write'), generateAIDietPlan);
-router.post('/bmi-calculator', requirePermission('leads:write'), calculateBMIAndRecommendations);
-router.post('/ebook-generator', requirePermission('leads:write'), generateEbookContent);
-router.post('/workout-calculator', requirePermission('leads:write'), calculateWorkoutMetrics);
-router.post('/progress-tracker', requirePermission('leads:write'), trackProgress);
-router.post('/sleep-analyzer', requirePermission('leads:write'), analyzeSleepQuality);
-router.post('/stress-assessment', requirePermission('leads:write'), assessStressLevel);
+router.post('/ai-diet-plan', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.CREATE), generateAIDietPlan);
+router.post('/bmi-calculator', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.CREATE), calculateBMIAndRecommendations);
+router.post('/ebook-generator', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.CREATE), generateEbookContent);
+router.post('/workout-calculator', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.CREATE), calculateWorkoutMetrics);
+router.post('/progress-tracker', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.CREATE), trackProgress);
+router.post('/sleep-analyzer', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.CREATE), analyzeSleepQuality);
+router.post('/stress-assessment', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.CREATE), assessStressLevel);
 
 // Mark lead magnet conversion
-router.post('/mark-conversion', requirePermission('leads:update'), markConversion);
+router.post('/mark-conversion', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.UPDATE), markConversion);
 
 // Analytics and history
-router.get('/available', requirePermission('leads:read'), getAvailableLeadMagnets);
-router.get('/analytics', requirePermission('leads:read'), getLeadMagnetAnalytics);
-router.get('/interaction-analytics', requirePermission('leads:read'), getInteractionAnalytics);
-router.get('/history/:leadId', requirePermission('leads:read'), getLeadMagnetHistory);
+router.get('/available', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.VIEW), getAvailableLeadMagnets);
+router.get('/analytics', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.VIEW), getLeadMagnetAnalytics);
+router.get('/interaction-analytics', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.VIEW), getInteractionAnalytics);
+router.get('/history/:leadId', requirePermission(require('../utils/sectionPermissions').SECTIONS.LEADS.VIEW), getLeadMagnetHistory);
 
 module.exports = router;

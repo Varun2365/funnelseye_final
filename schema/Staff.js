@@ -15,6 +15,16 @@ const Staff = User.discriminator('staff', new mongoose.Schema({
 	isActive: {
 		type: Boolean,
 		default: true
+	},
+	distributionRatio: {
+		type: Number,
+		default: 1, // Distribution weight for automatic lead assignment (1 = normal, 2 = double, etc.)
+		min: 0,
+		max: 10
+	},
+	lastActive: {
+		type: Date,
+		default: Date.now
 	}
 }, { timestamps: true }));
 

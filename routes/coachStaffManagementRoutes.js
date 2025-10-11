@@ -15,8 +15,25 @@ router.use(unifiedCoachAuth(), updateLastActive, filterResourcesByPermission('st
 
 // ===== STAFF MANAGEMENT ENDPOINTS =====
 
+// IMPORTANT: Specific routes MUST come before :staffId routes
+
 // Get all permissions grouped by category (for frontend permission management)
 router.get('/permissions', requirePermission('staff:read'), coachStaffManagementController.getPermissionsList);
+
+// Get available permission presets
+router.get('/presets', requirePermission('staff:read'), coachStaffManagementController.getPermissionPresets);
+
+// Get team performance (all staff comparison)
+router.get('/team-performance', coachStaffManagementController.getTeamPerformanceMetrics);
+
+// Get lead distribution settings (Coach only)
+router.get('/lead-distribution', coachStaffManagementController.getLeadDistribution);
+
+// Update lead distribution settings (Coach only)
+router.put('/lead-distribution', coachStaffManagementController.updateLeadDistribution);
+
+// Bulk update staff permissions
+router.put('/bulk-permissions', coachStaffManagementController.bulkUpdatePermissions);
 
 // Get all staff members
 router.get('/', requirePermission('staff:read'), coachStaffManagementController.getStaffMembers);
@@ -44,12 +61,16 @@ router.post('/:staffId/permission-group', requirePermission('staff:manage'), coa
 // Toggle staff active status
 router.put('/:staffId/toggle-status', requirePermission('staff:manage'), coachStaffManagementController.toggleStaffStatus);
 
-// Get staff performance
+// Get staff performance (legacy endpoint)
 router.get('/:staffId/performance', requirePermission('staff:read'), coachStaffManagementController.getStaffPerformance);
 
-// ===== BULK OPERATIONS =====
+// Get staff tasks
+router.get('/:staffId/tasks', coachStaffManagementController.getStaffTasks);
 
-// Bulk update staff permissions
-router.put('/bulk-permissions', coachStaffManagementController.bulkUpdatePermissions);
+// Get staff metrics (performance score and stats)
+router.get('/:staffId/metrics', coachStaffManagementController.getStaffMetrics);
+
+// Get staff assigned leads
+router.get('/:staffId/leads', coachStaffManagementController.getStaffLeads);
 
 module.exports = router;

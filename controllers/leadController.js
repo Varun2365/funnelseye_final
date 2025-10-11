@@ -6,6 +6,7 @@ const { scheduleFutureEvent } = require('../services/automationSchedulerService'
 const leadScoringService = require('../services/leadScoringService');
 const aiService = require('../services/aiService');
 const CoachStaffService = require('../services/coachStaffService');
+const { SECTIONS } = require('../utils/sectionPermissions');
 
 // Lead qualification logic (integrated)
 const qualifyClientLead = (clientQuestions, vslWatchPercentage = 0) => {
@@ -386,9 +387,9 @@ const getLeads = async (req, res) => {
             queryStr = JSON.stringify({ ...JSON.parse(queryStr), nextFollowUpAt: nextFollowUpAtFilter });
         }
 
-        // Build query with staff permission filtering
+        // Build query with staff permission filtering (IMPORTANT: Use buildLeadQueryFilter for assigned leads)
         const baseQuery = { ...JSON.parse(queryStr), coachId };
-        const filteredQuery = CoachStaffService.buildResourceFilter(req, baseQuery);
+        const filteredQuery = CoachStaffService.buildLeadQueryFilter(req, baseQuery);
         
         query = Lead.find(filteredQuery);
 
@@ -469,7 +470,10 @@ const getLead = async (req, res) => {
         // Log staff action if applicable
         CoachStaffService.logStaffAction(req, 'read', 'leads', req.params.leadId, { coachId });
         
-        const lead = await Lead.findOne({ _id: req.params.leadId, coachId })
+        // Build query with assignment filtering for staff
+        const leadQuery = CoachStaffService.buildLeadQueryFilter(req, { _id: req.params.leadId });
+        
+        const lead = await Lead.findOne(leadQuery)
             .populate('funnelId', 'name')
             .populate('assignedTo', 'name')
             .populate('followUpHistory.createdBy', 'name')
@@ -625,12 +629,22 @@ const updateLead = async (req, res) => {
 // @access  Private (Coaches/Admins)
 const addFollowUpNote = async (req, res) => {
     try {
-        let lead = await Lead.findOne({ _id: req.params.leadId, coachId: req.coachId });
+        // Get coach ID using unified service (handles both coach and staff)
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
+        // Log staff action if applicable
+        CoachStaffService.logStaffAction(req, 'update', 'leads', 'add_followup', { coachId, leadId: req.params.leadId });
+        
+        // Build query with assignment filtering for staff
+        const leadQuery = CoachStaffService.buildLeadQueryFilter(req, { _id: req.params.leadId });
+        
+        let lead = await Lead.findOne(leadQuery);
 
         if (!lead) {
             return res.status(404).json({
                 success: false,
-                message: `Lead not found or you do not own this lead.`
+                message: `Lead not found or you do not have access to this lead.`
             });
         }
 
@@ -714,7 +728,13 @@ const addFollowUpNote = async (req, res) => {
 // @access  Private (Coaches/Admins)
 const getUpcomingFollowUps = async (req, res) => {
     try {
-        const coachId = req.coachId;
+        // Get coach ID using unified service (handles both coach and staff)
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
+        // Log staff action if applicable
+        CoachStaffService.logStaffAction(req, 'read', 'leads', 'upcoming_followups', { coachId });
+        
         const days = parseInt(req.query.days, 10) || 7;
         const includeOverdue = req.query.includeOverdue === 'true';
 
@@ -723,7 +743,6 @@ const getUpcomingFollowUps = async (req, res) => {
         futureDate.setDate(now.getDate() + days);
 
         let matchQuery = {
-            coachId,
             nextFollowUpAt: { $ne: null }
         };
 
@@ -733,6 +752,9 @@ const getUpcomingFollowUps = async (req, res) => {
             matchQuery.nextFollowUpAt.$gte = now;
             matchQuery.nextFollowUpAt.$lte = futureDate;
         }
+        
+        // Build query with assignment filtering for staff
+        matchQuery = CoachStaffService.buildLeadQueryFilter(req, matchQuery);
 
         const leads = await Lead.find(matchQuery)
             .sort('nextFollowUpAt')
@@ -758,12 +780,22 @@ const getUpcomingFollowUps = async (req, res) => {
 // @access  Private (Coaches/Admins)
 const deleteLead = async (req, res) => {
     try {
-        const lead = await Lead.findOne({ _id: req.params.leadId, coachId: req.coachId });
+        // Get coach ID using unified service (handles both coach and staff)
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
+        // Log staff action if applicable
+        CoachStaffService.logStaffAction(req, 'delete', 'leads', req.params.leadId, { coachId });
+        
+        // Build query with assignment filtering for staff
+        const leadQuery = CoachStaffService.buildLeadQueryFilter(req, { _id: req.params.leadId });
+        
+        const lead = await Lead.findOne(leadQuery);
 
         if (!lead) {
             return res.status(404).json({
                 success: false,
-                message: `Lead not found or you do not own this lead.`
+                message: `Lead not found or you do not have access to this lead.`
             });
         }
 
@@ -775,7 +807,9 @@ const deleteLead = async (req, res) => {
             eventName: eventName,
             payload: {
                 leadId: lead._id,
-                coachId: req.user.id,
+                coachId: coachId,
+                deletedBy: userContext.userId,
+                deletedByType: userContext.isStaff ? 'staff' : 'coach'
             }
         };
         publishEvent(eventName, eventPayload).catch(err => console.error(`[Controller] Failed to publish event: ${eventName}`, err));
@@ -914,15 +948,37 @@ async function triggerNurturingStepAction(lead, step) {
 // Assign a nurturing sequence to a lead
 const assignNurturingSequence = async (req, res) => {
     try {
+        // Get coach ID using unified service (handles both coach and staff)
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
         const { leadId, sequenceId } = req.body;
-        const lead = await Lead.findById(leadId);
-        if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+        
+        // Log staff action if applicable
+        CoachStaffService.logStaffAction(req, 'update', 'leads', 'assign_sequence', { coachId, leadId, sequenceId });
+        
+        // Build query with assignment filtering for staff
+        const leadQuery = CoachStaffService.buildLeadQueryFilter(req, { _id: leadId });
+        
+        const lead = await Lead.findOne(leadQuery);
+        if (!lead) return res.status(404).json({ success: false, message: 'Lead not found or you do not have access to this lead' });
+        
         const sequence = await NurturingSequence.findById(sequenceId);
         if (!sequence) return res.status(404).json({ success: false, message: 'Nurturing sequence not found' });
+        
         lead.nurturingSequence = sequenceId;
         lead.nurturingStepIndex = 0;
         await lead.save();
-        res.status(200).json({ success: true, message: 'Nurturing sequence assigned', data: lead });
+        
+        res.status(200).json({ 
+            success: true, 
+            message: 'Nurturing sequence assigned', 
+            data: lead,
+            userContext: {
+                isStaff: userContext.isStaff,
+                permissions: userContext.permissions
+            }
+        });
     } catch (e) {
         console.error('Assign nurturing sequence error:', e);
         res.status(500).json({ success: false, message: 'Server error during assignment.' });
@@ -932,9 +988,20 @@ const assignNurturingSequence = async (req, res) => {
 // Advance a lead to the next nurturing step (now uses automation system)
 const advanceNurturingStep = async (req, res) => {
     try {
+        // Get coach ID using unified service (handles both coach and staff)
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
         const { leadId } = req.body;
-        const lead = await Lead.findById(leadId).populate('nurturingSequence');
-        if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+        
+        // Log staff action if applicable
+        CoachStaffService.logStaffAction(req, 'update', 'leads', 'advance_nurturing', { coachId, leadId });
+        
+        // Build query with assignment filtering for staff
+        const leadQuery = CoachStaffService.buildLeadQueryFilter(req, { _id: leadId });
+        
+        const lead = await Lead.findOne(leadQuery).populate('nurturingSequence');
+        if (!lead) return res.status(404).json({ success: false, message: 'Lead not found or you do not have access to this lead' });
         if (!lead.nurturingSequence) return res.status(400).json({ success: false, message: 'No nurturing sequence assigned' });
         const sequence = lead.nurturingSequence;
         if (lead.nurturingStepIndex >= sequence.steps.length) {
@@ -971,13 +1038,31 @@ const advanceNurturingStep = async (req, res) => {
 // Get nurturing sequence progress for a lead
 const getNurturingProgress = async (req, res) => {
     try {
+        // Get coach ID using unified service (handles both coach and staff)
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
         const { leadId } = req.params;
-        const lead = await Lead.findById(leadId).populate('nurturingSequence');
-        if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+        
+        // Log staff action if applicable
+        CoachStaffService.logStaffAction(req, 'read', 'leads', 'nurturing_progress', { coachId, leadId });
+        
+        // Build query with assignment filtering for staff
+        const leadQuery = CoachStaffService.buildLeadQueryFilter(req, { _id: leadId });
+        
+        const lead = await Lead.findOne(leadQuery).populate('nurturingSequence');
+        if (!lead) return res.status(404).json({ success: false, message: 'Lead not found or you do not have access to this lead' });
         if (!lead.nurturingSequence) return res.status(200).json({ success: true, data: { progress: null, message: 'No nurturing sequence assigned' } });
         const sequence = lead.nurturingSequence;
         const currentStep = sequence.steps[lead.nurturingStepIndex] || null;
-        res.status(200).json({ success: true, data: { sequence, currentStep, stepIndex: lead.nurturingStepIndex } });
+        res.status(200).json({ 
+            success: true, 
+            data: { sequence, currentStep, stepIndex: lead.nurturingStepIndex },
+            userContext: {
+                isStaff: userContext.isStaff,
+                permissions: userContext.permissions
+            }
+        });
     } catch (e) {
         console.error('Get nurturing progress error:', e);
         res.status(500).json({ success: false, message: 'Server error during progress fetch.' });
@@ -1016,11 +1101,22 @@ const convertLeadToClient = async (req, res) => {
 // AI-powered lead qualification
 const aiQualifyLead = async (req, res) => {
     try {
+        // Get coach ID using unified service (handles both coach and staff)
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
         const { leadId } = req.params;
-        const lead = await Lead.findById(leadId).populate('coachId');
+        
+        // Log staff action if applicable
+        CoachStaffService.logStaffAction(req, 'read', 'leads', 'ai_qualify', { coachId, leadId });
+        
+        // Build query with assignment filtering for staff
+        const leadQuery = CoachStaffService.buildLeadQueryFilter(req, { _id: leadId });
+        
+        const lead = await Lead.findOne(leadQuery).populate('coachId');
         
         if (!lead) {
-            return res.status(404).json({ success: false, message: 'Lead not found' });
+            return res.status(404).json({ success: false, message: 'Lead not found or you do not have access to this lead' });
         }
 
         // Generate AI insights for the lead
@@ -1147,12 +1243,23 @@ function generateSequenceSteps(aiContent, sequenceType, lead) {
 // AI-powered lead nurturing sequence generation
 const generateNurturingSequence = async (req, res) => {
     try {
+        // Get coach ID using unified service (handles both coach and staff)
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
         const { sequenceType } = req.body;
         const leadId = req.params.leadId; // Get leadId from URL parameters
-        const lead = await Lead.findById(leadId).populate('coachId');
+        
+        // Log staff action if applicable
+        CoachStaffService.logStaffAction(req, 'write', 'leads', 'generate_sequence', { coachId, leadId, sequenceType });
+        
+        // Build query with assignment filtering for staff
+        const leadQuery = CoachStaffService.buildLeadQueryFilter(req, { _id: leadId });
+        
+        const lead = await Lead.findOne(leadQuery).populate('coachId');
         
         if (!lead) {
-            return res.status(404).json({ success: false, message: 'Lead not found' });
+            return res.status(404).json({ success: false, message: 'Lead not found or you do not have access to this lead' });
         }
 
         let sequencePrompt = '';
@@ -1211,12 +1318,23 @@ const generateNurturingSequence = async (req, res) => {
 // AI-powered follow-up message generation
 const generateFollowUpMessage = async (req, res) => {
     try {
+        // Get coach ID using unified service (handles both coach and staff)
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
         const { followUpType, context } = req.body;
         const leadId = req.params.leadId; // Get leadId from URL parameters
-        const lead = await Lead.findById(leadId).populate('coachId');
+        
+        // Log staff action if applicable
+        CoachStaffService.logStaffAction(req, 'write', 'leads', 'generate_followup_message', { coachId, leadId, followUpType });
+        
+        // Build query with assignment filtering for staff
+        const leadQuery = CoachStaffService.buildLeadQueryFilter(req, { _id: leadId });
+        
+        const lead = await Lead.findOne(leadQuery).populate('coachId');
         
         if (!lead) {
-            return res.status(404).json({ success: false, message: 'Lead not found' });
+            return res.status(404).json({ success: false, message: 'Lead not found or you do not have access to this lead' });
         }
 
         let prompt = '';
@@ -1699,12 +1817,31 @@ module.exports = {
     // simple AI rescore endpoint handler
     aiRescore: async (req, res) => {
         try {
-            const lead = await Lead.findOne({ _id: req.params.leadId, coachId: req.coachId });
-            if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+            // Get coach ID using unified service (handles both coach and staff)
+            const coachId = CoachStaffService.getCoachIdForQuery(req);
+            const userContext = CoachStaffService.getUserContext(req);
+            
+            // Log staff action if applicable
+            CoachStaffService.logStaffAction(req, 'write', 'leads', 'ai_rescore', { coachId, leadId: req.params.leadId });
+            
+            // Build query with assignment filtering for staff
+            const leadQuery = CoachStaffService.buildLeadQueryFilter(req, { _id: req.params.leadId });
+            
+            const lead = await Lead.findOne(leadQuery);
+            if (!lead) return res.status(404).json({ success: false, message: 'Lead not found or you do not have access to this lead' });
+            
             const { score, explanation } = calculateLeadScore(lead);
             lead.score = score;
             await lead.save();
-            return res.status(200).json({ success: true, data: { leadId: lead._id, score, explanation } });
+            
+            return res.status(200).json({ 
+                success: true, 
+                data: { leadId: lead._id, score, explanation },
+                userContext: {
+                    isStaff: userContext.isStaff,
+                    permissions: userContext.permissions
+                }
+            });
         } catch (e) {
             console.error('AI rescore error:', e);
             return res.status(500).json({ success: false, message: 'Server error during AI rescore.' });

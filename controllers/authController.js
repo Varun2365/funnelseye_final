@@ -163,26 +163,42 @@ const signup = async (req, res) => {
         if (!currentLevel || currentLevel < 1 || currentLevel > 12) {
             return res.status(400).json({ success: false, message: 'Valid hierarchy level (1-12) is required for coach role.' });
         }
-        if (!sponsorId) {
-            return res.status(400).json({ success: false, message: 'Sponsor ID is required for coach role. Please select a digital coach as your sponsor.' });
-        }
+        // TEMPORARILY DISABLED: Allow creating first coach without sponsor
+        // if (!sponsorId) {
+        //     return res.status(400).json({ success: false, message: 'Sponsor ID is required for coach role. Please select a digital coach as your sponsor.' });
+        // }
     }
 
     try {
         let user = await User.findOne({ email });
         if (user) {
             if (!user.isVerified) {
+                // User exists but not verified - auto-send OTP
                 await Otp.deleteMany({ email });
                 const otp = generateOtp();
-                await Otp.create({ email, otp });
+                await Otp.create({ email, otp, createdAt: new Date(), expiresAt: new Date(Date.now() + 5 * 60 * 1000) });
                 const otpSent = await sendOtp(email, otp);
                 if (otpSent) {
-                    return res.status(200).json({ success: true, message: 'User already exists but is not verified. A new OTP has been sent to your email.' });
+                    return res.status(200).json({ 
+                        success: true, 
+                        otpSent: true,
+                        needsVerification: true,
+                        userId: user._id,
+                        email: user.email,
+                        message: 'User already exists but is not verified. A new OTP has been sent to your email for verification.' 
+                    });
                 } else {
-                    return res.status(500).json({ success: false, message: 'Failed to send OTP. Please try again.' });
+                    return res.status(500).json({ 
+                        success: false, 
+                        otpSent: false,
+                        message: 'User exists but failed to send OTP. Please try again.' 
+                    });
                 }
             }
-            return res.status(400).json({ success: false, message: 'User with this email already exists and is verified.' });
+            return res.status(400).json({ 
+                success: false, 
+                message: 'User with this email already exists and is verified. Please login.' 
+            });
         }
 
         // Check if coach ID is already taken (only for coach role)
@@ -211,16 +227,17 @@ const signup = async (req, res) => {
             userData.currentLevel = currentLevel;
             userData.hierarchyLocked = false; // Will be locked after first save
             
-            // Look up sponsor by selfCoachId and convert to MongoDB ObjectId
+            // Add sponsor if provided (optional now)
             if (sponsorId) {
-                const sponsor = await User.findOne({ selfCoachId: sponsorId, role: 'coach' });
-                if (!sponsor) {
+                // Look up sponsor by MongoDB ObjectId directly
+                const sponsor = await User.findById(sponsorId);
+                if (!sponsor || sponsor.role !== 'coach') {
                     return res.status(400).json({ 
                         success: false, 
-                        message: `Sponsor with Coach ID "${sponsorId}" not found. Please enter a valid Coach ID.` 
+                        message: 'Invalid sponsor ID. Please provide a valid coach ID.' 
                     });
                 }
-                userData.sponsorId = sponsor._id; // Use MongoDB ObjectId
+                userData.sponsorId = sponsor._id;
             }
             
             // Add optional team rank fields
@@ -236,6 +253,7 @@ const signup = async (req, res) => {
             await autoLockHierarchy(newUser._id);
         }
         
+        // Generate and send OTP
         const otp = generateOtp();
         await Otp.create({ email, otp, createdAt: new Date(), expiresAt: new Date(Date.now() + 5 * 60 * 1000) });
 
@@ -244,6 +262,8 @@ const signup = async (req, res) => {
         if (otpSent) {
             res.status(201).json({
                 success: true,
+                otpSent: true,
+                needsVerification: true,
                 message: role === 'coach' 
                     ? 'Coach registered successfully with MLM hierarchy. An OTP has been sent to your email for verification.'
                     : 'User registered successfully. An OTP has been sent to your email for verification.',
@@ -255,12 +275,15 @@ const signup = async (req, res) => {
                     currentLevel: newUser.currentLevel,
                     sponsorId: newUser.sponsorId,
                     teamRankName: newUser.teamRankName,
-                    presidentTeamRankName: newUser.presidentTeamRankName,
-                    message: 'You can now build your downline and earn commissions!'
+                    presidentTeamRankName: newUser.presidentTeamRankName
                 })
             });
         } else {
-            res.status(500).json({ success: false, message: 'User registered, but failed to send OTP. Please try logging in and re-requesting OTP.' });
+            res.status(500).json({ 
+                success: false, 
+                otpSent: false,
+                message: 'User registered, but failed to send OTP. Please try resending OTP.' 
+            });
         }
 
     } catch (error) {
@@ -312,18 +335,34 @@ const login = async (req, res) => {
         if (!user) {
             return res.status(400).json({ success: false, message: 'Invalid credentials.' });
         }
-        if (!user.isVerified) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Please verify your email first. Use the resend OTP endpoint to get a new verification code.',
-                needsVerification: true,
-                email: user.email
-            });
-        }
+        
+        // Verify password first
         const isMatch = await user.matchPassword(password);
         if (!isMatch) {
             return res.status(400).json({ success: false, message: 'Invalid credentials.' });
         }
+        
+        // If user is not verified, auto-send OTP
+        if (!user.isVerified) {
+            // Delete old OTPs and generate new one
+            await Otp.deleteMany({ email });
+            const otp = generateOtp();
+            await Otp.create({ email, otp, createdAt: new Date(), expiresAt: new Date(Date.now() + 5 * 60 * 1000) });
+            const otpSent = await sendOtp(email, otp);
+            
+            return res.status(403).json({ 
+                success: false, 
+                otpSent: otpSent,
+                needsVerification: true,
+                userId: user._id,
+                email: user.email,
+                message: otpSent 
+                    ? 'Your account is not verified. An OTP has been sent to your email for verification.'
+                    : 'Your account is not verified. Failed to send OTP. Please try resending OTP.'
+            });
+        }
+        
+        // User is verified, send token
         sendTokenResponse(user, 200, res);
     } catch (error) {
         console.error('Error during login:', error.message);
@@ -542,9 +581,9 @@ const upgradeToCoach = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Valid hierarchy level (1-12) is required.' });
     }
 
-    if (!sponsorId) {
-        return res.status(400).json({ success: false, message: 'Sponsor ID is required. Please select a digital coach as your sponsor.' });
-    }
+    // if (!sponsorId) {
+    //     return res.status(400).json({ success: false, message: 'Sponsor ID is required. Please select a digital coach as your sponsor.' });
+    // }
 
     try {
         // Find the user
@@ -581,20 +620,20 @@ const upgradeToCoach = async (req, res) => {
         user.hierarchyLocked = false; // Will be locked after first save
         
         // Look up sponsor by selfCoachId and convert to MongoDB ObjectId
-        if (sponsorId) {
-            const sponsor = await User.findOne({ selfCoachId: sponsorId, role: 'coach' });
-            if (!sponsor) {
-                return res.status(400).json({ 
-                    success: false, 
-                    message: `Sponsor with Coach ID "${sponsorId}" not found. Please enter a valid Coach ID.` 
-                });
-            }
-            user.sponsorId = sponsor._id; // Use MongoDB ObjectId
-        }
+        // if (sponsorId) {
+        //     const sponsor = await User.findOne({ selfCoachId: sponsorId, role: 'coach' });
+        //     if (!sponsor) {
+        //         return res.status(400).json({ 
+        //             success: false, 
+        //             message: `Sponsor with Coach ID "${sponsorId}" not found. Please enter a valid Coach ID.` 
+        //         });
+        //     }
+        //     user.sponsorId = sponsor._id; // Use MongoDB ObjectId
+        // }
         
         // Add optional team rank fields
-        if (teamRankName) user.teamRankName = teamRankName;
-        if (presidentTeamRankName) user.presidentTeamRankName = presidentTeamRankName;
+        // if (teamRankName) user.teamRankName = teamRankName;
+        // if (presidentTeamRankName) user.presidentTeamRankName = presidentTeamRankName;
 
         await user.save();
 

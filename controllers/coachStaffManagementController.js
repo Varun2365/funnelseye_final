@@ -1,11 +1,15 @@
 const Staff = require('../schema/Staff');
 const User = require('../schema/User');
+const Lead = require('../schema/Lead');
+const Task = require('../schema/Task');
 const asyncHandler = require('../middleware/async');
-const { PERMISSIONS, PERMISSION_GROUPS } = require('../utils/permissions');
+const staffDashboardService = require('../services/staffDashboardService');
+const CoachStaffService = require('../services/coachStaffService');
 const { 
-    SECTIONS, 
-    SECTION_METADATA, 
+    SECTIONS,
+    SECTION_METADATA,
     PERMISSION_PRESETS,
+    getAllValidPermissions,
     getSectionsGroupedByCategory,
     getAvailablePresets 
 } = require('../utils/sectionPermissions');
@@ -15,6 +19,44 @@ const {
  * Allows coaches to manage their staff members and assign permissions
  */
 class CoachStaffManagementController {
+
+    /**
+     * Get available permission presets
+     * @route GET /api/coach/staff/presets
+     * @access Private (Coach/Staff with staff:read permission)
+     */
+    getPermissionPresets = asyncHandler(async (req, res) => {
+        const userContext = req.userContext;
+        
+        // Log staff action if applicable
+        if (userContext && userContext.isStaff) {
+            console.log(`[Staff Action] ${userContext.userId} accessed permission presets`);
+        }
+
+        // Get available presets from unified permissions
+        const presetNames = getAvailablePresets();
+        const presets = {};
+        
+        for (const presetName of presetNames) {
+            presets[presetName] = {
+                name: presetName,
+                permissions: PERMISSION_PRESETS[presetName],
+                description: `${presetName} permission preset`
+            };
+        }
+
+        res.json({
+            success: true,
+            data: {
+                presets: presets,
+                totalPresets: presetNames.length,
+                userContext: {
+                    isStaff: userContext ? userContext.isStaff : false,
+                    permissions: userContext ? userContext.permissions : []
+                }
+            }
+        });
+    });
 
     /**
      * Get all permissions grouped by category
@@ -30,444 +72,38 @@ class CoachStaffManagementController {
             console.log(`[Staff Action] ${userContext.userId} accessed permissions list for coach ${coachId}`);
         }
 
-        // Group permissions by category with descriptions
-        const permissionsList = {
-            leads: {
-                category: "Lead Management",
-                description: "Manage leads, lead magnets, and lead generation tools",
-                permissions: {
-                    "leads:read": {
-                        name: "View Leads",
-                        description: "View lead information and analytics"
-                    },
-                    "leads:write": {
-                        name: "Create Leads",
-                        description: "Create new leads and lead magnet tools"
-                    },
-                    "leads:update": {
-                        name: "Update Leads", 
-                        description: "Update existing lead information and status"
-                    },
-                    "leads:delete": {
-                        name: "Delete Leads",
-                        description: "Remove leads from the system"
-                    },
-                    "leads:manage": {
-                        name: "Manage Leads",
-                        description: "Full lead management including bulk operations"
-                    }
-                }
-            },
-            funnels: {
-                category: "Funnel Management",
-                description: "Create and manage sales funnels",
-                permissions: {
-                    "funnels:read": {
-                        name: "View Funnels",
-                        description: "View funnel information and analytics"
-                    },
-                    "funnels:write": {
-                        name: "Create Funnels",
-                        description: "Create new sales funnels"
-                    },
-                    "funnels:update": {
-                        name: "Update Funnels",
-                        description: "Modify existing funnel configurations"
-                    },
-                    "funnels:delete": {
-                        name: "Delete Funnels",
-                        description: "Remove funnels from the system"
-                    },
-                    "funnels:manage": {
-                        name: "Manage Funnels",
-                        description: "Full funnel management including publishing"
-                    },
-                    "funnels:view_analytics": {
-                        name: "View Funnel Analytics",
-                        description: "Access funnel performance analytics"
-                    },
-                    "funnels:edit_stages": {
-                        name: "Edit Funnel Stages",
-                        description: "Modify funnel stage configurations"
-                    },
-                    "funnels:manage_stages": {
-                        name: "Manage Funnel Stages",
-                        description: "Add, remove, and reorder funnel stages"
-                    },
-                    "funnels:publish": {
-                        name: "Publish Funnels",
-                        description: "Make funnels live and accessible"
-                    },
-                    "funnels:unpublish": {
-                        name: "Unpublish Funnels",
-                        description: "Take funnels offline"
-                    }
-                }
-            },
-            tasks: {
-                category: "Task Management",
-                description: "Manage workflow tasks and automation",
-                permissions: {
-                    "tasks:read": {
-                        name: "View Tasks",
-                        description: "View task information and status"
-                    },
-                    "tasks:write": {
-                        name: "Create Tasks",
-                        description: "Create new tasks and workflows"
-                    },
-                    "tasks:update": {
-                        name: "Update Tasks",
-                        description: "Modify existing task information"
-                    },
-                    "tasks:delete": {
-                        name: "Delete Tasks",
-                        description: "Remove tasks from the system"
-                    },
-                    "tasks:manage": {
-                        name: "Manage Tasks",
-                        description: "Full task management including bulk operations"
-                    },
-                    "tasks:assign": {
-                        name: "Assign Tasks",
-                        description: "Assign tasks to team members"
-                    }
-                }
-            },
-            calendar: {
-                category: "Calendar Management",
-                description: "Manage appointments and calendar events",
-                permissions: {
-                    "calendar:read": {
-                        name: "View Calendar",
-                        description: "View calendar events and availability"
-                    },
-                    "calendar:write": {
-                        name: "Create Events",
-                        description: "Create new calendar events"
-                    },
-                    "calendar:update": {
-                        name: "Update Events",
-                        description: "Modify existing calendar events"
-                    },
-                    "calendar:delete": {
-                        name: "Delete Events",
-                        description: "Remove calendar events"
-                    },
-                    "calendar:manage": {
-                        name: "Manage Calendar",
-                        description: "Full calendar management including settings"
-                    },
-                    "calendar:book": {
-                        name: "Book Appointments",
-                        description: "Book appointments for clients"
-                    }
-                }
-            },
-            staff: {
-                category: "Staff Management",
-                description: "Manage team members and permissions",
-                permissions: {
-                    "staff:read": {
-                        name: "View Staff",
-                        description: "View staff member information"
-                    },
-                    "staff:write": {
-                        name: "Create Staff",
-                        description: "Add new staff members"
-                    },
-                    "staff:update": {
-                        name: "Update Staff",
-                        description: "Modify staff member information"
-                    },
-                    "staff:delete": {
-                        name: "Delete Staff",
-                        description: "Remove staff members"
-                    },
-                    "staff:manage": {
-                        name: "Manage Staff",
-                        description: "Full staff management including permissions"
-                    }
-                }
-            },
-            performance: {
-                category: "Performance & Analytics",
-                description: "Access performance metrics and analytics",
-                permissions: {
-                    "performance:read": {
-                        name: "View Performance",
-                        description: "View performance metrics and analytics"
-                    },
-                    "performance:manage": {
-                        name: "Manage Performance",
-                        description: "Manage performance tracking and reporting"
-                    }
-                }
-            },
-            files: {
-                category: "File Management",
-                description: "Manage files and documents",
-                permissions: {
-                    "files:read": {
-                        name: "View Files",
-                        description: "View and download files"
-                    },
-                    "files:write": {
-                        name: "Upload Files",
-                        description: "Upload new files and documents"
-                    },
-                    "files:update": {
-                        name: "Update Files",
-                        description: "Modify file information and metadata"
-                    },
-                    "files:delete": {
-                        name: "Delete Files",
-                        description: "Remove files from the system"
-                    },
-                    "files:manage": {
-                        name: "Manage Files",
-                        description: "Full file management including organization"
-                    }
-                }
-            },
-            ai: {
-                category: "AI Tools",
-                description: "Access AI-powered features and tools",
-                permissions: {
-                    "ai:read": {
-                        name: "View AI Tools",
-                        description: "View AI-generated content and insights"
-                    },
-                    "ai:write": {
-                        name: "Use AI Tools",
-                        description: "Generate content using AI tools"
-                    },
-                    "ai:manage": {
-                        name: "Manage AI Tools",
-                        description: "Configure and manage AI tool settings"
-                    }
-                }
-            },
-            whatsapp: {
-                category: "WhatsApp Integration",
-                description: "Manage WhatsApp messaging and automation",
-                permissions: {
-                    "whatsapp:read": {
-                        name: "View WhatsApp",
-                        description: "View WhatsApp messages and analytics"
-                    },
-                    "whatsapp:write": {
-                        name: "Send Messages",
-                        description: "Send WhatsApp messages"
-                    },
-                    "whatsapp:manage": {
-                        name: "Manage WhatsApp",
-                        description: "Configure WhatsApp integration settings"
-                    }
-                }
-            },
-            automation: {
-                category: "Automation & Sequences",
-                description: "Manage automated sequences and workflows",
-                permissions: {
-                    "automation:read": {
-                        name: "View Automation",
-                        description: "View automation rules and sequences"
-                    },
-                    "automation:write": {
-                        name: "Create Automation",
-                        description: "Create new automation rules"
-                    },
-                    "automation:update": {
-                        name: "Update Automation",
-                        description: "Modify existing automation rules"
-                    },
-                    "automation:delete": {
-                        name: "Delete Automation",
-                        description: "Remove automation rules"
-                    },
-                    "automation:manage": {
-                        name: "Manage Automation",
-                        description: "Full automation management"
-                    },
-                    "automation:execute": {
-                        name: "Execute Automation",
-                        description: "Run and test automation sequences"
-                    }
-                }
-            },
-            ads: {
-                category: "Advertising Management",
-                description: "Manage advertising campaigns and marketing",
-                permissions: {
-                    "ads:read": {
-                        name: "View Ads",
-                        description: "View advertising campaigns and analytics"
-                    },
-                    "ads:write": {
-                        name: "Create Ads",
-                        description: "Create new advertising campaigns"
-                    },
-                    "ads:update": {
-                        name: "Update Ads",
-                        description: "Modify existing advertising campaigns"
-                    },
-                    "ads:delete": {
-                        name: "Delete Ads",
-                        description: "Remove advertising campaigns"
-                    },
-                    "ads:manage": {
-                        name: "Manage Ads",
-                        description: "Full advertising management"
-                    },
-                    "ads:analytics": {
-                        name: "View Ad Analytics",
-                        description: "Access advertising performance analytics"
-                    }
-                }
-            },
-            appointments: {
-                category: "Appointment Management",
-                description: "Manage client appointments and scheduling",
-                permissions: {
-                    "appointments:read": {
-                        name: "View Appointments",
-                        description: "View appointment information and schedules"
-                    },
-                    "appointments:manage": {
-                        name: "Manage Appointments",
-                        description: "Full appointment management including scheduling"
-                    }
-                }
-            },
-            templates: {
-                category: "Message Templates",
-                description: "Manage message templates and communications",
-                permissions: {
-                    "templates:read": {
-                        name: "View Templates",
-                        description: "View message templates"
-                    },
-                    "templates:write": {
-                        name: "Create Templates",
-                        description: "Create new message templates"
-                    },
-                    "templates:update": {
-                        name: "Update Templates",
-                        description: "Modify existing message templates"
-                    },
-                    "templates:delete": {
-                        name: "Delete Templates",
-                        description: "Remove message templates"
-                    }
-                }
-            },
-            dashboard: {
-                category: "Dashboard Access",
-                description: "Access to dashboard sections and overview",
-                permissions: {
-                    "dashboard:read": {
-                        name: "View Dashboard",
-                        description: "Access main dashboard and overview"
-                    }
-                }
-            },
-            marketing: {
-                category: "Marketing Tools",
-                description: "Access marketing tools and credentials",
-                permissions: {
-                    "marketing:read": {
-                        name: "View Marketing Tools",
-                        description: "View marketing tools and configurations"
-                    },
-                    "marketing:manage": {
-                        name: "Manage Marketing Tools",
-                        description: "Configure marketing tools and credentials"
-                    }
-                }
-            },
-            mlm: {
-                category: "MLM Management",
-                description: "Manage MLM hierarchy and commissions",
-                permissions: {
-                    "mlm:read": {
-                        name: "View MLM",
-                        description: "View MLM hierarchy and commission data"
-                    },
-                    "mlm:manage": {
-                        name: "Manage MLM",
-                        description: "Full MLM management including hierarchy"
-                    }
-                }
-            },
-            plan: {
-                category: "Plan Management",
-                description: "Manage subscription plans and features",
-                permissions: {
-                    "plan:read": {
-                        name: "View Plans",
-                        description: "View subscription plans and features"
-                    },
-                    "plan:write": {
-                        name: "Create Plans",
-                        description: "Create new subscription plans"
-                    },
-                    "plan:update": {
-                        name: "Update Plans",
-                        description: "Modify existing subscription plans"
-                    },
-                    "plan:delete": {
-                        name: "Delete Plans",
-                        description: "Remove subscription plans"
-                    }
-                }
-            },
-            payment: {
-                category: "Payment Management",
-                description: "Manage payments and financial transactions",
-                permissions: {
-                    "payment:read": {
-                        name: "View Payments",
-                        description: "View payment information and history"
-                    },
-                    "payment:manage": {
-                        name: "Manage Payments",
-                        description: "Full payment management including processing"
-                    }
-                }
-            },
-            subscription: {
-                category: "Subscription Management",
-                description: "Manage subscriptions and billing",
-                permissions: {
-                    "subscription:read": {
-                        name: "View Subscriptions",
-                        description: "View subscription information and limits"
-                    }
-                }
-            },
-            coach: {
-                category: "Coach Management",
-                description: "Manage coach information and settings",
-                permissions: {
-                    "coach:read": {
-                        name: "View Coach Info",
-                        description: "View coach information and settings"
-                    },
-                    "coach:manage": {
-                        name: "Manage Coach Info",
-                        description: "Modify coach information and settings"
-                    }
-                }
+        // Get permissions dynamically from section permissions system
+        const permissionsGrouped = getSectionsGroupedByCategory();
+        const formattedPermissions = {};
+        
+        // Build permissions response dynamically from permissionsGrouped
+        for (const [category, sections] of Object.entries(permissionsGrouped)) {
+            if (!formattedPermissions[category]) {
+                formattedPermissions[category] = {
+                    category: category,
+                    description: `${category} permissions`,
+                    permissions: {}
+                };
             }
-        };
+            
+            sections.forEach(sectionData => {
+                formattedPermissions[category].permissions[sectionData.section] = {
+                    permission: sectionData.section,
+                    name: sectionData.name,
+                    description: sectionData.description,
+                    icon: sectionData.icon || '📋',
+                    alwaysAccessible: sectionData.alwaysAccessible || false,
+                    coachOnly: sectionData.coachOnly || false
+                };
+            });
+        }
 
         res.json({
             success: true,
             data: {
-                permissions: permissionsList,
-                totalCategories: Object.keys(permissionsList).length,
-                totalPermissions: Object.values(permissionsList).reduce((total, category) => {
+                permissions: formattedPermissions,
+                totalCategories: Object.keys(formattedPermissions).length,
+                totalPermissions: Object.values(formattedPermissions).reduce((total, category) => {
                     return total + Object.keys(category.permissions).length;
                 }, 0),
                 userContext: {
@@ -1023,6 +659,292 @@ class CoachStaffManagementController {
                 presetName: presetName,
                 sections: staff.permissions,
                 updatedAt: staff.updatedAt
+            }
+        });
+    });
+    
+    /**
+     * Get staff tasks (Coach view or Staff's own tasks)
+     * @route GET /api/coach/staff/:staffId/tasks
+     * @access Private (Coach or Staff viewing own tasks)
+     */
+    getStaffTasks = asyncHandler(async (req, res) => {
+        const { staffId } = req.params;
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
+        // Staff can only view their own tasks unless they have staff:read permission
+        if (userContext.isStaff && userContext.userId.toString() !== staffId.toString() && !CoachStaffService.hasPermission(req, SECTIONS.STAFF_MANAGEMENT.VIEW)) {
+            return res.status(403).json({
+                success: false,
+                message: 'You can only view your own tasks'
+            });
+        }
+        
+        try {
+            const tasks = await Task.find({
+                coachId,
+                assignedTo: staffId
+            }).sort({ dueDate: 1, priority: -1 });
+            
+            const pendingTasks = tasks.filter(t => t.status !== 'Completed' && t.status !== 'Cancelled');
+            const completedTasks = tasks.filter(t => t.status === 'Completed');
+            
+            // Overdue tasks
+            const overdueTasks = pendingTasks.filter(t => 
+                t.dueDate && new Date(t.dueDate) < new Date()
+            );
+            
+            // Today's tasks
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayEnd = new Date();
+            todayEnd.setHours(23, 59, 59, 999);
+            
+            const todayTasks = pendingTasks.filter(t => 
+                t.dueDate && 
+                new Date(t.dueDate) >= today && 
+                new Date(t.dueDate) <= todayEnd
+            );
+            
+            res.json({
+                success: true,
+                data: {
+                    total: tasks.length,
+                    pending: pendingTasks.length,
+                    completed: completedTasks.length,
+                    overdue: overdueTasks.length,
+                    todayTasks: todayTasks,
+                    allTasks: tasks,
+                    completionRate: tasks.length > 0 
+                        ? ((completedTasks.length / tasks.length) * 100).toFixed(1)
+                        : 0
+                }
+            });
+        } catch (error) {
+            res.json({
+                success: true,
+                data: {
+                    total: 0,
+                    pending: 0,
+                    completed: 0,
+                    message: 'Task tracking not available'
+                }
+            });
+        }
+    });
+    
+    /**
+     * Get staff performance metrics (detailed)
+     * @route GET /api/coach/staff/:staffId/metrics
+     * @access Private (Coach or Staff viewing own metrics)
+     */
+    getStaffMetrics = asyncHandler(async (req, res) => {
+        const { staffId } = req.params;
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
+        // Staff can only view their own metrics unless they have staff:read permission
+        if (userContext.isStaff && userContext.userId.toString() !== staffId.toString() && !CoachStaffService.hasPermission(req, SECTIONS.STAFF_MANAGEMENT.VIEW)) {
+            return res.status(403).json({
+                success: false,
+                message: 'You can only view your own metrics'
+            });
+        }
+        
+        // Get comprehensive staff metrics using staff dashboard service
+        const performanceScore = await staffDashboardService.calculatePerformanceScore(coachId, staffId, req);
+        
+        // Get lead stats
+        const mongoose = require('mongoose');
+        const leadStats = await Lead.aggregate([
+            {
+                $match: {
+                    coachId: new mongoose.Types.ObjectId(coachId),
+                    $or: [
+                        { assignedTo: new mongoose.Types.ObjectId(staffId) },
+                        { 'appointment.assignedStaffId': new mongoose.Types.ObjectId(staffId) }
+                    ]
+                }
+            },
+            {
+                $group: {
+                    _id: '$status',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+        
+        res.json({
+            success: true,
+            data: {
+                performanceScore: performanceScore,
+                leadStats: leadStats,
+                staffId: staffId,
+                coachId: coachId
+            }
+        });
+    });
+    
+    /**
+     * Get team performance (all staff members)
+     * @route GET /api/coach/staff/team-performance
+     * @access Private (Coach or Staff)
+     */
+    getTeamPerformanceMetrics = asyncHandler(async (req, res) => {
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
+        // Log staff action if applicable
+        if (userContext && userContext.isStaff) {
+            console.log(`[Staff Action] ${userContext.userId} accessed team performance`);
+        }
+        
+        const teamPerformance = await staffDashboardService.getTeamPerformance(coachId, userContext.userId, req);
+        
+        res.json({
+            success: true,
+            data: teamPerformance
+        });
+    });
+    
+    /**
+     * Get lead distribution settings
+     * @route GET /api/coach/staff/lead-distribution
+     * @access Private (Coach only)
+     */
+    getLeadDistribution = asyncHandler(async (req, res) => {
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
+        // Only coaches can view/manage lead distribution
+        if (userContext.isStaff) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only coaches can manage lead distribution settings'
+            });
+        }
+        
+        // Get all active staff
+        const staff = await Staff.find({ coachId, isActive: true }).select('name email distributionRatio');
+        
+        res.json({
+            success: true,
+            data: {
+                staff: staff.map(s => ({
+                    staffId: s._id,
+                    name: s.name,
+                    email: s.email,
+                    distributionRatio: s.distributionRatio || 1
+                })),
+                totalRatio: staff.reduce((sum, s) => sum + (s.distributionRatio || 1), 0)
+            }
+        });
+    });
+    
+    /**
+     * Update lead distribution settings
+     * @route PUT /api/coach/staff/lead-distribution
+     * @access Private (Coach only)
+     */
+    updateLeadDistribution = asyncHandler(async (req, res) => {
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        const { distributions } = req.body;
+        
+        // Only coaches can manage lead distribution
+        if (userContext.isStaff) {
+            return res.status(403).json({
+                success: false,
+                message: 'Only coaches can manage lead distribution settings'
+            });
+        }
+        
+        if (!Array.isArray(distributions)) {
+            return res.status(400).json({
+                success: false,
+                message: 'distributions must be an array'
+            });
+        }
+        
+        // Update each staff member's distribution ratio
+        const results = [];
+        for (const dist of distributions) {
+            const { staffId, ratio } = dist;
+            
+            if (!staffId || ratio === undefined) {
+                results.push({ staffId, success: false, message: 'Invalid data' });
+                continue;
+            }
+            
+            const staff = await Staff.findOneAndUpdate(
+                { _id: staffId, coachId },
+                { distributionRatio: ratio },
+                { new: true }
+            ).select('name email distributionRatio');
+            
+            if (staff) {
+                results.push({
+                    staffId: staff._id,
+                    name: staff.name,
+                    ratio: staff.distributionRatio,
+                    success: true
+                });
+            } else {
+                results.push({ staffId, success: false, message: 'Staff not found' });
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: 'Lead distribution settings updated',
+            data: results
+        });
+    });
+    
+    /**
+     * Get all assigned leads for a staff member
+     * @route GET /api/coach/staff/:staffId/leads
+     * @access Private (Coach or Staff viewing own leads)
+     */
+    getStaffLeads = asyncHandler(async (req, res) => {
+        const { staffId } = req.params;
+        const coachId = CoachStaffService.getCoachIdForQuery(req);
+        const userContext = CoachStaffService.getUserContext(req);
+        
+        // Staff can only view their own leads unless they have staff:read permission
+        if (userContext.isStaff && userContext.userId.toString() !== staffId.toString() && !CoachStaffService.hasPermission(req, SECTIONS.STAFF_MANAGEMENT.VIEW)) {
+            return res.status(403).json({
+                success: false,
+                message: 'You can only view your own leads'
+            });
+        }
+        
+        const leads = await Lead.find({
+            coachId,
+            $or: [
+                { assignedTo: staffId },
+                { 'appointment.assignedStaffId': staffId }
+            ]
+        }).sort({ createdAt: -1 }).populate('funnelId', 'name');
+        
+        const leadsByStatus = {
+            new: leads.filter(l => l.status === 'New').length,
+            contacted: leads.filter(l => l.status === 'Contacted').length,
+            qualified: leads.filter(l => l.status === 'Qualified').length,
+            converted: leads.filter(l => l.status === 'Converted').length,
+            lost: leads.filter(l => l.status === 'Lost').length
+        };
+        
+        res.json({
+            success: true,
+            data: {
+                total: leads.length,
+                leads: leads,
+                leadsByStatus: leadsByStatus,
+                conversionRate: leads.length > 0 
+                    ? ((leadsByStatus.converted / leads.length) * 100).toFixed(1)
+                    : 0
             }
         });
     });

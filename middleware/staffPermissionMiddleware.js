@@ -1,4 +1,4 @@
-const { hasPermission, hasAnyPermission, hasAllPermissions, PERMISSIONS } = require('../utils/permissions');
+const { hasPermission, hasAnyPermission, hasAllPermissions, PERMISSIONS } = require('../utils/unifiedPermissions');
 const Staff = require('../schema/Staff');
 const logger = require('../utils/logger');
 

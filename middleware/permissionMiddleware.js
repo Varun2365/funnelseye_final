@@ -3,7 +3,7 @@
  * Handles permission-based access control for staff members
  */
 
-const { hasPermission, hasAnyPermission, hasAllPermissions } = require('../utils/permissions');
+const { hasPermission, hasAnyPermission, hasAllPermissions } = require('../utils/unifiedPermissions');
 
 /**
  * Middleware to check if staff has a specific permission

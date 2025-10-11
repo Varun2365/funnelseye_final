@@ -5,6 +5,7 @@ const MessageTemplate = require('../schema/MessageTemplate');
 const WhatsAppCredit = require('../schema/WhatsAppCredit');
 const centralWhatsAppService = require('../services/centralWhatsAppService');
 const templateService = require('../services/templateService');
+const { SECTIONS } = require('../utils/sectionPermissions');
 
 // @desc    Send single message
 // @route   POST /api/messaging/send

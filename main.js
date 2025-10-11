@@ -102,6 +102,7 @@ const newAdminSecurityRoutes = require('./routes/adminSecurityRoutes');
 const platformConfigRoutes = require('./routes/platformConfigRoutes');
 const staffAuthRoutes = require('./routes/staffAuthRoutes');
 const coachStaffManagementRoutes = require('./routes/coachStaffManagementRoutes');
+const publicPermissionsRoutes = require('./routes/publicPermissionsRoutes');
 const logsRoutes = require('./routes/logsRoutes');
 
 // --- Import the worker initialization functions ---
@@ -355,6 +356,9 @@ app.use('/api/whatsapp/v1', centralWhatsAppRoutes);
 
 // ===== PERMISSIONS & SYSTEM =====
 app.use('/api/permissions', permissionsRoutes);
+
+// ===== PUBLIC PERMISSIONS (NO AUTH) =====
+app.use('/api/public', publicPermissionsRoutes);
 
 // ===== COACH STAFF MANAGEMENT =====
 app.use('/api/coach/staff', coachStaffManagementRoutes);

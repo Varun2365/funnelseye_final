@@ -380,18 +380,13 @@ const adminSystemSettingsSchema = new mongoose.Schema({
         optimizationHistory: { type: Map, of: mongoose.Schema.Types.Mixed, default: new Map() }
     },
 
-    // Notification Settings
+    // Notification Settings (Simplified - Gmail Only)
     notifications: {
         email: {
             enabled: { type: Boolean, default: true },
-            smtpConfig: {
-                host: { type: String, default: '' },
-                port: { type: Number, default: 587 },
-                secure: { type: Boolean, default: false },
-                username: { type: String, default: '' },
-                password: { type: String, default: '' }
-            },
-            fromEmail: { type: String, default: 'noreply@funnelseye.com' },
+            gmailId: { type: String, default: '' },
+            appPassword: { type: String, default: '' },
+            fromEmail: { type: String, default: '' },
             fromName: { type: String, default: 'FunnelsEye' }
         },
         sms: {

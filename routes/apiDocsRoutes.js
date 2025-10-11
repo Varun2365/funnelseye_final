@@ -398,12 +398,12 @@ const allApiRoutes = {
     ],
     // ===== 👥 STAFF MANAGEMENT & TEAM COLLABORATION =====
     '👥 Staff Management': [
-        { method: 'POST', path: '/api/staff', desc: 'Create staff under coach (verification required on first login)', sample: { name: 'Assistant A', email: 'assistant@ex.com', password: 'Passw0rd!', permissions: ['leads:read', 'leads:update'] } },
+        { method: 'POST', path: '/api/staff', desc: 'Create staff under coach (verification required on first login)', sample: { name: 'Assistant A', email: 'assistant@ex.com', password: 'Passw0rd!', permissions: ['leads:view', 'leads:update'] } },
         { method: 'GET', path: '/api/staff', desc: 'List staff of coach (admin can pass ?coachId=...)' },
         { method: 'GET', path: '/api/staff/:id', desc: 'Get specific staff details' },
-        { method: 'PUT', path: '/api/staff/:id', desc: 'Update staff (name, permissions, isActive)', sample: { name: 'Assistant A2', permissions: ['leads:read'] } },
+        { method: 'PUT', path: '/api/staff/:id', desc: 'Update staff (name, permissions, isActive)', sample: { name: 'Assistant A2', permissions: ['leads:view'] } },
         { method: 'DELETE', path: '/api/staff/:id', desc: 'Deactivate staff' },
-        { method: 'POST', path: '/api/staff/:id/permissions', desc: 'Update staff permissions', sample: { permissions: ['leads:read', 'leads:write', 'funnels:read'] } },
+        { method: 'POST', path: '/api/staff/:id/permissions', desc: 'Update staff permissions', sample: { permissions: ['leads:view', 'leads:write', 'funnels:read'] } },
         { method: 'POST', path: '/api/staff/:id/activate', desc: 'Activate staff account' },
         { method: 'GET', path: '/api/staff/:id/performance', desc: 'Get staff performance metrics', sample: { startDate: '2025-01-01', endDate: '2025-01-31', includeDetails: 'true' } },
         { method: 'GET', path: '/api/staff/:id/performance/trends', desc: 'Get staff performance trends over time', sample: { period: 'monthly', months: 6 } },

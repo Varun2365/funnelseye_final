@@ -1,7 +1,7 @@
 const StaffCalendar = require('../schema/StaffCalendar');
 const Staff = require('../schema/Staff');
 const User = require('../schema/User');
-const { hasPermission } = require('../utils/permissions');
+const { hasPermission } = require('../utils/unifiedPermissions');
 const CoachStaffService = require('../services/coachStaffService');
 
 /**

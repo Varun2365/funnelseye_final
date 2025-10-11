@@ -4,6 +4,7 @@ const { Funnel, FunnelEvent, CustomDomain } = require('../schema'); // Corrected
 const CoachStaffService = require('../services/coachStaffService');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
+const { SECTIONS } = require('../utils/sectionPermissions');
 
 // No longer need to import separate stage content schemas
 // No longer need `stageModels` object
@@ -202,12 +203,19 @@ const deleteFunnel = asyncHandler(async (req, res, next) => {
 const addStageToFunnel = asyncHandler(async (req, res, next) => {
     const { funnelId } = req.params;
     const newStageData = req.body; // Expecting the full stage object here
+    
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'write', 'funnels', 'add_stage', { coachId, funnelId });
 
     const funnel = await Funnel.findById(funnelId);
     if (!funnel) {
         return next(new ErrorResponse('Funnel not found.', 404));
     }
-    checkFunnelOwnership(funnel, req.coachId);
+    checkFunnelOwnership(funnel, req);
 
     if (!newStageData || !newStageData.pageId || !newStageData.name || !newStageData.type) {
         return next(new ErrorResponse('Missing required stage data (pageId, name, type).', 400));
@@ -227,23 +235,37 @@ const addStageToFunnel = asyncHandler(async (req, res, next) => {
     funnel.stages.sort((a, b) => a.order - b.order); // Keep stages sorted
 
     await funnel.save();
+    
+    // Filter response data based on staff permissions
+    const filteredStage = CoachStaffService.filterResponseData(req, funnel.stages.find(s => s.pageId === newStageData.pageId), 'funnels');
 
     res.status(201).json({
         success: true,
         message: `Stage '${newStageData.name}' (${newStageData.type}) added successfully.`,
-        data: funnel.stages.find(s => s.pageId === newStageData.pageId) // Return the newly added stage (with its MongoDB _id)
+        data: filteredStage,
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
+        }
     });
 });
 
 const editFunnelStage = asyncHandler(async (req, res, next) => {
     const { funnelId, stageId } = req.params; // `stageId` here refers to the MongoDB `_id` of the subdocument
     const updates = req.body; // Full or partial updates for the stage
+    
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'update', 'funnels', 'edit_stage', { coachId, funnelId, stageId });
 
     const funnel = await Funnel.findById(funnelId);
     if (!funnel) {
         return next(new ErrorResponse('Funnel not found.', 404));
     }
-    checkFunnelOwnership(funnel, req.coachId);
+    checkFunnelOwnership(funnel, req);
 
     const stageToUpdate = funnel.stages.id(stageId); // Mongoose helper to find subdocument by _id
     if (!stageToUpdate) {
@@ -259,11 +281,18 @@ const editFunnelStage = asyncHandler(async (req, res, next) => {
     }
 
     await funnel.save(); // Save the entire funnel document
+    
+    // Filter response data based on staff permissions
+    const filteredStage = CoachStaffService.filterResponseData(req, stageToUpdate, 'funnels');
 
     res.status(200).json({
         success: true,
         message: 'Funnel stage updated successfully.',
-        data: stageToUpdate // Return the updated stage
+        data: filteredStage,
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
+        }
     });
 });
 
@@ -272,8 +301,15 @@ const editFunnelStage = asyncHandler(async (req, res, next) => {
 // This route now filters embedded stages instead of querying separate collections
 const getFunnelStagesByType = asyncHandler(async (req, res, next) => {
     const { coachId, funnelId, stageType } = req.params;
+    
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachIdFromReq = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'read', 'funnels', 'stages_by_type', { coachId, funnelId, stageType });
 
-    if (req.coachId.toString() !== coachId.toString()) {
+    if (coachIdFromReq.toString() !== coachId.toString()) {
         return next(new ErrorResponse('Forbidden: You are not authorized to access this coach\'s funnels.', 403));
     }
 
@@ -281,15 +317,22 @@ const getFunnelStagesByType = asyncHandler(async (req, res, next) => {
     if (!funnel) {
         return next(new ErrorResponse('Funnel not found.', 404));
     }
-    checkFunnelOwnership(funnel, req.coachId);
+    checkFunnelOwnership(funnel, req);
 
     // Filter stages directly from the embedded array based on 'type'
     const filteredStages = funnel.stages.filter(stage => stage.type === stageType);
+    
+    // Filter response data based on staff permissions
+    const filteredData = CoachStaffService.filterResponseData(req, filteredStages, 'funnels');
 
     res.status(200).json({
         success: true,
-        count: filteredStages.length,
-        data: filteredStages
+        count: filteredData.length,
+        data: filteredData,
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
+        }
     });
 });
 

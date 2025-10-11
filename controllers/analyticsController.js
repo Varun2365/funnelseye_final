@@ -3,13 +3,21 @@
 const mongoose = require('mongoose');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
+const CoachStaffService = require('../services/coachStaffService');
+const { SECTIONS } = require('../utils/sectionPermissions');
 
 const Funnel = require('../schema/Funnel');
 const FunnelEvent = require('../schema/FunnelEvent.js');
 
 const getFunnelAnalytics = asyncHandler(async (req, res, next) => {
     const { funnelId } = req.params;
-    const coachId = req.coachId;
+    
+    // Get coach ID using unified service (handles both coach and staff)
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Log staff action if applicable
+    CoachStaffService.logStaffAction(req, 'read', 'funnels', 'analytics', { coachId, funnelId });
 
     // Extract startDate and endDate from query parameters
     // Example: /api/funnels/:funnelId/analytics?startDate=2025-06-01T00:00:00Z&endDate=2025-06-30T23:59:59Z
@@ -159,24 +167,33 @@ const getFunnelAnalytics = asyncHandler(async (req, res, next) => {
         { $sort: { stageId: 1 } }
     ]);
 
+    // Filter response data based on staff permissions
+    const analyticsData = {
+        overall: overallViewsData[0] || { totalViews: 0, uniqueVisitors: 0 },
+        leadsCaptured: leadsCapturedCount,
+        appointmentsBooked: appointmentsBookedCount,
+        productsPurchased: productsPurchasedCount,
+        funnelCompletionCount: funnelCompletionCount,
+        overallConversionToLead: parseFloat(overallConversionToLead.toFixed(2)),
+        funnelCompletionRate: parseFloat(funnelCompletionRate.toFixed(2)),
+        loggedInOverall: loggedInOverallViewsData[0] || { totalViews: 0, uniqueVisitors: 0 },
+        loggedInLeadsCaptured: loggedInLeadsCapturedCount,
+        loggedInAppointmentsBooked: loggedInAppointmentsBookedCount,
+        loggedInProductsPurchased: loggedInProductsPurchasedCount,
+        loggedInFunnelCompletionCount: loggedInFunnelCompletionCount,
+        loggedInConversionToLead: parseFloat(loggedInConversionToLead.toFixed(2)),
+        loggedInFunnelCompletionRate: parseFloat(loggedInFunnelCompletionRate.toFixed(2)),
+        stageAnalytics: stageAnalytics
+    };
+    
+    const filteredAnalytics = CoachStaffService.filterResponseData(req, analyticsData, 'funnels');
+    
     res.status(200).json({
         success: true,
-        data: {
-            overall: overallViewsData[0] || { totalViews: 0, uniqueVisitors: 0 },
-            leadsCaptured: leadsCapturedCount,
-            appointmentsBooked: appointmentsBookedCount,
-            productsPurchased: productsPurchasedCount,
-            funnelCompletionCount: funnelCompletionCount,
-            overallConversionToLead: parseFloat(overallConversionToLead.toFixed(2)),
-            funnelCompletionRate: parseFloat(funnelCompletionRate.toFixed(2)),
-            loggedInOverall: loggedInOverallViewsData[0] || { totalViews: 0, uniqueVisitors: 0 },
-            loggedInLeadsCaptured: loggedInLeadsCapturedCount,
-            loggedInAppointmentsBooked: loggedInAppointmentsBookedCount,
-            loggedInProductsPurchased: loggedInProductsPurchasedCount,
-            loggedInFunnelCompletionCount: loggedInFunnelCompletionCount,
-            loggedInConversionToLead: parseFloat(loggedInConversionToLead.toFixed(2)),
-            loggedInFunnelCompletionRate: parseFloat(loggedInFunnelCompletionRate.toFixed(2)),
-            stageAnalytics: stageAnalytics
+        data: filteredAnalytics,
+        userContext: {
+            isStaff: userContext.isStaff,
+            permissions: userContext.permissions
         }
     });
 });
