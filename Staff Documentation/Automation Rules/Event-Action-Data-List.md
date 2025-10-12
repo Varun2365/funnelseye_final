@@ -2194,3 +2194,4 @@ Below are all actions with exact configuration requirements.
 
 This comprehensive guide covers all automation capabilities in the system. Use this as a reference when creating, testing, and documenting automation rules.
 
+

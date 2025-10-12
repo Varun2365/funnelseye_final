@@ -74,7 +74,80 @@ const CoachAvailabilitySchema = new mongoose.Schema({
         default: 'Asia/Kolkata'
     },
     // --- Funnel-Specific Availability Settings (the new feature) ---
-    funnelSpecificSettings: [FunnelSettingsSchema]
+    funnelSpecificSettings: [FunnelSettingsSchema],
+    // --- Staff Appointment Assignment Settings ---
+    appointmentAssignment: {
+        enabled: {
+            type: Boolean,
+            default: false, // If true, appointments can be assigned to staff
+            description: 'Enable staff assignment for appointments'
+        },
+        mode: {
+            type: String,
+            enum: ['manual', 'automatic'],
+            default: 'manual',
+            description: 'Manual = coach assigns appointments, Automatic = system assigns based on distribution ratio'
+        },
+        considerStaffAvailability: {
+            type: Boolean,
+            default: true,
+            description: 'When enabled, total slots = coach slots × number of available staff'
+        },
+        allowMultipleStaffSameSlot: {
+            type: Boolean,
+            default: true,
+            description: 'Allow multiple staff to have appointments at the same time slot'
+        }
+    },
+    // --- Appointment Reminder Settings ---
+    appointmentReminders: {
+        enabled: {
+            type: Boolean,
+            default: true,
+            description: 'Enable automated appointment reminders'
+        },
+        reminders: [{
+            name: {
+                type: String,
+                required: true,
+                description: 'Reminder name (e.g., "3 days before")'
+            },
+            timing: {
+                type: Number,
+                required: true,
+                description: 'Minutes before appointment (e.g., 4320 for 3 days)'
+            },
+            channel: {
+                type: String,
+                enum: ['whatsapp', 'email', 'sms', 'both'],
+                default: 'whatsapp'
+            },
+            templateId: {
+                type: String,
+                description: 'WhatsApp template ID to use'
+            },
+            isActive: {
+                type: Boolean,
+                default: true
+            }
+        }],
+        defaultReminders: {
+            type: Boolean,
+            default: true,
+            description: 'Use default reminders (3 days, 1 day, 10 minutes)'
+        }
+    },
+    // --- Zoom Integration Status ---
+    hasZoomIntegration: {
+        type: Boolean,
+        default: false,
+        description: 'Whether coach has connected Zoom account'
+    },
+    zoomIntegrationStatus: {
+        type: String,
+        enum: ['not_configured', 'active', 'expired', 'error'],
+        default: 'not_configured'
+    }
 }, {
     timestamps: true
 });

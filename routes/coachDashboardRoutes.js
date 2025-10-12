@@ -29,6 +29,8 @@ const {
     getAppointmentStats,
     getAvailability,
     setAvailability,
+    copyCoachAvailabilityToStaff,
+    checkZoomStatus,
     // NEW: Zoom Meetings Management
     getZoomMeetings,
     getZoomMeetingDetails
@@ -94,9 +96,13 @@ router.delete('/appointments/:appointmentId', requireCalendarPermission('delete'
 // Appointment analytics
 router.get('/appointments/stats', requireCalendarPermission('read'), getAppointmentStats);
 
-// Coach availability settings
+// Coach availability settings (unified for coach & staff)
 router.get('/availability', requireCalendarPermission('read'), getAvailability);
 router.put('/availability', requireCalendarPermission('manage'), setAvailability);
+
+// Staff availability helper endpoints
+router.post('/availability/copy-from-coach', requireCalendarPermission('read'), copyCoachAvailabilityToStaff);
+router.get('/availability/zoom-status', requireCalendarPermission('read'), checkZoomStatus);
 
 // ===== ZOOM MEETINGS MANAGEMENT =====
 

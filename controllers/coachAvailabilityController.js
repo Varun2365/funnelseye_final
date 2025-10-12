@@ -5,6 +5,8 @@ const CoachAvailability = require('../schema/CoachAvailability');
 const Appointment = require('../schema/Appointment');
 const { getAvailableSlots, bookAppointment: bookAppointmentService, rescheduleAppointment, cancelAppointment } = require('../services/calendarService'); // <-- NEW: Import from the new service
 const CoachStaffService = require('../services/coachStaffService');
+const zoomMeetingService = require('../services/zoomMeetingService');
+const appointmentReminderService = require('../services/appointmentReminderService');
 
 // Utility to wrap async functions for error handling
 const asyncHandler = (fn) => (req, res, next) => {
@@ -12,29 +14,62 @@ const asyncHandler = (fn) => (req, res, next) => {
 };
 
 /**
- * @desc    Get coach availability settings
+ * @desc    Get availability settings (Coach or Staff)
  * @route   GET /api/coach/:coachId/availability
- * @access  Public
+ * @access  Public (or authenticated for staff viewing their own)
  */
 const getCoachAvailability = asyncHandler(async (req, res) => {
   const { coachId } = req.params;
   
   // If this is an authenticated request, get user context
   let userContext = null;
+  let targetAvailability = null;
+  
   if (req.userId || req.coachId) {
     userContext = CoachStaffService.getUserContext(req);
     // Log staff action if applicable
     CoachStaffService.logStaffAction(req, 'read', 'calendar', 'availability', { coachId });
+    
+    // If staff is viewing, get their specific availability
+    if (userContext.isStaff) {
+      const StaffAvailability = require('../schema/StaffAvailability');
+      let staffAvailability = await StaffAvailability.findOne({ staffId: userContext.userId });
+      
+      // If staff has no availability yet, auto-create from coach settings
+      if (!staffAvailability) {
+        const coachAvailability = await CoachAvailability.findOne({ coachId });
+        if (coachAvailability) {
+          staffAvailability = await StaffAvailability.create({
+            staffId: userContext.userId,
+            coachId: coachId,
+            workingHours: coachAvailability.workingHours,
+            unavailableSlots: [],
+            defaultAppointmentDuration: coachAvailability.defaultAppointmentDuration,
+            bufferTime: coachAvailability.bufferTime,
+            timeZone: coachAvailability.timeZone,
+            copiedFromCoach: true,
+            lastSyncedWithCoach: new Date()
+          });
+          console.log(`[Staff Availability] Auto-created availability for staff ${userContext.userId} from coach settings`);
+        }
+      }
+      
+      targetAvailability = staffAvailability;
+    }
   }
   
-  const availability = await CoachAvailability.findOne({ coachId : coachId });
-  if (!availability) {
+  // If not staff or no user context, get coach availability
+  if (!targetAvailability) {
+    targetAvailability = await CoachAvailability.findOne({ coachId : coachId });
+  }
+  
+  if (!targetAvailability) {
     return res.status(200).json({
       success: true,
       data: {
         timeZone: 'UTC',
         workingHours: [],
-        unavailableSlots: [], // <-- CORRECTED: Changed 'unavailableDates' to 'unavailableSlots'
+        unavailableSlots: [],
         slotDuration: 30,
       },
     });
@@ -42,17 +77,22 @@ const getCoachAvailability = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: availability,
+    data: targetAvailability,
+    userContext: userContext ? {
+      isStaff: userContext.isStaff,
+      userId: userContext.userId,
+      permissions: userContext.permissions
+    } : null
   });
 });
 
 /**
- * @desc    Set or update the authenticated coach's availability
+ * @desc    Set or update availability (Coach or Staff)
  * @route   POST /api/coach/availability
- * @access  Private (Coach/Staff with permission)
+ * @access  Private (Coach or Staff with permission)
  */
 const setCoachAvailability = asyncHandler(async (req, res) => {
-    // Get coach ID using unified service (handles both coach and staff)
+    // Get coach ID and user context
     const coachId = CoachStaffService.getCoachIdForQuery(req);
     const userContext = CoachStaffService.getUserContext(req);
     
@@ -68,7 +108,18 @@ const setCoachAvailability = asyncHandler(async (req, res) => {
         });
     }
 
-    // FIX: Use 'defaultAppointmentDuration' to match the schema field name
+    // Check if user has Zoom integration before allowing availability setup
+    const targetUserId = userContext.isStaff ? userContext.userId : coachId;
+    const hasZoom = await zoomMeetingService.hasValidZoomIntegration(targetUserId);
+    if (!hasZoom) {
+        return res.status(403).json({
+            success: false,
+            message: 'You must connect your Zoom account before setting availability',
+            requiresZoomIntegration: true,
+            userType: userContext.isStaff ? 'staff' : 'coach'
+        });
+    }
+
     const { timeZone, workingHours, unavailableSlots, defaultAppointmentDuration, bufferTime } = req.body;
 
     if (!workingHours || !Array.isArray(workingHours)) {
@@ -79,21 +130,55 @@ const setCoachAvailability = asyncHandler(async (req, res) => {
     }
 
     try {
-        const availability = await CoachAvailability.findOneAndUpdate(
-            { coachId: _id },
-            {
-                timeZone,
-                workingHours,
-                unavailableSlots,
-                defaultAppointmentDuration, // <-- This is now correct
-                bufferTime,
-            },
-            { new: true, upsert: true, runValidators: true }
-        );
+        let availability;
+        
+        if (userContext.isStaff) {
+            // Update staff availability
+            const StaffAvailability = require('../schema/StaffAvailability');
+            availability = await StaffAvailability.findOneAndUpdate(
+                { staffId: userContext.userId },
+                {
+                    coachId,
+                    timeZone,
+                    workingHours,
+                    unavailableSlots,
+                    defaultAppointmentDuration,
+                    bufferTime,
+                    hasZoomIntegration: true,
+                    zoomIntegrationStatus: 'active',
+                    copiedFromCoach: false
+                },
+                { new: true, upsert: true, runValidators: true }
+            );
+            
+            console.log(`[Staff Availability] Updated availability for staff ${userContext.userId}`);
+        } else {
+            // Update coach availability
+            availability = await CoachAvailability.findOneAndUpdate(
+                { coachId: coachId },
+                {
+                    timeZone,
+                    workingHours,
+                    unavailableSlots,
+                    defaultAppointmentDuration,
+                    bufferTime,
+                    hasZoomIntegration: true,
+                    zoomIntegrationStatus: 'active'
+                },
+                { new: true, upsert: true, runValidators: true }
+            );
+            
+            console.log(`[Coach Availability] Updated availability for coach ${coachId}`);
+        }
 
         res.status(200).json({
             success: true,
+            message: userContext.isStaff ? 'Staff availability updated successfully' : 'Coach availability updated successfully',
             data: availability,
+            userContext: {
+                isStaff: userContext.isStaff,
+                userId: userContext.userId
+            }
         });
     } catch (error) {
         console.error('Error saving availability settings:', error.message);
@@ -259,6 +344,249 @@ const getAppointmentDetails = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Get appointment assignment settings for a coach
+ * @route   GET /api/coach/availability/assignment-settings
+ * @access  Private (Coach only)
+ */
+const getAssignmentSettings = asyncHandler(async (req, res) => {
+  const coachId = CoachStaffService.getCoachIdForQuery(req);
+  const userContext = CoachStaffService.getUserContext(req);
+  
+  // Only coach can view assignment settings
+  if (userContext.isStaff) {
+    return res.status(403).json({
+      success: false,
+      message: 'Only coaches can view assignment settings'
+    });
+  }
+  
+  const availability = await CoachAvailability.findOne({ coachId });
+  if (!availability) {
+    return res.status(200).json({
+      success: true,
+      data: {
+        enabled: false,
+        mode: 'manual',
+        considerStaffAvailability: true,
+        allowMultipleStaffSameSlot: true
+      }
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    data: availability.appointmentAssignment || {
+      enabled: false,
+      mode: 'manual',
+      considerStaffAvailability: true,
+      allowMultipleStaffSameSlot: true
+    }
+  });
+});
+
+/**
+ * @desc    Update appointment assignment settings for a coach
+ * @route   PUT /api/coach/availability/assignment-settings
+ * @access  Private (Coach only)
+ */
+const updateAssignmentSettings = asyncHandler(async (req, res) => {
+  const coachId = CoachStaffService.getCoachIdForQuery(req);
+  const userContext = CoachStaffService.getUserContext(req);
+  
+  // Only coach can update assignment settings
+  if (userContext.isStaff) {
+    return res.status(403).json({
+      success: false,
+      message: 'Only coaches can update assignment settings'
+    });
+  }
+
+  const { enabled, mode, considerStaffAvailability, allowMultipleStaffSameSlot } = req.body;
+
+  // Validate mode
+  if (mode && !['manual', 'automatic'].includes(mode)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Mode must be either "manual" or "automatic"'
+    });
+  }
+
+  const availability = await CoachAvailability.findOneAndUpdate(
+    { coachId },
+    {
+      $set: {
+        'appointmentAssignment.enabled': enabled !== undefined ? enabled : false,
+        'appointmentAssignment.mode': mode || 'manual',
+        'appointmentAssignment.considerStaffAvailability': considerStaffAvailability !== undefined ? considerStaffAvailability : true,
+        'appointmentAssignment.allowMultipleStaffSameSlot': allowMultipleStaffSameSlot !== undefined ? allowMultipleStaffSameSlot : true
+      }
+    },
+    { new: true, upsert: true, runValidators: true }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: 'Assignment settings updated successfully',
+    data: availability.appointmentAssignment
+  });
+});
+
+/**
+ * @desc    Get assignment statistics for a coach
+ * @route   GET /api/coach/availability/assignment-stats
+ * @access  Private (Coach only)
+ */
+const getAssignmentStats = asyncHandler(async (req, res) => {
+  const coachId = CoachStaffService.getCoachIdForQuery(req);
+  const userContext = CoachStaffService.getUserContext(req);
+  const { days = 30 } = req.query;
+  
+  // Only coach can view assignment stats
+  if (userContext.isStaff) {
+    return res.status(403).json({
+      success: false,
+      message: 'Only coaches can view assignment statistics'
+    });
+  }
+
+  const appointmentAssignmentService = require('../services/appointmentAssignmentService');
+  const stats = await appointmentAssignmentService.getAssignmentStats(coachId, parseInt(days));
+
+  res.status(200).json({
+    success: true,
+    data: stats
+  });
+});
+
+/**
+ * @desc    Get appointment reminder settings for a coach
+ * @route   GET /api/coach/availability/reminder-settings
+ * @access  Private (Coach only)
+ */
+const getReminderSettings = asyncHandler(async (req, res) => {
+  const coachId = CoachStaffService.getCoachIdForQuery(req);
+  const userContext = CoachStaffService.getUserContext(req);
+  
+  // Only coach can view reminder settings
+  if (userContext.isStaff) {
+    return res.status(403).json({
+      success: false,
+      message: 'Only coaches can view reminder settings'
+    });
+  }
+  
+  const settings = await appointmentReminderService.getReminderSettings(coachId);
+
+  res.status(200).json({
+    success: true,
+    data: settings
+  });
+});
+
+/**
+ * @desc    Update appointment reminder settings for a coach
+ * @route   PUT /api/coach/availability/reminder-settings
+ * @access  Private (Coach only)
+ */
+const updateReminderSettings = asyncHandler(async (req, res) => {
+  const coachId = CoachStaffService.getCoachIdForQuery(req);
+  const userContext = CoachStaffService.getUserContext(req);
+  
+  // Only coach can update reminder settings
+  if (userContext.isStaff) {
+    return res.status(403).json({
+      success: false,
+      message: 'Only coaches can update reminder settings'
+    });
+  }
+
+  const { enabled, defaultReminders, reminders } = req.body;
+
+  const result = await appointmentReminderService.updateReminderSettings(coachId, {
+    enabled,
+    defaultReminders,
+    reminders
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Reminder settings updated successfully',
+    data: result.settings
+  });
+});
+
+/**
+ * @desc    Copy coach availability to staff
+ * @route   POST /api/coach/availability/copy-from-coach
+ * @access  Private (Staff only)
+ */
+const copyCoachAvailability = asyncHandler(async (req, res) => {
+  const coachId = CoachStaffService.getCoachIdForQuery(req);
+  const userContext = CoachStaffService.getUserContext(req);
+  
+  // Only staff can use this endpoint
+  if (!userContext.isStaff) {
+    return res.status(403).json({
+      success: false,
+      message: 'This endpoint is for staff members only'
+    });
+  }
+  
+  // Get coach availability
+  const coachAvailability = await CoachAvailability.findOne({ coachId });
+  if (!coachAvailability) {
+    return res.status(404).json({
+      success: false,
+      message: 'Coach availability settings not found'
+    });
+  }
+  
+  // Copy to staff
+  const StaffAvailability = require('../schema/StaffAvailability');
+  const availability = await StaffAvailability.findOneAndUpdate(
+    { staffId: userContext.userId },
+    {
+      coachId,
+      workingHours: coachAvailability.workingHours,
+      unavailableSlots: [],
+      defaultAppointmentDuration: coachAvailability.defaultAppointmentDuration,
+      bufferTime: coachAvailability.bufferTime,
+      timeZone: coachAvailability.timeZone,
+      copiedFromCoach: true,
+      lastSyncedWithCoach: new Date()
+    },
+    { new: true, upsert: true, runValidators: true }
+  );
+  
+  res.status(200).json({
+    success: true,
+    message: 'Coach availability copied to staff successfully',
+    data: availability
+  });
+});
+
+/**
+ * @desc    Check Zoom integration status
+ * @route   GET /api/coach/availability/zoom-status
+ * @access  Private (Coach or Staff)
+ */
+const getZoomStatus = asyncHandler(async (req, res) => {
+  const userContext = CoachStaffService.getUserContext(req);
+  const targetUserId = userContext.isStaff ? userContext.userId : CoachStaffService.getCoachIdForQuery(req);
+  
+  const hasZoom = await zoomMeetingService.hasValidZoomIntegration(targetUserId);
+  
+  res.status(200).json({
+    success: true,
+    data: {
+      hasZoomIntegration: hasZoom,
+      userId: targetUserId,
+      userType: userContext.isStaff ? 'staff' : 'coach'
+    }
+  });
+});
+
 module.exports = {
   getCoachAvailability,
   setCoachAvailability,
@@ -268,4 +596,11 @@ module.exports = {
   getAppointmentDetails,
   rescheduleAppointment: rescheduleAppointmentController,
   cancelAppointment: cancelAppointmentController,
+  getAssignmentSettings,
+  updateAssignmentSettings,
+  getAssignmentStats,
+  getReminderSettings,
+  updateReminderSettings,
+  copyCoachAvailability,
+  getZoomStatus
 };

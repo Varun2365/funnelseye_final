@@ -684,7 +684,15 @@ exports.getCalendar = asyncHandler(async (req, res, next) => {
     // Log staff action if applicable
     CoachStaffService.logStaffAction(req, 'read', 'calendar', 'view', { coachId, startDate, endDate });
 
-    const calendar = await calendarService.getCoachCalendar(coachId, startDate, endDate);
+    let calendar = await calendarService.getCoachCalendar(coachId, startDate, endDate);
+
+    // If user is staff, filter to show only their assigned appointments
+    if (userContext.isStaff) {
+        calendar = calendar.filter(appointment => 
+            appointment.assignedStaffId && 
+            appointment.assignedStaffId.toString() === userContext.userId.toString()
+        );
+    }
 
     // Filter response data based on staff permissions
     const filteredCalendar = CoachStaffService.filterResponseData(req, calendar, 'appointments');
@@ -692,8 +700,11 @@ exports.getCalendar = asyncHandler(async (req, res, next) => {
     res.json({
         success: true,
         data: filteredCalendar,
+        dateRange: { startDate, endDate },
+        count: filteredCalendar.length,
         userContext: {
             isStaff: userContext.isStaff,
+            userId: userContext.userId,
             permissions: userContext.permissions
         }
     });
@@ -813,7 +824,15 @@ exports.getUpcomingAppointments = asyncHandler(async (req, res, next) => {
     // Log staff action if applicable
     CoachStaffService.logStaffAction(req, 'read', 'appointments', 'upcoming', { coachId, limit });
 
-    const appointments = await calendarService.getUpcomingAppointments(coachId, parseInt(limit));
+    let appointments = await calendarService.getUpcomingAppointments(coachId, parseInt(limit));
+
+    // If user is staff, filter to show only their assigned appointments
+    if (userContext.isStaff) {
+        appointments = appointments.filter(appointment => 
+            appointment.assignedStaffId && 
+            appointment.assignedStaffId.toString() === userContext.userId.toString()
+        );
+    }
 
     // Filter response data based on staff permissions
     const filteredAppointments = CoachStaffService.filterResponseData(req, appointments, 'appointments');
@@ -821,8 +840,10 @@ exports.getUpcomingAppointments = asyncHandler(async (req, res, next) => {
     res.json({
         success: true,
         data: filteredAppointments,
+        count: filteredAppointments.length,
         userContext: {
             isStaff: userContext.isStaff,
+            userId: userContext.userId,
             permissions: userContext.permissions
         }
     });
@@ -849,16 +870,29 @@ exports.getTodayAppointments = asyncHandler(async (req, res, next) => {
     // Log staff action if applicable
     CoachStaffService.logStaffAction(req, 'read', 'appointments', 'today', { coachId });
 
-    const appointments = await calendarService.getTodayAppointments(coachId);
+    let appointments = await calendarService.getTodayAppointments(coachId);
+
+    // If user is staff, filter to show only their assigned appointments
+    if (userContext.isStaff) {
+        appointments = appointments.filter(appointment => 
+            appointment.assignedStaffId && 
+            appointment.assignedStaffId.toString() === userContext.userId.toString()
+        );
+    }
 
     // Filter response data based on staff permissions
     const filteredAppointments = CoachStaffService.filterResponseData(req, appointments, 'appointments');
 
+    const today = new Date().toISOString().split('T')[0];
+
     res.json({
         success: true,
         data: filteredAppointments,
+        date: today,
+        count: filteredAppointments.length,
         userContext: {
             isStaff: userContext.isStaff,
+            userId: userContext.userId,
             permissions: userContext.permissions
         }
     });
@@ -999,7 +1033,35 @@ exports.getAvailability = asyncHandler(async (req, res, next) => {
     // Log staff action if applicable
     CoachStaffService.logStaffAction(req, 'read', 'calendar', 'availability', { coachId });
 
-    const availability = await calendarService.getCoachAvailability(coachId);
+    let availability;
+    
+    // If staff token, get staff's own availability
+    if (userContext.isStaff) {
+        const StaffAvailability = require('../schema/StaffAvailability');
+        availability = await StaffAvailability.findOne({ staffId: userContext.userId });
+        
+        // If staff has no availability yet, auto-create from coach settings
+        if (!availability) {
+            const coachAvailability = await calendarService.getCoachAvailability(coachId);
+            if (coachAvailability) {
+                availability = await StaffAvailability.create({
+                    staffId: userContext.userId,
+                    coachId: coachId,
+                    workingHours: coachAvailability.workingHours,
+                    unavailableSlots: [],
+                    defaultAppointmentDuration: coachAvailability.defaultAppointmentDuration,
+                    bufferTime: coachAvailability.bufferTime,
+                    timeZone: coachAvailability.timeZone,
+                    copiedFromCoach: true,
+                    lastSyncedWithCoach: new Date()
+                });
+                console.log(`[Dashboard] Auto-created staff availability from coach settings`);
+            }
+        }
+    } else {
+        // If coach token, get coach availability
+        availability = await calendarService.getCoachAvailability(coachId);
+    }
 
     // Filter response data based on staff permissions
     const filteredAvailability = CoachStaffService.filterResponseData(req, availability, 'appointments');
@@ -1009,12 +1071,13 @@ exports.getAvailability = asyncHandler(async (req, res, next) => {
         data: filteredAvailability,
         userContext: {
             isStaff: userContext.isStaff,
+            userId: userContext.userId,
             permissions: userContext.permissions
         }
     });
 });
 
-// Set coach availability settings
+// Set availability settings (Coach or Staff)
 exports.setAvailability = asyncHandler(async (req, res, next) => {
     // Get coach ID using unified service (handles both coach and staff)
     const coachId = CoachStaffService.getCoachIdForQuery(req);
@@ -1029,21 +1092,133 @@ exports.setAvailability = asyncHandler(async (req, res, next) => {
         });
     }
     
+    // Check if user has Zoom integration before allowing availability setup
+    const zoomMeetingService = require('../services/zoomMeetingService');
+    const targetUserId = userContext.isStaff ? userContext.userId : coachId;
+    const hasZoom = await zoomMeetingService.hasValidZoomIntegration(targetUserId);
+    if (!hasZoom) {
+        return res.status(403).json({
+            success: false,
+            message: 'You must connect your Zoom account before setting availability',
+            requiresZoomIntegration: true,
+            userType: userContext.isStaff ? 'staff' : 'coach'
+        });
+    }
+    
     // Log staff action if applicable
     CoachStaffService.logStaffAction(req, 'update', 'calendar', 'availability', { coachId, availabilityData });
 
-    const availability = await calendarService.setCoachAvailability(coachId, availabilityData);
+    let availability;
+    
+    if (userContext.isStaff) {
+        // Update staff availability
+        const StaffAvailability = require('../schema/StaffAvailability');
+        availability = await StaffAvailability.findOneAndUpdate(
+            { staffId: userContext.userId },
+            {
+                coachId,
+                ...availabilityData,
+                hasZoomIntegration: true,
+                zoomIntegrationStatus: 'active',
+                copiedFromCoach: false
+            },
+            { new: true, upsert: true, runValidators: true }
+        );
+        console.log(`[Dashboard] Updated staff availability for staff ${userContext.userId}`);
+    } else {
+        // Update coach availability
+        availability = await calendarService.setCoachAvailability(coachId, {
+            ...availabilityData,
+            hasZoomIntegration: true,
+            zoomIntegrationStatus: 'active'
+        });
+        console.log(`[Dashboard] Updated coach availability for coach ${coachId}`);
+    }
 
     // Filter response data based on staff permissions
     const filteredAvailability = CoachStaffService.filterResponseData(req, availability, 'appointments');
 
     res.json({
         success: true,
-        message: 'Availability settings updated successfully',
+        message: userContext.isStaff ? 'Staff availability updated successfully' : 'Coach availability updated successfully',
         data: filteredAvailability,
         userContext: {
             isStaff: userContext.isStaff,
+            userId: userContext.userId,
             permissions: userContext.permissions
+        }
+    });
+});
+
+// Copy coach availability to staff (Staff only)
+exports.copyCoachAvailabilityToStaff = asyncHandler(async (req, res, next) => {
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const userContext = CoachStaffService.getUserContext(req);
+    
+    // Only staff can use this endpoint
+    if (!userContext.isStaff) {
+        return res.status(403).json({
+            success: false,
+            message: 'This endpoint is for staff members only'
+        });
+    }
+    
+    // Get coach availability
+    const coachAvailability = await calendarService.getCoachAvailability(coachId);
+    if (!coachAvailability) {
+        return res.status(404).json({
+            success: false,
+            message: 'Coach availability settings not found'
+        });
+    }
+    
+    // Copy to staff
+    const StaffAvailability = require('../schema/StaffAvailability');
+    const availability = await StaffAvailability.findOneAndUpdate(
+        { staffId: userContext.userId },
+        {
+            coachId,
+            workingHours: coachAvailability.workingHours,
+            unavailableSlots: [],
+            defaultAppointmentDuration: coachAvailability.defaultAppointmentDuration,
+            bufferTime: coachAvailability.bufferTime,
+            timeZone: coachAvailability.timeZone,
+            copiedFromCoach: true,
+            lastSyncedWithCoach: new Date()
+        },
+        { new: true, upsert: true, runValidators: true }
+    );
+    
+    res.json({
+        success: true,
+        message: 'Coach availability copied to staff successfully',
+        data: availability,
+        userContext: {
+            isStaff: true,
+            userId: userContext.userId
+        }
+    });
+});
+
+// Check Zoom integration status
+exports.checkZoomStatus = asyncHandler(async (req, res, next) => {
+    const userContext = CoachStaffService.getUserContext(req);
+    const coachId = CoachStaffService.getCoachIdForQuery(req);
+    const targetUserId = userContext.isStaff ? userContext.userId : coachId;
+    
+    const zoomMeetingService = require('../services/zoomMeetingService');
+    const hasZoom = await zoomMeetingService.hasValidZoomIntegration(targetUserId);
+    
+    res.json({
+        success: true,
+        data: {
+            hasZoomIntegration: hasZoom,
+            userId: targetUserId,
+            userType: userContext.isStaff ? 'staff' : 'coach'
+        },
+        userContext: {
+            isStaff: userContext.isStaff,
+            userId: userContext.userId
         }
     });
 });

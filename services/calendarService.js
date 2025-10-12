@@ -2,8 +2,11 @@
 
 const CoachAvailability = require('../schema/CoachAvailability');
 const Appointment = require('../schema/Appointment');
-const { publishEvent } = require('./rabbitmqProducer');
+const { publishEvent} = require('./rabbitmqProducer');
 const { scheduleFutureEvent } = require('./automationSchedulerService');
+const appointmentAssignmentService = require('./appointmentAssignmentService');
+const zoomMeetingService = require('./zoomMeetingService');
+const appointmentReminderService = require('./appointmentReminderService');
 
 // Helper function to get the day of the week (0 for Sunday, 6 for Saturday)
 const getDayOfWeek = (date) => new Date(date).getUTCDay();
@@ -16,6 +19,7 @@ const timeToMinutes = (time) => {
 
 /**
  * Calculates all possible available slots based on a coach's settings for a given day.
+ * Now considers staff availability when auto-assignment is enabled.
  */
 const getAvailableSlots = async (coachId, date) => {
     const coachSettings = await CoachAvailability.findOne({ coachId });
@@ -23,6 +27,16 @@ const getAvailableSlots = async (coachId, date) => {
         return [];
     }
 
+    // Check if staff assignment is enabled and should consider staff availability
+    const appointmentAssignment = coachSettings.appointmentAssignment || {};
+    const staffAssignmentEnabled = appointmentAssignment.enabled && appointmentAssignment.considerStaffAvailability;
+
+    // If staff assignment is enabled, use the new service method
+    if (staffAssignmentEnabled) {
+        return await appointmentAssignmentService.getAvailableSlotsWithStaffCapacity(coachId, date);
+    }
+
+    // Otherwise, use traditional single-slot logic
     const { workingHours, unavailableSlots, defaultAppointmentDuration, bufferTime, timeZone } = coachSettings;
     const requestedDate = new Date(date);
     const dayOfWeek = getDayOfWeek(date);
@@ -41,6 +55,7 @@ const getAvailableSlots = async (coachId, date) => {
             $gte: requestedDate,
             $lt: new Date(requestedDate.getTime() + 86400000), // Adds one day
         },
+        status: { $nin: ['cancelled', 'completed'] }
     }).sort('startTime');
 
     const startOfDay = timeToMinutes(todayWorkingHours.startTime);
@@ -68,6 +83,10 @@ const getAvailableSlots = async (coachId, date) => {
                 startTime: slotStartTime.toISOString(),
                 duration: appointmentDuration,
                 timeZone,
+                capacity: 1,
+                booked: 0,
+                available: 1,
+                staffAssignmentEnabled: false
             });
         }
         
@@ -79,6 +98,7 @@ const getAvailableSlots = async (coachId, date) => {
 
 /**
  * Handles the full appointment booking process, including conflict checks and event publishing.
+ * Now includes automatic staff assignment if enabled.
  */
 const bookAppointment = async (coachId, leadId, startTime, duration, notes, timeZone) => {
     const newAppointmentStartTime = new Date(startTime);
@@ -88,12 +108,17 @@ const bookAppointment = async (coachId, leadId, startTime, duration, notes, time
     const availableSlots = await getAvailableSlots(coachId, bookingDate);
 
     // Check if the requested slot is actually available
-    const isSlotAvailable = availableSlots.some(slot => {
+    const requestedSlot = availableSlots.find(slot => {
         return new Date(slot.startTime).getTime() === newAppointmentStartTime.getTime();
     });
 
-    if (!isSlotAvailable) {
+    if (!requestedSlot) {
         throw new Error('The requested time slot is not available.');
+    }
+
+    // If slot has limited capacity, check if there's room
+    if (requestedSlot.available <= 0) {
+        throw new Error('The requested time slot is fully booked.');
     }
 
     // Create a new appointment in the database
@@ -108,11 +133,70 @@ const bookAppointment = async (coachId, leadId, startTime, duration, notes, time
         appointmentType: 'online', // Default to online for Zoom integration
     });
 
+    // Auto-assign to staff if enabled
+    const coachSettings = await CoachAvailability.findOne({ coachId });
+    let zoomGenerated = false;
+    let remindersScheduled = false;
+    
+    if (coachSettings?.appointmentAssignment?.enabled && coachSettings.appointmentAssignment.mode === 'automatic') {
+        try {
+            const assignmentResult = await appointmentAssignmentService.autoAssignAppointment(coachId, newAppointment._id);
+            if (assignmentResult.success) {
+                console.log(`[Booking] Auto-assigned appointment ${newAppointment._id} to staff ${assignmentResult.assignedTo.name}`);
+                newAppointment.assignedStaffId = assignmentResult.assignedTo.staffId;
+                await newAppointment.save();
+                zoomGenerated = assignmentResult.zoomMeeting !== null;
+                remindersScheduled = assignmentResult.reminders !== null;
+            } else {
+                console.log(`[Booking] Could not auto-assign appointment: ${assignmentResult.message}`);
+            }
+        } catch (error) {
+            console.error('[Booking] Error during auto-assignment:', error.message);
+            // Continue without assignment - appointment is still created
+        }
+    }
+    
+    // If not assigned or assignment didn't generate Zoom, try with coach's credentials
+    if (!zoomGenerated) {
+        try {
+            const zoomResult = await zoomMeetingService.createMeetingForAppointment(newAppointment._id, coachId);
+            if (zoomResult.success) {
+                console.log(`[Booking] Zoom meeting created using coach credentials`);
+                zoomGenerated = true;
+            }
+        } catch (error) {
+            console.error('[Booking] Error creating Zoom meeting:', error.message);
+        }
+    }
+    
+    // Schedule reminders if not already done during assignment
+    if (!remindersScheduled) {
+        try {
+            const reminderResult = await appointmentReminderService.scheduleReminders(newAppointment._id, coachId);
+            if (reminderResult.success) {
+                console.log(`[Booking] Scheduled ${reminderResult.scheduled} reminders`);
+                remindersScheduled = true;
+            }
+        } catch (error) {
+            console.error('[Booking] Error scheduling reminders:', error.message);
+        }
+    }
+
     // 1. Publish 'appointment_booked' event to RabbitMQ
     const eventPayload = {
         eventName: 'appointment_booked',
-        payload: { appointmentId: newAppointment._id, leadId, coachId },
-        relatedDoc: { appointmentId: newAppointment._id, leadId, coachId },
+        payload: { 
+            appointmentId: newAppointment._id, 
+            leadId, 
+            coachId,
+            assignedStaffId: newAppointment.assignedStaffId || null
+        },
+        relatedDoc: { 
+            appointmentId: newAppointment._id, 
+            leadId, 
+            coachId,
+            assignedStaffId: newAppointment.assignedStaffId || null
+        },
         timestamp: new Date().toISOString()
     };
     await publishEvent('funnelseye_events', 'appointment_booked', eventPayload);
@@ -123,16 +207,30 @@ const bookAppointment = async (coachId, leadId, startTime, duration, notes, time
 
     const reminderPayload = {
         eventName: 'appointment_reminder_time',
-        payload: { appointmentId: newAppointment._id, leadId, coachId },
-        relatedDoc: { appointmentId: newAppointment._id, leadId, coachId },
+        payload: { 
+            appointmentId: newAppointment._id, 
+            leadId, 
+            coachId,
+            assignedStaffId: newAppointment.assignedStaffId || null
+        },
+        relatedDoc: { 
+            appointmentId: newAppointment._id, 
+            leadId, 
+            coachId,
+            assignedStaffId: newAppointment.assignedStaffId || null
+        },
         timestamp: new Date().toISOString()
     };
     
-    // Schedule the 24-hour reminder
-    await scheduleFutureEvent(reminderTime24h, 'funnelseye_events', 'appointment_reminder_time', reminderPayload);
+    // Schedule the 24-hour reminder (only if appointment is more than 24 hours away)
+    if (reminderTime24h > new Date()) {
+        await scheduleFutureEvent(reminderTime24h, 'funnelseye_events', 'appointment_reminder_time', reminderPayload);
+    }
     
-    // Schedule the 1-hour reminder
-    await scheduleFutureEvent(reminderTime1h, 'funnelseye_events', 'appointment_reminder_time', reminderPayload);
+    // Schedule the 1-hour reminder (only if appointment is more than 1 hour away)
+    if (reminderTime1h > new Date()) {
+        await scheduleFutureEvent(reminderTime1h, 'funnelseye_events', 'appointment_reminder_time', reminderPayload);
+    }
 
     return newAppointment;
 };
