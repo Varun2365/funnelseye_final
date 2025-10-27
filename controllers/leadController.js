@@ -1,5 +1,6 @@
 // D:\PRJ_YCT_Final\controllers/leadController.js
 
+const mongoose = require('mongoose');
 const { Lead, Funnel, NurturingSequence } = require('../schema');
 const { publishEvent } = require('../services/rabbitmqProducer');
 const { scheduleFutureEvent } = require('../services/automationSchedulerService');
@@ -366,10 +367,26 @@ const getLeads = async (req, res) => {
         // Log staff action if applicable
         CoachStaffService.logStaffAction(req, 'read', 'leads', 'all', { coachId });
         
-        let query;
+        // Build base query - ALWAYS filter by coachId first
+        // Ensure coachId is converted to ObjectId for proper MongoDB comparison
+        let leadQuery = { coachId: mongoose.Types.ObjectId.isValid(coachId) ? coachId : new mongoose.Types.ObjectId(coachId) };
+        
+        // For staff: Add additional filtering to show only their assigned leads
+        if (userContext.isStaff) {
+            // Check if staff has MANAGE_ALL permission (show all coach's leads)
+            const hasManageAll = userContext.permissions && userContext.permissions.includes('leads:manage_all');
+            
+            if (!hasManageAll) {
+                // Staff can only see leads assigned to them OR with appointment assigned to them
+                leadQuery.$or = [
+                    { assignedTo: userContext.userId },
+                    { 'appointment.assignedStaffId': userContext.userId }
+                ];
+            }
+        }
 
+        // Apply additional filters from query params
         const reqQuery = { ...req.query };
-
         const removeFields = ['select', 'sort', 'page', 'limit', 'nextFollowUpAt'];
         removeFields.forEach(param => delete reqQuery[param]);
 
@@ -387,11 +404,13 @@ const getLeads = async (req, res) => {
             queryStr = JSON.stringify({ ...JSON.parse(queryStr), nextFollowUpAt: nextFollowUpAtFilter });
         }
 
-        // Build query with staff permission filtering (IMPORTANT: Use buildLeadQueryFilter for assigned leads)
-        const baseQuery = { ...JSON.parse(queryStr), coachId };
-        const filteredQuery = CoachStaffService.buildLeadQueryFilter(req, baseQuery);
+        // Merge additional query params
+        if (queryStr && queryStr !== '{}') {
+            const additionalParams = JSON.parse(queryStr);
+            leadQuery = { ...leadQuery, ...additionalParams };
+        }
         
-        query = Lead.find(filteredQuery);
+        let query = Lead.find(leadQuery);
 
         if (req.query.select) {
             const fields = req.query.select.split(',').join(' ');
@@ -409,7 +428,7 @@ const getLeads = async (req, res) => {
         const limit = parseInt(req.query.limit, 10) || 25;
         const startIndex = (page - 1) * limit;
         const endIndex = page * limit;
-        const total = await Lead.countDocuments(filteredQuery);
+        const total = await Lead.countDocuments(leadQuery);
 
         query = query.skip(startIndex).limit(limit);
 
@@ -417,9 +436,6 @@ const getLeads = async (req, res) => {
         query = query.populate('assignedTo', 'name');
 
         const leads = await query;
-        
-        // Filter response data based on staff permissions
-        const filteredLeads = CoachStaffService.filterResponseData(req, leads, 'leads');
 
         const pagination = {};
         if (endIndex < total) {
@@ -430,7 +446,7 @@ const getLeads = async (req, res) => {
         }
 
         // Ensure score and qualification data are included
-        const leadsWithScore = filteredLeads.map(lead => ({
+        const leadsWithScore = leads.map(lead => ({
             ...lead.toObject(),
             score: lead.score || 0,
             maxScore: lead.maxScore || 100,

@@ -284,10 +284,12 @@ const hasStaffPermission = (req, permission) => {
  * Helper function to get coach ID for database queries
  * Returns the actual coach ID regardless of whether user is coach or staff
  * @param {Object} req - Request object
- * @returns {string} - Coach ID
+ * @returns {mongoose.Types.ObjectId|String} - Coach ID (preserves ObjectId type)
  */
 const getCoachId = (req) => {
-    return req.coachId.toString();
+    // Return as-is to preserve ObjectId type for MongoDB queries
+    // This ensures proper matching with ObjectId fields in database
+    return req.coachId;
 };
 
 module.exports = {
