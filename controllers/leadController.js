@@ -419,8 +419,6 @@ const getLeads = async (req, res) => {
         const isStaff = req.role === 'staff' || userContext.isStaff || userContext.role === 'staff';
         const staffUserId = req.userId || userContext.userId;
         
-        console.log(`[DEBUG] Lead Query - isStaff: ${isStaff}, role: ${req.role || userContext.role}, userId: ${staffUserId}, coachId: ${coachId}`);
-        
         if (isStaff) {
             // ALL staff can ONLY see leads assigned to them (assignedTo field matches their userId)
             // NO EXCEPTIONS - even staff with manage_all permission only see their assigned leads
@@ -446,9 +444,6 @@ const getLeads = async (req, res) => {
                 ...filterParams // Include other filters like status, temperature, etc.
             };
             
-            console.log(`[Staff Lead Filter] Staff ${staffUserId} (${staffObjectId}) - ONLY showing assigned leads (no exceptions). Final Query:`, JSON.stringify(leadQuery, null, 2));
-        } else {
-            console.log(`[DEBUG] Coach user - showing all leads for coachId: ${coachId}`);
         }
         let query = Lead.find(leadQuery);
 

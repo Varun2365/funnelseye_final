@@ -25,12 +25,15 @@ const getFunnelsByCoachId = asyncHandler(async (req, res, next) => {
     // Log staff action if applicable
     CoachStaffService.logStaffAction(req, 'read', 'funnels', 'all', { coachId });
     
-    if (coachId.toString() !== req.params.coachId.toString()) {
+    // For staff: middleware already ensures they can only access their coach's data
+    // For coaches: validate URL param matches their coachId for security
+    if (userContext.isCoach && coachId.toString() !== req.params.coachId.toString()) {
         return next(new ErrorResponse('Forbidden: You can only access your own funnels.', 403));
     }
     
     // Build query with staff permission filtering
-    const baseQuery = { coachId: req.params.coachId };
+    // Use coachId from service (not URL param) to ensure staff access their coach's data correctly
+    const baseQuery = { coachId: coachId };
     const filteredQuery = CoachStaffService.buildResourceFilter(req, baseQuery);
     
     const funnels = await Funnel.find(filteredQuery);
@@ -85,7 +88,9 @@ const createFunnel = asyncHandler(async (req, res, next) => {
     CoachStaffService.logStaffAction(req, 'write', 'funnels', 'create', { coachId });
     
     req.body.coachId = coachId;
-    if (coachId.toString() !== req.params.coachId.toString()) {
+    // For staff: middleware already ensures they can only create for their coach
+    // For coaches: validate URL param matches their coachId for security
+    if (userContext.isCoach && coachId.toString() !== req.params.coachId.toString()) {
         return next(new ErrorResponse('Forbidden: You can only create funnels for yourself.', 403));
     }
     
@@ -309,7 +314,9 @@ const getFunnelStagesByType = asyncHandler(async (req, res, next) => {
     // Log staff action if applicable
     CoachStaffService.logStaffAction(req, 'read', 'funnels', 'stages_by_type', { coachId, funnelId, stageType });
 
-    if (coachIdFromReq.toString() !== coachId.toString()) {
+    // For staff: middleware already ensures they can only access their coach's data
+    // For coaches: validate URL param matches their coachId for security
+    if (userContext.isCoach && coachIdFromReq.toString() !== coachId.toString()) {
         return next(new ErrorResponse('Forbidden: You are not authorized to access this coach\'s funnels.', 403));
     }
 
