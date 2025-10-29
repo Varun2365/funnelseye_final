@@ -73,7 +73,24 @@ const coachSubscriptionSchema = new mongoose.Schema({
     },
     notes: {
         type: String
-    }
+    },
+    
+    // Template access based on subscription
+    availableTemplates: [{
+        templateId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'MessageTemplate',
+            required: true
+        },
+        templateName: {
+            type: String,
+            required: true
+        },
+        grantedAt: {
+            type: Date,
+            default: Date.now
+        }
+    }]
 }, {
     timestamps: true
 });

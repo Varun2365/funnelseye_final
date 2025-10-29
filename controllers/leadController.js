@@ -7,6 +7,7 @@ const { scheduleFutureEvent } = require('../services/automationSchedulerService'
 const leadScoringService = require('../services/leadScoringService');
 const aiService = require('../services/aiService');
 const CoachStaffService = require('../services/coachStaffService');
+const leadAssignmentService = require('../services/leadAssignmentService');
 const { SECTIONS } = require('../utils/sectionPermissions');
 
 // Lead qualification logic (integrated)
@@ -304,6 +305,23 @@ const createLead = async (req, res) => {
         }
 
         const lead = await Lead.create(leadData);
+        
+        // Log lead creation
+        console.log(`[Lead Created] Lead ID: ${lead._id} | Name: ${lead.name} | Email: ${lead.email || 'N/A'} | Phone: ${lead.phone || 'N/A'} | Coach ID: ${coachId} | Created At: ${lead.createdAt.toISOString()}`);
+
+        // Auto-assign lead to staff based on distribution ratio
+        try {
+            const assignmentResult = await leadAssignmentService.autoAssignLead(coachId, lead._id);
+            
+            if (!assignmentResult.success) {
+                if (!assignmentResult.noStaffAvailable && !assignmentResult.allRatiosZero && assignmentResult.message !== 'Lead is already assigned') {
+                    console.warn(`[Lead Assignment Failed] Lead ID: ${lead._id} | Reason: ${assignmentResult.message}`);
+                }
+            }
+        } catch (assignmentError) {
+            // Don't fail lead creation if assignment fails
+            console.error(`[Lead Assignment Error] Lead ID: ${lead._id} | Error: ${assignmentError.message}`);
+        }
 
         // --- Publish event to RabbitMQ ---
         const eventName = 'lead_created';
@@ -370,22 +388,8 @@ const getLeads = async (req, res) => {
         // Build base query - ALWAYS filter by coachId first
         // Ensure coachId is converted to ObjectId for proper MongoDB comparison
         let leadQuery = { coachId: mongoose.Types.ObjectId.isValid(coachId) ? coachId : new mongoose.Types.ObjectId(coachId) };
-        
-        // For staff: Add additional filtering to show only their assigned leads
-        if (userContext.isStaff) {
-            // Check if staff has MANAGE_ALL permission (show all coach's leads)
-            const hasManageAll = userContext.permissions && userContext.permissions.includes('leads:manage_all');
-            
-            if (!hasManageAll) {
-                // Staff can only see leads assigned to them OR with appointment assigned to them
-                leadQuery.$or = [
-                    { assignedTo: userContext.userId },
-                    { 'appointment.assignedStaffId': userContext.userId }
-                ];
-            }
-        }
 
-        // Apply additional filters from query params
+        // Apply additional filters from query params FIRST
         const reqQuery = { ...req.query };
         const removeFields = ['select', 'sort', 'page', 'limit', 'nextFollowUpAt'];
         removeFields.forEach(param => delete reqQuery[param]);
@@ -410,6 +414,42 @@ const getLeads = async (req, res) => {
             leadQuery = { ...leadQuery, ...additionalParams };
         }
         
+        // CRITICAL: For staff - Apply filtering to show ONLY assigned leads
+        // Check if user is staff by checking req.role directly (more reliable than userContext)
+        const isStaff = req.role === 'staff' || userContext.isStaff || userContext.role === 'staff';
+        const staffUserId = req.userId || userContext.userId;
+        
+        console.log(`[DEBUG] Lead Query - isStaff: ${isStaff}, role: ${req.role || userContext.role}, userId: ${staffUserId}, coachId: ${coachId}`);
+        
+        if (isStaff) {
+            // ALL staff can ONLY see leads assigned to them (assignedTo field matches their userId)
+            // NO EXCEPTIONS - even staff with manage_all permission only see their assigned leads
+            // Convert staffUserId to ObjectId for proper MongoDB matching
+            const staffObjectId = mongoose.Types.ObjectId.isValid(staffUserId) 
+                ? new mongoose.Types.ObjectId(staffUserId) 
+                : staffUserId;
+            
+            // Build clean query: coachId + assignedTo filter + other params
+            // Remove any conflicting assignedTo from query params
+            const cleanQuery = { ...leadQuery };
+            delete cleanQuery.assignedTo;
+            delete cleanQuery.$and;
+            delete cleanQuery.$or;
+            
+            // Build final query - staff can ONLY see leads where assignedTo = their userId
+            // Remove coachId, assignedTo, $and, $or from cleanQuery to rebuild properly
+            const { coachId: _, assignedTo: __, $and: ___, $or: ____, ...filterParams } = cleanQuery;
+            
+            leadQuery = {
+                coachId: mongoose.Types.ObjectId.isValid(coachId) ? coachId : new mongoose.Types.ObjectId(coachId),
+                assignedTo: staffObjectId, // CRITICAL: ALL staff can ONLY see their assigned leads (no exceptions)
+                ...filterParams // Include other filters like status, temperature, etc.
+            };
+            
+            console.log(`[Staff Lead Filter] Staff ${staffUserId} (${staffObjectId}) - ONLY showing assigned leads (no exceptions). Final Query:`, JSON.stringify(leadQuery, null, 2));
+        } else {
+            console.log(`[DEBUG] Coach user - showing all leads for coachId: ${coachId}`);
+        }
         let query = Lead.find(leadQuery);
 
         if (req.query.select) {

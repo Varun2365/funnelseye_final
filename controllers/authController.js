@@ -372,8 +372,17 @@ const login = async (req, res) => {
 
 const getMe = async (req, res) => {
     try {
-        const user = await User.findById(req.coachId)
-            .populate('sponsorId', 'name email selfCoachId currentLevel');
+        // CRITICAL FIX: Use req.userId (the actual logged-in user) instead of req.coachId
+        // req.coachId is the coach's ID for staff, but req.userId is always the logged-in user's ID
+        const userId = req.userId || req.user?._id;
+        
+        if (!userId) {
+            return res.status(401).json({ success: false, message: 'User not authenticated.' });
+        }
+
+        const user = await User.findById(userId)
+            .populate('sponsorId', 'name email selfCoachId currentLevel')
+            .populate('coachId', 'name email'); // Populate coach info if user is staff
             
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found.' });
@@ -382,6 +391,9 @@ const getMe = async (req, res) => {
         // Convert user to plain object and remove password
         const userData = user.toObject();
         delete userData.password;
+
+        // Log for debugging
+        console.log(`[getMe] Returning user data for ${userData.role}: ${userData.email || userData.name} (ID: ${userData._id})`);
 
         res.status(200).json({ success: true, user: userData });
     } catch (err) {

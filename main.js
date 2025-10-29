@@ -104,6 +104,7 @@ const staffAuthRoutes = require('./routes/staffAuthRoutes');
 const coachStaffManagementRoutes = require('./routes/coachStaffManagementRoutes');
 const publicPermissionsRoutes = require('./routes/publicPermissionsRoutes');
 const logsRoutes = require('./routes/logsRoutes');
+const centralMessagingRoutes = require('./routes/centralMessagingRoutes');
 
 // --- Import the worker initialization functions ---
 const initRulesEngineWorker = require('./workers/worker_rules_engine');
@@ -349,6 +350,11 @@ app.use('/api/admin/v1', adminV1Routes);
 app.use('/api/whatsapp/v1', centralWhatsAppRoutes);
 // Messaging routes moved to centralWhatsAppRoutes
 // app.use('/api/messaging', messagingRoutes);
+
+// ===== CENTRAL MESSAGING V1 SYSTEM =====
+// New unified messaging endpoint for WhatsApp and Email
+// Features: Credits, Templates, Analytics, Role-based access
+app.use('/api/central-messaging/v1', centralMessagingRoutes);
 
 // ===== EMAIL CONFIGURATION SYSTEM =====
 // Email configuration management is now integrated into /api/whatsapp/v1
