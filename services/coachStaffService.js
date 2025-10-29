@@ -1,5 +1,6 @@
 const { getUserContext, hasStaffPermission, getCoachId } = require('../middleware/unifiedCoachAuth');
 const { SECTIONS } = require('../utils/sectionPermissions');
+const { PERMISSIONS } = require('../utils/unifiedPermissions');
 
 /**
  * Coach-Staff Service
