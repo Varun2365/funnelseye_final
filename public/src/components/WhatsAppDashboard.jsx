@@ -327,7 +327,7 @@ const WhatsAppDashboard = () => {
   const fetchConfig = async () => {
     try {
       console.log('🔄 [WHATSAPP] Fetching configuration...');
-      const result = await apiCall('/whatsapp/v1/config');
+      const result = await apiCall('/central-messaging/v1/config');
       setConfig(result.data);
       console.log('✅ [WHATSAPP] Configuration fetched successfully');
     } catch (err) {
@@ -344,7 +344,7 @@ const WhatsAppDashboard = () => {
   const fetchEmailConfig = async () => {
     try {
       console.log('🔄 [EMAIL] Fetching email configuration...');
-      const result = await apiCall('/whatsapp/v1/admin/email/config');
+      const result = await apiCall('/central-messaging/v1/admin/email/config');
       setEmailConfig(result.data);
       console.log('✅ [EMAIL] Email configuration fetched successfully');
     } catch (err) {
@@ -363,7 +363,7 @@ const WhatsAppDashboard = () => {
       setLoading(true);
       console.log('🔄 [WHATSAPP] Testing configuration...');
       
-      const result = await apiCall('/whatsapp/v1/test-config');
+      const result = await apiCall('/central-messaging/v1/test-config');
       setSuccess('Configuration test successful! WhatsApp API is working properly.');
       console.log('✅ [WHATSAPP] Configuration test successful');
     } catch (err) {
@@ -391,7 +391,7 @@ const WhatsAppDashboard = () => {
   const fetchEmailStatus = async () => {
     try {
       console.log('🔄 [EMAIL] Fetching email status...');
-      const result = await apiCall('/whatsapp/v1/admin/email/status');
+      const result = await apiCall('/central-messaging/v1/admin/email/status');
       setEmailStatus(result.data);
       console.log('✅ [EMAIL] Email status fetched successfully');
     } catch (err) {
@@ -406,7 +406,7 @@ const WhatsAppDashboard = () => {
       setLoading(true);
       console.log('🔄 [EMAIL] Testing email configuration...');
       
-      const result = await apiCall('/whatsapp/v1/admin/email/test-config');
+      const result = await apiCall('/central-messaging/v1/admin/email/test-config');
       setSuccess('Email configuration test successful! Email service is working properly.');
       console.log('✅ [EMAIL] Email configuration test successful');
     } catch (err) {
@@ -431,7 +431,7 @@ const WhatsAppDashboard = () => {
       setLoading(true);
       console.log('🔄 [EMAIL] Sending test email...');
       
-      const result = await apiCall('/whatsapp/v1/admin/email/send-test', {
+      const result = await apiCall('/central-messaging/v1/admin/email/send-test', {
         method: 'POST',
         data: {
           to: toEmail,
@@ -471,7 +471,7 @@ const WhatsAppDashboard = () => {
         return;
       }
       
-      const result = await apiCall('/whatsapp/v1/setup', {
+      const result = await apiCall('/central-messaging/v1/setup', {
         method: 'POST',
         data: config ? { ...configForm, isUpdate: true } : configForm
       });
@@ -503,7 +503,7 @@ const WhatsAppDashboard = () => {
         password: emailConfigForm.password
       };
       
-      const result = await apiCall('/whatsapp/v1/admin/email/setup', {
+      const result = await apiCall('/central-messaging/v1/admin/email/setup', {
         method: 'POST',
         data: emailConfig ? { ...configData, isUpdate: true } : configData
       });
@@ -532,7 +532,7 @@ const WhatsAppDashboard = () => {
   const fetchAnalytics = async () => {
     try {
       console.log('🔄 [WHATSAPP] Fetching analytics...');
-      const result = await apiCall('/whatsapp/v1/analytics');
+      const result = await apiCall('/central-messaging/v1/analytics');
       setAnalytics(result.data);
       console.log('✅ [WHATSAPP] Analytics fetched successfully');
     } catch (err) {
@@ -570,7 +570,7 @@ const WhatsAppDashboard = () => {
       if (filters.endDate) params.append('endDate', filters.endDate);
       if (filters.search) params.append('search', filters.search);
       
-      const result = await apiCall(`/whatsapp/v1/messages?${params}`);
+      const result = await apiCall(`/central-messaging/v1/messages?${params}`);
       setMessages(result.data.messages);
       setMessagesTotal(result.data.total);
       setMessagesPage(page);
@@ -585,10 +585,10 @@ const WhatsAppDashboard = () => {
   const fetchTemplates = async () => {
     try {
       console.log('🔄 [WHATSAPP] Fetching templates...');
-      const result = await apiCall('/whatsapp/v1/templates');
+      const result = await apiCall('/central-messaging/v1/admin/whatsapp/templates');
       console.log('🔄 [TEMPLATES] API Response:', result);
       console.log('🔄 [TEMPLATES] Templates data:', result.data);
-      setTemplates(result.data);
+      setTemplates(Array.isArray(result.data) ? result.data : (result.data?.templates || []));
       console.log('✅ [WHATSAPP] Templates fetched successfully');
     } catch (err) {
       console.error('❌ [WHATSAPP] Error fetching templates:', err.message);
@@ -613,7 +613,7 @@ const WhatsAppDashboard = () => {
   const fetchContacts = async () => {
     try {
       console.log('🔄 [WHATSAPP] Fetching contacts...');
-      const result = await apiCall('/whatsapp/v1/contacts');
+      const result = await apiCall('/central-messaging/v1/contacts');
       console.log('📞 [WHATSAPP] Contacts API response:', result);
       
       // Handle different response structures
@@ -680,7 +680,7 @@ const WhatsAppDashboard = () => {
         messageData.message = sendForm.message;
       }
 
-      const result = await apiCall('/whatsapp/v1/send-message', {
+      const result = await apiCall('/central-messaging/v1/admin/send', {
         method: 'POST',
         data: messageData
       });
@@ -723,7 +723,7 @@ const WhatsAppDashboard = () => {
   // Handle template selection
   const handleTemplateSelect = (templateName) => {
     console.log('🔄 [TEMPLATE] Selecting template:', templateName);
-    const template = templates.find(t => t.templateName === templateName);
+    const template = (templates || []).find(t => t.templateName === templateName);
     console.log('🔄 [TEMPLATE] Found template:', template);
     setSelectedTemplate(template);
     setSendForm({
@@ -809,7 +809,7 @@ const WhatsAppDashboard = () => {
   const saveContactEdit = async () => {
     try {
       setLoading(true);
-      const result = await apiCall('/whatsapp/v1/contacts/update', {
+      const result = await apiCall('/central-messaging/v1/contacts/update', {
         method: 'PUT',
         data: {
           phoneNumber: contactEditForm.phoneNumber,
@@ -896,7 +896,7 @@ const WhatsAppDashboard = () => {
         messageData.message = bulkMessage;
       }
 
-      const result = await apiCall('/whatsapp/v1/send-bulk-messages', {
+      const result = await apiCall('/central-messaging/v1/admin/send-bulk', {
         method: 'POST',
         data: messageData
       });
@@ -933,7 +933,7 @@ const WhatsAppDashboard = () => {
         }
       }
 
-      const result = await apiCall('/whatsapp/v1/test-message', {
+      const result = await apiCall('/central-messaging/v1/test-message', {
         method: 'POST',
         data: messageData
       });
@@ -953,7 +953,7 @@ const WhatsAppDashboard = () => {
     try {
       setSyncLoading(true);
       console.log('🔄 [WHATSAPP] Syncing templates...');
-      const result = await apiCall('/whatsapp/v1/templates/sync', {
+      const result = await apiCall('/central-messaging/v1/admin/whatsapp/templates/sync', {
         method: 'POST'
       });
       setSuccess(`Templates synced successfully! ${result.data.syncedCount || 0} templates processed.`);
@@ -992,7 +992,7 @@ const WhatsAppDashboard = () => {
   const fetchCreditSettings = async () => {
     try {
       console.log('🔄 [WHATSAPP] Fetching credit settings...');
-      const result = await apiCall('/whatsapp/v1/credit-settings');
+      const result = await apiCall('/central-messaging/v1/credit-settings');
       setCreditSettings(result.data);
       console.log('✅ [WHATSAPP] Credit settings fetched successfully');
     } catch (err) {
@@ -1006,7 +1006,7 @@ const WhatsAppDashboard = () => {
     try {
       setLoading(true);
       console.log('🔄 [WHATSAPP] Updating credit settings...');
-      const result = await apiCall('/whatsapp/v1/credit-settings', {
+      const result = await apiCall('/central-messaging/v1/credit-settings', {
         method: 'PUT',
         data: settings
       });
@@ -1025,7 +1025,7 @@ const WhatsAppDashboard = () => {
   const fetchSettingsOverview = async () => {
     try {
       console.log('🔄 [WHATSAPP] Fetching settings overview...');
-      const result = await apiCall('/whatsapp/v1/settings-overview');
+      const result = await apiCall('/central-messaging/v1/settings-overview');
       setSettingsOverview(result.data);
       console.log('✅ [WHATSAPP] Settings overview fetched successfully');
     } catch (err) {
@@ -1038,7 +1038,7 @@ const WhatsAppDashboard = () => {
     try {
       console.log('🔄 [WHATSAPP] Fetching conversations...');
       // Group messages by conversation ID
-      const result = await apiCall('/whatsapp/v1/messages?limit=100');
+      const result = await apiCall('/central-messaging/v1/messages?limit=100');
       
       // Create unique conversations from messages
       const convMap = new Map();
@@ -1067,7 +1067,7 @@ const WhatsAppDashboard = () => {
   const fetchConversationMessages = async (conversationId) => {
     try {
       console.log('🔄 [WHATSAPP] Fetching conversation messages...');
-      const result = await apiCall(`/whatsapp/v1/messages/conversation/${conversationId}`);
+      const result = await apiCall(`/central-messaging/v1/messages/conversation/${conversationId}`);
       setConversationMessages(result.data.messages || []);
       console.log('✅ [WHATSAPP] Conversation messages fetched successfully');
     } catch (err) {
@@ -1082,7 +1082,7 @@ const WhatsAppDashboard = () => {
       setLoading(true);
       console.log('🔄 [WHATSAPP] Performing health check...');
       
-      const result = await apiCall('/whatsapp/v1/health');
+      const result = await apiCall('/central-messaging/v1/health');
       setSuccess('Health check successful! All systems operational.');
       console.log('✅ [WHATSAPP] Health check successful');
     } catch (err) {
@@ -1818,7 +1818,7 @@ const WhatsAppDashboard = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {templates.map((template) => (
+              {(templates || []).map((template) => (
                 <TableRow key={template.templateId || template._id || template.templateName}>
                   <TableCell className="font-medium">{template.templateName}</TableCell>
                   <TableCell>{template.category}</TableCell>
@@ -2240,7 +2240,7 @@ const WhatsAppDashboard = () => {
               <FileText className="h-8 w-8 text-purple-600" />
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Templates</p>
-                <p className="text-2xl font-bold">{templates.length}</p>
+                <p className="text-2xl font-bold">{templates?.length || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -3000,8 +3000,8 @@ const WhatsAppDashboard = () => {
                       <SelectContent className="max-h-[300px]">
                         {(() => {
                           console.log('🔄 [TEMPLATE_DROPDOWN] Templates array:', templates);
-                          console.log('🔄 [TEMPLATE_DROPDOWN] Templates length:', templates.length);
-                          return templates.length === 0 ? (
+                          console.log('🔄 [TEMPLATE_DROPDOWN] Templates length:', templates?.length || 0);
+                          return !templates || templates.length === 0 ? (
                             <div className="p-4 text-center text-sm text-muted-foreground">
                               <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
                               <p>No templates available</p>
@@ -3010,7 +3010,7 @@ const WhatsAppDashboard = () => {
                           ) : (
                           <>
                             {/* Show all templates, highlight approved ones */}
-                            {templates.map((template) => {
+                            {(templates || []).map((template) => {
                               console.log('🔄 [TEMPLATE_ITEM] Rendering template:', template);
                               return (
                                 <SelectItem 
@@ -3052,9 +3052,9 @@ const WhatsAppDashboard = () => {
                         })()}
                       </SelectContent>
                     </Select>
-                    {templates.length > 0 && (
+                    {templates && templates.length > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        {templates.filter(t => t.status === 'APPROVED').length} approved template(s) available
+                        {(templates || []).filter(t => t.status === 'APPROVED').length} approved template(s) available
                       </p>
                     )}
                   </div>

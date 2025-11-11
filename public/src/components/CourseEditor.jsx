@@ -132,7 +132,7 @@ const CourseEditor = () => {
   const fetchUploadedFiles = async () => {
     try {
       const folderId = currentFolder ? currentFolder._id : 'root';
-      const response = await fetch(apiConfig.getApiUrl(`/admin/v1/courses/folder/${folderId}/contents`), {
+      const response = await fetch(apiConfig.getApiUrl(`/content/admin/folder/${folderId}/contents`), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -161,7 +161,7 @@ const CourseEditor = () => {
         setFolderPath([]);
       }
       
-      const response = await fetch(apiConfig.getApiUrl(`/admin/v1/courses/folder/${folderId}/contents`), {
+      const response = await fetch(apiConfig.getApiUrl(`/content/admin/folder/${folderId}/contents`), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -203,13 +203,13 @@ const CourseEditor = () => {
     
     setNewLesson({
       ...newLesson, 
-      content: `/api/admin/v1/courses/files/${file._id}/serve`,
+      content: `/api/content/admin/files/${file._id}/serve`,
       type: detectedType
     });
     
     // Auto-calculate duration for video and audio files
     if (detectedType === 'video' || detectedType === 'audio') {
-      calculateMediaDuration(`/api/admin/v1/courses/files/${file._id}/serve`, detectedType);
+      calculateMediaDuration(`/api/content/admin/files/${file._id}/serve`, detectedType);
     }
     
     setShowFileBrowser(false);
@@ -835,7 +835,7 @@ const CourseEditor = () => {
     });
     
     // Extract file name from content URL if it's a file URL
-    if (lesson.content && lesson.content.includes('/api/admin/v1/courses/files/')) {
+    if (lesson.content && lesson.content.includes('/api/content/admin/files/')) {
       // For now, we'll show a generic name - in a real app, you'd fetch the actual file details
       setSelectedFileName('Selected File');
     } else if (lesson.type === 'youtube') {
@@ -1566,13 +1566,13 @@ const CourseEditor = () => {
                           />
                         ) : newLesson.type === 'video' ? (
                           <video
-                            src={newLesson.content.startsWith('http') || newLesson.content.startsWith('/api/') ? newLesson.content : `/api/admin/v1/courses/files/${newLesson.content}/serve`}
+                            src={newLesson.content.startsWith('http') || newLesson.content.startsWith('/api/') ? newLesson.content : `/api/content/admin/files/${newLesson.content}/serve`}
                             controls
                             className="w-full h-full rounded"
                           />
                         ) : newLesson.type === 'image' ? (
                           <img
-                            src={newLesson.content.startsWith('http') || newLesson.content.startsWith('/api/') ? newLesson.content : `/api/admin/v1/courses/files/${newLesson.content}/serve`}
+                            src={newLesson.content.startsWith('http') || newLesson.content.startsWith('/api/') ? newLesson.content : `/api/content/admin/files/${newLesson.content}/serve`}
                             alt="Content Preview"
                             className="w-full h-full object-contain rounded"
                           />
@@ -1587,7 +1587,7 @@ const CourseEditor = () => {
                         ) : newLesson.type === 'audio' ? (
                           <div className="flex items-center justify-center h-full">
                             <audio
-                              src={newLesson.content.startsWith('http') || newLesson.content.startsWith('/api/') ? newLesson.content : `/api/admin/v1/courses/files/${newLesson.content}/serve`}
+                              src={newLesson.content.startsWith('http') || newLesson.content.startsWith('/api/') ? newLesson.content : `/api/content/admin/files/${newLesson.content}/serve`}
                               controls
                               className="w-full max-w-md"
                             />
@@ -1943,7 +1943,7 @@ const CourseEditor = () => {
                   ) : previewLesson.type === 'video' ? (
                     <div className="aspect-video">
                       <video
-                        src={previewLesson.content.startsWith('http') || previewLesson.content.startsWith('/api/') ? previewLesson.content : `/api/admin/v1/courses/files/${previewLesson.content}/serve`}
+                        src={previewLesson.content.startsWith('http') || previewLesson.content.startsWith('/api/') ? previewLesson.content : `/api/content/admin/files/${previewLesson.content}/serve`}
                         controls
                         className="w-full h-full rounded"
                       />
@@ -1951,7 +1951,7 @@ const CourseEditor = () => {
                   ) : previewLesson.type === 'image' ? (
                     <div className="aspect-video">
                       <img
-                        src={previewLesson.content.startsWith('http') || previewLesson.content.startsWith('/api/') ? previewLesson.content : `/api/admin/v1/courses/files/${previewLesson.content}/serve`}
+                        src={previewLesson.content.startsWith('http') || previewLesson.content.startsWith('/api/') ? previewLesson.content : `/api/content/admin/files/${previewLesson.content}/serve`}
                         alt={previewLesson.title}
                         className="w-full h-full object-contain rounded"
                       />
@@ -1964,7 +1964,7 @@ const CourseEditor = () => {
                         <p className="text-sm text-gray-600 mb-4">Click to open in new tab</p>
                         <Button
                           onClick={() => window.open(
-                            previewLesson.content.startsWith('http') || previewLesson.content.startsWith('/api/') ? previewLesson.content : `/api/admin/v1/courses/files/${previewLesson.content}/serve`, 
+                            previewLesson.content.startsWith('http') || previewLesson.content.startsWith('/api/') ? previewLesson.content : `/api/content/admin/files/${previewLesson.content}/serve`, 
                             '_blank'
                           )}
                           className="bg-blue-600 hover:bg-blue-700"
@@ -1976,7 +1976,7 @@ const CourseEditor = () => {
                   ) : previewLesson.type === 'audio' ? (
                     <div className="aspect-video flex items-center justify-center">
                       <audio
-                        src={previewLesson.content.startsWith('http') || previewLesson.content.startsWith('/api/') ? previewLesson.content : `/api/admin/v1/courses/files/${previewLesson.content}/serve`}
+                        src={previewLesson.content.startsWith('http') || previewLesson.content.startsWith('/api/') ? previewLesson.content : `/api/content/admin/files/${previewLesson.content}/serve`}
                         controls
                         className="w-full max-w-md"
                       />
@@ -2124,13 +2124,13 @@ const CourseEditor = () => {
                           />
                         ) : newLesson.type === 'video' ? (
                           <video
-                            src={newLesson.content.startsWith('http') || newLesson.content.startsWith('/api/') ? newLesson.content : `/api/admin/v1/courses/files/${newLesson.content}/serve`}
+                            src={newLesson.content.startsWith('http') || newLesson.content.startsWith('/api/') ? newLesson.content : `/api/content/admin/files/${newLesson.content}/serve`}
                             controls
                             className="w-full h-full rounded"
                           />
                         ) : newLesson.type === 'image' ? (
                           <img
-                            src={newLesson.content.startsWith('http') || newLesson.content.startsWith('/api/') ? newLesson.content : `/api/admin/v1/courses/files/${newLesson.content}/serve`}
+                            src={newLesson.content.startsWith('http') || newLesson.content.startsWith('/api/') ? newLesson.content : `/api/content/admin/files/${newLesson.content}/serve`}
                             alt="Content Preview"
                             className="w-full h-full object-contain rounded"
                           />
@@ -2145,7 +2145,7 @@ const CourseEditor = () => {
                         ) : newLesson.type === 'audio' ? (
                           <div className="flex items-center justify-center h-full">
                             <audio
-                              src={newLesson.content.startsWith('http') || newLesson.content.startsWith('/api/') ? newLesson.content : `/api/admin/v1/courses/files/${newLesson.content}/serve`}
+                              src={newLesson.content.startsWith('http') || newLesson.content.startsWith('/api/') ? newLesson.content : `/api/content/admin/files/${newLesson.content}/serve`}
                               controls
                               className="w-full max-w-md"
                             />

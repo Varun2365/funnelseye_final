@@ -832,7 +832,7 @@ class AdminApiService {
     
     async setupCentralWhatsApp(whatsappData) {
         console.log(`📱 [WhatsApp] Setting up central WhatsApp configuration`);
-        return this.apiCall('/whatsapp/v1/setup', {
+        return this.apiCall('/central-messaging/v1/setup', {
             method: 'POST',
             body: JSON.stringify(whatsappData)
         });
@@ -840,12 +840,12 @@ class AdminApiService {
 
     async getCentralWhatsAppConfig() {
         console.log(`📱 [WhatsApp] Getting central WhatsApp configuration`);
-        return this.apiCall('/whatsapp/v1/config');
+        return this.apiCall('/central-messaging/v1/config');
     }
 
     async updateCentralWhatsAppConfig(configData) {
         console.log(`📱 [WhatsApp] Updating central WhatsApp configuration`);
-        return this.apiCall('/whatsapp/v1/config', {
+        return this.apiCall('/central-messaging/v1/config', {
             method: 'PUT',
             body: JSON.stringify(configData)
         });
@@ -853,12 +853,12 @@ class AdminApiService {
 
     async getCreditSettings() {
         console.log(`📱 [WhatsApp] Getting credit settings`);
-        return this.apiCall('/whatsapp/v1/credit-settings');
+        return this.apiCall('/central-messaging/v1/credit-settings');
     }
 
     async updateCreditSettings(creditData) {
         console.log(`📱 [WhatsApp] Updating credit settings`);
-        return this.apiCall('/whatsapp/v1/credit-settings', {
+        return this.apiCall('/central-messaging/v1/credit-settings', {
             method: 'PUT',
             body: JSON.stringify(creditData)
         });
@@ -866,27 +866,27 @@ class AdminApiService {
 
     async getWhatsAppSettingsOverview() {
         console.log(`📱 [WhatsApp] Getting settings overview`);
-        return this.apiCall('/whatsapp/v1/settings-overview');
+        return this.apiCall('/central-messaging/v1/settings-overview');
     }
 
     async testWhatsAppConfiguration() {
         console.log(`📱 [WhatsApp] Testing WhatsApp configuration`);
-        return this.apiCall('/whatsapp/v1/test-config');
+        return this.apiCall('/central-messaging/v1/test-config');
     }
 
     async getWhatsAppHealth() {
         console.log(`📱 [WhatsApp] Getting WhatsApp health status`);
-        return this.apiCall('/whatsapp/v1/health');
+        return this.apiCall('/central-messaging/v1/health');
     }
 
     async getWhatsAppTemplates() {
         console.log(`📱 [WhatsApp] Getting WhatsApp templates`);
-        return this.apiCall('/whatsapp/v1/templates');
+        return this.apiCall('/central-messaging/v1/admin/whatsapp/templates');
     }
 
     async createWhatsAppTemplate(templateData) {
         console.log(`📱 [WhatsApp] Creating WhatsApp template`);
-        return this.apiCall('/whatsapp/v1/templates', {
+        return this.apiCall('/central-messaging/v1/admin/whatsapp/templates', {
             method: 'POST',
             body: JSON.stringify(templateData)
         });
@@ -894,14 +894,14 @@ class AdminApiService {
 
     async syncWhatsAppTemplates() {
         console.log(`📱 [WhatsApp] Syncing WhatsApp templates`);
-        return this.apiCall('/whatsapp/v1/templates/sync', {
+        return this.apiCall('/central-messaging/v1/admin/whatsapp/templates/sync', {
             method: 'POST'
         });
     }
 
     async sendWhatsAppTestMessage(messageData) {
         console.log(`📱 [WhatsApp] Sending test message`);
-        return this.apiCall('/whatsapp/v1/test-message', {
+        return this.apiCall('/central-messaging/v1/test-message', {
             method: 'POST',
             body: JSON.stringify(messageData)
         });
@@ -910,18 +910,18 @@ class AdminApiService {
     async getWhatsAppAnalytics(params = {}) {
         console.log(`📱 [WhatsApp] Getting WhatsApp analytics`);
         const queryString = new URLSearchParams(params).toString();
-        return this.apiCall(`/whatsapp/v1/analytics${queryString ? `?${queryString}` : ''}`);
+        return this.apiCall(`/central-messaging/v1/analytics${queryString ? `?${queryString}` : ''}`);
     }
 
     async getWhatsAppMessages(params = {}) {
         console.log(`📱 [WhatsApp] Getting WhatsApp messages`);
         const queryString = new URLSearchParams(params).toString();
-        return this.apiCall(`/whatsapp/v1/messages${queryString ? `?${queryString}` : ''}`);
+        return this.apiCall(`/central-messaging/v1/messages${queryString ? `?${queryString}` : ''}`);
     }
 
     async sendWhatsAppMessage(messageData) {
         console.log(`📱 [WhatsApp] Sending WhatsApp message`);
-        return this.apiCall('/whatsapp/v1/send-message', {
+        return this.apiCall('/central-messaging/v1/admin/send', {
             method: 'POST',
             body: JSON.stringify(messageData)
         });
@@ -930,13 +930,13 @@ class AdminApiService {
     async getWhatsAppContacts(params = {}) {
         console.log(`📱 [WhatsApp] Getting WhatsApp contacts`);
         const queryString = new URLSearchParams(params).toString();
-        return this.apiCall(`/whatsapp/v1/contacts${queryString ? `?${queryString}` : ''}`);
+        return this.apiCall(`/central-messaging/v1/admin/contacts${queryString ? `?${queryString}` : ''}`);
     }
 
     async getWhatsAppConversation(conversationId, params = {}) {
         console.log(`📱 [WhatsApp] Getting conversation messages`);
         const queryString = new URLSearchParams(params).toString();
-        return this.apiCall(`/whatsapp/v1/messages/conversation/${conversationId}${queryString ? `?${queryString}` : ''}`);
+        return this.apiCall(`/central-messaging/v1/messages/conversation/${conversationId}${queryString ? `?${queryString}` : ''}`);
     }
 }
 

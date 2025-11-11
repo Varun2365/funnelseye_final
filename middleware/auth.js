@@ -2,6 +2,7 @@ const { User } = require('../schema'); // Import your User model (adjust path if
 const jwt = require('jsonwebtoken'); // For verifying JWT tokens
 
 // @desc    Protect routes - Middleware to check for valid JWT
+// Supports both regular user tokens and admin tokens
 const protect = async (req, res, next) => {
     // Allow OPTIONS requests (preflight) to pass through for CORS
     if (req.method === 'OPTIONS') {
@@ -30,11 +31,58 @@ const protect = async (req, res, next) => {
     }
 
     try {
+        // Use consistent JWT_SECRET with verifyAdminToken for compatibility
+        const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
+        
         // Verify token
         // This decodes the token using the secret and checks for expiration
-       
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+        const decoded = jwt.verify(token, jwtSecret);
      
+        // Check if this is an admin token (from /api/admin/auth/login)
+        if (decoded.type === 'admin' && decoded.adminId) {
+            // Handle admin token - similar to verifyAdminToken
+            const { AdminUser } = require('../schema');
+            
+            // Find admin by adminId (admin tokens use adminId, not id)
+            const admin = await AdminUser.findById(decoded.adminId).select('-password -passwordHistory');
+            
+            if (!admin) {
+                // If admin associated with the token is not found
+                return res.status(401).json({
+                    success: false,
+                    message: 'Admin belonging to this token no longer exists.'
+                });
+            }
+
+            // Check if admin is active
+            if (admin.status !== 'active') {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Admin account is not active.'
+                });
+            }
+
+            // Check if admin is locked
+            const isLocked = admin.isLocked && admin.isLocked();
+            if (isLocked) {
+                return res.status(423).json({
+                    success: false,
+                    message: 'Admin account is temporarily locked.'
+                });
+            }
+
+            // Set admin information on request (compatible with verifyAdminToken)
+            req.admin = admin;
+            req.userId = admin._id; // For backward compatibility
+            req.role = admin.role || 'admin'; // For backward compatibility
+            req.user = admin; // For backward compatibility (using admin as user)
+            req.coachId = admin._id; // For backward compatibility
+
+            // Skip subscription checks for admin users
+            return next();
+        }
+
+        // Handle regular user token (coach, staff, client)
         // Find user by the ID extracted from the token's payload
         // For staff users, we need to ensure discriminator fields are loaded
         const user = await User.findById(decoded.id);

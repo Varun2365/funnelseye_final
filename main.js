@@ -105,6 +105,8 @@ const coachStaffManagementRoutes = require('./routes/coachStaffManagementRoutes'
 const publicPermissionsRoutes = require('./routes/publicPermissionsRoutes');
 const logsRoutes = require('./routes/logsRoutes');
 const centralMessagingRoutes = require('./routes/centralMessagingRoutes');
+const contentRoutes = require('./routes/contentRoutes');
+const coursePurchaseRoutes = require('./routes/coursePurchaseRoutes');
 
 // --- Import the worker initialization functions ---
 const initRulesEngineWorker = require('./workers/worker_rules_engine');
@@ -112,6 +114,10 @@ const initActionExecutorWorker = require('./workers/worker_action_executor');
 const initScheduledExecutorWorker = require('./workers/worker_scheduled_action_executor');
 const initPaymentProcessorWorker = require('./workers/worker_payment_processor');
 const initNurturingWorker = require('./workers/worker_nurturing_sequence');
+const { initMessageProcessorWorker } = require('./workers/worker_message_processor');
+
+// --- Import message queue service ---
+const messageQueueService = require('./services/messageQueueService');
 
 // --- END ROUTES DATA ---
 
@@ -392,6 +398,10 @@ app.use('/api/coach-hierarchy', coachHierarchyRoutes);
 app.use('/api/files', uploadRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/funnels', webpageRenderRoutes);
+
+// ===== CONTENT MANAGEMENT =====
+app.use('/api/content', contentRoutes);
+app.use('/api/course-purchase', coursePurchaseRoutes);
 
 // ===== NEW ADMIN SYSTEM =====
 // const newAdminPaymentRoutes = require('./routes/adminPaymentRoutes');
@@ -747,12 +757,22 @@ const startServer = async () => {
         // Now initialize other services
         await init();
 
+        // --- Initialize message queue service ---
+        console.log('🔄 [MAIN] Initializing message queue service...');
+        await messageQueueService.initialize();
+        console.log('✅ [MAIN] Message queue service initialized');
+
         // --- Start all the worker processes here with await ---
         await initRulesEngineWorker();
         await initActionExecutorWorker();
         await initScheduledExecutorWorker();
         await initPaymentProcessorWorker();
         await initNurturingWorker();
+        
+        // --- Start message processor worker ---
+        console.log('🔄 [MAIN] Starting message processor worker...');
+        await initMessageProcessorWorker();
+        console.log('✅ [MAIN] Message processor worker started');
 
         server.listen(PORT, () => {
             console.log(`Local Development Base URL: http://localhost:${PORT}`);

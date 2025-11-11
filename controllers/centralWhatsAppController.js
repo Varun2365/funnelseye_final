@@ -287,7 +287,14 @@ exports.getTemplates = asyncHandler(async (req, res) => {
         console.log('✅ [CENTRAL_WHATSAPP] getTemplates - Success');
         res.status(200).json({
             success: true,
-            data: result.templates
+            message: 'Templates retrieved successfully',
+            data: {
+                templates: result.templates || [],
+                approvedTemplates: result.approvedTemplates || [],
+                summary: result.summary || {},
+                total: result.total || 0,
+                approved: result.approved || 0
+            }
         });
         
     } catch (error) {

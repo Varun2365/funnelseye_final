@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import HierarchyRequests from './HierarchyRequests';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { 
   LayoutDashboard, 
   Users, 
@@ -39,15 +40,33 @@ import {
   Globe,
   Layers,
   Cog,
-  Monitor
+  Monitor,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [courseCategory, setCourseCategory] = useState('customer'); // 'coach' or 'customer'
+  const [courseCreationOpen, setCourseCreationOpen] = useState(false); // Track if Course Creation is expanded
   const { admin, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Sync course category with URL parameter and auto-expand if on course page
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const categoryParam = urlParams.get('category');
+    if (categoryParam === 'coach' || categoryParam === 'customer') {
+      setCourseCategory(categoryParam);
+    }
+    
+    // Auto-expand Course Creation if on course creation page
+    if (location.pathname.startsWith('/course-creation')) {
+      setCourseCreationOpen(true);
+    }
+  }, [location.search, location.pathname]);
 
   const navigationGroups = [
     // Group 1: Dashboard, User Management, Hierarchy
@@ -72,7 +91,12 @@ const AdminLayout = () => {
     {
       title: 'Content Management',
       items: [
-        { name: 'Course Creation', href: '/course-creation', icon: PlusCircle },
+        { 
+          name: 'Course Creation', 
+          href: '/course-creation', 
+          icon: PlusCircle,
+          hasDropdown: true 
+        },
         { name: 'Uploads', href: '/uploads', icon: Upload },
       ]
     },
@@ -141,6 +165,72 @@ const AdminLayout = () => {
                 <div className="space-y-1">
                   {group.items.map((item) => {
                     const isActive = location.pathname === item.href;
+                    
+                    // Special handling for Course Creation with collapsible submenu
+                    if (item.hasDropdown && item.name === 'Course Creation') {
+                      const isOnCoursePage = location.pathname.startsWith('/course-creation');
+                      return (
+                        <Collapsible 
+                          key={item.name} 
+                          open={courseCreationOpen} 
+                          onOpenChange={setCourseCreationOpen}
+                        >
+                          <CollapsibleTrigger asChild>
+                            <Button
+                              variant={isOnCoursePage ? "secondary" : "ghost"}
+                              className={cn(
+                                "w-full justify-between nav-item",
+                                isOnCoursePage && "bg-secondary text-secondary-foreground"
+                              )}
+                            >
+                              <div className="flex items-center">
+                                <item.icon className="mr-3 h-4 w-4" />
+                                {item.name}
+                              </div>
+                              {courseCreationOpen ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="ml-4 mt-1 space-y-1">
+                            <Button
+                              variant={isOnCoursePage && courseCategory === 'customer' ? "secondary" : "ghost"}
+                              className={cn(
+                                "w-full justify-start nav-item text-sm h-8",
+                                isOnCoursePage && courseCategory === 'customer' && "bg-secondary text-secondary-foreground"
+                              )}
+                              onClick={() => {
+                                setCourseCategory('customer');
+                                navigate('/course-creation?category=customer');
+                                setSidebarOpen(false);
+                              }}
+                            >
+                              <BookOpen className="mr-2 h-3 w-3" />
+                              Customer Courses
+                            </Button>
+                            <Button
+                              variant={isOnCoursePage && courseCategory === 'coach' ? "secondary" : "ghost"}
+                              className={cn(
+                                "w-full justify-start nav-item text-sm h-8",
+                                isOnCoursePage && courseCategory === 'coach' && "bg-secondary text-secondary-foreground"
+                              )}
+                              onClick={() => {
+                                setCourseCategory('coach');
+                                navigate('/course-creation?category=coach');
+                                setSidebarOpen(false);
+                              }}
+                            >
+                              <Users className="mr-2 h-3 w-3" />
+                              Coach Courses
+                            </Button>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      );
+                    }
+                    
+                    // Regular navigation items
                     return (
                       <Button
                         key={item.name}

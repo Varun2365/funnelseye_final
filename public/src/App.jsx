@@ -27,6 +27,7 @@ import MailSetup from './components/MailSetup';
 import AdminUploadsManager from './components/AdminUploadsManager';
 import CourseOverview from './components/CourseOverview';
 import CourseEditor from './components/CourseEditor';
+import CourseCreationFlow from './components/CourseCreationFlow';
 import CoursePreview from './components/CoursePreview';
 import CoursePreviewStandalone from './components/CoursePreviewStandalone';
 import HierarchyRequests from './components/HierarchyRequests';
@@ -107,8 +108,9 @@ function AppContent() {
           <Route path="payment-management" element={<PaymentManagement />} />
           <Route path="financial-mlm" element={<FinancialMlmManagement />} />
             <Route path="uploads" element={<AdminUploadsManager />} />
-            <Route path="course-creation" element={<CourseOverview />} />
-            <Route path="course-creation/:courseId" element={<CourseEditor />} />
+            <Route path="course-creation" element={<CourseCreationFlow />} />
+            <Route path="course-creation/:courseId" element={<CourseCreationFlow />} />
+            <Route path="courses-overview" element={<CourseOverview />} />
             <Route path="course-preview/:courseId" element={<CoursePreview />} />
             <Route path="hierarchy-requests" element={<HierarchyRequests />} />
             <Route path="admin-staff" element={<AdminStaffComingSoon />} />

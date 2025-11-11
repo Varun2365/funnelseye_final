@@ -9,6 +9,7 @@ const AdminSystemSettings = require('../schema/AdminSystemSettings');
 const messagingVariableService = require('../services/messagingVariableService');
 const centralWhatsAppService = require('../services/centralWhatsAppService');
 const emailConfigService = require('../services/emailConfigService');
+const messageQueueService = require('../services/messageQueueService');
 
 // Get User and Client dynamically
 const mongoose = require('mongoose');
@@ -206,15 +207,23 @@ exports.sendMessage = asyncHandler(async (req, res) => {
                 );
 
                 if (metaTemplate) {
-                    // Use Meta template API - can be used anytime
-                    result = await centralWhatsAppService.sendTemplateMessage(
-                        to,
-                        templateName,
-                        'en_US',
-                        templateParameters,
-                        coachId
-                    );
-                    console.log('✅ Using Meta template:', templateName);
+                    // Queue Meta template message instead of sending directly
+                    const templateMessageData = {
+                        to: to,
+                        type: 'template',
+                        templateName: templateName,
+                        templateParameters: templateParameters,
+                        parameters: Array.isArray(templateParameters) ? templateParameters : Object.values(templateParameters || {}),
+                        coachId: coachId || null
+                    };
+                    
+                    const queued = await messageQueueService.queueWhatsAppMessage(templateMessageData);
+                    if (!queued) {
+                        throw new Error('Failed to queue template message');
+                    }
+                    
+                    result = { success: true, messageId: 'queued', status: 'queued' };
+                    console.log('✅ Using Meta template (queued):', templateName);
                 } else {
                     // Use local template - check if within 24hr window
                     const localTemplate = await MessageTemplate.findOne({
@@ -251,23 +260,30 @@ exports.sendMessage = asyncHandler(async (req, res) => {
                 }
             }
 
-            // Send message if not already sent
-            if (!result.success && type !== 'template') {
-                if (type === 'media') {
-                    result = await centralWhatsAppService.sendMediaMessage(
-                        to,
-                        mediaType,
-                        mediaUrl,
-                        caption,
-                        coachId
-                    );
-                } else {
-                    result = await centralWhatsAppService.sendTextMessage(
-                        to,
-                        messageContent,
-                        coachId
-                    );
+            // Prepare message data for queue (if not already sent via template)
+            if (!result || !result.success) {
+                // Queue message instead of sending directly
+                const messageData = {
+                    to: to,
+                    message: messageContent,
+                    text: messageContent,
+                    type: type === 'template' ? 'template' : (type || 'text'),
+                    templateName: type === 'template' ? templateName : undefined,
+                    templateParameters: templateParameters,
+                    parameters: Array.isArray(templateParameters) ? templateParameters : Object.values(templateParameters || {}),
+                    mediaUrl: mediaUrl,
+                    mediaType: mediaType,
+                    caption: caption,
+                    coachId: coachId || null
+                };
+
+                const queued = await messageQueueService.queueWhatsAppMessage(messageData);
+                
+                if (!queued) {
+                    throw new Error('Failed to queue message');
                 }
+
+                result = { success: true, messageId: 'queued', status: 'queued' };
             }
 
             // Create message record
@@ -1008,12 +1024,101 @@ exports.testWhatsApp = asyncHandler(async (req, res) => {
     res.json({ success: true, message: 'To be implemented' });
 });
 
+// @desc    Get Meta templates
+// @route   GET /api/central-messaging/v1/admin/whatsapp/templates
+// @access  Private (Admin)
 exports.getMetaTemplates = asyncHandler(async (req, res) => {
-    res.json({ success: true, message: 'To be implemented' });
+    try {
+        console.log('🔄 [CENTRAL_MESSAGING] getMetaTemplates - Starting...');
+        
+        const result = await centralWhatsAppService.getTemplates();
+        
+        console.log('✅ [CENTRAL_MESSAGING] getMetaTemplates - Success');
+        res.status(200).json({
+            success: true,
+            message: 'Templates retrieved successfully',
+            data: result.templates || []
+        });
+        
+    } catch (error) {
+        console.error('❌ [CENTRAL_MESSAGING] getMetaTemplates - Error:', error);
+        
+        // Handle specific error types
+        if (error.code === 'TOKEN_EXPIRED') {
+            res.status(401).json({
+                success: false,
+                message: 'WhatsApp access token has expired. Please reconfigure your WhatsApp settings.',
+                error: error.message,
+                errorCode: 'TOKEN_EXPIRED',
+                action: 'reconfigure'
+            });
+        } else if (error.code === 'OAUTH_ERROR') {
+            res.status(401).json({
+                success: false,
+                message: 'WhatsApp authentication failed. Please check your credentials.',
+                error: error.message,
+                errorCode: 'OAUTH_ERROR',
+                action: 'reconfigure'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Failed to get templates',
+                error: error.message
+            });
+        }
+    }
 });
 
+// @desc    Sync templates from Meta
+// @route   POST /api/central-messaging/v1/admin/whatsapp/templates/sync
+// @access  Private (Admin)
 exports.syncMetaTemplates = asyncHandler(async (req, res) => {
-    res.json({ success: true, message: 'To be implemented' });
+    try {
+        console.log('🔄 [CENTRAL_MESSAGING] syncMetaTemplates - Starting...');
+        
+        const result = await centralWhatsAppService.syncTemplates();
+        
+        console.log('✅ [CENTRAL_MESSAGING] syncMetaTemplates - Success');
+        res.status(200).json({
+            success: true,
+            message: 'Templates synced successfully',
+            data: {
+                syncedCount: result.syncedTemplates || result.newCount || 0,
+                addedCount: result.changes?.added || result.addedCount || 0,
+                removedCount: result.changes?.removed || result.removedCount || 0,
+                totalTemplates: result.changes?.total || result.newCount || 0
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ [CENTRAL_MESSAGING] syncMetaTemplates - Error:', error);
+        
+        // Handle specific error types
+        if (error.code === 'TOKEN_EXPIRED') {
+            res.status(401).json({
+                success: false,
+                message: 'WhatsApp access token has expired. Please reconfigure your WhatsApp settings.',
+                error: error.message,
+                errorCode: 'TOKEN_EXPIRED',
+                action: 'reconfigure'
+            });
+        } else if (error.code === 'OAUTH_ERROR') {
+            res.status(401).json({
+                success: false,
+                message: 'WhatsApp authentication failed. Please check your credentials.',
+                error: error.message,
+                errorCode: 'OAUTH_ERROR',
+                action: 'reconfigure'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Failed to sync templates',
+                error: error.message
+            });
+        }
+    }
 });
 
 exports.getAssignedLeads = asyncHandler(async (req, res) => {

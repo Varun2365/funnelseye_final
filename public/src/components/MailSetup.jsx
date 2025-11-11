@@ -49,7 +49,7 @@ const MailSetup = () => {
   const loadEmailConfig = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/whatsapp/v1/admin/email/config', {
+      const response = await fetch('/api/central-messaging/v1/admin/email/config', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -74,7 +74,7 @@ const MailSetup = () => {
 
   const loadEmailStatus = async () => {
     try {
-      const response = await fetch('/api/whatsapp/v1/admin/email/status', {
+      const response = await fetch('/api/central-messaging/v1/admin/email/status', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -94,7 +94,7 @@ const MailSetup = () => {
   const handleSaveConfig = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/whatsapp/v1/admin/email/setup', {
+      const response = await fetch('/api/central-messaging/v1/admin/email/setup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -128,7 +128,7 @@ const MailSetup = () => {
   const handleTestConfig = async () => {
     try {
       setTesting(true);
-      const response = await fetch('/api/whatsapp/v1/admin/email/test-config', {
+      const response = await fetch('/api/central-messaging/v1/admin/email/test-config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -158,7 +158,7 @@ const MailSetup = () => {
   const handleSendTestEmail = async () => {
     try {
       setTesting(true);
-      const response = await fetch('/api/whatsapp/v1/admin/email/send-test', {
+      const response = await fetch('/api/central-messaging/v1/admin/email/send-test', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

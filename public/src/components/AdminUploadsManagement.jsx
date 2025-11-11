@@ -76,7 +76,7 @@ const AdminUploadsManagement = () => {
         search: searchTerm
       });
 
-      const response = await fetch(`/api/admin/v1/courses/uploaded-files?${params}`, {
+      const response = await fetch(`/api/content/admin/uploaded-files?${params}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -122,7 +122,7 @@ const AdminUploadsManagement = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/admin/v1/courses/upload-file', {
+      const response = await fetch('/api/content/admin/upload-file', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
@@ -154,7 +154,7 @@ const AdminUploadsManagement = () => {
     if (!fileToDelete) return;
 
     try {
-      const response = await fetch(`/api/admin/v1/courses/uploaded-files/${fileToDelete._id}`, {
+      const response = await fetch(`/api/content/admin/uploaded-files/${fileToDelete._id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
@@ -369,14 +369,14 @@ const AdminUploadsManagement = () => {
               <div className="space-y-4">
                 {selectedFile.fileType === 'image' && (
                   <img
-                    src={`/api/admin/v1/courses/files/${selectedFile._id}`}
+                    src={`/api/content/admin/files/${selectedFile._id}`}
                     alt={selectedFile.originalName}
                     className="max-w-full h-auto rounded-lg"
                   />
                 )}
                 {selectedFile.fileType === 'video' && (
                   <video
-                    src={`/api/admin/v1/courses/files/${selectedFile._id}`}
+                    src={`/api/content/admin/files/${selectedFile._id}`}
                     controls
                     className="max-w-full h-auto rounded-lg"
                   >
@@ -385,7 +385,7 @@ const AdminUploadsManagement = () => {
                 )}
                 {selectedFile.fileType === 'pdf' && (
                   <iframe
-                    src={`/api/admin/v1/courses/files/${selectedFile._id}`}
+                    src={`/api/content/admin/files/${selectedFile._id}`}
                     className="w-full h-96 rounded-lg"
                     title={selectedFile.originalName}
                   />

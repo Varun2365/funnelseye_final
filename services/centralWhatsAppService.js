@@ -110,20 +110,56 @@ class CentralWhatsAppService {
     }
 
     // Send text message
+    // Helper to format phone number to E.164 format
+    formatPhoneNumber(phoneNumber) {
+        // Remove all non-digit characters except +
+        let formatted = phoneNumber.replace(/[^\d+]/g, '');
+        
+        // If doesn't start with +, assume it needs country code
+        if (!formatted.startsWith('+')) {
+            // If starts with 0, remove it (common in local formats)
+            if (formatted.startsWith('0')) {
+                formatted = formatted.substring(1);
+            }
+            // Default to +1 if no country code (you may want to make this configurable)
+            // For now, require explicit country code
+            if (!formatted.startsWith('+')) {
+                throw new Error('Phone number must include country code (e.g., +1234567890)');
+            }
+        }
+        
+        // Validate E.164 format: + followed by 1-15 digits
+        if (!/^\+[1-9]\d{1,14}$/.test(formatted)) {
+            throw new Error(`Invalid phone number format. Must be E.164 format: +[country code][number] (e.g., +1234567890)`);
+        }
+        
+        return formatted;
+    }
+
     async sendTextMessage(to, text, coachId = null) {
         try {
             const config = await this.getConfig();
             
+            // Validate and format phone number
+            const formattedTo = this.formatPhoneNumber(to);
+            
+            if (!text || text.trim().length === 0) {
+                throw new Error('Message text cannot be empty');
+            }
+            
             const messageData = {
                 messaging_product: 'whatsapp',
                 recipient_type: 'individual',
-                to: to,
+                to: formattedTo,
                 type: 'text',
                 text: {
                     preview_url: false,
-                    body: text
+                    body: text.trim()
                 }
             };
+
+            logger.info(`[CentralWhatsApp] Sending text message to ${formattedTo}`);
+            logger.debug(`[CentralWhatsApp] Message payload:`, JSON.stringify(messageData, null, 2));
 
             const response = await this.makeApiCall(
                 `/${config.phoneNumberId}/messages`,
@@ -131,22 +167,39 @@ class CentralWhatsAppService {
                 messageData
             );
 
+            logger.info(`[CentralWhatsApp] Meta API response:`, JSON.stringify(response, null, 2));
+
+            // Validate response contains message ID
+            if (!response.messages || !response.messages[0] || !response.messages[0].id) {
+                logger.error(`[CentralWhatsApp] Invalid response from Meta API:`, response);
+                throw new Error('Meta API did not return a valid message ID. Response: ' + JSON.stringify(response));
+            }
+
             // Update statistics
             await config.updateStatistics('sent');
             
             // Add contact if not exists
-            await config.addContact(to);
+            await config.addContact(formattedTo);
 
-            logger.info(`[CentralWhatsApp] Text message sent to ${to}`);
+            const messageId = response.messages[0].id;
+            logger.info(`[CentralWhatsApp] Text message sent successfully. Message ID: ${messageId}, Recipient: ${formattedTo}`);
+            
             return {
                 success: true,
-                messageId: response.messages?.[0]?.id,
+                messageId: messageId,
+                wamid: messageId, // WhatsApp message ID
                 status: 'sent',
-                recipient: to
+                recipient: formattedTo
             };
 
         } catch (error) {
-            logger.error(`[CentralWhatsApp] Error sending text message:`, error.response?.data || error.message);
+            logger.error(`[CentralWhatsApp] Error sending text message to ${to}:`, error.response?.data || error.message);
+            logger.error(`[CentralWhatsApp] Error details:`, {
+                message: error.message,
+                code: error.code,
+                response: error.response?.data,
+                stack: error.stack
+            });
             throw error;
         }
     }
@@ -155,6 +208,9 @@ class CentralWhatsAppService {
     async sendTemplateMessage(to, templateName, language = 'en_US', parameters = [], coachId = null) {
         try {
             const config = await this.getConfig();
+            
+            // Validate and format phone number
+            const formattedTo = this.formatPhoneNumber(to);
             
             // Get template
             const template = config.getTemplateByName(templateName);
@@ -170,7 +226,7 @@ class CentralWhatsAppService {
             const messageData = {
                 messaging_product: 'whatsapp',
                 recipient_type: 'individual',
-                to: to,
+                to: formattedTo,
                 type: 'template',
                 template: {
                     name: templateName,
@@ -181,15 +237,20 @@ class CentralWhatsAppService {
             };
 
             // Add parameters if provided
-            if (parameters.length > 0) {
+            if (parameters && parameters.length > 0) {
+                // Ensure all parameters are strings
+                const stringParams = parameters.map(param => String(param || ''));
                 messageData.template.components = [{
                     type: 'body',
-                    parameters: parameters.map(param => ({
+                    parameters: stringParams.map(param => ({
                         type: 'text',
                         text: param
                     }))
                 }];
             }
+
+            logger.info(`[CentralWhatsApp] Sending template message to ${formattedTo} using template ${templateName}`);
+            logger.debug(`[CentralWhatsApp] Message payload:`, JSON.stringify(messageData, null, 2));
 
             const response = await this.makeApiCall(
                 `/${config.phoneNumberId}/messages`,
@@ -197,23 +258,40 @@ class CentralWhatsAppService {
                 messageData
             );
 
+            logger.info(`[CentralWhatsApp] Meta API response:`, JSON.stringify(response, null, 2));
+
+            // Validate response contains message ID
+            if (!response.messages || !response.messages[0] || !response.messages[0].id) {
+                logger.error(`[CentralWhatsApp] Invalid response from Meta API:`, response);
+                throw new Error('Meta API did not return a valid message ID. Response: ' + JSON.stringify(response));
+            }
+
             // Update statistics
             await config.updateStatistics('sent');
             
             // Add contact if not exists
-            await config.addContact(to);
+            await config.addContact(formattedTo);
 
-            logger.info(`[CentralWhatsApp] Template message sent to ${to} using template ${templateName}`);
+            const messageId = response.messages[0].id;
+            logger.info(`[CentralWhatsApp] Template message sent successfully. Message ID: ${messageId}, Recipient: ${formattedTo}, Template: ${templateName}`);
+            
             return {
                 success: true,
-                messageId: response.messages?.[0]?.id,
+                messageId: messageId,
+                wamid: messageId, // WhatsApp message ID
                 status: 'sent',
-                recipient: to,
+                recipient: formattedTo,
                 template: templateName
             };
 
         } catch (error) {
-            logger.error(`[CentralWhatsApp] Error sending template message:`, error.response?.data || error.message);
+            logger.error(`[CentralWhatsApp] Error sending template message to ${to}:`, error.response?.data || error.message);
+            logger.error(`[CentralWhatsApp] Error details:`, {
+                message: error.message,
+                code: error.code,
+                response: error.response?.data,
+                stack: error.stack
+            });
             throw error;
         }
     }
@@ -223,19 +301,29 @@ class CentralWhatsAppService {
         try {
             const config = await this.getConfig();
             
+            // Validate and format phone number
+            const formattedTo = this.formatPhoneNumber(to);
+            
+            if (!mediaUrl || mediaUrl.trim().length === 0) {
+                throw new Error('Media URL is required');
+            }
+
             const messageData = {
                 messaging_product: 'whatsapp',
                 recipient_type: 'individual',
-                to: to,
+                to: formattedTo,
                 type: mediaType,
                 [mediaType]: {
-                    link: mediaUrl
+                    link: mediaUrl.trim()
                 }
             };
 
             if (caption && (mediaType === 'image' || mediaType === 'video')) {
-                messageData[mediaType].caption = caption;
+                messageData[mediaType].caption = caption.trim();
             }
+
+            logger.info(`[CentralWhatsApp] Sending media message to ${formattedTo}`);
+            logger.debug(`[CentralWhatsApp] Message payload:`, JSON.stringify(messageData, null, 2));
 
             const response = await this.makeApiCall(
                 `/${config.phoneNumberId}/messages`,
@@ -243,23 +331,40 @@ class CentralWhatsAppService {
                 messageData
             );
 
+            logger.info(`[CentralWhatsApp] Meta API response:`, JSON.stringify(response, null, 2));
+
+            // Validate response contains message ID
+            if (!response.messages || !response.messages[0] || !response.messages[0].id) {
+                logger.error(`[CentralWhatsApp] Invalid response from Meta API:`, response);
+                throw new Error('Meta API did not return a valid message ID. Response: ' + JSON.stringify(response));
+            }
+
             // Update statistics
             await config.updateStatistics('sent');
             
             // Add contact if not exists
-            await config.addContact(to);
+            await config.addContact(formattedTo);
 
-            logger.info(`[CentralWhatsApp] Media message sent to ${to}`);
+            const messageId = response.messages[0].id;
+            logger.info(`[CentralWhatsApp] Media message sent successfully. Message ID: ${messageId}, Recipient: ${formattedTo}, Type: ${mediaType}`);
+            
             return {
                 success: true,
-                messageId: response.messages?.[0]?.id,
+                messageId: messageId,
+                wamid: messageId, // WhatsApp message ID
                 status: 'sent',
-                recipient: to,
+                recipient: formattedTo,
                 mediaType: mediaType
             };
 
         } catch (error) {
-            logger.error(`[CentralWhatsApp] Error sending media message:`, error.response?.data || error.message);
+            logger.error(`[CentralWhatsApp] Error sending media message to ${to}:`, error.response?.data || error.message);
+            logger.error(`[CentralWhatsApp] Error details:`, {
+                message: error.message,
+                code: error.code,
+                response: error.response?.data,
+                stack: error.stack
+            });
             throw error;
         }
     }
@@ -323,38 +428,44 @@ class CentralWhatsAppService {
         }
     }
 
-    // Get templates
+    // Get templates with full information for sending messages
     async getTemplates() {
         try {
             const config = await this.getConfig();
             
-            // Use the stored business account ID
-            const businessAccountId = config.businessAccountId;
-            if (!businessAccountId) {
-                throw new Error('WhatsApp Business Account ID not configured');
-            }
-            
-            const response = await this.makeApiCall(
-                `/${businessAccountId}/message_templates`,
-                'GET'
-            );
-
-            // Update our local templates with Meta's status
-            for (const metaTemplate of response.data) {
-                const localTemplate = config.templates.find(t => t.templateId === metaTemplate.id);
-                if (localTemplate) {
-                    localTemplate.status = metaTemplate.status;
-                    if (metaTemplate.status === 'APPROVED') {
-                        localTemplate.approvedAt = new Date();
-                    }
-                }
+            if (!config.templates || config.templates.length === 0) {
+                logger.warn(`[CentralWhatsApp] No templates found in database. Consider syncing templates first.`);
+                return {
+                    success: true,
+                    templates: [],
+                    message: 'No templates found. Please sync templates first.'
+                };
             }
 
-            await config.save();
+            // Format all templates with full information
+            const formattedTemplates = config.templates.map(template => {
+                return this.formatTemplateForResponse(template);
+            });
+
+            // Filter to only approved templates by default
+            const approvedTemplates = formattedTemplates.filter(t => t.status === 'APPROVED');
+
+            logger.info(`[CentralWhatsApp] Retrieved ${formattedTemplates.length} templates (${approvedTemplates.length} approved)`);
 
             return {
                 success: true,
-                templates: config.templates
+                templates: formattedTemplates,
+                approvedTemplates: approvedTemplates,
+                total: formattedTemplates.length,
+                approved: approvedTemplates.length,
+                // Summary for easier consumption
+                summary: {
+                    total: formattedTemplates.length,
+                    approved: approvedTemplates.length,
+                    pending: formattedTemplates.filter(t => t.status === 'PENDING').length,
+                    rejected: formattedTemplates.filter(t => t.status === 'REJECTED').length,
+                    disabled: formattedTemplates.filter(t => t.status === 'DISABLED').length
+                }
             };
 
         } catch (error) {
@@ -558,6 +669,11 @@ class CentralWhatsAppService {
             const config = await this.getConfig();
             const url = `${this.baseUrl}${endpoint}`;
             
+            logger.debug(`[CentralWhatsApp] Making API call: ${method} ${url}`);
+            if (data) {
+                logger.debug(`[CentralWhatsApp] Request data:`, JSON.stringify(data, null, 2));
+            }
+            
             const options = {
                 method,
                 url,
@@ -572,10 +688,29 @@ class CentralWhatsAppService {
             }
 
             const response = await axios(options);
+            
+            // Check if response contains error (even with 200 status)
+            if (response.data?.error) {
+                const errorData = response.data.error;
+                logger.error(`[CentralWhatsApp] Meta API returned error in response:`, errorData);
+                const enhancedError = new Error(`WhatsApp API Error: ${errorData.message || 'Unknown error'}`);
+                enhancedError.code = errorData.code || 'UNKNOWN_ERROR';
+                enhancedError.type = errorData.type;
+                enhancedError.subcode = errorData.error_subcode;
+                enhancedError.originalError = errorData;
+                throw enhancedError;
+            }
+            
+            logger.debug(`[CentralWhatsApp] API call successful:`, JSON.stringify(response.data, null, 2));
             return response.data;
 
         } catch (error) {
             logger.error(`[CentralWhatsApp] API call failed:`, error.response?.data || error.message);
+            
+            // If it's already an enhanced error, re-throw it
+            if (error.code && error.type) {
+                throw error;
+            }
             
             // Check for specific error types
             if (error.response?.status === 401) {
@@ -610,8 +745,221 @@ class CentralWhatsAppService {
                 }
             }
             
+            // Check for phone number validation errors (131047)
+            if (error.response?.data?.error?.code === 131047) {
+                const errorMessage = error.response.data.error.message || 'Invalid phone number format';
+                const enhancedError = new Error(`WhatsApp Phone Number Error: ${errorMessage}`);
+                enhancedError.code = 'INVALID_PHONE_NUMBER';
+                enhancedError.originalError = error.response.data;
+                throw enhancedError;
+            }
+            
+            // Check for 24-hour window errors (131047 or 131051)
+            if (error.response?.data?.error?.code === 131051) {
+                const errorMessage = error.response.data.error.message || 'Cannot send message outside 24-hour window. Use an approved template.';
+                const enhancedError = new Error(`WhatsApp 24-Hour Window Error: ${errorMessage}`);
+                enhancedError.code = 'OUTSIDE_24H_WINDOW';
+                enhancedError.originalError = error.response.data;
+                throw enhancedError;
+            }
+            
             throw error;
         }
+    }
+
+    // Helper method to extract template variables from components
+    extractTemplateVariables(components) {
+        const variables = [];
+        
+        if (!components || !Array.isArray(components)) {
+            return variables;
+        }
+        
+        for (const component of components) {
+            if (component.type === 'BODY') {
+                // Extract variables from body text (format: {{1}}, {{2}}, etc.)
+                const bodyText = component.text || '';
+                const matches = bodyText.match(/\{\{(\d+)\}\}/g);
+                if (matches) {
+                    matches.forEach(match => {
+                        const index = parseInt(match.replace(/\{\{|\}\}/g, ''));
+                        if (!variables.find(v => v.index === index)) {
+                            variables.push({
+                                index: index,
+                                placeholder: match,
+                                type: 'text',
+                                required: true
+                            });
+                        }
+                    });
+                }
+            } else if (component.type === 'HEADER') {
+                // Header can have variables in text format or example
+                if (component.format === 'TEXT' && component.text) {
+                    const matches = component.text.match(/\{\{(\d+)\}\}/g);
+                    if (matches) {
+                        matches.forEach(match => {
+                            const index = parseInt(match.replace(/\{\{|\}\}/g, ''));
+                            if (!variables.find(v => v.index === index)) {
+                                variables.push({
+                                    index: index,
+                                    placeholder: match,
+                                    type: 'header',
+                                    required: true
+                                });
+                            }
+                        });
+                    }
+                }
+            } else if (component.type === 'BUTTONS') {
+                // Buttons can have URL parameters
+                if (component.buttons) {
+                    component.buttons.forEach((button, btnIndex) => {
+                        if (button.type === 'URL' && button.url) {
+                            // Check for variables in URL ({{1}}, etc.)
+                            const matches = button.url.match(/\{\{(\d+)\}\}/g);
+                            if (matches) {
+                                matches.forEach(match => {
+                                    const index = parseInt(match.replace(/\{\{|\}\}/g, ''));
+                                    if (!variables.find(v => v.index === index && v.buttonIndex === btnIndex)) {
+                                        variables.push({
+                                            index: index,
+                                            placeholder: match,
+                                            type: 'button_url',
+                                            buttonIndex: btnIndex,
+                                            buttonText: button.text,
+                                            required: true
+                                        });
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        
+        // Sort by index
+        return variables.sort((a, b) => a.index - b.index);
+    }
+
+    // Helper method to format template for response
+    formatTemplateForResponse(template) {
+        const variables = this.extractTemplateVariables(template.components);
+        
+        // Build payload structure for sending messages
+        const payload = {
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            type: 'template',
+            template: {
+                name: template.templateName || template.name,
+                language: {
+                    code: template.language || 'en_US'
+                }
+            }
+        };
+        
+        // Add components with parameters if there are variables
+        const bodyVariables = variables.filter(v => v.type === 'text');
+        const headerVariables = variables.filter(v => v.type === 'header');
+        const buttonVariables = variables.filter(v => v.type === 'button_url');
+        
+        if (bodyVariables.length > 0 || headerVariables.length > 0 || buttonVariables.length > 0) {
+            payload.template.components = [];
+            
+            // Body component
+            if (bodyVariables.length > 0) {
+                payload.template.components.push({
+                    type: 'body',
+                    parameters: bodyVariables.map(v => ({
+                        type: 'text',
+                        text: '' // Placeholder - will be replaced with actual values when sending
+                    }))
+                });
+            }
+            
+            // Header component (if has variables)
+            if (headerVariables.length > 0) {
+                const headerComponent = (template.components || []).find(c => c.type === 'HEADER');
+                if (headerComponent) {
+                    payload.template.components.push({
+                        type: 'header',
+                        parameters: headerVariables.map(v => ({
+                            type: 'text',
+                            text: '' // Placeholder - will be replaced with actual values when sending
+                        }))
+                    });
+                }
+            }
+            
+            // Button components (if has variables)
+            if (buttonVariables.length > 0) {
+                const buttonComponent = (template.components || []).find(c => c.type === 'BUTTONS');
+                if (buttonComponent && buttonComponent.buttons) {
+                    buttonComponent.buttons.forEach((button, btnIndex) => {
+                        if (button.type === 'URL') {
+                            const btnVars = buttonVariables.filter(v => v.buttonIndex === btnIndex);
+                            if (btnVars.length > 0) {
+                                const buttonParams = [];
+                                buttonParams.push({
+                                    type: 'text',
+                                    text: '' // Placeholder - will be replaced with actual values when sending
+                                });
+                                payload.template.components.push({
+                                    type: 'button',
+                                    sub_type: 'url',
+                                    index: btnIndex,
+                                    parameters: buttonParams
+                                });
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        
+        return {
+            templateId: template.templateId,
+            templateName: template.templateName || template.name,
+            name: template.templateName || template.name,
+            category: template.category,
+            status: template.status,
+            language: template.language || 'en_US',
+            components: template.components || [],
+            variables: variables,
+            parameterCount: variables.length,
+            parameterInfo: {
+                bodyParameters: bodyVariables.length,
+                headerParameters: headerVariables.length,
+                buttonParameters: buttonVariables.length,
+                total: variables.length
+            },
+            createdAt: template.createdAt,
+            approvedAt: template.approvedAt,
+            // Payload structure for sending messages (ready to use)
+            payload: payload,
+            // Example payload with actual structure
+            examplePayload: {
+                to: '+1234567890',
+                ...payload,
+                template: {
+                    ...payload.template,
+                    components: payload.template.components ? payload.template.components.map(comp => {
+                        if (comp.parameters) {
+                            return {
+                                ...comp,
+                                parameters: comp.parameters.map((_, idx) => ({
+                                    type: 'text',
+                                    text: `value${idx + 1}`
+                                }))
+                            };
+                        }
+                        return comp;
+                    }) : []
+                }
+            }
+        };
     }
 
     // Sync templates from Meta
@@ -625,78 +973,54 @@ class CentralWhatsAppService {
                 throw new Error('WhatsApp Business Account ID not configured. Please set up the central WhatsApp configuration first.');
             }
             
+            logger.info(`[CentralWhatsApp] Starting template sync from Meta...`);
             const response = await this.makeApiCall(
                 `/${businessAccountId}/message_templates`,
                 'GET'
             );
 
-            // Get template IDs from Meta response
-            const metaTemplateIds = new Set(response.data.map(t => t.id));
+            // COMPLETELY REPLACE templates instead of merging
+            const previousCount = config.templates ? config.templates.length : 0;
             
-            // Track changes for logging
-            let addedCount = 0;
-            let updatedCount = 0;
-            let removedCount = 0;
+            // Build new templates array from Meta response
+            const newTemplates = (response.data || []).map(metaTemplate => ({
+                templateId: metaTemplate.id,
+                templateName: metaTemplate.name,
+                category: metaTemplate.category,
+                status: metaTemplate.status,
+                language: metaTemplate.language || 'en',
+                components: metaTemplate.components || [],
+                createdAt: new Date(),
+                approvedAt: metaTemplate.status === 'APPROVED' ? new Date() : null
+            }));
             
-            // Update local templates
-            for (const metaTemplate of response.data) {
-                const existingTemplate = config.templates.find(t => t.templateId === metaTemplate.id);
-                
-                if (existingTemplate) {
-                    // Update existing template
-                    existingTemplate.status = metaTemplate.status;
-                    existingTemplate.category = metaTemplate.category;
-                    existingTemplate.language = metaTemplate.language;
-                    if (metaTemplate.status === 'APPROVED') {
-                        existingTemplate.approvedAt = new Date();
-                    }
-                    updatedCount++;
-                } else {
-                    // Add new template
-                    config.templates.push({
-                        templateId: metaTemplate.id,
-                        templateName: metaTemplate.name,
-                        category: metaTemplate.category,
-                        status: metaTemplate.status,
-                        language: metaTemplate.language,
-                        components: metaTemplate.components || [],
-                        createdAt: new Date(),
-                        approvedAt: metaTemplate.status === 'APPROVED' ? new Date() : null
-                    });
-                    addedCount++;
-                }
-            }
+            // REPLACE the entire templates array
+            config.templates = newTemplates;
             
-            // Remove templates that are no longer in Meta response
-            const initialTemplateCount = config.templates.length;
-            config.templates = config.templates.filter(template => {
-                const existsInMeta = metaTemplateIds.has(template.templateId);
-                if (!existsInMeta) {
-                    removedCount++;
-                    logger.info(`[CentralWhatsApp] Removing template: ${template.templateName} (${template.templateId}) - no longer found in Meta API`);
-                }
-                return existsInMeta;
-            });
+            const newCount = newTemplates.length;
+            const removedCount = Math.max(0, previousCount - newCount);
+            const addedCount = newCount - (previousCount - removedCount);
             
-            logger.info(`[CentralWhatsApp] Template sync completed: +${addedCount} added, ${updatedCount} updated, -${removedCount} removed`);
+            logger.info(`[CentralWhatsApp] Template sync completed: ${previousCount} → ${newCount} templates (${previousCount > newCount ? `removed ${removedCount}` : addedCount > 0 ? `added ${addedCount}` : 'no change'})`);
 
             config.lastSyncAt = new Date();
             await config.save();
 
             // Clean up orphaned templates in WhatsAppTemplate collection
-            await this.cleanupOrphanedTemplates(config.templates.map(t => t.templateId));
+            await this.cleanupOrphanedTemplates(newTemplates.map(t => t.templateId));
 
             logger.info(`[CentralWhatsApp] Templates synced successfully`);
             return {
                 success: true,
-                syncedTemplates: response.data.length,
-                totalTemplates: config.templates.length,
+                syncedTemplates: newCount,
+                previousCount: previousCount,
+                newCount: newCount,
                 changes: {
                     added: addedCount,
-                    updated: updatedCount,
-                    removed: removedCount
+                    removed: removedCount,
+                    total: newCount
                 },
-                summary: `+${addedCount} added, ${updatedCount} updated, -${removedCount} removed`
+                summary: `Templates overridden: ${previousCount} → ${newCount} templates`
             };
 
         } catch (error) {
@@ -750,6 +1074,147 @@ class CentralWhatsAppService {
             logger.error(`[CentralWhatsApp] Error cleaning up orphaned templates:`, error);
             throw error;
         }
+    }
+
+    // Unified sendMessage method that routes to appropriate method based on message type
+    // Accepts message data object with to, type, message, templateId, templateName, templateParameters, mediaUrl, etc.
+    async sendMessage(messageData) {
+        try {
+            const {
+                to,
+                type = 'text',
+                message,
+                templateId,
+                templateName,
+                templateParameters = {},
+                template,
+                mediaUrl,
+                mediaType = 'image',
+                caption,
+                coachId = null,
+                variables = {}
+            } = messageData;
+
+            // Validate recipient
+            if (!to) {
+                throw new Error('Recipient phone number is required');
+            }
+
+            // Initialize service if needed
+            await this.initialize();
+
+            // Handle template messages (Meta templates)
+            // Only send Meta template if we have templateName/template object AND no rendered message
+            // If message text is provided, it means local template was rendered, so send as text
+            if ((type === 'template' || templateName || template || templateId) && !message) {
+                let finalTemplateName = templateName;
+                let finalLanguage = 'en_US';
+                let finalParameters = [];
+
+                // If template object is provided (Meta format), extract name and language first (priority)
+                if (template && template.name) {
+                    finalTemplateName = template.name;
+                    if (template.language && template.language.code) {
+                        finalLanguage = template.language.code;
+                    }
+                    
+                    // Extract parameters from template.components if provided
+                    if (template.components && template.components.length > 0) {
+                        const bodyComponent = template.components.find(c => c.type === 'body' || c.type === 'BODY');
+                        if (bodyComponent && bodyComponent.parameters) {
+                            finalParameters = bodyComponent.parameters.map(param => param.text || param);
+                        }
+                    }
+                    
+                    logger.info(`[CentralWhatsApp] Using template object - Name: ${finalTemplateName}, Language: ${finalLanguage}`);
+                }
+                // If templateId is provided (Meta template ID) and template object not provided, look it up from config
+                else if (templateId && !templateName) {
+                    const config = await this.getConfig();
+                    const metaTemplate = config.templates?.find(t => 
+                        t.templateId === templateId || 
+                        t.templateId === String(templateId) ||
+                        t._id?.toString() === String(templateId)
+                    );
+                    
+                    if (metaTemplate) {
+                        finalTemplateName = metaTemplate.templateName || metaTemplate.name;
+                        finalLanguage = metaTemplate.language || 'en_US';
+                        // If template has components with text, we can extract variables if needed
+                        logger.info(`[CentralWhatsApp] Found Meta template by ID: ${templateId} -> ${finalTemplateName}`);
+                    } else {
+                        throw new Error(`Template with ID '${templateId}' not found in Meta templates`);
+                    }
+                }
+
+                // If templateParameters object is provided, convert to array
+                if (templateParameters && typeof templateParameters === 'object' && !Array.isArray(templateParameters)) {
+                    // Convert object to array of values in order
+                    finalParameters = Object.values(templateParameters);
+                } else if (Array.isArray(templateParameters)) {
+                    finalParameters = templateParameters;
+                }
+
+                if (!finalTemplateName) {
+                    throw new Error('Template name is required for Meta template messages');
+                }
+
+                const result = await this.sendTemplateMessage(to, finalTemplateName, finalLanguage, finalParameters, coachId);
+                return this._ensureWamid(result);
+            }
+
+            // Handle media messages
+            if (type === 'media' || mediaUrl) {
+                const result = await this.sendMediaMessage(to, mediaType, mediaUrl, caption, coachId);
+                return this._ensureWamid(result);
+            }
+
+            // Handle text messages
+            if (type === 'text' || message) {
+                // If template object with text body is provided, extract text
+                let messageText = message;
+                if (template && template.components) {
+                    const bodyComponent = template.components.find(c => c.type === 'body');
+                    if (bodyComponent && bodyComponent.text) {
+                        messageText = bodyComponent.text;
+                    }
+                }
+
+                if (!messageText) {
+                    throw new Error('Message text is required for text messages');
+                }
+
+                const result = await this.sendTextMessage(to, messageText, coachId);
+                return this._ensureWamid(result);
+            }
+
+            throw new Error('Invalid message type or missing required fields');
+
+        } catch (error) {
+            logger.error(`[CentralWhatsApp] Error in sendMessage:`, error.message);
+            return {
+                success: false,
+                error: error.message,
+                errorCode: error.code || (error.message?.includes('TOKEN_EXPIRED') || error.message?.includes('Session has expired') ? 'TOKEN_EXPIRED' : null),
+                originalError: error
+            };
+        }
+    }
+
+    // Helper method to ensure wamid is returned in result
+    _ensureWamid(result) {
+        if (result && result.success) {
+            // If wamid is not present, use messageId
+            if (!result.wamid && result.messageId) {
+                result.wamid = result.messageId;
+            }
+            // If messageId is not present but id is, use id
+            if (!result.messageId && result.id) {
+                result.messageId = result.id;
+                result.wamid = result.id;
+            }
+        }
+        return result;
     }
 }
 

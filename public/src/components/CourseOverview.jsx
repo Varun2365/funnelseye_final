@@ -168,7 +168,7 @@ const CourseOverview = () => {
   const fetchUploadedFiles = async () => {
     try {
       const folderId = currentFolder ? currentFolder._id : 'root';
-      const response = await fetch(`/api/admin/v1/courses/folder/${folderId}/contents`, {
+      const response = await fetch(`/api/content/admin/folder/${folderId}/contents`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -191,7 +191,7 @@ const CourseOverview = () => {
   };
 
   const handleImageSelect = (file) => {
-    const imageUrl = `/api/admin/v1/courses/files/${file._id}/serve`;
+    const imageUrl = `/api/content/admin/files/${file._id}/serve`;
     setNewCourse({...newCourse, thumbnail: imageUrl});
     setShowImageBrowser(false);
     toast.success('Image selected successfully!');
@@ -647,7 +647,7 @@ const CourseOverview = () => {
                   onClick={() => handleImageSelect(file)}
                 >
                   <img
-                    src={`/api/admin/v1/courses/files/${file._id}/serve`}
+                    src={`/api/content/admin/files/${file._id}/serve`}
                     alt={file.originalName}
                     className="w-full h-24 object-cover rounded"
                   />

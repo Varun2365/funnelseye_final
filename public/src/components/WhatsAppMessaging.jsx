@@ -205,7 +205,7 @@ const WhatsAppMessaging = () => {
   const fetchConfig = async () => {
     try {
       console.log('🔄 [WHATSAPP] Fetching configuration...');
-      const result = await apiCall('/whatsapp/v1/config');
+      const result = await apiCall('/central-messaging/v1/config');
       setConfig(result.data);
       console.log('✅ [WHATSAPP] Configuration fetched successfully');
     } catch (err) {
@@ -224,7 +224,7 @@ const WhatsAppMessaging = () => {
       setLoading(true);
       console.log('🔄 [WHATSAPP] Testing configuration...');
       
-      const result = await apiCall('/whatsapp/v1/test-config');
+      const result = await apiCall('/central-messaging/v1/test-config');
       setSuccess('Configuration test successful! WhatsApp API is working properly.');
       console.log('✅ [WHATSAPP] Configuration test successful');
     } catch (err) {
@@ -270,7 +270,7 @@ const WhatsAppMessaging = () => {
         return;
       }
       
-      const result = await apiCall('/whatsapp/v1/setup', {
+      const result = await apiCall('/central-messaging/v1/setup', {
         method: 'POST',
         data: config ? { ...configForm, isUpdate: true } : configForm
       });
@@ -293,7 +293,7 @@ const WhatsAppMessaging = () => {
   const fetchAnalytics = async () => {
     try {
       console.log('🔄 [WHATSAPP] Fetching analytics...');
-      const result = await apiCall('/whatsapp/v1/analytics');
+      const result = await apiCall('/central-messaging/v1/analytics');
       setAnalytics(result.data);
       console.log('✅ [WHATSAPP] Analytics fetched successfully');
     } catch (err) {
@@ -331,7 +331,7 @@ const WhatsAppMessaging = () => {
       if (filters.endDate) params.append('endDate', filters.endDate);
       if (filters.search) params.append('search', filters.search);
       
-      const result = await apiCall(`/whatsapp/v1/messages?${params}`);
+      const result = await apiCall(`/central-messaging/v1/messages?${params}`);
       setMessages(result.data.messages);
       setMessagesTotal(result.data.total);
       setMessagesPage(page);
@@ -346,7 +346,7 @@ const WhatsAppMessaging = () => {
   const fetchTemplates = async () => {
     try {
       console.log('🔄 [WHATSAPP] Fetching templates...');
-      const result = await apiCall('/whatsapp/v1/templates');
+      const result = await apiCall('/central-messaging/v1/admin/whatsapp/templates');
       setTemplates(result.data);
       console.log('✅ [WHATSAPP] Templates fetched successfully');
     } catch (err) {
@@ -372,7 +372,7 @@ const WhatsAppMessaging = () => {
   const fetchContacts = async () => {
     try {
       console.log('🔄 [WHATSAPP] Fetching contacts...');
-      const result = await apiCall('/whatsapp/v1/contacts');
+      const result = await apiCall('/central-messaging/v1/contacts');
       console.log('📞 [WHATSAPP] Contacts API response:', result);
       
       // Handle different response structures
@@ -431,7 +431,7 @@ const WhatsAppMessaging = () => {
         messageData.message = sendForm.message;
       }
 
-      const result = await apiCall('/whatsapp/v1/send-message', {
+      const result = await apiCall('/central-messaging/v1/admin/send', {
         method: 'POST',
         data: messageData
       });
@@ -471,7 +471,7 @@ const WhatsAppMessaging = () => {
         message: sendForm.message || 'Test message from Central WhatsApp'
       };
 
-      const result = await apiCall('/whatsapp/v1/test-message', {
+      const result = await apiCall('/central-messaging/v1/test-message', {
         method: 'POST',
         data: testData
       });
@@ -668,7 +668,7 @@ const WhatsAppMessaging = () => {
   const saveContactEdit = async () => {
     try {
       setLoading(true);
-      const result = await apiCall('/whatsapp/v1/contacts/update', {
+      const result = await apiCall('/central-messaging/v1/contacts/update', {
         method: 'PUT',
         data: {
           phoneNumber: contactEditForm.phoneNumber,
@@ -721,7 +721,7 @@ const WhatsAppMessaging = () => {
       setLoading(true);
       console.log('🔄 [WHATSAPP] Sending bulk messages...');
       
-      const result = await apiCall('/whatsapp/v1/send-bulk-messages', {
+      const result = await apiCall('/central-messaging/v1/admin/send-bulk', {
         method: 'POST',
         data: {
           contacts: selectedContacts.map(c => c.phoneNumber),

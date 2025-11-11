@@ -58,16 +58,147 @@ class MessageQueueService {
         };
 
         for (const [name, queueName] of Object.entries(this.queues)) {
-            await this.channel.assertQueue(queueName, queueOptions);
-            logger.info(`[MESSAGE_QUEUE] Queue declared: ${queueName}`);
+            try {
+                // Ensure channel is valid before operations
+                if (!this.channel || this.channel.connection === null) {
+                    this.channel = await this.connection.createChannel();
+                    logger.info(`[MESSAGE_QUEUE] Channel recreated before processing ${queueName}`);
+                }
+
+                // Try to assert queue directly - this will create it if it doesn't exist
+                // If it fails with 406 (wrong arguments), we'll delete and recreate
+                try {
+                    await this.channel.assertQueue(queueName, queueOptions);
+                } catch (assertError) {
+                    // If we get 406, queue exists with wrong arguments - delete and recreate
+                    if (assertError.code === 406) {
+                        logger.warn(`[MESSAGE_QUEUE] Queue ${queueName} exists with different arguments. Deleting and recreating...`);
+                        
+                        // Channel may be closed after error, recreate it
+                        try {
+                            if (this.channel) {
+                                await this.channel.close().catch(() => {});
+                            }
+                        } catch (closeError) {
+                            // Ignore
+                        }
+                        this.channel = await this.connection.createChannel();
+                        
+                        // Delete the queue
+                        try {
+                            await this.channel.deleteQueue(queueName, { ifEmpty: false });
+                            logger.info(`[MESSAGE_QUEUE] Deleted existing queue: ${queueName}`);
+                            // Small delay to ensure deletion is processed
+                            await new Promise(resolve => setTimeout(resolve, 200));
+                        } catch (deleteError) {
+                            // If queue doesn't exist (404), that's fine - just continue
+                            if (deleteError.code !== 404) {
+                                logger.error(`[MESSAGE_QUEUE] Error deleting queue ${queueName}:`, deleteError);
+                                throw deleteError;
+                            }
+                        }
+                        
+                        // Recreate with correct arguments
+                        await this.channel.assertQueue(queueName, queueOptions);
+                    } else if (assertError.code === 404) {
+                        // This shouldn't happen with assertQueue (it creates if doesn't exist)
+                        // But if it does, just retry once with a fresh channel
+                        logger.warn(`[MESSAGE_QUEUE] Unexpected 404 for ${queueName}, retrying...`);
+                        try {
+                            if (this.channel) {
+                                await this.channel.close().catch(() => {});
+                            }
+                        } catch (closeError) {
+                            // Ignore
+                        }
+                        this.channel = await this.connection.createChannel();
+                        await this.channel.assertQueue(queueName, queueOptions);
+                    } else {
+                        // Other errors - try to recreate channel and retry once
+                        logger.warn(`[MESSAGE_QUEUE] Error asserting queue ${queueName}: ${assertError.message}, retrying...`);
+                        try {
+                            if (this.channel) {
+                                await this.channel.close().catch(() => {});
+                            }
+                        } catch (closeError) {
+                            // Ignore
+                        }
+                        this.channel = await this.connection.createChannel();
+                        await this.channel.assertQueue(queueName, queueOptions);
+                    }
+                }
+                
+            } catch (error) {
+                logger.error(`[MESSAGE_QUEUE] Error declaring queue ${queueName}:`, error);
+                
+                // If channel was closed due to error, recreate it
+                if (error.code === 406 || error.code === 404 || !this.channel || this.channel.connection === null) {
+                    try {
+                        if (this.channel) {
+                            await this.channel.close().catch(() => {});
+                        }
+                        this.channel = await this.connection.createChannel();
+                        logger.info(`[MESSAGE_QUEUE] Channel recreated after error`);
+                        
+                        // Retry queue creation once
+                        try {
+                            // Check if queue exists first
+                            let queueExists = false;
+                            try {
+                                await this.channel.checkQueue(queueName);
+                                queueExists = true;
+                            } catch (checkError) {
+                                if (checkError.code === 404) {
+                                    queueExists = false;
+                                } else {
+                                    throw checkError;
+                                }
+                            }
+                            
+                            // Try to delete if exists (handle 404 gracefully)
+                            if (queueExists) {
+                                try {
+                                    await this.channel.deleteQueue(queueName, { ifEmpty: false });
+                                    await new Promise(resolve => setTimeout(resolve, 200));
+                                    logger.info(`[MESSAGE_QUEUE] Deleted queue ${queueName} before recreation`);
+                                } catch (deleteError) {
+                                    // Ignore if queue doesn't exist (might have been deleted)
+                                    if (deleteError.code !== 404) throw deleteError;
+                                }
+                            }
+                            
+                            // Create queue
+                            await this.channel.assertQueue(queueName, queueOptions);
+                            logger.info(`[MESSAGE_QUEUE] Queue ${queueName} successfully created after retry`);
+                        } catch (retryError) {
+                            logger.error(`[MESSAGE_QUEUE] Failed to create queue ${queueName} after retry:`, retryError);
+                            throw retryError;
+                        }
+                    } catch (channelError) {
+                        logger.error(`[MESSAGE_QUEUE] Failed to recreate channel:`, channelError);
+                        throw error; // Throw original error
+                    }
+                } else {
+                    throw error;
+                }
+            }
         }
     }
 
     // Send message to queue
     async sendMessage(queueName, message, options = {}) {
         try {
+            logger.info(`[MESSAGE_QUEUE] 📤 sendMessage called - Queue: ${queueName}, Connected: ${this.isConnected}`);
+            
             if (!this.isConnected) {
+                logger.info(`[MESSAGE_QUEUE] 🔄 Not connected, initializing...`);
                 await this.initialize();
+                logger.info(`[MESSAGE_QUEUE] ✅ Initialization complete. Connected: ${this.isConnected}`);
+            }
+
+            if (!this.channel) {
+                logger.error(`[MESSAGE_QUEUE] ❌ Channel is null after initialization`);
+                return false;
             }
 
             const messageBuffer = Buffer.from(JSON.stringify(message));
@@ -77,55 +208,106 @@ class MessageQueueService {
                 ...options
             };
 
+            logger.info(`[MESSAGE_QUEUE] 📨 Sending to queue "${queueName}"...`);
             const success = this.channel.sendToQueue(queueName, messageBuffer, publishOptions);
             
             if (success) {
-                logger.info(`[MESSAGE_QUEUE] Message sent to ${queueName}:`, message.type);
+                logger.info(`[MESSAGE_QUEUE] ✅ Message sent to queue "${queueName}" - Type: ${message.type || message.messageType || 'unknown'}, Recipient: ${message.data?.to || 'N/A'}`);
+                
+                // Log queue stats after sending
+                try {
+                    const queueInfo = await this.channel.checkQueue(queueName);
+                    logger.info(`[MESSAGE_QUEUE] 📊 Queue "${queueName}" stats - Messages: ${queueInfo.messageCount}, Consumers: ${queueInfo.consumerCount}`);
+                } catch (statsError) {
+                    logger.warn(`[MESSAGE_QUEUE] ⚠️ Could not get queue stats: ${statsError.message}`);
+                }
+                
                 return true;
             } else {
-                logger.error(`[MESSAGE_QUEUE] Failed to send message to ${queueName}`);
+                logger.error(`[MESSAGE_QUEUE] ❌ Failed to send message to ${queueName} - channel buffer full or connection issue`);
                 return false;
             }
         } catch (error) {
-            logger.error(`[MESSAGE_QUEUE] Error sending message:`, error);
+            logger.error(`[MESSAGE_QUEUE] ❌ Exception in sendMessage to ${queueName}:`, error);
+            logger.error(`[MESSAGE_QUEUE] Error stack:`, error.stack);
             return false;
         }
     }
 
-    // Send WhatsApp message
-    async sendWhatsAppMessage(messageData) {
-        const message = {
-            type: 'whatsapp',
-            data: messageData,
-            timestamp: new Date(),
-            retries: 0
-        };
+    // Queue WhatsApp message for processing
+    async queueWhatsAppMessage(messageData) {
+        try {
+            logger.info(`[MESSAGE_QUEUE] 🔄 Attempting to queue WhatsApp message for: ${messageData.to}`);
+            
+            const message = {
+                type: 'whatsapp',
+                messageType: 'whatsapp',
+                data: messageData,
+                timestamp: new Date(),
+                retries: 0,
+                status: 'queued'
+            };
 
-        return await this.sendMessage(this.queues.whatsapp, message);
+            const queued = await this.sendMessage(this.queues.whatsapp, message);
+            if (queued) {
+                logger.info(`[MESSAGE_QUEUE] ✅ WhatsApp message queued successfully: ${messageData.to}`);
+            } else {
+                logger.error(`[MESSAGE_QUEUE] ❌ Failed to queue WhatsApp message: ${messageData.to}`);
+            }
+            return queued;
+        } catch (error) {
+            logger.error(`[MESSAGE_QUEUE] ❌ Exception in queueWhatsAppMessage for ${messageData.to}:`, error);
+            return false;
+        }
     }
 
-    // Send email message
-    async sendEmailMessage(messageData) {
+    // Queue email message for processing
+    async queueEmailMessage(messageData) {
         const message = {
             type: 'email',
+            messageType: 'email',
             data: messageData,
             timestamp: new Date(),
-            retries: 0
+            retries: 0,
+            status: 'queued'
         };
 
-        return await this.sendMessage(this.queues.email, message);
+        const queued = await this.sendMessage(this.queues.email, message);
+        if (queued) {
+            logger.info(`[MESSAGE_QUEUE] Email message queued: ${messageData.to}`);
+        }
+        return queued;
     }
 
-    // Send bulk messages
-    async sendBulkMessages(bulkData) {
+    // Queue bulk messages (can contain both WhatsApp and email)
+    async queueBulkMessages(bulkData) {
         const message = {
             type: 'bulk',
+            messageType: bulkData.messageType || 'mixed', // whatsapp, email, or mixed
             data: bulkData,
             timestamp: new Date(),
-            retries: 0
+            retries: 0,
+            status: 'queued'
         };
 
-        return await this.sendMessage(this.queues.bulk, message);
+        const queued = await this.sendMessage(this.queues.bulk, message);
+        if (queued) {
+            logger.info(`[MESSAGE_QUEUE] Bulk messages queued: ${bulkData.recipients?.length || bulkData.contacts?.length || 0} recipients`);
+        }
+        return queued;
+    }
+
+    // Legacy methods for backward compatibility
+    async sendWhatsAppMessage(messageData) {
+        return await this.queueWhatsAppMessage(messageData);
+    }
+
+    async sendEmailMessage(messageData) {
+        return await this.queueEmailMessage(messageData);
+    }
+
+    async sendBulkMessages(bulkData) {
+        return await this.queueBulkMessages(bulkData);
     }
 
     // Schedule message for later delivery
@@ -220,65 +402,138 @@ class MessageQueueService {
         });
     }
 
-    // Process WhatsApp message
+    // Process WhatsApp message (called by worker)
     async processWhatsAppMessage(messageData) {
         const centralWhatsAppService = require('./centralWhatsAppService');
         
-        if (messageData.templateName) {
-            await centralWhatsAppService.sendTemplateMessage(
-                messageData.to,
-                messageData.templateName,
-                messageData.language || 'en_US',
-                messageData.parameters || [],
-                messageData.coachId
-            );
-        } else if (messageData.mediaUrl) {
-            await centralWhatsAppService.sendMediaMessage(
-                messageData.to,
-                messageData.mediaType || 'image',
-                messageData.mediaUrl,
-                messageData.caption,
-                messageData.coachId
-            );
-        } else {
-            await centralWhatsAppService.sendTextMessage(
-                messageData.to,
-                messageData.text,
-                messageData.coachId
-            );
-        }
+        try {
+            let result;
+            
+            // Use sendMessage method which handles all types
+            const messagePayload = {
+                to: messageData.to,
+                type: messageData.type || 'text',
+                message: messageData.message || messageData.text,
+                templateId: messageData.templateId, // Meta template ID (e.g., "1934990210683335")
+                templateName: messageData.templateName,
+                templateParameters: messageData.templateParameters || messageData.parameters || [],
+                mediaUrl: messageData.mediaUrl,
+                caption: messageData.caption,
+                coachId: messageData.coachId || null
+            };
 
-        logger.info(`[MESSAGE_QUEUE] WhatsApp message processed: ${messageData.to}`);
+            result = await centralWhatsAppService.sendMessage(messagePayload);
+
+            if (result && result.success) {
+                logger.info(`[MESSAGE_QUEUE] WhatsApp message processed successfully: ${messageData.to}`);
+                return result;
+            } else {
+                throw new Error(result?.error || 'Failed to send WhatsApp message');
+            }
+        } catch (error) {
+            logger.error(`[MESSAGE_QUEUE] WhatsApp message processing error:`, error);
+            throw error;
+        }
     }
 
-    // Process email message
+    // Process email message (called by worker)
     async processEmailMessage(messageData) {
         const emailConfigService = require('./emailConfigService');
         
-        await emailConfigService.sendEmail(
-            messageData.to,
-            messageData.subject,
-            messageData.body,
-            messageData.coachId
-        );
+        try {
+            const mailOptions = {
+                to: messageData.to,
+                subject: messageData.subject,
+                html: messageData.body || messageData.html,
+                text: messageData.text || messageData.body,
+                cc: messageData.cc,
+                bcc: messageData.bcc,
+                attachments: messageData.attachments || []
+            };
 
-        logger.info(`[MESSAGE_QUEUE] Email message processed: ${messageData.to}`);
+            const result = await emailConfigService.sendEmail(mailOptions);
+            
+            logger.info(`[MESSAGE_QUEUE] Email message processed successfully: ${messageData.to}`);
+            return result;
+        } catch (error) {
+            logger.error(`[MESSAGE_QUEUE] Email message processing error:`, error);
+            throw error;
+        }
     }
 
-    // Process bulk messages
+    // Process bulk messages (called by worker)
     async processBulkMessages(bulkData) {
-        const centralWhatsAppService = require('./centralWhatsAppService');
-        
-        await centralWhatsAppService.sendBulkMessages(
-            bulkData.contacts,
-            bulkData.message,
-            bulkData.templateName,
-            bulkData.parameters,
-            bulkData.mediaUrl,
-            bulkData.mediaType
-        );
+        try {
+            const centralWhatsAppService = require('./centralWhatsAppService');
+            const emailConfigService = require('./emailConfigService');
+            
+            const results = {
+                success: [],
+                failed: [],
+                total: 0
+            };
 
-        logger.info(`[MESSAGE_QUEUE] Bulk messages processed: ${bulkData.contacts.length} contacts`);
+            const recipients = bulkData.recipients || bulkData.contacts || [];
+            results.total = recipients.length;
+
+            // Process each recipient
+            for (const recipient of recipients) {
+                try {
+                    const to = recipient.phone || recipient.email || recipient.to;
+                    const messageType = bulkData.messageType || recipient.messageType || 'whatsapp';
+
+                    if (messageType === 'whatsapp') {
+                        const messagePayload = {
+                            to: to,
+                            type: bulkData.type || 'text',
+                            message: bulkData.message,
+                            templateName: bulkData.templateName,
+                            templateParameters: bulkData.templateParameters || bulkData.parameters || [],
+                            mediaUrl: bulkData.mediaUrl,
+                            caption: bulkData.caption,
+                            coachId: bulkData.coachId
+                        };
+
+                        const result = await centralWhatsAppService.sendMessage(messagePayload);
+                        
+                        if (result && result.success) {
+                            results.success.push({ recipient: to, result });
+                        } else {
+                            results.failed.push({ recipient: to, error: result?.error || 'Unknown error' });
+                        }
+
+                        // Add delay between messages to avoid rate limiting
+                        if (bulkData.delay) {
+                            await new Promise(resolve => setTimeout(resolve, bulkData.delay));
+                        }
+                    } else if (messageType === 'email') {
+                        const mailOptions = {
+                            to: to,
+                            subject: bulkData.subject,
+                            html: bulkData.body || bulkData.html,
+                            text: bulkData.text || bulkData.body
+                        };
+
+                        const result = await emailConfigService.sendEmail(mailOptions);
+                        results.success.push({ recipient: to, result });
+
+                        // Add delay between messages
+                        if (bulkData.delay) {
+                            await new Promise(resolve => setTimeout(resolve, bulkData.delay));
+                        }
+                    }
+                } catch (error) {
+                    const to = recipient.phone || recipient.email || recipient.to;
+                    results.failed.push({ recipient: to, error: error.message });
+                }
+            }
+
+            logger.info(`[MESSAGE_QUEUE] Bulk messages processed: ${results.success.length} success, ${results.failed.length} failed`);
+            return results;
+        } catch (error) {
+            logger.error(`[MESSAGE_QUEUE] Bulk message processing error:`, error);
+            throw error;
+        }
     }
 
     // Process scheduled message

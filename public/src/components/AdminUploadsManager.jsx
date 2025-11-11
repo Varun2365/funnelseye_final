@@ -86,7 +86,7 @@ const AdminUploadsManager = () => {
       setShowPreviewDialog(true);
     } else {
       // For other file types, open in new tab
-      window.open(`/api/admin/v1/courses/files/${file._id}/serve`, '_blank');
+      window.open(`/api/content/admin/files/${file._id}/serve`, '_blank');
     }
   };
 
@@ -94,7 +94,7 @@ const AdminUploadsManager = () => {
   const loadFolderStructure = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/v1/courses/folder-structure', {
+      const response = await fetch('/api/content/admin/folder-structure', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -121,7 +121,7 @@ const AdminUploadsManager = () => {
     try {
       setLoading(true);
       
-      const response = await fetch(`/api/admin/v1/courses/folder/${folderId}/contents`, {
+      const response = await fetch(`/api/content/admin/folder/${folderId}/contents`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -247,7 +247,7 @@ const AdminUploadsManager = () => {
         });
       }, 200);
 
-      const response = await fetch('/api/admin/v1/courses/upload-file', {
+      const response = await fetch('/api/content/admin/upload-file', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
@@ -300,7 +300,7 @@ const AdminUploadsManager = () => {
     }
 
     try {
-      const response = await fetch('/api/admin/v1/courses/folders', {
+      const response = await fetch('/api/content/admin/folders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -334,8 +334,8 @@ const AdminUploadsManager = () => {
     try {
       for (const item of itemsToDelete) {
         const url = item.type === 'folder' 
-          ? `/api/admin/v1/courses/folders/${item.id}`
-          : `/api/admin/v1/courses/uploaded-files/${item.id}`;
+          ? `/api/content/admin/folders/${item.id}`
+          : `/api/content/admin/uploaded-files/${item.id}`;
         
         const response = await fetch(url, {
           method: 'DELETE',
@@ -369,7 +369,7 @@ const AdminUploadsManager = () => {
         const [type, id] = item.split('-');
         
         if (type === 'file') {
-          const response = await fetch(`/api/admin/v1/courses/files/${id}/move`, {
+          const response = await fetch(`/api/content/admin/files/${id}/move`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -400,7 +400,7 @@ const AdminUploadsManager = () => {
   // Load available folders for move operation
   const loadAvailableFolders = async () => {
     try {
-      const response = await fetch('/api/admin/v1/courses/folders', {
+      const response = await fetch('/api/content/admin/folders', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -748,7 +748,7 @@ const AdminUploadsManager = () => {
                         {item.type === 'file' && (
                           <DropdownMenuItem onClick={(e) => {
                             e.stopPropagation();
-                            window.open(`/api/admin/v1/courses/files/${item._id}/serve`, '_blank');
+                            window.open(`/api/content/admin/files/${item._id}/serve`, '_blank');
                           }}>
                             <Download className="h-4 w-4 mr-2" />
                             Download
@@ -974,7 +974,7 @@ const AdminUploadsManager = () => {
                 {previewFile.mimetype?.startsWith('image/') && (
                   <div className="w-full flex justify-center">
                     <img
-                      src={`/api/admin/v1/courses/files/${previewFile._id}/serve`}
+                      src={`/api/content/admin/files/${previewFile._id}/serve`}
                       alt={previewFile.originalName}
                       className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-lg"
                       onError={(e) => {
@@ -993,7 +993,7 @@ const AdminUploadsManager = () => {
                 {previewFile.mimetype?.startsWith('video/') && (
                   <div className="w-full flex justify-center">
                     <video
-                      src={`/api/admin/v1/courses/files/${previewFile._id}/serve`}
+                      src={`/api/content/admin/files/${previewFile._id}/serve`}
                       controls
                       className="max-w-full max-h-[60vh] rounded-lg shadow-lg"
                       onError={(e) => {
@@ -1035,7 +1035,7 @@ const AdminUploadsManager = () => {
                 {/* Action Buttons */}
                 <div className="flex space-x-2">
                   <Button
-                    onClick={() => window.open(`/api/admin/v1/courses/files/${previewFile._id}/serve`, '_blank')}
+                    onClick={() => window.open(`/api/content/admin/files/${previewFile._id}/serve`, '_blank')}
                     variant="outline"
                   >
                     <Download className="h-4 w-4 mr-2" />
@@ -1044,7 +1044,7 @@ const AdminUploadsManager = () => {
                   <Button
                     onClick={() => {
                       const link = document.createElement('a');
-                      link.href = `/api/admin/v1/courses/files/${previewFile._id}/serve`;
+                      link.href = `/api/content/admin/files/${previewFile._id}/serve`;
                       link.download = previewFile.originalName;
                       link.click();
                     }}

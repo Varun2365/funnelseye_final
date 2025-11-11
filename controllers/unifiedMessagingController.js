@@ -323,9 +323,17 @@ exports.sendMessage = asyncHandler(async (req, res) => {
                 // Initialize central WhatsApp service
                 await centralWhatsAppService.initialize();
                 
-                // Send via Central WhatsApp service
+                // Queue message via Central WhatsApp service instead of sending directly
+                let queueMessageData = {
+                    to: to,
+                    message: message,
+                    text: message,
+                    type: type || 'text',
+                    coachId: coachId || null
+                };
+
                 if (templateId) {
-                    // Send template message
+                    // Queue template message
                     const template = await WhatsAppTemplate.findById(templateId);
                     if (!template) {
                         return res.status(400).json({
@@ -334,27 +342,28 @@ exports.sendMessage = asyncHandler(async (req, res) => {
                         });
                     }
                     
-                    result = await centralWhatsAppService.sendTemplateMessage(
-                        to,
-                        template.name,
-                        template.language || 'en',
-                        req.body.templateParams || [],
-                        coachId
-                    );
+                    queueMessageData.type = 'template';
+                    queueMessageData.templateName = template.name;
+                    queueMessageData.templateParameters = req.body.templateParams || [];
+                    queueMessageData.parameters = Array.isArray(req.body.templateParams) ? req.body.templateParams : Object.values(req.body.templateParams || []);
                 } else if (type === 'image' || type === 'video' || type === 'document') {
-                    // Send media message
-                    result = await centralWhatsAppService.sendMediaMessage(
-                        to,
-                        type,
-                        mediaUrl,
-                        caption,
-                        coachId
-                    );
+                    // Queue media message
+                    queueMessageData.type = 'media';
+                    queueMessageData.mediaUrl = mediaUrl;
+                    queueMessageData.mediaType = type;
+                    queueMessageData.caption = caption;
                 } else {
-                    // Send text message
-                    result = await centralWhatsAppService.sendTextMessage(to, message, coachId);
+                    // Queue text message
+                    queueMessageData.type = 'text';
                 }
                 
+                const queued = await messageQueueService.queueWhatsAppMessage(queueMessageData);
+                
+                if (!queued) {
+                    throw new Error('Failed to queue message');
+                }
+                
+                result = { success: true, messageId: 'queued', status: 'queued' };
                 deviceUsed = 'central';
                 
             } catch (centralError) {
@@ -2214,52 +2223,47 @@ exports.sendUnifiedMessage = asyncHandler(async (req, res) => {
                 coachId: userType === 'admin' ? null : coachId
             };
             
-            if (templateName) {
-                // Send template message
-                result = await centralWhatsAppService.sendTemplateMessage(
-                    to,
-                    templateName,
-                    'en_US',
-                    templateParameters || [],
-                    userType === 'admin' ? null : coachId
-                );
-                
-                messageData.messageType = 'template';
-                messageData.content = {
-                    templateName,
-                    templateParameters: templateParameters || []
-                };
-            } else if (mediaUrl) {
-                // Send media message
-                result = await centralWhatsAppService.sendMediaMessage(
-                    to,
-                    mediaType || 'image',
-                    mediaUrl,
-                    message || null,
-                    userType === 'admin' ? null : coachId
-                );
-                
-                messageData.messageType = 'media';
-                messageData.content = {
-                    mediaUrl,
-                    mediaType: mediaType || 'image',
-                    caption: message || null
-                };
-            } else {
-                // Send plain text message
-                result = await centralWhatsAppService.sendTextMessage(to, message, userType === 'admin' ? null : coachId);
-                
-                messageData.messageType = 'text';
-                messageData.content = {
-                    text: message
-                };
+            // Queue message instead of sending directly
+            const queueMessageData = {
+                to: to,
+                message: message,
+                text: message,
+                type: templateName ? 'template' : (mediaUrl ? 'media' : 'text'),
+                templateName: templateName,
+                templateParameters: templateParameters || [],
+                parameters: Array.isArray(templateParameters) ? templateParameters : Object.values(templateParameters || {}),
+                mediaUrl: mediaUrl,
+                mediaType: mediaType || 'image',
+                caption: caption,
+                coachId: userType === 'admin' ? null : coachId
+            };
+
+            const queued = await messageQueueService.queueWhatsAppMessage(queueMessageData);
+            
+            if (!queued) {
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to queue message',
+                    error: 'Message queue service unavailable'
+                });
             }
             
-            // Update message data with result
-            messageData.wamid = result.messageId || result.id;
-            messageData.status = 'sent';
+            result = { success: true, messageId: 'queued', status: 'queued' };
             
-            // Create message record
+            messageData.messageType = templateName ? 'template' : (mediaUrl ? 'media' : 'text');
+            messageData.content = templateName ? {
+                templateName,
+                templateParameters: templateParameters || []
+            } : mediaUrl ? {
+                mediaUrl,
+                mediaType: mediaType || 'image',
+                caption: message || null
+            } : {
+                text: message
+            };
+            messageData.status = 'queued';
+            
+            // Create message record (will be updated by worker when sent)
             const messageRecord = await createWhatsAppMessage(messageData);
             
             result = {

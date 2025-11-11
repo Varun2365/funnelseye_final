@@ -73,6 +73,18 @@ const WhatsAppAdminSetup = () => {
   // Health Check
   const [healthStatus, setHealthStatus] = useState(null);
 
+  // Templates
+  const [templates, setTemplates] = useState([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesSyncLoading, setTemplatesSyncLoading] = useState(false);
+
+  // Contacts
+  const [contacts, setContacts] = useState([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [contactsPage, setContactsPage] = useState(1);
+  const [contactsTotal, setContactsTotal] = useState(0);
+  const [contactsSearch, setContactsSearch] = useState('');
+
   // Fetch overview data
   const fetchOverview = async () => {
     try {
@@ -177,11 +189,53 @@ const WhatsAppAdminSetup = () => {
     }
   };
 
+  // Fetch templates
+  const fetchTemplates = async () => {
+    try {
+      setTemplatesLoading(true);
+      const response = await adminApiService.getWhatsAppTemplates();
+      if (response.success) {
+        setTemplates(Array.isArray(response.data) ? response.data : []);
+      }
+    } catch (err) {
+      console.error('Error fetching templates:', err);
+      setError('Failed to fetch templates: ' + err.message);
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
+
+  // Sync templates
+  const syncTemplates = async () => {
+    try {
+      setTemplatesSyncLoading(true);
+      setError('');
+      setSuccess('');
+      const response = await adminApiService.syncWhatsAppTemplates();
+      if (response.success) {
+        setSuccess(`Templates synced successfully! ${response.data?.syncedCount || 0} templates processed.`);
+        await fetchTemplates();
+        await fetchOverview(); // Refresh overview to update count
+      }
+    } catch (err) {
+      console.error('Error syncing templates:', err);
+      setError('Failed to sync templates: ' + err.message);
+    } finally {
+      setTemplatesSyncLoading(false);
+    }
+  };
+
   // Refresh data
   const handleRefresh = () => {
     fetchOverview();
     if (configStatus) {
       testConfiguration();
+    }
+    if (activeTab === 'templates') {
+      fetchTemplates();
+    }
+    if (activeTab === 'contacts') {
+      fetchContacts();
     }
   };
 
@@ -189,6 +243,44 @@ const WhatsAppAdminSetup = () => {
   useEffect(() => {
     fetchOverview();
   }, []);
+
+  // Fetch templates when templates tab is active
+  useEffect(() => {
+    if (activeTab === 'templates' && configStatus) {
+      fetchTemplates();
+    }
+  }, [activeTab, configStatus]);
+
+  // Fetch contacts
+  const fetchContacts = async () => {
+    try {
+      setContactsLoading(true);
+      const params = {
+        page: contactsPage,
+        limit: 20
+      };
+      if (contactsSearch) {
+        params.search = contactsSearch;
+      }
+      const response = await adminApiService.getWhatsAppContacts(params);
+      if (response.success) {
+        setContacts(Array.isArray(response.data?.contacts) ? response.data.contacts : []);
+        setContactsTotal(response.data?.pagination?.total || 0);
+      }
+    } catch (err) {
+      console.error('Error fetching contacts:', err);
+      setError('Failed to fetch contacts: ' + err.message);
+    } finally {
+      setContactsLoading(false);
+    }
+  };
+
+  // Fetch contacts when contacts tab is active
+  useEffect(() => {
+    if (activeTab === 'contacts') {
+      fetchContacts();
+    }
+  }, [activeTab, contactsPage, contactsSearch]);
 
   // Auto-hide messages after 5 seconds
   useEffect(() => {
@@ -281,7 +373,7 @@ const WhatsAppAdminSetup = () => {
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">
             <Activity className="w-4 h-4 mr-2" />
             Overview
@@ -289,6 +381,14 @@ const WhatsAppAdminSetup = () => {
           <TabsTrigger value="api-setup">
             <Key className="w-4 h-4 mr-2" />
             API Setup
+          </TabsTrigger>
+          <TabsTrigger value="templates">
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Templates
+          </TabsTrigger>
+          <TabsTrigger value="contacts">
+            <Users className="w-4 h-4 mr-2" />
+            Contacts
           </TabsTrigger>
           <TabsTrigger value="credit-settings">
             <DollarSign className="w-4 h-4 mr-2" />
@@ -528,6 +628,269 @@ const WhatsAppAdminSetup = () => {
           </Card>
         </TabsContent>
 
+        {/* Templates Tab */}
+        <TabsContent value="templates" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>WhatsApp Templates</CardTitle>
+                  <CardDescription>
+                    Manage Meta WhatsApp message templates
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={syncTemplates} 
+                  disabled={templatesSyncLoading || !configStatus}
+                  variant="outline"
+                >
+                  {templatesSyncLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Sync from Meta
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {!configStatus ? (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    Please configure WhatsApp API settings first to manage templates.
+                  </AlertDescription>
+                </Alert>
+              ) : templatesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                </div>
+              ) : templates.length === 0 ? (
+                <div className="text-center py-8">
+                  <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-500 mb-2">No templates found</p>
+                  <p className="text-sm text-gray-400 mb-4">
+                    Sync templates from Meta Business Manager to see them here
+                  </p>
+                  <Button onClick={syncTemplates} variant="outline">
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Sync Templates
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-500">
+                      {templates.length} template{templates.length !== 1 ? 's' : ''} found
+                    </p>
+                    <div className="flex gap-2">
+                      <Badge className="bg-green-500">
+                        {templates.filter(t => t.status === 'APPROVED').length} Approved
+                      </Badge>
+                      <Badge variant="secondary">
+                        {templates.filter(t => t.status === 'PENDING').length} Pending
+                      </Badge>
+                      <Badge variant="destructive">
+                        {templates.filter(t => t.status === 'REJECTED').length} Rejected
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                    {templates.map((template) => (
+                      <Card key={template.templateId || template.templateName} className="border-l-4 border-l-blue-500">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="font-semibold">{template.templateName}</h3>
+                                <Badge 
+                                  className={
+                                    template.status === 'APPROVED' 
+                                      ? 'bg-green-500' 
+                                      : template.status === 'PENDING'
+                                      ? 'bg-yellow-500'
+                                      : 'bg-red-500'
+                                  }
+                                >
+                                  {template.status}
+                                </Badge>
+                                <Badge variant="outline">{template.category}</Badge>
+                                <Badge variant="outline">{template.language}</Badge>
+                              </div>
+                              {template.components?.find(c => c.type === 'BODY')?.text && (
+                                <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                                  {template.components.find(c => c.type === 'BODY').text}
+                                </p>
+                              )}
+                              {template.variables && template.variables.length > 0 && (
+                                <div className="mt-2">
+                                  <p className="text-xs text-gray-500 mb-1">Variables:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {template.variables.map((variable, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs">
+                                        {variable.placeholder || `{{${variable.index}}}`}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Contacts Tab */}
+        <TabsContent value="contacts" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>WhatsApp Contacts</CardTitle>
+                  <CardDescription>
+                    View and manage contacts across all coaches
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={fetchContacts} 
+                  disabled={contactsLoading}
+                  variant="outline"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${contactsLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Search */}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Search by name, phone, or email..."
+                    value={contactsSearch}
+                    onChange={(e) => {
+                      setContactsSearch(e.target.value);
+                      setContactsPage(1);
+                    }}
+                    className="flex-1"
+                  />
+                </div>
+
+                {/* Contacts List */}
+                {contactsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                  </div>
+                ) : contacts.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-500 mb-2">No contacts found</p>
+                    <p className="text-sm text-gray-400">
+                      {contactsSearch ? 'Try adjusting your search' : 'Contacts will appear here as messages are sent'}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                      {contacts.map((contact) => (
+                        <Card key={contact._id || contact.phone} className="border-l-4 border-l-green-500">
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h3 className="font-semibold">{contact.name || 'Unknown'}</h3>
+                                  {contact.status && (
+                                    <Badge variant="outline">{contact.status}</Badge>
+                                  )}
+                                  {contact.messageCount !== undefined && (
+                                    <Badge variant="secondary">
+                                      {contact.messageCount} message{contact.messageCount !== 1 ? 's' : ''}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="space-y-1 text-sm text-gray-600">
+                                  {contact.phone && (
+                                    <p>
+                                      <span className="font-medium">Phone:</span> {contact.phone}
+                                    </p>
+                                  )}
+                                  {contact.email && (
+                                    <p>
+                                      <span className="font-medium">Email:</span> {contact.email}
+                                    </p>
+                                  )}
+                                  {contact.coachId && (
+                                    <p>
+                                      <span className="font-medium">Coach:</span> {contact.coachId?.name || contact.coachId?.email || 'N/A'}
+                                    </p>
+                                  )}
+                                  {contact.source && (
+                                    <p>
+                                      <span className="font-medium">Source:</span> {contact.source}
+                                    </p>
+                                  )}
+                                  {contact.leadTemperature && (
+                                    <p>
+                                      <span className="font-medium">Temperature:</span> {contact.leadTemperature}
+                                    </p>
+                                  )}
+                                  {contact.createdAt && (
+                                    <p className="text-xs text-gray-500">
+                                      Added: {new Date(contact.createdAt).toLocaleDateString()}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {/* Pagination */}
+                    {contactsTotal > 20 && (
+                      <div className="flex items-center justify-between pt-4 border-t">
+                        <p className="text-sm text-gray-500">
+                          Showing {(contactsPage - 1) * 20 + 1} - {Math.min(contactsPage * 20, contactsTotal)} of {contactsTotal}
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => setContactsPage(p => Math.max(1, p - 1))}
+                            disabled={contactsPage === 1 || contactsLoading}
+                            variant="outline"
+                            size="sm"
+                          >
+                            Previous
+                          </Button>
+                          <Button
+                            onClick={() => setContactsPage(p => p + 1)}
+                            disabled={contactsPage * 20 >= contactsTotal || contactsLoading}
+                            variant="outline"
+                            size="sm"
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Credit Settings Tab */}
         <TabsContent value="credit-settings">
           <Card>
@@ -662,7 +1025,7 @@ const WhatsAppAdminSetup = () => {
                   id="webhookUrl"
                   value={creditSettings.webhookUrl}
                   onChange={(e) => setCreditSettings({ ...creditSettings, webhookUrl: e.target.value })}
-                  placeholder="https://your-domain.com/api/whatsapp/v1/webhook"
+                  placeholder="https://your-domain.com/api/central-messaging/v1/webhook"
                 />
                 <p className="text-xs text-gray-500">
                   Your server endpoint for receiving WhatsApp webhooks

@@ -1,10 +1,12 @@
 const asyncHandler = require('../middleware/async');
+const mongoose = require('mongoose');
 const WhatsAppMessage = require('../schema/WhatsAppMessage');
 const Lead = require('../schema/Lead');
 const MessageTemplate = require('../schema/MessageTemplate');
 const WhatsAppCredit = require('../schema/WhatsAppCredit');
 const centralWhatsAppService = require('../services/centralWhatsAppService');
 const templateService = require('../services/templateService');
+const messageQueueService = require('../services/messageQueueService');
 const { SECTIONS } = require('../utils/sectionPermissions');
 
 // @desc    Send single message
@@ -19,6 +21,7 @@ exports.sendMessage = asyncHandler(async (req, res) => {
             to, 
             message, 
             templateId, 
+            template, // Template object with name and language
             templateParameters = {},
             type = 'text',
             mediaUrl,
@@ -66,89 +69,84 @@ exports.sendMessage = asyncHandler(async (req, res) => {
         
         // Handle template messages
         if (type === 'template' && templateId) {
-            const template = await MessageTemplate.findById(templateId);
-            if (!template) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Template not found'
-                });
-            }
+            // Check if templateId is a valid MongoDB ObjectId
+            // If not, it's likely a Meta template ID (e.g., "1934990210683335")
+            const isValidObjectId = mongoose.Types.ObjectId.isValid(templateId);
             
-            // Get lead data for template parameters
-            let leadData = {};
-            if (leadId) {
-                const lead = await Lead.findById(leadId);
-                if (lead) {
-                    leadData = templateService.extractLeadData(lead);
+            if (isValidObjectId) {
+                // MongoDB template - look it up and render
+                const template = await MessageTemplate.findById(templateId);
+                if (!template) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Template not found'
+                    });
                 }
+                
+                // Get lead data for template parameters
+                let leadData = {};
+                if (leadId) {
+                    const lead = await Lead.findById(leadId);
+                    if (lead) {
+                        leadData = templateService.extractLeadData(lead);
+                    }
+                }
+                
+                // Merge template parameters with lead data
+                const allParameters = { ...leadData, ...templateParameters };
+                
+                // Render template
+                const renderedTemplate = template.renderTemplate(allParameters);
+                messageContent = renderedTemplate.body;
+                templateName = template.name;
+            } else {
+                // Meta template ID - pass it through to be handled by centralWhatsAppService
+                // Don't try to look it up in MongoDB
+                templateName = null; // Will be looked up by Meta template ID
             }
-            
-            // Merge template parameters with lead data
-            const allParameters = { ...leadData, ...templateParameters };
-            
-            // Render template
-            const renderedTemplate = template.renderTemplate(allParameters);
-            messageContent = renderedTemplate.body;
-            templateName = template.name;
         }
         
-        // Send message via Central WhatsApp
+        // Prepare message data for queue
         const messageData = {
             to: to,
             message: messageContent,
+            text: messageContent,
             type: type,
+            templateId: templateId && !mongoose.Types.ObjectId.isValid(templateId) ? templateId : undefined, // Pass Meta template ID if not MongoDB ObjectId
+            template: template, // Template object with name and language from request body
             templateName: templateName,
+            templateParameters: templateParameters,
+            parameters: Array.isArray(templateParameters) ? templateParameters : Object.values(templateParameters || {}),
             mediaUrl: mediaUrl,
-            caption: caption
+            caption: caption,
+            coachId: coachId,
+            leadId: leadId
         };
         
-        const result = await centralWhatsAppService.sendMessage(messageData);
+        // Queue message instead of sending directly
+        const queued = await messageQueueService.queueWhatsAppMessage(messageData);
         
-        if (!result.success) {
+        if (!queued) {
             return res.status(500).json({
                 success: false,
-                message: 'Failed to send message',
-                error: result.error
+                message: 'Failed to queue message',
+                error: 'Message queue service unavailable'
             });
         }
         
-        // Create message record
-        const conversationId = WhatsAppMessage.createConversationId(coachId, to);
-        const messageRecord = new WhatsAppMessage({
-            messageId: result.messageId,
-            wamid: result.wamid,
-            senderId: coachId,
-            senderType: 'coach',
-            recipientPhone: to,
-            messageType: type,
-            content: {
-                text: messageContent,
-                templateName: templateName,
-                templateParameters: templateParameters,
-                mediaUrl: mediaUrl,
-                mediaType: mediaUrl ? 'image' : undefined,
-                caption: caption
-            },
-            conversationId: conversationId,
-            leadId: leadId,
-            creditsUsed: 1
-        });
-        
-        await messageRecord.save();
-        
-        // Deduct credits
-        await credits.useCredits(1, 'message_sent', `Message sent to ${to}`);
+        // Deduct credits immediately (will be processed by worker)
+        await credits.useCredits(1, 'message_queued', `Message queued for ${to}`);
         
         console.log('✅ [MESSAGING] sendMessage - Success');
         res.status(200).json({
             success: true,
-            message: 'Message sent successfully',
+            message: 'Message queued successfully',
             data: {
-                messageId: result.messageId,
-                wamid: result.wamid,
-                status: 'sent',
+                status: 'queued',
+                recipient: to,
                 creditsUsed: 1,
-                remainingCredits: credits.balance - 1
+                remainingCredits: credits.balance - 1,
+                note: 'Message will be processed by worker shortly'
             }
         });
         
@@ -230,121 +228,72 @@ exports.sendBulkMessages = asyncHandler(async (req, res) => {
             }
         }
         
-        const results = [];
-        const errors = [];
-        
-        // Send messages with delay
-        for (let i = 0; i < contacts.length; i++) {
-            const contact = contacts[i];
+        // Prepare contacts for queue (with lead data embedded if needed)
+        const contactsForQueue = await Promise.all(contacts.map(async (contact) => {
+            const contactData = {
+                phone: contact.phone || contact.to,
+                email: contact.email,
+                name: contact.name,
+                leadId: contact.leadId
+            };
             
-            try {
-                let messageContent = message;
-                let templateName = null;
-                
-                // Handle template messages
-                if (type === 'template' && template) {
-                    // Get lead data for template parameters
-                    let leadData = {};
-                    if (contact.leadId) {
-                        const lead = await Lead.findById(contact.leadId);
-                        if (lead) {
-                            leadData = templateService.extractLeadData(lead);
-                        }
+            // If template and leadId exists, get lead data for template rendering
+            if (type === 'template' && contact.leadId && template) {
+                try {
+                    const lead = await Lead.findById(contact.leadId);
+                    if (lead) {
+                        contactData.leadData = templateService.extractLeadData(lead);
                     }
-                    
-                    // Merge template parameters with lead data
-                    const allParameters = { ...leadData, ...templateParameters };
-                    
-                    // Render template
-                    const renderedTemplate = template.renderTemplate(allParameters);
-                    messageContent = renderedTemplate.body;
-                    templateName = template.name;
+                } catch (error) {
+                    // Continue without lead data
                 }
-                
-                // Send message via Central WhatsApp
-                const messageData = {
-                    to: contact.phone || contact.to,
-                    message: messageContent,
-                    type: type,
-                    templateName: templateName,
-                    mediaUrl: mediaUrl,
-                    caption: caption
-                };
-                
-                const result = await centralWhatsAppService.sendMessage(messageData);
-                
-                if (result.success) {
-                    // Create message record
-                    const conversationId = WhatsAppMessage.createConversationId(coachId, contact.phone || contact.to);
-                    const messageRecord = new WhatsAppMessage({
-                        messageId: result.messageId,
-                        wamid: result.wamid,
-                        senderId: coachId,
-                        senderType: 'coach',
-                        recipientPhone: contact.phone || contact.to,
-                        recipientName: contact.name,
-                        messageType: type,
-                        content: {
-                            text: messageContent,
-                            templateName: templateName,
-                            templateParameters: templateParameters,
-                            mediaUrl: mediaUrl,
-                            mediaType: mediaUrl ? 'image' : undefined,
-                            caption: caption
-                        },
-                        conversationId: conversationId,
-                        leadId: contact.leadId,
-                        creditsUsed: 1
-                    });
-                    
-                    await messageRecord.save();
-                    
-                    results.push({
-                        contact: contact.phone || contact.to,
-                        success: true,
-                        messageId: result.messageId
-                    });
-                } else {
-                    errors.push({
-                        contact: contact.phone || contact.to,
-                        success: false,
-                        error: result.error
-                    });
-                }
-                
-                // Add delay between messages
-                if (i < contacts.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-                
-            } catch (error) {
-                console.error(`❌ [MESSAGING] Error sending to ${contact.phone || contact.to}:`, error);
-                errors.push({
-                    contact: contact.phone || contact.to,
-                    success: false,
-                    error: error.message
-                });
             }
+            
+            return contactData;
+        }));
+        
+        // Prepare bulk message data
+        const bulkData = {
+            messageType: 'whatsapp',
+            recipients: contactsForQueue,
+            contacts: contactsForQueue,
+            type: type,
+            message: message,
+            templateId: templateId,
+            templateName: template ? template.name : null,
+            templateParameters: templateParameters,
+            parameters: Array.isArray(templateParameters) ? templateParameters : Object.values(templateParameters || {}),
+            mediaUrl: mediaUrl,
+            caption: caption,
+            coachId: coachId,
+            delay: delay || 1000 // Default 1 second delay
+        };
+        
+        // Queue bulk messages
+        const queued = await messageQueueService.queueBulkMessages(bulkData);
+        
+        if (!queued) {
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to queue bulk messages',
+                error: 'Message queue service unavailable'
+            });
         }
         
-        // Deduct credits for successful messages
-        const successfulMessages = results.length;
-        if (successfulMessages > 0) {
-            await credits.useCredits(successfulMessages, 'bulk_message_sent', `Bulk message sent to ${successfulMessages} contacts`);
-        }
+        // Deduct credits immediately for all contacts (will be processed by worker)
+        await credits.useCredits(contacts.length, 'bulk_message_queued', `Bulk message queued for ${contacts.length} contacts`);
         
         console.log('✅ [MESSAGING] sendBulkMessages - Success');
         res.status(200).json({
             success: true,
-            message: `Bulk messages sent. ${successfulMessages} successful, ${errors.length} failed.`,
+            message: `Bulk messages queued successfully`,
             data: {
+                status: 'queued',
                 total: contacts.length,
-                successful: successfulMessages,
-                failed: errors.length,
-                results: results,
-                errors: errors,
-                creditsUsed: successfulMessages,
-                remainingCredits: credits.balance - successfulMessages
+                queued: contacts.length,
+                creditsUsed: contacts.length,
+                remainingCredits: credits.balance - contacts.length,
+                note: 'Messages will be processed by worker shortly'
             }
         });
         
@@ -370,6 +319,7 @@ exports.sendAdminMessage = asyncHandler(async (req, res) => {
             to, 
             message, 
             templateId, 
+            template, // Template object with name and language
             templateParameters = {},
             type = 'text',
             mediaUrl,
@@ -405,85 +355,78 @@ exports.sendAdminMessage = asyncHandler(async (req, res) => {
         
         // Handle template messages
         if (type === 'template' && templateId) {
-            const template = await MessageTemplate.findById(templateId);
-            if (!template) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Template not found'
-                });
-            }
+            // Check if templateId is a valid MongoDB ObjectId
+            // If not, it's likely a Meta template ID (e.g., "1934990210683335")
+            const isValidObjectId = mongoose.Types.ObjectId.isValid(templateId);
             
-            // Get lead data for template parameters
-            let leadData = {};
-            if (leadId) {
-                const lead = await Lead.findById(leadId);
-                if (lead) {
-                    leadData = templateService.extractLeadData(lead);
+            if (isValidObjectId) {
+                // MongoDB template - look it up and render
+                const template = await MessageTemplate.findById(templateId);
+                if (!template) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Template not found'
+                    });
                 }
+                
+                // Get lead data for template parameters
+                let leadData = {};
+                if (leadId) {
+                    const lead = await Lead.findById(leadId);
+                    if (lead) {
+                        leadData = templateService.extractLeadData(lead);
+                    }
+                }
+                
+                // Merge template parameters with lead data
+                const allParameters = { ...leadData, ...templateParameters };
+                
+                // Render template
+                const renderedTemplate = template.renderTemplate(allParameters);
+                messageContent = renderedTemplate.body;
+                templateName = template.name;
+            } else {
+                // Meta template ID - pass it through to be handled by centralWhatsAppService
+                // Don't try to look it up in MongoDB
+                templateName = null; // Will be looked up by Meta template ID
             }
-            
-            // Merge template parameters with lead data
-            const allParameters = { ...leadData, ...templateParameters };
-            
-            // Render template
-            const renderedTemplate = template.renderTemplate(allParameters);
-            messageContent = renderedTemplate.body;
-            templateName = template.name;
         }
         
-        // Send message via Central WhatsApp
+        // Queue message via message queue service instead of sending directly
         const messageData = {
             to: to,
             message: messageContent,
+            text: messageContent,
             type: type,
+            templateId: templateId && !mongoose.Types.ObjectId.isValid(templateId) ? templateId : undefined, // Pass Meta template ID if not MongoDB ObjectId
+            template: template, // Template object with name and language from request body
             templateName: templateName,
+            templateParameters: templateParameters,
+            parameters: Array.isArray(templateParameters) ? templateParameters : Object.values(templateParameters || {}),
             mediaUrl: mediaUrl,
-            caption: caption
+            caption: caption,
+            coachId: adminId // For admin messages, pass adminId as coachId
         };
         
-        const result = await centralWhatsAppService.sendMessage(messageData);
+        const queued = await messageQueueService.queueWhatsAppMessage(messageData);
         
-        if (!result.success) {
+        if (!queued) {
             return res.status(500).json({
                 success: false,
-                message: 'Failed to send message',
-                error: result.error
+                message: 'Failed to queue message',
+                error: 'Message queue service unavailable'
             });
         }
-        
-        // Create message record
-        const conversationId = WhatsAppMessage.createConversationId(adminId, to);
-        const messageRecord = new WhatsAppMessage({
-            messageId: result.messageId,
-            wamid: result.wamid,
-            senderId: adminId,
-            senderType: 'admin',
-            recipientPhone: to,
-            messageType: type,
-            content: {
-                text: messageContent,
-                templateName: templateName,
-                templateParameters: templateParameters,
-                mediaUrl: mediaUrl,
-                mediaType: mediaUrl ? 'image' : undefined,
-                caption: caption
-            },
-            conversationId: conversationId,
-            leadId: leadId,
-            creditsUsed: 0 // Admin messages don't use credits
-        });
-        
-        await messageRecord.save();
         
         console.log('✅ [MESSAGING] sendAdminMessage - Success');
         res.status(200).json({
             success: true,
-            message: 'Message sent successfully',
+            message: 'Message queued successfully',
             data: {
-                messageId: result.messageId,
-                wamid: result.wamid,
-                status: 'sent',
-                senderType: 'admin'
+                status: 'queued',
+                recipient: to,
+                senderType: 'admin',
+                note: 'Message will be processed by worker shortly'
             }
         });
         
@@ -550,113 +493,69 @@ exports.sendAdminBulkMessages = asyncHandler(async (req, res) => {
             }
         }
         
-        const results = [];
-        const errors = [];
-        
-        // Send messages with delay
-        for (let i = 0; i < contacts.length; i++) {
-            const contact = contacts[i];
+        // Prepare contacts for queue (with lead data embedded if needed)
+        const contactsForQueue = await Promise.all(contacts.map(async (contact) => {
+            const contactData = {
+                phone: contact.phone || contact.to,
+                email: contact.email,
+                name: contact.name,
+                leadId: contact.leadId
+            };
             
-            try {
-                let messageContent = message;
-                let templateName = null;
-                
-                // Handle template messages
-                if (type === 'template' && template) {
-                    // Get lead data for template parameters
-                    let leadData = {};
-                    if (contact.leadId) {
-                        const lead = await Lead.findById(contact.leadId);
-                        if (lead) {
-                            leadData = templateService.extractLeadData(lead);
-                        }
+            // If template and leadId exists, get lead data for template rendering
+            if (type === 'template' && contact.leadId && template) {
+                try {
+                    const lead = await Lead.findById(contact.leadId);
+                    if (lead) {
+                        contactData.leadData = templateService.extractLeadData(lead);
                     }
-                    
-                    // Merge template parameters with lead data
-                    const allParameters = { ...leadData, ...templateParameters };
-                    
-                    // Render template
-                    const renderedTemplate = template.renderTemplate(allParameters);
-                    messageContent = renderedTemplate.body;
-                    templateName = template.name;
+                } catch (error) {
+                    // Continue without lead data
                 }
-                
-                // Send message via Central WhatsApp
-                const messageData = {
-                    to: contact.phone || contact.to,
-                    message: messageContent,
-                    type: type,
-                    templateName: templateName,
-                    mediaUrl: mediaUrl,
-                    caption: caption
-                };
-                
-                const result = await centralWhatsAppService.sendMessage(messageData);
-                
-                if (result.success) {
-                    // Create message record
-                    const conversationId = WhatsAppMessage.createConversationId(adminId, contact.phone || contact.to);
-                    const messageRecord = new WhatsAppMessage({
-                        messageId: result.messageId,
-                        wamid: result.wamid,
-                        senderId: adminId,
-                        senderType: 'admin',
-                        recipientPhone: contact.phone || contact.to,
-                        recipientName: contact.name,
-                        messageType: type,
-                        content: {
-                            text: messageContent,
-                            templateName: templateName,
-                            templateParameters: templateParameters,
-                            mediaUrl: mediaUrl,
-                            mediaType: mediaUrl ? 'image' : undefined,
-                            caption: caption
-                        },
-                        conversationId: conversationId,
-                        leadId: contact.leadId,
-                        creditsUsed: 0 // Admin messages don't use credits
-                    });
-                    
-                    await messageRecord.save();
-                    
-                    results.push({
-                        contact: contact.phone || contact.to,
-                        success: true,
-                        messageId: result.messageId
-                    });
-                } else {
-                    errors.push({
-                        contact: contact.phone || contact.to,
-                        success: false,
-                        error: result.error
-                    });
-                }
-                
-                // Add delay between messages
-                if (i < contacts.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-                
-            } catch (error) {
-                console.error(`❌ [MESSAGING] Error sending to ${contact.phone || contact.to}:`, error);
-                errors.push({
-                    contact: contact.phone || contact.to,
-                    success: false,
-                    error: error.message
-                });
             }
+            
+            return contactData;
+        }));
+        
+        // Prepare bulk message data
+        const bulkData = {
+            messageType: 'whatsapp',
+            recipients: contactsForQueue,
+            contacts: contactsForQueue,
+            type: type,
+            message: message,
+            templateId: templateId,
+            templateName: template ? template.name : null,
+            templateParameters: templateParameters,
+            parameters: Array.isArray(templateParameters) ? templateParameters : Object.values(templateParameters || {}),
+            mediaUrl: mediaUrl,
+            caption: caption,
+            adminId: adminId,
+            coachId: coachId,
+            delay: delay || 1000, // Default 1 second delay
+            isAdmin: true
+        };
+        
+        // Queue bulk messages
+        const queued = await messageQueueService.queueBulkMessages(bulkData);
+        
+        if (!queued) {
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to queue bulk messages',
+                error: 'Message queue service unavailable'
+            });
         }
         
         console.log('✅ [MESSAGING] sendAdminBulkMessages - Success');
         res.status(200).json({
             success: true,
-            message: `Bulk messages sent. ${results.length} successful, ${errors.length} failed.`,
+            message: `Bulk messages queued successfully`,
             data: {
+                status: 'queued',
                 total: contacts.length,
-                successful: results.length,
-                failed: errors.length,
-                results: results,
-                errors: errors,
+                queued: contacts.length,
+                note: 'Messages will be processed by worker shortly',
                 senderType: 'admin'
             }
         });

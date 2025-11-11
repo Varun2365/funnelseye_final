@@ -50,6 +50,7 @@ const verifyAdminToken = async (req, res, next) => {
         }
 
         // Verify token
+        // Use same JWT_SECRET fallback as generateToken in adminAuthController for consistency
         //console.log('🔐 [ADMIN_AUTH] verifyAdminToken - Attempting JWT verification...');
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'thisisaverysecretkeywhichcantbehacked');
 
