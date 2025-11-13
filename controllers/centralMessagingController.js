@@ -1005,7 +1005,59 @@ exports.getEmailConfig = asyncHandler(async (req, res) => {
 });
 
 exports.setupEmail = asyncHandler(async (req, res) => {
-    res.json({ success: true, message: 'To be implemented' });
+    try {
+        console.log('🔄 [CENTRAL_MESSAGING] setupEmail - Starting...');
+        
+        const { email, password, isUpdate } = req.body;
+        
+        // Validate required fields
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and password are required'
+            });
+        }
+
+        // Get or create settings
+        const { AdminSystemSettings } = require('../schema');
+        let settings = await AdminSystemSettings.findOne({ settingId: 'global' });
+        if (!settings) {
+            settings = new AdminSystemSettings({ settingId: 'global' });
+        }
+
+        // Update email configuration
+        settings.notifications = settings.notifications || {};
+        settings.notifications.email = {
+            enabled: true,
+            gmailId: email,
+            appPassword: password,
+            fromEmail: email,
+            fromName: 'FunnelsEye'
+        };
+
+        await settings.save();
+
+        // Clear email service cache to force reload
+        const emailConfigService = require('../services/emailConfigService');
+        emailConfigService.clearCache();
+
+        console.log('✅ [CENTRAL_MESSAGING] setupEmail - Success');
+        
+        res.json({
+            success: true,
+            message: isUpdate ? 'Email configuration updated successfully' : 'Email configuration saved successfully',
+            data: {
+                isUpdate: !!isUpdate
+            }
+        });
+    } catch (error) {
+        console.error('❌ [CENTRAL_MESSAGING] setupEmail - Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to setup email configuration',
+            error: error.message
+        });
+    }
 });
 
 exports.testEmail = asyncHandler(async (req, res) => {

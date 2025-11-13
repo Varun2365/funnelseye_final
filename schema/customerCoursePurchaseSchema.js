@@ -96,8 +96,6 @@ const customerCoursePurchaseSchema = new mongoose.Schema({
 // Indexes for efficient queries
 customerCoursePurchaseSchema.index({ customerId: 1, courseId: 1 });
 customerCoursePurchaseSchema.index({ paymentStatus: 1, accessGranted: 1 });
-customerCoursePurchaseSchema.index({ razorpayOrderId: 1 });
-customerCoursePurchaseSchema.index({ razorpayPaymentId: 1 });
 
 // Method to check if customer has access to a course
 customerCoursePurchaseSchema.statics.hasAccess = async function(customerId, courseId) {

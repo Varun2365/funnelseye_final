@@ -52,6 +52,18 @@ import {
 import { Checkbox } from './ui/checkbox';
 import { useToast } from '../contexts/ToastContext';
 
+const defaultFunnelsEyeExtras = {
+  headline: '',
+  subheadline: '',
+  transformationPromise: '',
+  coachSupport: '',
+  communityAccess: '',
+  guarantee: '',
+  successMetrics: [],
+  bonusResources: [],
+  platformTools: []
+};
+
 const CourseCreationFlow = () => {
   const { showToast } = useToast();
   const location = useLocation();
@@ -139,7 +151,8 @@ const CourseCreationFlow = () => {
       estimatedDuration: '',
       prerequisites: [],
       learningOutcomes: []
-    }
+    },
+    funnelsEyeExtras: { ...defaultFunnelsEyeExtras }
   });
   
   const [modules, setModules] = useState([]);
@@ -373,7 +386,14 @@ const CourseCreationFlow = () => {
             estimatedDuration: '',
             prerequisites: [],
             learningOutcomes: []
-          }
+          },
+          funnelsEyeExtras: courseData.funnelsEyeExtras ? {
+            ...defaultFunnelsEyeExtras,
+            ...courseData.funnelsEyeExtras,
+            successMetrics: Array.isArray(courseData.funnelsEyeExtras.successMetrics) ? courseData.funnelsEyeExtras.successMetrics : [],
+            bonusResources: Array.isArray(courseData.funnelsEyeExtras.bonusResources) ? courseData.funnelsEyeExtras.bonusResources : [],
+            platformTools: Array.isArray(courseData.funnelsEyeExtras.platformTools) ? courseData.funnelsEyeExtras.platformTools : []
+          } : { ...defaultFunnelsEyeExtras }
         });
         
         // Set tabs based on loaded course
@@ -442,7 +462,13 @@ const CourseCreationFlow = () => {
           status: course.status,
           workoutSpecificFields: course.courseType === 'workout_routine' ? course.workoutSpecificFields : undefined,
           mealPlanSpecificFields: course.courseType === 'meal_plan' ? course.mealPlanSpecificFields : undefined,
-          generalModuleFields: course.courseType === 'general_module_course' ? course.generalModuleFields : undefined
+          generalModuleFields: course.courseType === 'general_module_course' ? course.generalModuleFields : undefined,
+          funnelsEyeExtras: {
+            ...course.funnelsEyeExtras,
+            successMetrics: course.funnelsEyeExtras?.successMetrics || [],
+            bonusResources: course.funnelsEyeExtras?.bonusResources || [],
+            platformTools: course.funnelsEyeExtras?.platformTools || []
+          }
         })
       });
 
@@ -818,6 +844,7 @@ const CourseCreationFlow = () => {
       description: '',
       courseType: courseCategoryTab === 'customer' ? customerCourseTypeTab : 'general_module_course',
       price: 0,
+      currency: 'USD',
       category: courseCategoryTab === 'coach' ? 'coach_course' : 'customer_course',
       thumbnail: '',
       status: 'draft',
@@ -840,7 +867,8 @@ const CourseCreationFlow = () => {
         estimatedDuration: '',
         prerequisites: [],
         learningOutcomes: []
-      }
+      },
+      funnelsEyeExtras: { ...defaultFunnelsEyeExtras }
     });
     setModules([]);
     setExpandedModules(new Set());
@@ -897,7 +925,8 @@ const CourseCreationFlow = () => {
           currency: 'USD',
           category: newCourseData.category,
           thumbnail: '',
-          status: 'draft'
+          status: 'draft',
+          funnelsEyeExtras: { ...defaultFunnelsEyeExtras }
         })
       });
 
@@ -979,7 +1008,14 @@ const CourseCreationFlow = () => {
             estimatedDuration: '',
             prerequisites: [],
             learningOutcomes: []
-          }
+          },
+          funnelsEyeExtras: result.data.funnelsEyeExtras ? {
+            ...defaultFunnelsEyeExtras,
+            ...result.data.funnelsEyeExtras,
+            successMetrics: Array.isArray(result.data.funnelsEyeExtras.successMetrics) ? result.data.funnelsEyeExtras.successMetrics : [],
+            bonusResources: Array.isArray(result.data.funnelsEyeExtras.bonusResources) ? result.data.funnelsEyeExtras.bonusResources : [],
+            platformTools: Array.isArray(result.data.funnelsEyeExtras.platformTools) ? result.data.funnelsEyeExtras.platformTools : []
+          } : { ...defaultFunnelsEyeExtras }
         });
 
         // Update category tab if needed
@@ -1966,6 +2002,194 @@ const CourseCreationFlow = () => {
                             <SelectItem value="general_module_course">General Module Based Courses</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* FunnelsEye Experience Section */}
+                  <div className="space-y-4 p-5 rounded-lg border-l-2 border-indigo-300">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Zap className="h-5 w-5 text-indigo-500" />
+                      <h3 className="text-lg font-semibold">FunnelsEye Experience</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Craft the branded story learners will see on the public course page. Use these highlights to go beyond a generic marketplace listing.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="funnels-headline" className="text-sm font-medium">Hero Headline</Label>
+                        <Input
+                          id="funnels-headline"
+                          value={course.funnelsEyeExtras.headline}
+                          onChange={(e) => setCourse(prev => ({
+                            ...prev,
+                            funnelsEyeExtras: {
+                              ...prev.funnelsEyeExtras,
+                              headline: e.target.value
+                            }
+                          }))}
+                          placeholder="Example: Build a High-Converting Coaching Engine in 8 Weeks"
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="funnels-subheadline" className="text-sm font-medium">Sub Headline</Label>
+                        <Input
+                          id="funnels-subheadline"
+                          value={course.funnelsEyeExtras.subheadline}
+                          onChange={(e) => setCourse(prev => ({
+                            ...prev,
+                            funnelsEyeExtras: {
+                              ...prev.funnelsEyeExtras,
+                              subheadline: e.target.value
+                            }
+                          }))}
+                          placeholder="Share the transformation hook in one sentence"
+                          className="mt-1.5"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="md:col-span-2">
+                        <Label htmlFor="funnels-promise" className="text-sm font-medium">Transformation Promise</Label>
+                        <Textarea
+                          id="funnels-promise"
+                          rows={3}
+                          value={course.funnelsEyeExtras.transformationPromise}
+                          onChange={(e) => setCourse(prev => ({
+                            ...prev,
+                            funnelsEyeExtras: {
+                              ...prev.funnelsEyeExtras,
+                              transformationPromise: e.target.value
+                            }
+                          }))}
+                          placeholder="Describe the tangible outcome and timeline your learners can expect."
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="funnels-guarantee" className="text-sm font-medium">Guarantee / Assurance</Label>
+                        <Textarea
+                          id="funnels-guarantee"
+                          rows={3}
+                          value={course.funnelsEyeExtras.guarantee}
+                          onChange={(e) => setCourse(prev => ({
+                            ...prev,
+                            funnelsEyeExtras: {
+                              ...prev.funnelsEyeExtras,
+                              guarantee: e.target.value
+                            }
+                          }))}
+                          placeholder="Example: 30-day FunnelsEye progress guarantee"
+                          className="mt-1.5"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="funnels-support" className="text-sm font-medium">Coach Support</Label>
+                        <Textarea
+                          id="funnels-support"
+                          rows={3}
+                          value={course.funnelsEyeExtras.coachSupport}
+                          onChange={(e) => setCourse(prev => ({
+                            ...prev,
+                            funnelsEyeExtras: {
+                              ...prev.funnelsEyeExtras,
+                              coachSupport: e.target.value
+                            }
+                          }))}
+                          placeholder="Outline touchpoints, office hours, or accountability systems."
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="funnels-community" className="text-sm font-medium">Community Access</Label>
+                        <Textarea
+                          id="funnels-community"
+                          rows={3}
+                          value={course.funnelsEyeExtras.communityAccess}
+                          onChange={(e) => setCourse(prev => ({
+                            ...prev,
+                            funnelsEyeExtras: {
+                              ...prev.funnelsEyeExtras,
+                              communityAccess: e.target.value
+                            }
+                          }))}
+                          placeholder="Highlight peer groups, live events, or Slack/WhatsApp communities."
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="funnels-success-metrics" className="text-sm font-medium">Success Metrics (one per line)</Label>
+                        <Textarea
+                          id="funnels-success-metrics"
+                          rows={3}
+                          value={(course.funnelsEyeExtras.successMetrics || []).join('\n')}
+                          onChange={(e) => {
+                            const entries = e.target.value
+                              .split('\n')
+                              .map(item => item.trim())
+                              .filter(Boolean);
+                            setCourse(prev => ({
+                              ...prev,
+                              funnelsEyeExtras: {
+                                ...prev.funnelsEyeExtras,
+                                successMetrics: entries
+                              }
+                            }));
+                          }}
+                          placeholder="e.g. 87% completion rate in last cohort"
+                          className="mt-1.5"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="funnels-bonus" className="text-sm font-medium">Bonus Resources (one per line)</Label>
+                        <Textarea
+                          id="funnels-bonus"
+                          rows={3}
+                          value={(course.funnelsEyeExtras.bonusResources || []).join('\n')}
+                          onChange={(e) => {
+                            const entries = e.target.value
+                              .split('\n')
+                              .map(item => item.trim())
+                              .filter(Boolean);
+                            setCourse(prev => ({
+                              ...prev,
+                              funnelsEyeExtras: {
+                                ...prev.funnelsEyeExtras,
+                                bonusResources: entries
+                              }
+                            }));
+                          }}
+                          placeholder="e.g. Done-for-you funnel templates"
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="funnels-tools" className="text-sm font-medium">Platform Tools Highlight (one per line)</Label>
+                        <Textarea
+                          id="funnels-tools"
+                          rows={3}
+                          value={(course.funnelsEyeExtras.platformTools || []).join('\n')}
+                          onChange={(e) => {
+                            const entries = e.target.value
+                              .split('\n')
+                              .map(item => item.trim())
+                              .filter(Boolean);
+                            setCourse(prev => ({
+                              ...prev,
+                              funnelsEyeExtras: {
+                                ...prev.funnelsEyeExtras,
+                                platformTools: entries
+                              }
+                            }));
+                          }}
+                          placeholder="e.g. AI-generated nurture scripts, CRM automations"
+                          className="mt-1.5"
+                        />
                       </div>
                     </div>
                   </div>

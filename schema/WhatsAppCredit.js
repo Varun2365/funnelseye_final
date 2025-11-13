@@ -99,7 +99,6 @@ const WhatsAppCreditSchema = new mongoose.Schema({
 });
 
 // Indexes
-WhatsAppCreditSchema.index({ coachId: 1 });
 WhatsAppCreditSchema.index({ status: 1 });
 WhatsAppCreditSchema.index({ expiresAt: 1 });
 

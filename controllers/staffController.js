@@ -30,6 +30,15 @@ exports.createStaff = async (req, res) => {
 			return res.status(400).json({ success: false, message: 'coachId is required for admin.' });
 		}
 
+		// Check subscription limits for staff creation
+		const SubscriptionLimitsMiddleware = require('../middleware/subscriptionLimits');
+		const limitCheck = await SubscriptionLimitsMiddleware.checkStaffLimit(coachId);
+		
+		if (!limitCheck.allowed) {
+			const { sendLimitError } = require('../utils/subscriptionLimitErrors');
+			return sendLimitError(res, 'STAFF', limitCheck.reason, limitCheck.currentCount, limitCheck.maxLimit, limitCheck.upgradeRequired);
+		}
+
 		// Validate permissions if provided
 		if (permissions && Array.isArray(permissions)) {
 			const validation = validatePermissions(permissions);

@@ -166,7 +166,6 @@ const LeadMagnetInteractionSchema = new mongoose.Schema({
 
 // Indexes for better performance
 LeadMagnetInteractionSchema.index({ coachId: 1, magnetType: 1, createdAt: -1 });
-LeadMagnetInteractionSchema.index({ sessionId: 1 });
 LeadMagnetInteractionSchema.index({ 'conversion.status': 1 });
 LeadMagnetInteractionSchema.index({ 'userInfo.email': 1 });
 LeadMagnetInteractionSchema.index({ 'userInfo.ipAddress': 1 });

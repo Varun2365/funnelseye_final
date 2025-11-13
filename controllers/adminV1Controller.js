@@ -2893,6 +2893,147 @@ async function createSamplePaymentData() {
 // SUBSCRIPTION PLAN MANAGEMENT METHODS
 // ========================================
 
+const { ContentCourse } = require('../schema/contentSchemas');
+
+const toInt = (value, fallback = 0) => {
+    if (value === undefined || value === null || value === '') return fallback;
+    const parsed = parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const toFloat = (value, fallback = 0) => {
+    if (value === undefined || value === null || value === '') return fallback;
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const normalizeBoolean = (value, fallback = false) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+        return ['true', '1', 'yes', 'on'].includes(value.toLowerCase());
+    }
+    if (typeof value === 'number') {
+        return value === 1;
+    }
+    return fallback;
+};
+
+const buildFeaturePayload = (features = {}, limits = {}) => ({
+    // Map limit values to features (since UI shows them in limits but schema stores in features)
+    maxFunnels: toInt(limits.maxFunnels !== undefined ? limits.maxFunnels : features.maxFunnels, -1),
+    maxStaff: toInt(limits.maxStaff !== undefined ? limits.maxStaff : features.maxStaff, 2),
+    maxDevices: toInt(limits.maxDevices !== undefined ? limits.maxDevices : features.maxDevices, 1),
+    automationRules: toInt(limits.automationRules !== undefined ? limits.automationRules : features.automationRules, 10),
+    emailCredits: toInt(limits.emailCredits !== undefined ? limits.emailCredits : features.emailCredits, 1000),
+    smsCredits: toInt(limits.smsCredits !== undefined ? limits.smsCredits : features.smsCredits, 100),
+    storageGB: toInt(limits.storageGB !== undefined ? limits.storageGB : features.storageGB, 10),
+    // Boolean features
+    aiFeatures: normalizeBoolean(features.aiFeatures),
+    advancedAnalytics: normalizeBoolean(features.advancedAnalytics),
+    prioritySupport: normalizeBoolean(features.prioritySupport),
+    customDomain: normalizeBoolean(features.customDomain),
+    apiAccess: normalizeBoolean(features.apiAccess),
+    whiteLabel: normalizeBoolean(features.whiteLabel),
+    integrations: Array.isArray(features.integrations) ? features.integrations : [],
+    customBranding: normalizeBoolean(features.customBranding),
+    advancedReporting: normalizeBoolean(features.advancedReporting),
+    webhooks: normalizeBoolean(features.webhooks),
+    whatsappAutomation: normalizeBoolean(features.whatsappAutomation),
+    emailAutomation: normalizeBoolean(features.emailAutomation)
+});
+
+const buildLimitsPayload = (limits = {}) => ({
+    maxLeads: toInt(limits.maxLeads, -1),
+    maxAppointments: toInt(limits.maxAppointments, 50),
+    maxCampaigns: toInt(limits.maxCampaigns, 5),
+    maxAutomationRules: toInt(limits.maxAutomationRules, 10),
+    maxWhatsAppMessages: toInt(limits.maxWhatsAppMessages, 100),
+    maxEmailTemplates: toInt(limits.maxEmailTemplates, 10),
+    maxLandingPages: toInt(limits.maxLandingPages, 5),
+    maxWebinars: toInt(limits.maxWebinars, 2),
+    maxForms: toInt(limits.maxForms, 10),
+    maxSequences: toInt(limits.maxSequences, 5),
+    maxTags: toInt(limits.maxTags, 50),
+    maxCustomFields: toInt(limits.maxCustomFields, 20),
+    maxResellCourses: toInt(limits.maxResellCourses, 0),
+    maxCourseSeats: toInt(limits.maxCourseSeats, 0),
+    maxSharedTemplates: toInt(limits.maxSharedTemplates, 0),
+    maxAutomationWorkflows: toInt(limits.maxAutomationWorkflows, 0),
+    maxCourseExports: toInt(limits.maxCourseExports, 0)
+});
+
+const buildCourseAccessPayload = (courseAccess = {}) => ({
+    allowCourseLibrary: normalizeBoolean(courseAccess.allowCourseLibrary),
+    allowResell: normalizeBoolean(courseAccess.allowResell),
+    allowContentRemix: normalizeBoolean(courseAccess.allowContentRemix),
+    allowCustomPricing: normalizeBoolean(courseAccess.allowCustomPricing),
+    allowCourseAssetDownload: normalizeBoolean(courseAccess.allowCourseAssetDownload),
+    includeMarketingKits: normalizeBoolean(courseAccess.includeMarketingKits),
+    maxActiveResellCourses: toInt(courseAccess.maxActiveResellCourses, 0),
+    defaultRevenueSharePercent: toFloat(courseAccess.defaultRevenueSharePercent, 0),
+    minMarkupPercent: toFloat(courseAccess.minMarkupPercent, 0),
+    maxMarkupPercent: toFloat(courseAccess.maxMarkupPercent, 0),
+    resellPayoutFrequency: courseAccess.resellPayoutFrequency || 'monthly',
+    allowCouponCreation: normalizeBoolean(courseAccess.allowCouponCreation),
+    allowPrivateBundles: normalizeBoolean(courseAccess.allowPrivateBundles)
+});
+
+const buildAddonsPayload = (addons = {}) => ({
+    allowAddonPurchases: normalizeBoolean(addons.allowAddonPurchases),
+    availableAddons: Array.isArray(addons.availableAddons)
+        ? addons.availableAddons
+            .filter((addon) => addon && addon.name)
+            .map((addon) => ({
+                name: addon.name.trim(),
+                description: addon.description ? addon.description.trim() : '',
+                price: toFloat(addon.price, 0),
+                billingCycle: addon.billingCycle || 'one-time'
+            }))
+        : []
+});
+
+const buildCourseBundlesPayload = async (bundles = []) => {
+    if (!Array.isArray(bundles) || bundles.length === 0) {
+        return [];
+    }
+
+    const courseIds = bundles
+        .map((bundle) => bundle && bundle.course)
+        .filter(Boolean)
+        .map((id) => mongoose.Types.ObjectId.isValid(id) ? id : null)
+        .filter(Boolean);
+
+    if (!courseIds.length) {
+        return [];
+    }
+
+    const courses = await ContentCourse.find({
+        _id: { $in: courseIds }
+    }).select('_id');
+
+    const existingIds = new Set(courses.map((course) => course._id.toString()));
+
+    return bundles
+        .filter((bundle) => bundle && existingIds.has(String(bundle.course)))
+        .map((bundle) => ({
+            course: bundle.course,
+            allowResell: normalizeBoolean(bundle.allowResell, true),
+            allowContentRemix: normalizeBoolean(bundle.allowContentRemix, true),
+            allowCustomPricing: normalizeBoolean(bundle.allowCustomPricing, true),
+            suggestedResellPrice: toFloat(bundle.suggestedResellPrice, undefined),
+            minimumResellPrice: toFloat(bundle.minimumResellPrice, undefined),
+            maximumResellPrice: toFloat(bundle.maximumResellPrice, undefined),
+            marketingKitIncluded: normalizeBoolean(bundle.marketingKitIncluded),
+            marketingAssets: Array.isArray(bundle.marketingAssets)
+                ? bundle.marketingAssets.filter(Boolean).map((asset) => asset.trim())
+                : [],
+            includedModules: Array.isArray(bundle.includedModules)
+                ? bundle.includedModules.filter(Boolean).map((module) => module.trim())
+                : [],
+            deliveryNotes: bundle.deliveryNotes ? bundle.deliveryNotes.toString().trim() : undefined
+        }));
+};
+
 /**
  * @desc    Create new subscription plan
  * @route   POST /api/admin/v1/subscription-plans
@@ -2909,13 +3050,17 @@ exports.createSubscriptionPlan = asyncHandler(async (req, res) => {
             duration,
             features = {},
             limits = {},
+            courseAccess = {},
+            courseBundles = [],
+            addons = {},
             isPopular = false,
             trialDays = 0,
             setupFee = 0,
             sortOrder = 0,
             category = 'professional',
             tags = [],
-            restrictions = {}
+            restrictions = {},
+            pricing = {}
         } = req.body;
 
         // Validate required fields
@@ -2935,6 +3080,8 @@ exports.createSubscriptionPlan = asyncHandler(async (req, res) => {
             });
         }
 
+        const normalizedCourseBundles = await buildCourseBundlesPayload(courseBundles);
+
         // Create subscription plan
         const planData = {
             name,
@@ -2943,42 +3090,11 @@ exports.createSubscriptionPlan = asyncHandler(async (req, res) => {
             currency,
             billingCycle,
             duration,
-            features: {
-                maxFunnels: features.maxFunnels || -1, // Unlimited
-                maxStaff: features.maxStaff || 2,
-                maxDevices: features.maxDevices || 1,
-                aiFeatures: features.aiFeatures || false,
-                advancedAnalytics: features.advancedAnalytics || false,
-                prioritySupport: features.prioritySupport || false,
-                customDomain: features.customDomain || false,
-                apiAccess: features.apiAccess || false,
-                whiteLabel: features.whiteLabel || false,
-                automationRules: features.automationRules || 10,
-                emailCredits: features.emailCredits || 1000,
-                smsCredits: features.smsCredits || 100,
-                storageGB: features.storageGB || 10,
-                integrations: features.integrations || [],
-                customBranding: features.customBranding || false,
-                advancedReporting: features.advancedReporting || false,
-                teamCollaboration: features.teamCollaboration || false,
-                mobileApp: features.mobileApp !== undefined ? features.mobileApp : true,
-                webhooks: features.webhooks || false,
-                sso: features.sso || false
-            },
-            limits: {
-                maxLeads: limits.maxLeads || -1, // Unlimited
-                maxAppointments: limits.maxAppointments || 50,
-                maxCampaigns: limits.maxCampaigns || 5,
-                maxAutomationRules: limits.maxAutomationRules || 10,
-                maxWhatsAppMessages: limits.maxWhatsAppMessages || 100,
-                maxEmailTemplates: limits.maxEmailTemplates || 10,
-                maxLandingPages: limits.maxLandingPages || 5,
-                maxWebinars: limits.maxWebinars || 2,
-                maxForms: limits.maxForms || 10,
-                maxSequences: limits.maxSequences || 5,
-                maxTags: limits.maxTags || 50,
-                maxCustomFields: limits.maxCustomFields || 20
-            },
+            features: buildFeaturePayload(features, limits), // Pass limits to map limit values to features
+            limits: buildLimitsPayload(limits),
+            courseBundles: normalizedCourseBundles,
+            courseAccess: buildCourseAccessPayload(courseAccess),
+            addons: buildAddonsPayload(addons),
             isPopular,
             trialDays,
             setupFee,
@@ -2988,10 +3104,10 @@ exports.createSubscriptionPlan = asyncHandler(async (req, res) => {
             restrictions,
             createdBy: req.admin.id,
             pricing: {
-                basePrice: price,
-                setupFee,
-                annualDiscount: 0,
-                currency
+                basePrice: toFloat(pricing.basePrice, price),
+                setupFee: toFloat(pricing.setupFee, setupFee),
+                annualDiscount: toFloat(pricing.annualDiscount, 0),
+                currency: pricing.currency || currency
             }
         };
 
@@ -3001,9 +3117,13 @@ exports.createSubscriptionPlan = asyncHandler(async (req, res) => {
         const plan = await SubscriptionPlan.create(planData);
         console.log('🔍 [DEBUG] Plan created successfully:', plan);
 
+        const populatedPlan = await SubscriptionPlan.findById(plan._id)
+            .populate('createdBy', 'firstName lastName email')
+            .populate('courseBundles.course', 'title thumbnail price currency category');
+
         res.status(201).json({
             success: true,
-            data: plan,
+            data: populatedPlan,
             message: 'Subscription plan created successfully'
         });
 
@@ -3120,6 +3240,7 @@ exports.getSubscriptionPlans = asyncHandler(async (req, res) => {
         const plans = await SubscriptionPlan.find(query)
             .populate('createdBy', 'firstName lastName email')
             .populate('updatedBy', 'firstName lastName email')
+            .populate('courseBundles.course', 'title thumbnail price currency category')
             .sort(sort)
             .limit(limit * 1)
             .skip((page - 1) * limit);
@@ -3166,7 +3287,8 @@ exports.getSubscriptionPlanById = asyncHandler(async (req, res) => {
         const SubscriptionPlan = require('../schema/SubscriptionPlan');
         const plan = await SubscriptionPlan.findById(planId)
             .populate('createdBy', 'firstName lastName email')
-            .populate('updatedBy', 'firstName lastName email');
+            .populate('updatedBy', 'firstName lastName email')
+            .populate('courseBundles.course', 'title thumbnail price currency category');
 
         if (!plan) {
             return res.status(404).json({
@@ -3198,23 +3320,31 @@ exports.getSubscriptionPlanById = asyncHandler(async (req, res) => {
 exports.updateSubscriptionPlan = asyncHandler(async (req, res) => {
     try {
         const { planId } = req.params;
-        const updateData = req.body;
-
-        // Remove fields that shouldn't be updated directly
-        delete updateData._id;
-        delete updateData.createdAt;
-        delete updateData.createdBy;
-
-        // Add updatedBy
-        updateData.updatedBy = req.admin.id;
+        const {
+            name,
+            description,
+            price,
+            currency,
+            billingCycle,
+            duration,
+            features,
+            limits,
+            courseAccess,
+            courseBundles,
+            addons,
+            isPopular,
+            trialDays,
+            setupFee,
+            sortOrder,
+            category,
+            tags,
+            isActive,
+            restrictions,
+            pricing
+        } = req.body;
 
         const SubscriptionPlan = require('../schema/SubscriptionPlan');
-        const plan = await SubscriptionPlan.findByIdAndUpdate(
-            planId,
-            updateData,
-            { new: true, runValidators: true }
-        ).populate('createdBy', 'firstName lastName email')
-         .populate('updatedBy', 'firstName lastName email');
+        const plan = await SubscriptionPlan.findById(planId);
 
         if (!plan) {
             return res.status(404).json({
@@ -3222,10 +3352,64 @@ exports.updateSubscriptionPlan = asyncHandler(async (req, res) => {
                 message: 'Subscription plan not found'
             });
         }
+        
+        if (name !== undefined) plan.name = name;
+        if (description !== undefined) plan.description = description;
+        if (price !== undefined) plan.price = toFloat(price, plan.price);
+        if (currency !== undefined) plan.currency = currency;
+        if (billingCycle !== undefined) plan.billingCycle = billingCycle;
+        if (duration !== undefined) plan.duration = toInt(duration, plan.duration);
+        if (features !== undefined || limits !== undefined) {
+            // Merge existing features/limits with new ones, and map limit values to features
+            const mergedFeatures = { ...plan.features, ...(features || {}) };
+            const mergedLimits = { ...plan.limits, ...(limits || {}) };
+            plan.features = buildFeaturePayload(mergedFeatures, mergedLimits);
+            plan.limits = buildLimitsPayload(mergedLimits);
+        }
+        if (courseAccess !== undefined) plan.courseAccess = buildCourseAccessPayload({ ...plan.courseAccess, ...courseAccess });
+        if (addons !== undefined) plan.addons = buildAddonsPayload(addons);
+        if (courseBundles !== undefined) {
+            plan.courseBundles = await buildCourseBundlesPayload(courseBundles);
+        }
+        if (isPopular !== undefined) plan.isPopular = normalizeBoolean(isPopular);
+        if (trialDays !== undefined) plan.trialDays = toInt(trialDays, plan.trialDays);
+        if (setupFee !== undefined) plan.setupFee = toFloat(setupFee, plan.setupFee);
+        if (sortOrder !== undefined) plan.sortOrder = toInt(sortOrder, plan.sortOrder);
+        if (category !== undefined) plan.category = category;
+        if (tags !== undefined) plan.tags = Array.isArray(tags) ? tags : plan.tags;
+        if (isActive !== undefined) plan.isActive = normalizeBoolean(isActive, plan.isActive);
+        if (restrictions !== undefined) plan.restrictions = restrictions;
+
+        if (!plan.pricing) {
+            plan.pricing = {};
+        }
+
+        const pricingPayload = pricing || {};
+        if (pricingPayload.basePrice !== undefined || price !== undefined) {
+            plan.pricing.basePrice = toFloat(pricingPayload.basePrice, plan.price);
+        }
+        if (pricingPayload.setupFee !== undefined || setupFee !== undefined) {
+            plan.pricing.setupFee = toFloat(pricingPayload.setupFee, plan.setupFee);
+        }
+        if (pricingPayload.annualDiscount !== undefined) {
+            plan.pricing.annualDiscount = toFloat(pricingPayload.annualDiscount, plan.pricing.annualDiscount || 0);
+        }
+        if (pricingPayload.currency !== undefined || currency !== undefined) {
+            plan.pricing.currency = pricingPayload.currency || plan.currency;
+        }
+
+        plan.updatedBy = req.admin.id;
+
+        await plan.save();
+
+        const populatedPlan = await SubscriptionPlan.findById(planId)
+            .populate('createdBy', 'firstName lastName email')
+            .populate('updatedBy', 'firstName lastName email')
+            .populate('courseBundles.course', 'title thumbnail price currency category');
 
         res.json({
             success: true,
-            data: plan,
+            data: populatedPlan,
             message: 'Subscription plan updated successfully'
         });
 

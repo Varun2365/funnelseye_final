@@ -461,15 +461,8 @@ exports.createCampaign = asyncHandler(async (req, res) => {
     const limitCheck = await SubscriptionLimitsMiddleware.checkCampaignLimit(coachId);
     
     if (!limitCheck.allowed) {
-        return res.status(403).json({
-            success: false,
-            message: limitCheck.reason,
-            error: 'CAMPAIGN_LIMIT_REACHED',
-            currentCount: limitCheck.currentCount,
-            maxLimit: limitCheck.maxLimit,
-            upgradeRequired: limitCheck.upgradeRequired,
-            subscriptionRequired: true
-        });
+        const { sendLimitError } = require('../utils/subscriptionLimitErrors');
+        return sendLimitError(res, 'CAMPAIGN', limitCheck.reason, limitCheck.currentCount, limitCheck.maxLimit, limitCheck.upgradeRequired);
     }
 
     const campaign = await marketingV1Service.createCampaign(coachId, {

@@ -15,7 +15,8 @@ class SubscriptionController {
             logger.info('[SubscriptionController] Getting subscription plans');
             
             const plans = await SubscriptionPlan.find({ isActive: true })
-                .sort({ sortOrder: 1, price: 1 });
+                .sort({ sortOrder: 1, price: 1 })
+                .populate('courseBundles.course', 'title thumbnail price currency category');
             
             res.json({
                 success: true,
@@ -63,7 +64,8 @@ class SubscriptionController {
 
             // Get active subscription plans
             const plans = await SubscriptionPlan.find({ isActive: true })
-                .sort({ sortOrder: 1, price: 1 });
+                .sort({ sortOrder: 1, price: 1 })
+                .populate('courseBundles.course', 'title thumbnail price currency category');
 
             // Check if coach already has an active subscription (only if valid token)
             let existingSubscription = null;
@@ -983,7 +985,10 @@ class SubscriptionController {
                 message: 'Payment order created successfully',
                 data: {
                     plan: plan,
-                    paymentOrder: paymentOrder
+                    paymentOrder: {
+                        ...paymentOrder,
+                        key: process.env.RAZORPAY_KEY_ID // Include Razorpay key for frontend
+                    }
                 }
             });
             

@@ -13,6 +13,38 @@ exports.createRule = async (req, res) => {
     try {
         const { name, coachId, triggerEvent, triggerCondition, actions } = req.body;
 
+        if (!coachId) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'coachId is required' 
+            });
+        }
+
+        // Check subscription limits for automation rule creation
+        const SubscriptionLimitsMiddleware = require('../middleware/subscriptionLimits');
+        const subscriptionData = await SubscriptionLimitsMiddleware.getCoachSubscription(coachId);
+        
+        if (!subscriptionData) {
+            return res.status(403).json({
+                success: false,
+                message: 'No active subscription found. Please subscribe to a plan to create automation rules.',
+                error: 'SUBSCRIPTION_REQUIRED',
+                subscriptionRequired: true
+            });
+        }
+
+        const { features } = subscriptionData;
+        const maxAutomationRules = features.automationRules || 10;
+        
+        if (maxAutomationRules !== -1) {
+            const currentRuleCount = await AutomationRule.countDocuments({ coachId });
+            
+            if (currentRuleCount >= maxAutomationRules) {
+                const { sendLimitError } = require('../utils/subscriptionLimitErrors');
+                return sendLimitError(res, 'AUTOMATION_RULE', 'Automation rule limit reached', currentRuleCount, maxAutomationRules, true);
+            }
+        }
+
         // Get the createdBy ID from the authenticated user
         const createdBy = req.user.id;
         

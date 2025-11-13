@@ -1,5 +1,115 @@
 const mongoose = require('mongoose');
 
+const courseBundleSchema = new mongoose.Schema({
+    course: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'ContentCourse',
+        required: true
+    },
+    allowResell: {
+        type: Boolean,
+        default: true
+    },
+    allowContentRemix: {
+        type: Boolean,
+        default: true
+    },
+    allowCustomPricing: {
+        type: Boolean,
+        default: true
+    },
+    suggestedResellPrice: {
+        type: Number,
+        min: 0
+    },
+    minimumResellPrice: {
+        type: Number,
+        min: 0
+    },
+    maximumResellPrice: {
+        type: Number,
+        min: 0
+    },
+    marketingKitIncluded: {
+        type: Boolean,
+        default: false
+    },
+    marketingAssets: [{
+        type: String,
+        trim: true
+    }],
+    includedModules: [{
+        type: String,
+        trim: true
+    }],
+    deliveryNotes: {
+        type: String,
+        trim: true,
+        maxlength: 500
+    }
+}, { _id: false });
+
+const courseAccessSchema = new mongoose.Schema({
+    allowCourseLibrary: {
+        type: Boolean,
+        default: false
+    },
+    allowResell: {
+        type: Boolean,
+        default: false
+    },
+    allowContentRemix: {
+        type: Boolean,
+        default: false
+    },
+    allowCustomPricing: {
+        type: Boolean,
+        default: false
+    },
+    allowCourseAssetDownload: {
+        type: Boolean,
+        default: false
+    },
+    includeMarketingKits: {
+        type: Boolean,
+        default: false
+    },
+    maxActiveResellCourses: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    defaultRevenueSharePercent: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100
+    },
+    minMarkupPercent: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    maxMarkupPercent: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    resellPayoutFrequency: {
+        type: String,
+        enum: ['weekly', 'bi-weekly', 'monthly', 'on-demand'],
+        default: 'monthly'
+    },
+    allowCouponCreation: {
+        type: Boolean,
+        default: false
+    },
+    allowPrivateBundles: {
+        type: Boolean,
+        default: false
+    }
+}, { _id: false });
+
 const subscriptionPlanSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -131,6 +241,73 @@ const subscriptionPlanSchema = new mongoose.Schema({
         sso: {
             type: Boolean,
             default: false
+        },
+        funnelsLibrary: {
+            type: Boolean,
+            default: false
+        },
+        automationLibrary: {
+            type: Boolean,
+            default: false
+        },
+        aiCopywriter: {
+            type: Boolean,
+            default: false
+        },
+        aiSalesAssistant: {
+            type: Boolean,
+            default: false
+        },
+        marketingPlaybooks: {
+            type: Boolean,
+            default: false
+        },
+        communityAccess: {
+            type: Boolean,
+            default: false
+        },
+        liveWorkshopsPerMonth: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+        coachingCallsPerQuarter: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+        crmSeats: {
+            type: Number,
+            default: 1,
+            min: 0
+        },
+        courseLibraryAccess: {
+            type: Boolean,
+            default: false
+        },
+        courseRemixTools: {
+            type: Boolean,
+            default: false
+        },
+        marketplaceAccess: {
+            type: Boolean,
+            default: false
+        },
+        whatsappAutomation: {
+            type: Boolean,
+            default: false
+        },
+        emailAutomation: {
+            type: Boolean,
+            default: false
+        },
+        salesPipeline: {
+            type: Boolean,
+            default: false
+        },
+        advancedScheduler: {
+            type: Boolean,
+            default: false
         }
     },
     
@@ -195,7 +372,42 @@ const subscriptionPlanSchema = new mongoose.Schema({
             type: Number,
             default: 20,
             min: 0
+        },
+        maxResellCourses: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+        maxCourseSeats: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+        maxSharedTemplates: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+        maxAutomationWorkflows: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+        maxCourseExports: {
+            type: Number,
+            default: 0,
+            min: 0
         }
+    },
+    
+    // Course Bundles & Access
+    courseBundles: {
+        type: [courseBundleSchema],
+        default: []
+    },
+    courseAccess: {
+        type: courseAccessSchema,
+        default: {}
     },
     
     // Plan Metadata
@@ -282,6 +494,20 @@ const subscriptionPlanSchema = new mongoose.Schema({
             type: String,
             default: 'INR'
         }
+    },
+
+    // Optional Add-ons
+    addons: {
+        allowAddonPurchases: {
+            type: Boolean,
+            default: false
+        },
+        availableAddons: [{
+            name: { type: String, trim: true, maxlength: 120 },
+            description: { type: String, trim: true, maxlength: 500 },
+            price: { type: Number, min: 0 },
+            billingCycle: { type: String, enum: ['one-time', 'monthly', 'quarterly', 'yearly'], default: 'one-time' }
+        }]
     }
 }, {
     timestamps: true

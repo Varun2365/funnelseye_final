@@ -1,0 +1,932 @@
+================================================================================
+                    FUNNELSEYE PLATFORM - PROJECT CONTEXT
+                    Comprehensive Project Documentation
+================================================================================
+
+PROJECT OVERVIEW
+================================================================================
+FunnelsEye is a comprehensive SaaS platform designed for coaches and coaching 
+businesses to manage their entire business operations. It provides an all-in-one 
+solution for funnel creation, lead management, marketing automation, payment 
+processing, MLM (Multi-Level Marketing) network management, course/content 
+delivery, staff management, and business analytics.
+
+The platform serves multiple user types:
+- Coaches: Primary users who create funnels, manage leads, sell courses/products
+- Staff: Team members who assist coaches with operations
+- Customers: End users who purchase courses/products from coaches
+- Admins: Platform administrators managing system-wide settings
+
+TECHNOLOGY STACK
+================================================================================
+Backend Framework: Node.js with Express.js 5.1.0
+Database: MongoDB with Mongoose ODM 8.16.0
+Authentication: JWT (JSON Web Tokens) with bcryptjs for password hashing
+Real-time Communication: Socket.IO 4.8.1 for live updates and notifications
+Message Queue: RabbitMQ (AMQP) with delayed message exchange plugin
+Payment Gateway: Razorpay integration
+Email Service: Nodemailer with Gmail App Passwords
+AI Integration: OpenAI API for AI-powered features
+File Storage: Local file system with Multer for uploads
+Task Scheduling: node-cron for scheduled tasks
+WebSocket: Native WebSocket (ws) for log streaming
+
+Key Dependencies:
+- @whiskeysockets/baileys: WhatsApp integration (v7.0.0-rc.2)
+- axios: HTTP client for external API calls
+- moment-timezone: Timezone handling
+- qrcode: QR code generation
+- twilio: SMS services
+- uuid: Unique identifier generation
+- ical-generator: Calendar event generation
+- acme-client: SSL certificate management
+
+ARCHITECTURE
+================================================================================
+The platform follows a modular MVC (Model-View-Controller) architecture:
+
+1. Routes Layer: Express route handlers organized by feature
+2. Controllers Layer: Business logic and request handling
+3. Services Layer: Reusable business logic and external integrations
+4. Schema Layer: MongoDB models and data validation
+5. Middleware Layer: Authentication, authorization, validation, subscription checks
+6. Workers Layer: Background job processors (RabbitMQ consumers)
+7. Utils Layer: Helper functions and utilities
+
+Key Architectural Patterns:
+- RESTful API design
+- Middleware-based authentication and authorization
+- Service-oriented architecture for business logic
+- Event-driven architecture with RabbitMQ
+- Real-time updates via Socket.IO
+- Permission-based access control system
+
+CORE FEATURES & MODULES
+================================================================================
+
+1. AUTHENTICATION & USER MANAGEMENT
+-----------------------------------
+- Multi-role authentication (Coach, Staff, Admin, Customer)
+- JWT-based session management
+- Password reset with OTP verification
+- Email verification system
+- Role-based access control (RBAC)
+- User profile management
+- Session tracking and last active monitoring
+- Soft delete functionality
+
+User Roles:
+- Coach: Primary business users
+- Staff: Team members with granular permissions
+- Admin: Platform administrators
+- Super Admin: System administrators
+- Client/Customer: End consumers
+
+2. FUNNEL MANAGEMENT
+--------------------
+- Multi-stage funnel creation and management
+- Custom funnel URLs with SEO-friendly paths
+- Custom domain support for funnels
+- Funnel analytics and event tracking
+- Stage-based funnel progression
+- Public and private funnels
+- Target audience selection (customer/coach)
+- Funnel activation/deactivation
+- Funnel event tracking for analytics
+
+3. LEAD MANAGEMENT (CRM)
+------------------------
+- Comprehensive lead capture and management
+- Lead assignment to staff members
+- Lead scoring and tracking system
+- Lead status management (new, contacted, qualified, converted, lost)
+- Lead source tracking
+- Lead interaction history
+- Lead nurturing sequences
+- Lead magnet integration
+- Lead conversion tracking
+- Appointment scheduling for leads
+- Lead tags and custom fields
+
+4. AUTOMATION RULES ENGINE
+--------------------------
+- Rule-based automation system
+- Trigger-based actions (event-driven)
+- Conditional logic support
+- Multi-action execution
+- Scheduled automation rules
+- RabbitMQ-based message queue for delayed actions
+- Automation rule templates
+- Rule activation/deactivation
+- Automation history and logging
+
+Automation Triggers:
+- Lead creation
+- Lead status change
+- Funnel stage completion
+- Payment received
+- Appointment scheduled
+- Custom events
+
+Automation Actions:
+- Send email
+- Send SMS
+- Send WhatsApp message
+- Assign lead to staff
+- Update lead status
+- Create task
+- Trigger webhook
+- Schedule appointment
+
+5. SUBSCRIPTION MANAGEMENT
+---------------------------
+- Tiered subscription plans with flexible features
+- Subscription plan creation and management (Admin)
+- Coach subscription tracking
+- Subscription limits enforcement
+- Trial period support
+- Auto-renewal management
+- Subscription cancellation
+- Payment history tracking
+- Subscription status monitoring
+
+Subscription Plan Features:
+- Max funnels (unlimited supported)
+- Max staff members
+- Max devices
+- Automation rules limit
+- Email credits
+- SMS credits
+- Storage (GB)
+- AI features access
+- Advanced analytics
+- Priority support
+- Custom domain support
+- API access
+- White label options
+- WhatsApp automation
+- Email automation
+- Advanced reporting
+- Webhooks support
+
+Subscription Limits:
+- Max leads
+- Max appointments
+- Max campaigns
+- Max funnels
+- Max staff
+- Max devices
+- Automation rules
+- Email/SMS credits
+- Storage capacity
+
+6. PAYMENT SYSTEM
+-----------------
+Unified Payment System supporting multiple transaction types:
+
+Transaction Types:
+- Course purchase (customer buying coach's course)
+- Product purchase (customer buying coach's product)
+- Subscription payment (coach paying platform subscription)
+- MLM commission (commission payout)
+- Instant payout (immediate coach payout)
+- Monthly payout (scheduled coach payout)
+- Refund transactions
+- Manual adjustments
+
+Payment Gateways:
+- Razorpay (primary)
+- Stripe (supported)
+- PayPal (supported)
+- Bank transfer
+- UPI
+- Manual processing
+
+Payment Features:
+- Multi-currency support (70+ currencies)
+- Commission calculation (platform fee, coach commission)
+- Tax calculation (GST, TDS)
+- Automatic payout processing
+- MLM commission distribution
+- Payment webhooks
+- Payment analytics
+- Refund management
+- Payment gateway health monitoring
+- Global payment settings
+
+7. MLM (MULTI-LEVEL MARKETING) NETWORK
+--------------------------------------
+- Hierarchical coach network management
+- 12-level hierarchy system
+- Sponsor tracking and management
+- Team rank management
+- Commission distribution system
+- Performance tracking
+- Network visualization
+- Downline management
+- Upline tracking
+- External sponsor support
+- MLM commission calculations
+- Automatic commission payouts
+
+MLM Features:
+- Coach hierarchy levels (1-12)
+- Sponsor assignment
+- Team rank names
+- President team rank
+- Commission percentage by level
+- Performance-based commissions
+- Network growth tracking
+
+8. COURSE & CONTENT MANAGEMENT
+-------------------------------
+- Course creation and management
+- Multiple course types:
+  * Workout routines
+  * Meal plans
+  * General module courses
+- Course modules and content organization
+- Course pricing and currency support
+- Course thumbnails and media
+- Course categories (coach_course, customer_course)
+- Course purchase flow
+- Course access management
+- Course reselling capabilities
+- Content remix functionality
+- Course bundles in subscription plans
+- FunnelsEye branding integration
+- Course analytics
+
+Course Features:
+- Module-based structure
+- Content uploads (videos, PDFs, documents)
+- Course pricing
+- Multi-currency support
+- Course preview pages
+- Purchase tracking
+- Course completion tracking
+- Certificate generation
+
+9. STAFF MANAGEMENT
+-------------------
+- Staff member creation and management
+- Granular permission system
+- Staff dashboard
+- Staff performance tracking
+- Staff leaderboard
+- Staff calendar management
+- Staff appointment scheduling
+- Staff availability management
+- Staff task assignment
+- Staff commission tracking
+- Staff authentication (separate login)
+
+Staff Permissions Include:
+- Dashboard access
+- Lead management (view, create, update, delete, assign)
+- Funnel management (view, create, update, delete, publish, analytics)
+- Calendar management
+- Appointment management
+- Marketing campaign management
+- Automation rule management
+- MLM network viewing
+- Profile management
+
+10. MARKETING & ADVERTISING
+----------------------------
+- Marketing campaign creation and management
+- Meta Ads integration (Facebook/Instagram)
+- AI-powered ad creation
+- Ad campaign analytics
+- Marketing credentials management
+- Campaign performance tracking
+- Ad creative management
+- Ad set management
+- Campaign scheduling
+- Budget management
+
+11. LEAD NURTURING
+------------------
+- Nurturing sequence creation
+- Multi-step nurturing workflows
+- Email nurturing sequences
+- SMS nurturing sequences
+- WhatsApp nurturing sequences
+- Sequence scheduling
+- Lead scoring integration
+- Automated follow-ups
+- Sequence analytics
+- A/B testing support
+
+12. LEAD MAGNETS
+-----------------
+- Lead magnet creation
+- Lead magnet landing pages
+- Lead capture forms
+- Lead magnet analytics
+- Interaction tracking
+- Conversion tracking
+- Lead magnet URL generation
+- Public lead magnet pages
+
+13. APPOINTMENT SCHEDULING
+--------------------------
+- Appointment creation and management
+- Staff appointment assignment
+- Coach availability management
+- Staff availability management
+- Calendar integration
+- Appointment reminders
+- Zoom meeting integration
+- Appointment recovery system
+- Booking confirmation
+- Appointment cancellation
+
+14. ANALYTICS & REPORTING
+-------------------------
+- Coach dashboard with comprehensive metrics
+- Staff dashboard
+- Funnel analytics
+- Lead analytics
+- Campaign analytics
+- Payment analytics
+- Performance reports
+- Commission reports
+- Revenue tracking
+- Conversion tracking
+- Custom date range filtering
+- Export capabilities
+
+15. MESSAGE TEMPLATES
+---------------------
+- Template creation and management
+- Variable substitution
+- Multi-channel templates (Email, SMS, WhatsApp)
+- Template categories
+- Template sharing
+- Template versioning
+- Template analytics
+
+16. CUSTOM DOMAINS
+------------------
+- Custom domain registration
+- SSL certificate management (Let's Encrypt)
+- Domain verification
+- Domain mapping to funnels
+- DNS configuration support
+- Domain health monitoring
+
+17. ZOOM INTEGRATION
+--------------------
+- Zoom meeting creation
+- Automatic meeting scheduling
+- Meeting link generation
+- Meeting reminders
+- Meeting cleanup service
+- Zoom credentials management
+
+18. WHATSAPP INTEGRATION (Central System)
+------------------------------------------
+- Central WhatsApp device management
+- WhatsApp message sending
+- WhatsApp inbox management
+- WhatsApp conversation tracking
+- WhatsApp template management
+- WhatsApp credit system
+- WhatsApp AI auto-reply
+- WhatsApp webhook handling
+- WhatsApp device status monitoring
+
+19. EMAIL SYSTEM
+----------------
+- Central email configuration
+- Gmail App Password integration
+- Email sending service
+- Email template support
+- Email tracking
+- Email analytics
+
+20. AI FEATURES
+---------------
+- AI-powered content generation
+- AI ad creation assistant
+- AI marketing suggestions
+- AI lead scoring
+- AI-powered auto-replies
+- OpenAI integration
+- AI knowledge base
+
+21. WORKFLOW & TASK MANAGEMENT
+-------------------------------
+- Task creation and assignment
+- Task status tracking
+- Task priority management
+- Task due dates
+- Task completion tracking
+- Workflow automation
+- Task templates
+
+22. SHOPPING CART
+-----------------
+- Cart management
+- Multi-item cart support
+- Cart persistence
+- Checkout process
+- Cart analytics
+
+23. ADMIN SYSTEM
+----------------
+Comprehensive admin panel with:
+
+Admin Features:
+- System settings management
+- Platform configuration
+- User management (coaches, staff, customers)
+- Subscription plan management
+- Course management
+- Payment settings
+- MLM hierarchy management
+- Commission settings
+- Audit logging
+- Security settings
+- Financial management
+- Product management
+- Admin user management
+- System monitoring
+- Log management
+
+Admin System Settings:
+- Platform configuration (name, version, maintenance mode)
+- Database configuration
+- CORS settings
+- Security settings
+- Email configuration
+- WhatsApp configuration
+- Payment gateway settings
+- MLM commission settings
+- Notification settings
+- Feature flags
+
+24. PERMISSION SYSTEM
+----------------------
+Granular permission-based access control:
+
+Permission Categories:
+- Dashboard access
+- Lead management (view, create, update, delete, assign)
+- Funnel management (view, create, update, delete, publish, analytics)
+- Staff management
+- Calendar management
+- Appointment management
+- Marketing (view, create campaigns, manage credentials, analytics)
+- Automation (view, create, update, delete, execute)
+- MLM (view, view hierarchy, manage commissions)
+- Profile management
+- Subscription management
+- Zoom settings
+- Payment gateway configuration
+- Custom domains
+- Message templates
+- File uploads
+
+DATABASE SCHEMAS
+================================================================================
+Key Models:
+
+User Management:
+- User (base schema with role discriminators)
+- AdminUser
+- Staff
+- Coach (discriminator)
+
+Business Operations:
+- Funnel
+- FunnelEvent
+- Lead
+- Appointment
+- StaffAvailability
+- CoachAvailability
+
+Marketing:
+- AdCampaign
+- AdSet
+- AdCreative
+- Ad
+- NurturingSequence
+- NurturingStep
+- LeadMagnetInteraction
+
+Automation:
+- AutomationRule
+- Task
+- WorkflowTask
+
+Content:
+- ContentCourse
+- ContentModule
+- ContentItem
+- AdminContentUpload
+
+Payments:
+- SubscriptionPlan
+- CoachSubscription
+- RazorpayPayment
+- UnifiedPaymentTransaction
+- GlobalPaymentSettings
+- PaymentGatewayConfig
+- CentralPayment
+- CoachPayment
+- CoachTransaction
+- Commission
+- CommissionSettings
+- MlmCommissionDistribution
+
+MLM:
+- CoachHierarchy
+- CoachHierarchyLevel
+- ExternalSponsor
+
+Messaging:
+- MessageTemplate
+- EmailMessage
+- WhatsAppMessage
+- WhatsAppConversation
+- WhatsAppInbox
+- WhatsAppDevice
+- CentralWhatsApp
+
+System:
+- AdminSystemSettings
+- AdminV1Settings
+- AdminAuditLog
+- SystemLog
+- CustomDomain
+- ZoomIntegration
+- File
+
+E-commerce:
+- Cart
+- CheckoutPage
+- CoachPlan
+- CoachSellablePlan
+- CustomerCoursePurchase
+
+API STRUCTURE
+================================================================================
+RESTful API endpoints organized by feature:
+
+Authentication:
+- POST /api/auth/login
+- POST /api/auth/signup
+- POST /api/auth/logout
+- POST /api/auth/forgot-password
+- POST /api/auth/reset-password
+- POST /api/auth/verify-otp
+- GET /api/auth/sponsors
+- GET /api/auth/coach-ranks
+
+Funnels:
+- GET /api/funnels/coach/:coachId/funnels
+- GET /api/funnels/coach/:coachId/funnels/:funnelId
+- POST /api/funnels/coach/:coachId/funnels
+- PUT /api/funnels/coach/:coachId/funnels/:funnelId
+- DELETE /api/funnels/coach/:coachId/funnels/:funnelId
+- POST /api/funnels/:funnelId/stages
+- PUT /api/funnels/:funnelId/stages/:stageId
+- GET /api/funnels/:funnelId/analytics
+- POST /api/funnels/track
+
+Leads:
+- GET /api/leads/coach/:coachId
+- GET /api/leads/:leadId
+- POST /api/leads
+- PUT /api/leads/:leadId
+- DELETE /api/leads/:leadId
+- POST /api/leads/:leadId/assign
+- POST /api/leads/:leadId/score
+
+Automation:
+- GET /api/automation-rules/coach/:coachId
+- POST /api/automation-rules
+- PUT /api/automation-rules/:ruleId
+- DELETE /api/automation-rules/:ruleId
+
+Subscriptions:
+- GET /api/subscriptions/plans
+- GET /api/subscriptions/current
+- POST /api/subscriptions/create-order
+- POST /api/subscriptions/verify-payment
+- POST /api/subscriptions/cancel
+
+Payments:
+- POST /api/unified-payments/create-order
+- POST /api/unified-payments/verify-payment
+- GET /api/unified-payments/transactions
+- POST /api/unified-payments/payout
+
+Staff:
+- GET /api/staff/coach/:coachId
+- POST /api/staff
+- PUT /api/staff/:staffId
+- DELETE /api/staff/:staffId
+- GET /api/staff/:staffId/dashboard
+
+Marketing:
+- GET /api/marketing/campaigns
+- POST /api/marketing/campaigns
+- GET /api/marketing/campaigns/:campaignId/analytics
+
+Courses:
+- GET /api/content/courses
+- POST /api/content/courses
+- GET /api/course-purchase/:courseId/details
+- POST /api/course-purchase/:courseId/create-order
+- POST /api/course-purchase/verify-payment
+
+Admin:
+- GET /api/admin/v1/settings
+- PUT /api/admin/v1/settings
+- GET /api/admin/v1/users
+- POST /api/admin/v1/subscription-plans
+- GET /api/admin/v1/subscription-plans
+
+WORKERS & BACKGROUND JOBS
+================================================================================
+RabbitMQ-based background workers:
+
+1. Rules Engine Worker:
+   - Processes automation rules
+   - Executes rule actions
+   - Handles delayed actions
+
+2. Action Executor Worker:
+   - Executes automation actions
+   - Sends emails, SMS, WhatsApp messages
+   - Creates tasks and updates records
+
+3. Scheduled Action Executor Worker:
+   - Handles scheduled automation rules
+   - Processes delayed messages
+   - Time-based action execution
+
+4. Payment Processor Worker:
+   - Processes payment transactions
+   - Handles payment webhooks
+   - Updates payment statuses
+
+5. Nurturing Sequence Worker:
+   - Processes nurturing sequences
+   - Sends sequence messages
+   - Tracks sequence progress
+
+6. Message Processor Worker:
+   - Processes incoming messages
+   - Handles message routing
+   - Updates conversation states
+
+MIDDLEWARE
+================================================================================
+Key Middleware Components:
+
+1. Authentication Middleware:
+   - JWT token verification
+   - Role-based access
+   - Session management
+
+2. Subscription Middleware:
+   - Subscription status checking
+   - Limit enforcement
+   - Feature access control
+
+3. Permission Middleware:
+   - Granular permission checking
+   - Role-based authorization
+   - Resource access control
+
+4. Validation Middleware:
+   - Request validation
+   - Data sanitization
+   - Error handling
+
+5. Subscription Limits Middleware:
+   - Resource limit checking
+   - Upgrade prompts
+   - Limit exceeded handling
+
+SERVICES
+================================================================================
+Key Service Modules:
+
+1. Payment Services:
+   - unifiedPaymentService
+   - razorpayService
+   - centralPaymentService
+   - coachPaymentService
+
+2. Messaging Services:
+   - centralWhatsAppService
+   - emailConfigService
+   - messageTemplateService
+   - messagingVariableService
+
+3. Automation Services:
+   - automationProcessor
+   - automationSchedulerService
+   - actionExecutorService
+
+4. Business Services:
+   - coachDashboardService
+   - staffDashboardService
+   - leadScoringService
+   - nurturingService
+   - leadMagnetsService
+
+5. Integration Services:
+   - zoomService
+   - metaAdsService
+   - aiService
+   - sslService
+
+6. System Services:
+   - globalSettingsService
+   - subscriptionService
+   - calendarService
+   - appointmentReminderService
+
+REAL-TIME FEATURES
+================================================================================
+Socket.IO Implementation:
+
+1. Admin Notifications:
+   - Real-time admin alerts
+   - System notifications
+   - Audit log updates
+
+2. Coach Notifications:
+   - Lead updates
+   - Payment notifications
+   - Appointment reminders
+   - Campaign updates
+
+3. Staff Notifications:
+   - Task assignments
+   - Lead assignments
+   - Performance updates
+
+4. Log Streaming:
+   - Real-time log viewing
+   - WebSocket-based log streaming
+   - System monitoring
+
+FRONTEND
+================================================================================
+React-based admin dashboard (public/src/components/):
+- CourseCreationFlow.jsx
+- SubscriptionPlans.jsx
+- WhatsAppDashboard.jsx
+- And 100+ other React components
+
+Public Pages:
+- course-purchase.html: Course purchase page with Razorpay integration
+- subscription-plans.html: Subscription plan selection and purchase page
+
+SECURITY FEATURES
+================================================================================
+- JWT-based authentication
+- Password hashing with bcryptjs
+- Role-based access control
+- Permission-based authorization
+- API rate limiting (configurable)
+- CORS configuration
+- Input validation and sanitization
+- SQL injection prevention (MongoDB)
+- XSS protection
+- Secure file uploads
+- SSL/TLS support
+- Audit logging
+- Session management
+
+INTEGRATIONS
+================================================================================
+1. Razorpay: Payment processing
+2. OpenAI: AI-powered features
+3. Meta Ads: Facebook/Instagram advertising
+4. Zoom: Video conferencing
+5. WhatsApp: Messaging (via Baileys)
+6. Gmail: Email sending
+7. Twilio: SMS services
+8. Let's Encrypt: SSL certificates
+
+DEPLOYMENT & INFRASTRUCTURE
+================================================================================
+- Node.js server with Express
+- MongoDB database
+- RabbitMQ message queue
+- Socket.IO for real-time communication
+- File system for uploads
+- Environment-based configuration
+- Logging system (Pino)
+- Error handling and monitoring
+- Background job processing
+- Scheduled tasks (node-cron)
+
+BUSINESS LOGIC HIGHLIGHTS
+================================================================================
+
+1. Subscription-Based Access:
+   - Coaches must have active subscription
+   - Feature access based on subscription tier
+   - Resource limits enforced per subscription
+   - Trial period support
+
+2. Commission System:
+   - Platform commission on transactions
+   - Coach commission on sales
+   - MLM commission distribution
+   - Automatic payout processing
+
+3. Lead Management:
+   - Automated lead assignment
+   - Lead scoring system
+   - Nurturing sequences
+   - Conversion tracking
+
+4. Course Reselling:
+   - Coaches can resell admin courses
+   - Custom pricing support
+   - Content remix capabilities
+   - Revenue sharing
+
+5. MLM Network:
+   - 12-level hierarchy
+   - Sponsor tracking
+   - Commission by level
+   - Performance tracking
+
+6. Staff Management:
+   - Granular permissions
+   - Performance tracking
+   - Commission tracking
+   - Task assignment
+
+UNIQUE FEATURES
+================================================================================
+1. Unified Payment System: Single interface for all payment types
+2. Central Messaging: Unified WhatsApp and Email management
+3. Automation Rules Engine: Powerful event-driven automation
+4. Lead Scoring: AI-powered lead qualification
+5. Course Bundles: Subscription plans with course access
+6. MLM Integration: Built-in multi-level marketing support
+7. Staff Permissions: Granular access control for team members
+8. Custom Domains: SSL-enabled custom domain support
+9. Real-time Analytics: Live dashboard updates
+10. Public Course Pages: Beautiful course purchase pages
+
+TECHNICAL SPECIFICATIONS
+================================================================================
+- API Response Format: JSON
+- Authentication: Bearer Token (JWT)
+- File Upload: Multipart/form-data
+- Maximum Upload Size: 50MB
+- Supported Image Formats: JPG, PNG, GIF, WebP
+- Supported Document Formats: PDF, DOC, DOCX
+- Supported Video Formats: MP4, WebM
+- Timezone Support: moment-timezone
+- Date Format: Configurable (default: MM/DD/YYYY)
+- Currency Support: 70+ currencies
+- Language: English (primary)
+
+PROJECT STRUCTURE
+================================================================================
+/
+├── config/          # Configuration files (DB, CORS)
+├── controllers/     # Business logic controllers (67 files)
+├── middleware/      # Express middleware (12 files)
+├── routes/          # API route definitions (67 files)
+├── schema/          # MongoDB models (72 files)
+├── services/        # Business services (46 files)
+├── workers/         # Background job workers (6 files)
+├── utils/           # Utility functions (7 files)
+├── public/          # Frontend files (React components, HTML)
+├── tasks/           # Scheduled tasks
+├── migration/       # Database migration scripts
+├── documents/       # Project documentation
+├── main.js          # Application entry point
+└── package.json     # Dependencies and scripts
+
+FUTURE ENHANCEMENTS (Based on Code Structure)
+================================================================================
+- Enhanced AI features
+- More payment gateway integrations
+- Advanced analytics
+- Mobile app support
+- API rate limiting improvements
+- Enhanced security features
+- Multi-language support
+- Advanced reporting
+- White-label customization
+- API marketplace
+
+================================================================================
+END OF PROJECT CONTEXT DOCUMENT
+================================================================================

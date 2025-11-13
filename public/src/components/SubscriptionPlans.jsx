@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -6,11 +6,13 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Switch } from './ui/switch';
+import { Checkbox } from './ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Alert, AlertDescription } from './ui/alert';
+import { ScrollArea } from './ui/scroll-area';
 import { 
   Plus, 
   Edit, 
@@ -25,9 +27,87 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import adminApiService from '../services/adminApiService';
+
+const defaultFeatures = {
+      aiFeatures: false,
+      advancedAnalytics: false,
+      prioritySupport: false,
+      customDomain: false,
+      apiAccess: false,
+      whiteLabel: false,
+      integrations: [],
+      customBranding: false,
+      advancedReporting: false,
+      webhooks: false,
+      whatsappAutomation: false,
+      emailAutomation: false
+};
+
+const defaultLimits = {
+      maxFunnels: 5,
+      maxStaff: 2,
+      maxDevices: 1,
+      automationRules: 10,
+      emailCredits: 1000,
+      smsCredits: 100,
+      storageGB: 10,
+      maxLeads: 100,
+      maxAppointments: 50,
+      maxCampaigns: 5
+};
+
+const defaultCourseAccess = {
+  allowCourseLibrary: false,
+  allowResell: false,
+  allowContentRemix: false,
+  allowCustomPricing: false,
+  allowCourseAssetDownload: false,
+  includeMarketingKits: false,
+  maxActiveResellCourses: 0,
+  defaultRevenueSharePercent: 0,
+  minMarkupPercent: 0,
+  maxMarkupPercent: 0,
+  resellPayoutFrequency: 'monthly',
+  allowCouponCreation: false,
+  allowPrivateBundles: false
+};
+
+const defaultAddons = {
+  allowAddonPurchases: false,
+  availableAddons: []
+};
+
+const createDefaultPlanForm = () => ({
+  name: '',
+  description: '',
+  price: 0,
+  currency: 'INR',
+  billingCycle: 'monthly',
+  duration: 1,
+  features: { ...defaultFeatures },
+  limits: { ...defaultLimits },
+  courseAccess: { ...defaultCourseAccess },
+  courseBundles: [],
+  addons: {
+    ...defaultAddons,
+    availableAddons: []
+  },
+  restrictions: {},
+  pricing: {
+    annualDiscount: 0
+    },
+    isPopular: false,
+    trialDays: 0,
+    setupFee: 0,
+    sortOrder: 0,
+    category: 'professional',
+    tags: [],
+    isActive: true
+  });
 
 const SubscriptionPlans = () => {
   // State management
@@ -55,57 +135,38 @@ const SubscriptionPlans = () => {
   const [analytics, setAnalytics] = useState(null);
   
   // Form state
-  const [planForm, setPlanForm] = useState({
-    name: '',
-    description: '',
-    price: 0,
-    currency: 'INR',
-    billingCycle: 'monthly',
-    duration: 1,
-    features: {
-      maxFunnels: 5,
-      maxStaff: 2,
-      maxDevices: 1,
-      aiFeatures: false,
-      advancedAnalytics: false,
-      prioritySupport: false,
-      customDomain: false,
-      apiAccess: false,
-      whiteLabel: false,
-      automationRules: 10,
-      emailCredits: 1000,
-      smsCredits: 100,
-      storageGB: 10,
-      integrations: [],
-      customBranding: false,
-      advancedReporting: false,
-      teamCollaboration: false,
-      mobileApp: true,
-      webhooks: false,
-      sso: false
-    },
-    limits: {
-      maxLeads: 100,
-      maxAppointments: 50,
-      maxCampaigns: 5,
-      maxAutomationRules: 10,
-      maxWhatsAppMessages: 100,
-      maxEmailTemplates: 10,
-      maxLandingPages: 5,
-      maxWebinars: 2,
-      maxForms: 10,
-      maxSequences: 5,
-      maxTags: 50,
-      maxCustomFields: 20
-    },
-    isPopular: false,
-    trialDays: 0,
-    setupFee: 0,
-    sortOrder: 0,
-    category: 'professional',
-    tags: [],
-    isActive: true
-  });
+  const [planForm, setPlanForm] = useState(createDefaultPlanForm());
+  const [availableCourses, setAvailableCourses] = useState([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [courseLoadError, setCourseLoadError] = useState('');
+  const [coursesLoaded, setCoursesLoaded] = useState(false);
+  const [courseSearch, setCourseSearch] = useState('');
+  const [isCourseSelectorOpen, setIsCourseSelectorOpen] = useState(false);
+
+  const mergedCourses = useMemo(() => {
+    const base = Array.isArray(availableCourses) ? availableCourses : [];
+    const baseIds = new Set(base.map((course) => course._id));
+    const additional = (planForm.courseBundles || [])
+      .filter((bundle) => bundle.course && !baseIds.has(bundle.course))
+      .map((bundle) => ({
+        _id: bundle.course,
+        title: bundle.courseTitle || 'Included Course',
+        thumbnail: bundle.courseThumbnail || '',
+        price: bundle.suggestedResellPrice || 0,
+        category: 'customer_course'
+      }));
+    return [...base, ...additional];
+  }, [availableCourses, planForm.courseBundles]);
+
+  const filteredCourses = useMemo(() => {
+    if (!courseSearch.trim()) {
+      return mergedCourses;
+    }
+    const query = courseSearch.toLowerCase();
+    return mergedCourses.filter((course) =>
+      (course.title || '').toLowerCase().includes(query)
+    );
+  }, [mergedCourses, courseSearch]);
 
   // Load subscription plans
   const loadPlans = async () => {
@@ -157,6 +218,69 @@ const SubscriptionPlans = () => {
     }
   };
 
+  const loadAvailableCourses = async () => {
+    try {
+      if (coursesLoading) return;
+      setCoursesLoading(true);
+      setCourseLoadError('');
+
+      const categories = ['customer_course', 'coach_course'];
+      const responses = await Promise.all(
+        categories.map((category) =>
+          adminApiService.getAdminCourses({ category, limit: 200, status: 'published' }).catch(err => {
+            console.error(`Error loading ${category}:`, err);
+            return { success: false, data: { courses: [] } };
+          })
+        )
+      );
+
+      let combined = [];
+      let anySuccess = false;
+
+      responses.forEach((response, index) => {
+        if (response && response.success) {
+          anySuccess = true;
+          const list = response.data?.courses || response.data?.items || response.data || [];
+          if (Array.isArray(list)) {
+            // Ensure each course has the category set
+            const coursesWithCategory = list.map(course => ({
+              ...course,
+              category: categories[index] || course.category || 'customer_course'
+            }));
+            combined = combined.concat(coursesWithCategory);
+          }
+        }
+      });
+
+      if (!anySuccess) {
+        setCourseLoadError('Failed to load courses. Please try again.');
+      } else if (combined.length === 0) {
+        setCourseLoadError('No courses found. Create courses first in the Courses section.');
+      }
+
+      const deduped = [];
+      const seen = new Set();
+      combined.forEach((course) => {
+        const id = course._id || course.id;
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          deduped.push({
+            ...course,
+            category: course.category || 'customer_course'
+          });
+        }
+      });
+
+      setAvailableCourses(deduped);
+      setCoursesLoaded(true);
+    } catch (error) {
+      console.error('Error loading admin courses:', error);
+      setCourseLoadError(error.message || 'Failed to load admin courses');
+    } finally {
+      setCoursesLoading(false);
+    }
+  };
+
   // Load analytics
   const loadAnalytics = async () => {
     try {
@@ -197,6 +321,40 @@ const SubscriptionPlans = () => {
         return;
       }
 
+      const courseAccessPayload = {
+        ...planForm.courseAccess,
+        maxActiveResellCourses: parseInt(planForm.courseAccess.maxActiveResellCourses) || 0,
+        defaultRevenueSharePercent: parseFloat(planForm.courseAccess.defaultRevenueSharePercent) || 0,
+        minMarkupPercent: parseFloat(planForm.courseAccess.minMarkupPercent) || 0,
+        maxMarkupPercent: parseFloat(planForm.courseAccess.maxMarkupPercent) || 0
+      };
+
+      const courseBundlesPayload = (planForm.courseBundles || []).map((bundle) => ({
+        course: bundle.course,
+        allowResell: bundle.allowResell,
+        allowContentRemix: bundle.allowContentRemix,
+        allowCustomPricing: bundle.allowCustomPricing,
+        suggestedResellPrice: bundle.suggestedResellPrice === '' ? undefined : parseFloat(bundle.suggestedResellPrice),
+        minimumResellPrice: bundle.minimumResellPrice === '' ? undefined : parseFloat(bundle.minimumResellPrice),
+        maximumResellPrice: bundle.maximumResellPrice === '' ? undefined : parseFloat(bundle.maximumResellPrice),
+        marketingKitIncluded: bundle.marketingKitIncluded,
+        marketingAssets: bundle.marketingAssets || [],
+        includedModules: bundle.includedModules || [],
+        deliveryNotes: bundle.deliveryNotes || ''
+      }));
+
+      const addonsPayload = {
+        allowAddonPurchases: planForm.addons.allowAddonPurchases,
+        availableAddons: planForm.addons.allowAddonPurchases
+          ? (planForm.addons.availableAddons || []).map((addon) => ({
+              name: addon.name || '',
+              description: addon.description || '',
+              price: parseFloat(addon.price) || 0,
+              billingCycle: addon.billingCycle || 'one-time'
+            }))
+          : []
+      };
+
       // Prepare form data
       const formData = {
         name: planForm.name.trim(),
@@ -207,13 +365,21 @@ const SubscriptionPlans = () => {
         duration: parseInt(planForm.duration),
         features: planForm.features,
         limits: planForm.limits,
+        courseAccess: courseAccessPayload,
+        courseBundles: courseBundlesPayload,
+        addons: addonsPayload,
         isPopular: planForm.isPopular,
         trialDays: parseInt(planForm.trialDays) || 0,
         setupFee: parseFloat(planForm.setupFee) || 0,
         sortOrder: parseInt(planForm.sortOrder) || 0,
         category: planForm.category,
         tags: planForm.tags || [],
-        isActive: planForm.isActive
+        isActive: planForm.isActive,
+        pricing: {
+          annualDiscount: parseFloat(planForm.pricing?.annualDiscount) || 0,
+          currency: planForm.currency
+        },
+        restrictions: planForm.restrictions || {}
       };
 
       //console.log('Creating plan with data:', formData);
@@ -348,62 +514,60 @@ const SubscriptionPlans = () => {
 
   // Reset form
   const resetForm = () => {
-    setPlanForm({
-      name: '',
-      description: '',
-      price: 0,
-      currency: 'INR',
-      billingCycle: 'monthly',
-      duration: 1,
-      features: {
-        maxFunnels: 5,
-        maxStaff: 2,
-        maxDevices: 1,
-        aiFeatures: false,
-        advancedAnalytics: false,
-        prioritySupport: false,
-        customDomain: false,
-        apiAccess: false,
-        whiteLabel: false,
-        automationRules: 10,
-        emailCredits: 1000,
-        smsCredits: 100,
-        storageGB: 10,
-        integrations: [],
-        customBranding: false,
-        advancedReporting: false,
-        teamCollaboration: false,
-        mobileApp: true,
-        webhooks: false,
-        sso: false
-      },
-      limits: {
-        maxLeads: 100,
-        maxAppointments: 50,
-        maxCampaigns: 5,
-        maxAutomationRules: 10,
-        maxWhatsAppMessages: 100,
-        maxEmailTemplates: 10,
-        maxLandingPages: 5,
-        maxWebinars: 2,
-        maxForms: 10,
-        maxSequences: 5,
-        maxTags: 50,
-        maxCustomFields: 20
-      },
-      isPopular: false,
-      trialDays: 0,
-      setupFee: 0,
-      sortOrder: 0,
-      category: 'professional',
-      tags: [],
-      isActive: true
-    });
+    setPlanForm(createDefaultPlanForm());
   };
 
   // Edit plan
   const handleEditPlan = (plan) => {
     setSelectedPlan(plan);
+    // Map features to limits (since schema stores maxFunnels, maxStaff, etc. in features but UI shows in limits)
+    const normalizedLimits = {
+      ...defaultLimits,
+      ...(plan.limits || {}),
+      // Map from features to limits for UI display
+      maxFunnels: plan.features?.maxFunnels !== undefined ? plan.features.maxFunnels : (plan.limits?.maxFunnels ?? defaultLimits.maxFunnels),
+      maxStaff: plan.features?.maxStaff !== undefined ? plan.features.maxStaff : (plan.limits?.maxStaff ?? defaultLimits.maxStaff),
+      maxDevices: plan.features?.maxDevices !== undefined ? plan.features.maxDevices : (plan.limits?.maxDevices ?? defaultLimits.maxDevices),
+      automationRules: plan.features?.automationRules !== undefined ? plan.features.automationRules : (plan.limits?.automationRules ?? defaultLimits.automationRules),
+      emailCredits: plan.features?.emailCredits !== undefined ? plan.features.emailCredits : (plan.limits?.emailCredits ?? defaultLimits.emailCredits),
+      smsCredits: plan.features?.smsCredits !== undefined ? plan.features.smsCredits : (plan.limits?.smsCredits ?? defaultLimits.smsCredits),
+      storageGB: plan.features?.storageGB !== undefined ? plan.features.storageGB : (plan.limits?.storageGB ?? defaultLimits.storageGB)
+    };
+    // Remove limit fields from features for UI
+    const { maxFunnels, maxStaff, maxDevices, automationRules, emailCredits, smsCredits, storageGB, ...cleanFeatures } = plan.features || {};
+    const normalizedFeatures = { ...defaultFeatures, ...cleanFeatures };
+    const normalizedCourseAccess = { ...defaultCourseAccess, ...(plan.courseAccess || {}) };
+    const normalizedAddons = {
+      ...defaultAddons,
+      ...(plan.addons || {}),
+      availableAddons: Array.isArray(plan.addons?.availableAddons)
+        ? plan.addons.availableAddons.map((addon) => ({
+            name: addon.name || '',
+            description: addon.description || '',
+            price: addon.price || 0,
+            billingCycle: addon.billingCycle || 'one-time'
+          }))
+        : []
+    };
+
+    const normalizedBundles = Array.isArray(plan.courseBundles)
+      ? plan.courseBundles.map((bundle) => ({
+          course: bundle.course?._id || bundle.course,
+          courseTitle: bundle.course?.title || bundle.courseTitle || '',
+          courseThumbnail: bundle.course?.thumbnail || bundle.courseThumbnail || '',
+          allowResell: bundle.allowResell !== undefined ? bundle.allowResell : true,
+          allowContentRemix: bundle.allowContentRemix !== undefined ? bundle.allowContentRemix : true,
+          allowCustomPricing: bundle.allowCustomPricing !== undefined ? bundle.allowCustomPricing : true,
+          suggestedResellPrice: bundle.suggestedResellPrice ?? '',
+          minimumResellPrice: bundle.minimumResellPrice ?? '',
+          maximumResellPrice: bundle.maximumResellPrice ?? '',
+          marketingKitIncluded: bundle.marketingKitIncluded !== undefined ? bundle.marketingKitIncluded : false,
+          marketingAssets: Array.isArray(bundle.marketingAssets) ? bundle.marketingAssets : [],
+          includedModules: Array.isArray(bundle.includedModules) ? bundle.includedModules : [],
+          deliveryNotes: bundle.deliveryNotes || ''
+        }))
+      : [];
+
     setPlanForm({
       name: plan.name || '',
       description: plan.description || '',
@@ -411,8 +575,15 @@ const SubscriptionPlans = () => {
       currency: plan.currency || 'INR',
       billingCycle: plan.billingCycle || 'monthly',
       duration: plan.duration || 1,
-      features: plan.features || {},
-      limits: plan.limits || {},
+      features: normalizedFeatures,
+      limits: normalizedLimits,
+      courseAccess: normalizedCourseAccess,
+      courseBundles: normalizedBundles,
+      addons: normalizedAddons,
+      restrictions: plan.restrictions || {},
+      pricing: {
+        annualDiscount: plan.pricing?.annualDiscount || 0
+      },
       isPopular: plan.isPopular || false,
       trialDays: plan.trialDays || 0,
       setupFee: plan.setupFee || 0,
@@ -452,6 +623,120 @@ const SubscriptionPlans = () => {
     const timer = setTimeout(clearMessages, 5000);
     return () => clearTimeout(timer);
   }, [error, success]);
+
+  useEffect(() => {
+    if ((isCreateDialogOpen || isEditDialogOpen) && !coursesLoaded) {
+      loadAvailableCourses();
+    }
+  }, [isCreateDialogOpen, isEditDialogOpen, coursesLoaded]);
+
+  const createBundleForCourse = (course) => ({
+    course: course._id,
+    courseTitle: course.title || '',
+    courseThumbnail: course.thumbnail || '',
+    courseCategory: course.category || '',
+    allowResell: true,
+    allowContentRemix: true,
+    allowCustomPricing: true,
+    suggestedResellPrice: course.price || '',
+    minimumResellPrice: '',
+    maximumResellPrice: '',
+    marketingKitIncluded: false,
+    marketingAssets: [],
+    includedModules: [],
+    deliveryNotes: ''
+  });
+
+  const handleCourseBundleToggle = (course, checked) => {
+    setPlanForm((prev) => {
+      const existing = prev.courseBundles || [];
+      if (checked) {
+        if (existing.some((bundle) => bundle.course === course._id)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          courseBundles: [...existing, createBundleForCourse(course)]
+        };
+      }
+      return {
+        ...prev,
+        courseBundles: existing.filter((bundle) => bundle.course !== course._id)
+      };
+    });
+  };
+
+  const removeCourseBundle = (courseId) => {
+    setPlanForm((prev) => ({
+      ...prev,
+      courseBundles: (prev.courseBundles || []).filter((bundle) => bundle.course !== courseId)
+    }));
+  };
+
+  const getCourseBundle = (courseId) => {
+    return (planForm.courseBundles || []).find((bundle) => bundle.course === courseId);
+  };
+
+  const handleCourseBundleChange = (courseId, field, value) => {
+    setPlanForm((prev) => ({
+      ...prev,
+      courseBundles: (prev.courseBundles || []).map((bundle) =>
+        bundle.course === courseId ? { ...bundle, [field]: value } : bundle
+      )
+    }));
+  };
+
+  const updateCourseBundle = (courseId, field, value) => {
+    setPlanForm((prev) => ({
+      ...prev,
+      courseBundles: (prev.courseBundles || []).map((bundle) =>
+        bundle.course === courseId ? { ...bundle, [field]: value } : bundle
+      )
+    }));
+  };
+
+  const updateCourseBundleArrayField = (courseId, field, rawValue) => {
+    const items = rawValue
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    updateCourseBundle(courseId, field, items);
+  };
+
+  const addNewAddon = () => {
+    setPlanForm((prev) => ({
+      ...prev,
+      addons: {
+        ...prev.addons,
+        availableAddons: [
+          ...(prev.addons?.availableAddons || []),
+          { name: '', description: '', price: 0, billingCycle: 'one-time' }
+        ]
+      }
+    }));
+  };
+
+  const updateAddonField = (index, field, value) => {
+    setPlanForm((prev) => ({
+      ...prev,
+      addons: {
+        ...prev.addons,
+        availableAddons: prev.addons.availableAddons.map((addon, i) =>
+          i === index ? { ...addon, [field]: value } : addon
+        )
+      }
+    }));
+  };
+
+  const removeAddon = (index) => {
+    setPlanForm((prev) => ({
+      ...prev,
+      addons: {
+        ...prev.addons,
+        availableAddons: prev.addons.availableAddons.filter((_, i) => i !== index)
+      }
+    }));
+  };
 
   return (
     <div className="space-y-6">
@@ -598,15 +883,10 @@ const SubscriptionPlans = () => {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>{plan.billingCycle}</div>
-                        <div className="text-gray-500">{plan.duration} month(s)</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
                         <div>Funnels: {plan.features?.maxFunnels || 'N/A'}</div>
                         <div>Staff: {plan.features?.maxStaff || 'N/A'}</div>
                         <div>AI: {plan.features?.aiFeatures ? 'Yes' : 'No'}</div>
+                        <div>Courses: {plan.courseBundles?.length || 0}</div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -688,23 +968,41 @@ const SubscriptionPlans = () => {
 
       {/* Create Plan Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create New Subscription Plan</DialogTitle>
-            <DialogDescription>
-              Create a new subscription plan with features and limits
+        <DialogContent
+          className="max-w-6xl p-0 overflow-hidden"
+          style={{ width: '90vw', maxWidth: '1200px', height: '85vh' }}
+        >
+          <div className="flex h-full flex-col bg-white">
+            <DialogHeader className="px-6 pt-6 pb-4 border-b bg-white">
+              <DialogTitle className="text-2xl font-semibold text-slate-900">
+                Create New Subscription Plan
+              </DialogTitle>
+              <DialogDescription className="text-sm text-slate-500">
+                Configure the plan details, included features, and bundled courses in a few simple steps.
             </DialogDescription>
           </DialogHeader>
           
-          <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="features">Features</TabsTrigger>
-              <TabsTrigger value="limits">Limits</TabsTrigger>
-              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <div className="flex-1 overflow-y-auto px-6 pb-6">
+              <Tabs defaultValue="basic" className="w-full h-full">
+                <TabsList className="flex flex-wrap gap-2 rounded-full bg-slate-100/70 p-1">
+                  <TabsTrigger value="basic" className="px-4 py-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-medium">
+                    Basic Info
+                  </TabsTrigger>
+                  <TabsTrigger value="features" className="px-4 py-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-medium">
+                    Features
+                  </TabsTrigger>
+                  <TabsTrigger value="limits" className="px-4 py-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-medium">
+                    Limits
+                  </TabsTrigger>
+                  <TabsTrigger value="courses" className="px-4 py-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-medium">
+                    Courses
+                  </TabsTrigger>
+                  <TabsTrigger value="advanced" className="px-4 py-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-medium">
+                    Advanced
+                  </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="basic" className="space-y-4">
+                <TabsContent value="basic" className="space-y-4 pt-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="name">Plan Name *</Label>
@@ -795,17 +1093,108 @@ const SubscriptionPlans = () => {
               </div>
             </TabsContent>
             
-            <TabsContent value="features" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <TabsContent value="features" className="space-y-6 pt-6">
+              
+              <div>
+                <h4 className="font-semibold text-sm text-gray-700 mb-2">Automation & AI</h4>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {[
+                    { id: 'aiFeatures', label: 'AI Features', key: 'aiFeatures' },
+                    { id: 'whatsappAutomation', label: 'WhatsApp Automation', key: 'whatsappAutomation' },
+                    { id: 'emailAutomation', label: 'Email Automation', key: 'emailAutomation' }
+                  ].map(({ id, label, key }) => (
+                    <div className="flex items-center space-x-2" key={id}>
+                    <Switch
+                        id={id}
+                      className="h-6 w-11"
+                        checked={planForm.features[key]}
+                      onCheckedChange={(checked) => setPlanForm({
+                        ...planForm, 
+                          features: { ...planForm.features, [key]: checked }
+                      })}
+                    />
+                      <Label htmlFor={id}>{label}</Label>
+                  </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-sm text-gray-700 mb-2">Support</h4>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {[
+                    { id: 'prioritySupport', label: 'Priority Support', key: 'prioritySupport' }
+                  ].map(({ id, label, key }) => (
+                    <div className="flex items-center space-x-2" key={id}>
+                    <Switch
+                        id={id}
+                      className="h-6 w-11"
+                        checked={planForm.features[key]}
+                      onCheckedChange={(checked) => setPlanForm({
+                        ...planForm, 
+                          features: { ...planForm.features, [key]: checked }
+                      })}
+                    />
+                      <Label htmlFor={id}>{label}</Label>
+                  </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-sm text-gray-700 mb-2">Branding & Integrations</h4>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {[
+                    { id: 'customDomain', label: 'Custom Domain', key: 'customDomain' },
+                    { id: 'customBranding', label: 'Custom Branding', key: 'customBranding' },
+                    { id: 'whiteLabel', label: 'White Label', key: 'whiteLabel' },
+                    { id: 'apiAccess', label: 'API Access', key: 'apiAccess' },
+                    { id: 'webhooks', label: 'Webhooks', key: 'webhooks' },
+                    { id: 'advancedReporting', label: 'Advanced Reporting', key: 'advancedReporting' }
+                  ].map(({ id, label, key }) => (
+                    <div className="flex items-center space-x-2" key={id}>
+                    <Switch
+                        id={id}
+                      className="h-6 w-11"
+                        checked={planForm.features[key]}
+                      onCheckedChange={(checked) => setPlanForm({
+                        ...planForm, 
+                          features: { ...planForm.features, [key]: checked }
+                      })}
+                    />
+                      <Label htmlFor={id}>{label}</Label>
+                  </div>
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <Label htmlFor="integrations">Supported Integrations (comma separated)</Label>
+                  <Textarea
+                    id="integrations"
+                    rows={2}
+                    value={(planForm.features.integrations || []).join(', ')}
+                    onChange={(e) => setPlanForm({
+                      ...planForm,
+                      features: { ...planForm.features, integrations: e.target.value.split(',').map((item) => item.trim()).filter(Boolean) }
+                    })}
+                    placeholder="zapier, webhook, slack..."
+                  />
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="limits" className="space-y-4 pt-6">
+              <div>
+                <h4 className="font-semibold text-sm text-gray-700 mb-3">Core Resources</h4>
+                <div className="grid md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="maxFunnels">Max Funnels</Label>
                   <Input
                     id="maxFunnels"
                     type="number"
-                    value={planForm.features.maxFunnels}
+                      value={planForm.limits.maxFunnels}
                     onChange={(e) => setPlanForm({
                       ...planForm, 
-                      features: {...planForm.features, maxFunnels: parseInt(e.target.value) || 0}
+                        limits: { ...planForm.limits, maxFunnels: parseInt(e.target.value) || 0 }
                     })}
                   />
                 </div>
@@ -814,10 +1203,10 @@ const SubscriptionPlans = () => {
                   <Input
                     id="maxStaff"
                     type="number"
-                    value={planForm.features.maxStaff}
+                      value={planForm.limits.maxStaff}
                     onChange={(e) => setPlanForm({
                       ...planForm, 
-                      features: {...planForm.features, maxStaff: parseInt(e.target.value) || 0}
+                        limits: { ...planForm.limits, maxStaff: parseInt(e.target.value) || 0 }
                     })}
                   />
                 </div>
@@ -826,108 +1215,73 @@ const SubscriptionPlans = () => {
                   <Input
                     id="maxDevices"
                     type="number"
-                    value={planForm.features.maxDevices}
+                      value={planForm.limits.maxDevices}
                     onChange={(e) => setPlanForm({
                       ...planForm, 
-                      features: {...planForm.features, maxDevices: parseInt(e.target.value) || 0}
+                        limits: { ...planForm.limits, maxDevices: parseInt(e.target.value) || 0 }
                     })}
                   />
                 </div>
+                </div>
+              </div>
+
                 <div>
-                  <Label htmlFor="storageGB">Storage (GB)</Label>
+                <h4 className="font-semibold text-sm text-gray-700 mb-3">Automation & Credits</h4>
+                <div className="grid md:grid-cols-4 gap-4">
+                  <div>
+                    <Label htmlFor="automationRules">Automation Rules</Label>
                   <Input
-                    id="storageGB"
+                      id="automationRules"
                     type="number"
-                    value={planForm.features.storageGB}
+                      value={planForm.limits.automationRules}
                     onChange={(e) => setPlanForm({
                       ...planForm, 
-                      features: {...planForm.features, storageGB: parseInt(e.target.value) || 0}
+                        limits: { ...planForm.limits, automationRules: parseInt(e.target.value) || 0 }
                     })}
                   />
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h4 className="font-medium">Feature Toggles</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="aiFeatures"
-                      className="h-6 w-11"
-                      checked={planForm.features.aiFeatures}
-                      onCheckedChange={(checked) => setPlanForm({
+                  <div>
+                    <Label htmlFor="emailCredits">Email Credits</Label>
+                    <Input
+                      id="emailCredits"
+                      type="number"
+                      value={planForm.limits.emailCredits}
+                      onChange={(e) => setPlanForm({
                         ...planForm, 
-                        features: {...planForm.features, aiFeatures: checked}
+                        limits: { ...planForm.limits, emailCredits: parseInt(e.target.value) || 0 }
                       })}
                     />
-                    <Label htmlFor="aiFeatures">AI Features</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="advancedAnalytics"
-                      className="h-6 w-11"
-                      checked={planForm.features.advancedAnalytics}
-                      onCheckedChange={(checked) => setPlanForm({
+                  <div>
+                    <Label htmlFor="smsCredits">SMS Credits</Label>
+                    <Input
+                      id="smsCredits"
+                      type="number"
+                      value={planForm.limits.smsCredits}
+                      onChange={(e) => setPlanForm({
                         ...planForm, 
-                        features: {...planForm.features, advancedAnalytics: checked}
+                        limits: { ...planForm.limits, smsCredits: parseInt(e.target.value) || 0 }
                       })}
                     />
-                    <Label htmlFor="advancedAnalytics">Advanced Analytics</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="prioritySupport"
-                      className="h-6 w-11"
-                      checked={planForm.features.prioritySupport}
-                      onCheckedChange={(checked) => setPlanForm({
+                  <div>
+                    <Label htmlFor="storageGB">Storage (GB)</Label>
+                    <Input
+                      id="storageGB"
+                      type="number"
+                      value={planForm.limits.storageGB}
+                      onChange={(e) => setPlanForm({
                         ...planForm, 
-                        features: {...planForm.features, prioritySupport: checked}
+                        limits: { ...planForm.limits, storageGB: parseInt(e.target.value) || 0 }
                       })}
                     />
-                    <Label htmlFor="prioritySupport">Priority Support</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="customDomain"
-                      className="h-6 w-11"
-                      checked={planForm.features.customDomain}
-                      onCheckedChange={(checked) => setPlanForm({
-                        ...planForm, 
-                        features: {...planForm.features, customDomain: checked}
-                      })}
-                    />
-                    <Label htmlFor="customDomain">Custom Domain</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="apiAccess"
-                      className="h-6 w-11"
-                      checked={planForm.features.apiAccess}
-                      onCheckedChange={(checked) => setPlanForm({
-                        ...planForm, 
-                        features: {...planForm.features, apiAccess: checked}
-                      })}
-                    />
-                    <Label htmlFor="apiAccess">API Access</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="whiteLabel"
-                      className="h-6 w-11"
-                      checked={planForm.features.whiteLabel}
-                      onCheckedChange={(checked) => setPlanForm({
-                        ...planForm, 
-                        features: {...planForm.features, whiteLabel: checked}
-                      })}
-                    />
-                    <Label htmlFor="whiteLabel">White Label</Label>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="limits" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+
+              <div>
+                <h4 className="font-semibold text-sm text-gray-700 mb-3">Business Operations</h4>
+                <div className="grid md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="maxLeads">Max Leads</Label>
                   <Input
@@ -936,7 +1290,7 @@ const SubscriptionPlans = () => {
                     value={planForm.limits.maxLeads}
                     onChange={(e) => setPlanForm({
                       ...planForm, 
-                      limits: {...planForm.limits, maxLeads: parseInt(e.target.value) || 0}
+                        limits: { ...planForm.limits, maxLeads: parseInt(e.target.value) || 0 }
                     })}
                   />
                 </div>
@@ -948,7 +1302,7 @@ const SubscriptionPlans = () => {
                     value={planForm.limits.maxAppointments}
                     onChange={(e) => setPlanForm({
                       ...planForm, 
-                      limits: {...planForm.limits, maxAppointments: parseInt(e.target.value) || 0}
+                        limits: { ...planForm.limits, maxAppointments: parseInt(e.target.value) || 0 }
                     })}
                   />
                 </div>
@@ -960,34 +1314,219 @@ const SubscriptionPlans = () => {
                     value={planForm.limits.maxCampaigns}
                     onChange={(e) => setPlanForm({
                       ...planForm, 
-                      limits: {...planForm.limits, maxCampaigns: parseInt(e.target.value) || 0}
+                        limits: { ...planForm.limits, maxCampaigns: parseInt(e.target.value) || 0 }
                     })}
                   />
                 </div>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-500">Use -1 for unlimited access.</p>
+            </TabsContent>
+            
+            <TabsContent value="courses" className="space-y-4 pt-6">
                 <div>
-                  <Label htmlFor="maxWhatsAppMessages">Max WhatsApp Messages</Label>
+                <h4 className="font-semibold text-sm text-gray-700 mb-2">Included Courses</h4>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Select courses from the platform's library to include in this subscription plan. Coaches subscribed to this plan will gain access to these courses based on the permissions you set.
+                </p>
+                
+                <div className="flex items-center gap-2 mb-4">
                   <Input
-                    id="maxWhatsAppMessages"
+                    placeholder="Search courses..."
+                    value={courseSearch}
+                    onChange={(e) => setCourseSearch(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={loadAvailableCourses} disabled={coursesLoading}>
+                    {coursesLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    {coursesLoading ? 'Loading...' : 'Load Courses'}
+                  </Button>
+                </div>
+
+                {courseLoadError && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{courseLoadError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {coursesLoading ? (
+                  <div className="flex justify-center items-center h-32">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : filteredCourses.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="mb-2">No courses found.</p>
+                    <p className="text-sm">Click "Load Courses" to fetch available courses from the platform.</p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[500px] w-full rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
+                    <div className="space-y-4">
+                      {/* Group courses by category */}
+                      {['customer_course', 'coach_course'].map((category) => {
+                        const categoryCourses = filteredCourses.filter((course) => 
+                          (course.category || 'customer_course') === category
+                        );
+                        
+                        if (categoryCourses.length === 0) return null;
+                        
+                        return (
+                          <div key={category} className="space-y-3">
+                            <h5 className="font-semibold text-sm text-gray-600 border-b pb-2">
+                              {category === 'customer_course' ? 'Customer Courses' : 'Coach Courses'} ({categoryCourses.length})
+                            </h5>
+                            <div className="grid grid-cols-1 gap-3">
+                              {categoryCourses.map((course) => {
+                                const bundle = getCourseBundle(course._id);
+                                const isCourseIncluded = !!bundle;
+                                
+                                return (
+                                  <Card
+                                    key={course._id}
+                                    className="p-4 border border-slate-200/80 bg-white shadow-sm rounded-xl transition hover:border-slate-300/80"
+                                  >
+                                    <div className="flex items-start gap-4">
+                                      <Checkbox
+                                        id={`course-${course._id}`}
+                                        checked={isCourseIncluded}
+                                        onCheckedChange={(checked) => handleCourseBundleToggle(course, checked)}
+                                        className="mt-1"
+                                      />
+                                      {course.thumbnail && (
+                                        <img 
+                                          src={course.thumbnail} 
+                                          alt={course.title} 
+                                          className="w-20 h-20 object-cover rounded-md flex-shrink-0" 
+                                        />
+                                      )}
+                                      <div className="flex-1 min-w-0 space-y-1.5">
+                                        <Label htmlFor={`course-${course._id}`} className="font-medium text-base cursor-pointer">
+                                          {course.title}
+                                        </Label>
+                                        <p className="text-sm text-slate-500 line-clamp-2">
+                                          {course.description || 'No description available'}
+                                        </p>
+                                        <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
+                                          <span className="flex items-center gap-1">
+                                            <span className="font-medium text-slate-600">Type:</span> {course.courseType?.replace(/_/g, ' ') || 'N/A'}
+                                          </span>
+                                          <span className="flex items-center gap-1">
+                                            <span className="font-medium text-slate-600">Price:</span> {course.currency || 'INR'} {course.price || 0}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    {isCourseIncluded && bundle && (
+                                      <div className="mt-4 ml-8 border-t pt-4 space-y-4 border-slate-200">
+                                        <div className="grid md:grid-cols-2 gap-4 text-sm">
+                                          <div className="flex items-center space-x-2">
+                                            <Switch
+                                              id={`resell-${course._id}`}
+                                              checked={bundle.allowResell || false}
+                                              onCheckedChange={(checked) => handleCourseBundleChange(course._id, 'allowResell', checked)}
+                                            />
+                                            <Label htmlFor={`resell-${course._id}`}>Allow Resell</Label>
+                                          </div>
+                                          <div className="flex items-center space-x-2">
+                                            <Switch
+                                              id={`remix-${course._id}`}
+                                              checked={bundle.allowContentRemix || false}
+                                              onCheckedChange={(checked) => handleCourseBundleChange(course._id, 'allowContentRemix', checked)}
+                                            />
+                                            <Label htmlFor={`remix-${course._id}`}>Allow Content Remix</Label>
+                                          </div>
+                                          <div className="flex items-center space-x-2">
+                                            <Switch
+                                              id={`customPricing-${course._id}`}
+                                              checked={bundle.allowCustomPricing || false}
+                                              onCheckedChange={(checked) => handleCourseBundleChange(course._id, 'allowCustomPricing', checked)}
+                                            />
+                                            <Label htmlFor={`customPricing-${course._id}`}>Allow Custom Pricing</Label>
+                                          </div>
+                                          <div className="flex items-center space-x-2">
+                                            <Switch
+                                              id={`marketingKit-${course._id}`}
+                                              checked={bundle.marketingKitIncluded || false}
+                                              onCheckedChange={(checked) => handleCourseBundleChange(course._id, 'marketingKitIncluded', checked)}
+                                            />
+                                            <Label htmlFor={`marketingKit-${course._id}`}>Include Marketing Kit</Label>
+                                          </div>
+                                        </div>
+                                        
+                                        {bundle.allowCustomPricing && (
+                                          <div className="grid md:grid-cols-3 gap-4 text-sm">
+                                            <div>
+                                              <Label htmlFor={`suggestedPrice-${course._id}`}>Suggested Resell Price</Label>
+                                              <Input
+                                                id={`suggestedPrice-${course._id}`}
                     type="number"
-                    value={planForm.limits.maxWhatsAppMessages}
-                    onChange={(e) => setPlanForm({
-                      ...planForm, 
-                      limits: {...planForm.limits, maxWhatsAppMessages: parseInt(e.target.value) || 0}
-                    })}
+                                                step="0.01"
+                                                value={bundle.suggestedResellPrice ?? ''}
+                                                onChange={(e) => handleCourseBundleChange(course._id, 'suggestedResellPrice', parseFloat(e.target.value) || 0)}
+                                                placeholder="0.00"
                   />
                 </div>
+                                            <div>
+                                              <Label htmlFor={`minPrice-${course._id}`}>Minimum Price</Label>
+                                              <Input
+                                                id={`minPrice-${course._id}`}
+                                                type="number"
+                                                step="0.01"
+                                                value={bundle.minimumResellPrice ?? ''}
+                                                onChange={(e) => handleCourseBundleChange(course._id, 'minimumResellPrice', parseFloat(e.target.value) || 0)}
+                                                placeholder="0.00"
+                                              />
+                                            </div>
+                                            <div>
+                                              <Label htmlFor={`maxPrice-${course._id}`}>Maximum Price</Label>
+                                              <Input
+                                                id={`maxPrice-${course._id}`}
+                                                type="number"
+                                                step="0.01"
+                                                value={bundle.maximumResellPrice ?? ''}
+                                                onChange={(e) => handleCourseBundleChange(course._id, 'maximumResellPrice', parseFloat(e.target.value) || 0)}
+                                                placeholder="0.00"
+                                              />
+                                            </div>
+                                          </div>
+                                        )}
+                                        
+                                        <div className="text-sm">
+                                          <Label htmlFor={`deliveryNotes-${course._id}`}>Delivery Notes</Label>
+                                          <Textarea
+                                            id={`deliveryNotes-${course._id}`}
+                                            rows={2}
+                                            value={bundle.deliveryNotes || ''}
+                                            onChange={(e) => handleCourseBundleChange(course._id, 'deliveryNotes', e.target.value)}
+                                            placeholder="Notes for coach on course delivery..."
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+                                  </Card>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                )}
               </div>
             </TabsContent>
             
-            <TabsContent value="advanced" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <TabsContent value="advanced" className="space-y-4 pt-6">
+              <div className="grid md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="trialDays">Trial Days</Label>
                   <Input
                     id="trialDays"
                     type="number"
                     value={planForm.trialDays}
-                    onChange={(e) => setPlanForm({...planForm, trialDays: parseInt(e.target.value) || 0})}
+                    onChange={(e) => setPlanForm({ ...planForm, trialDays: parseInt(e.target.value) || 0 })}
                   />
                 </div>
                 <div>
@@ -997,7 +1536,7 @@ const SubscriptionPlans = () => {
                     type="number"
                     step="0.01"
                     value={planForm.setupFee}
-                    onChange={(e) => setPlanForm({...planForm, setupFee: parseFloat(e.target.value) || 0})}
+                    onChange={(e) => setPlanForm({ ...planForm, setupFee: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
                 <div>
@@ -1006,9 +1545,102 @@ const SubscriptionPlans = () => {
                     id="sortOrder"
                     type="number"
                     value={planForm.sortOrder}
-                    onChange={(e) => setPlanForm({...planForm, sortOrder: parseInt(e.target.value) || 0})}
+                    onChange={(e) => setPlanForm({ ...planForm, sortOrder: parseInt(e.target.value) || 0 })}
                   />
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="annualDiscount">Annual Discount (%)</Label>
+                <Input
+                  id="annualDiscount"
+                  type="number"
+                  step="0.1"
+                  value={planForm.pricing?.annualDiscount ?? 0}
+                  onChange={(e) => setPlanForm({
+                    ...planForm,
+                    pricing: { ...planForm.pricing, annualDiscount: parseFloat(e.target.value) || 0 }
+                  })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="allowAddonPurchases"
+                    className="h-6 w-11"
+                    checked={planForm.addons.allowAddonPurchases}
+                    onCheckedChange={(checked) => setPlanForm({
+                      ...planForm,
+                      addons: { ...planForm.addons, allowAddonPurchases: checked }
+                    })}
+                  />
+                  <Label htmlFor="allowAddonPurchases">Allow optional add-on purchases</Label>
+                </div>
+
+                {planForm.addons.allowAddonPurchases && (
+                  <div className="space-y-3">
+                    {(planForm.addons.availableAddons || []).map((addon, index) => (
+                      <div key={index} className="border rounded-md p-3 space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="font-medium">Addon #{index + 1}</div>
+                          <Button variant="ghost" size="icon" onClick={() => removeAddon(index)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div>
+                            <Label>Name</Label>
+                            <Input
+                              value={addon.name}
+                              onChange={(e) => updateAddonField(index, 'name', e.target.value)}
+                              placeholder="Addon name"
+                            />
+                          </div>
+                          <div>
+                            <Label>Price</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={addon.price}
+                              onChange={(e) => updateAddonField(index, 'price', parseFloat(e.target.value) || 0)}
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <div>
+                            <Label>Billing Cycle</Label>
+                            <Select
+                              value={addon.billingCycle || 'one-time'}
+                              onValueChange={(value) => updateAddonField(index, 'billingCycle', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="one-time">One-time</SelectItem>
+                                <SelectItem value="monthly">Monthly</SelectItem>
+                                <SelectItem value="quarterly">Quarterly</SelectItem>
+                                <SelectItem value="yearly">Yearly</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div>
+                          <Label>Description</Label>
+                          <Textarea
+                            rows={3}
+                            value={addon.description}
+                            onChange={(e) => updateAddonField(index, 'description', e.target.value)}
+                            placeholder="What does this addon include?"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <Button type="button" variant="outline" onClick={addNewAddon}>
+                      Add addon
+                    </Button>
+                  </div>
+                )}
               </div>
               
               <div className="space-y-2">
@@ -1017,24 +1649,25 @@ const SubscriptionPlans = () => {
                     id="isPopular"
                     className="h-6 w-11"
                     checked={planForm.isPopular}
-                    onCheckedChange={(checked) => setPlanForm({...planForm, isPopular: checked})}
+                    onCheckedChange={(checked) => setPlanForm({ ...planForm, isPopular: checked })}
                   />
-                  <Label htmlFor="isPopular">Mark as Popular</Label>
+                  <Label htmlFor="isPopular">Mark as popular</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="isActive"
                     className="h-6 w-11"
                     checked={planForm.isActive}
-                    onCheckedChange={(checked) => setPlanForm({...planForm, isActive: checked})}
+                    onCheckedChange={(checked) => setPlanForm({ ...planForm, isActive: checked })}
                   />
                   <Label htmlFor="isActive">Active</Label>
                 </div>
               </div>
             </TabsContent>
           </Tabs>
+        </div>
           
-          <DialogFooter>
+        <DialogFooter className="px-6 py-4 border-t bg-white">
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Cancel
             </Button>
@@ -1042,29 +1675,48 @@ const SubscriptionPlans = () => {
               Create Plan
             </Button>
           </DialogFooter>
+      </div>
         </DialogContent>
       </Dialog>
 
       {/* Edit Plan Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Subscription Plan</DialogTitle>
-            <DialogDescription>
-              Update the subscription plan details
+        <DialogContent
+          className="max-w-6xl p-0 overflow-hidden"
+          style={{ width: '90vw', maxWidth: '1200px', height: '85vh' }}
+        >
+          <div className="flex h-full flex-col bg-white">
+            <DialogHeader className="px-6 pt-6 pb-4 border-b bg-white">
+              <DialogTitle className="text-2xl font-semibold text-slate-900">
+                Edit Subscription Plan
+              </DialogTitle>
+              <DialogDescription className="text-sm text-slate-500">
+                Update any section of the plan while keeping the layout focused and easy to scan.
             </DialogDescription>
           </DialogHeader>
           
           {/* Same form structure as create dialog */}
-          <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="features">Features</TabsTrigger>
-              <TabsTrigger value="limits">Limits</TabsTrigger>
-              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            <div className="flex-1 overflow-y-auto px-6 pb-6">
+              <Tabs defaultValue="basic" className="w-full h-full">
+                <TabsList className="flex flex-wrap gap-2 rounded-full bg-slate-100/70 p-1">
+                  <TabsTrigger value="basic" className="px-4 py-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-medium">
+                    Basic Info
+                  </TabsTrigger>
+                  <TabsTrigger value="features" className="px-4 py-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-medium">
+                    Features
+                  </TabsTrigger>
+                  <TabsTrigger value="limits" className="px-4 py-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-medium">
+                    Limits
+                  </TabsTrigger>
+                  <TabsTrigger value="courses" className="px-4 py-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-medium">
+                    Courses
+                  </TabsTrigger>
+                  <TabsTrigger value="advanced" className="px-4 py-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-medium">
+                    Advanced
+                  </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="basic" className="space-y-4">
+                <TabsContent value="basic" className="space-y-4 pt-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="edit-name">Plan Name *</Label>
@@ -1155,17 +1807,107 @@ const SubscriptionPlans = () => {
               </div>
             </TabsContent>
             
-            <TabsContent value="features" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <TabsContent value="features" className="space-y-6 pt-6">
+              <div>
+                <h4 className="font-semibold text-sm text-gray-700 mb-2">Automation & AI</h4>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {[
+                    { id: 'edit-aiFeatures', label: 'AI Features', key: 'aiFeatures' },
+                    { id: 'edit-whatsappAutomation', label: 'WhatsApp Automation', key: 'whatsappAutomation' },
+                    { id: 'edit-emailAutomation', label: 'Email Automation', key: 'emailAutomation' }
+                  ].map(({ id, label, key }) => (
+                    <div className="flex items-center space-x-2" key={id}>
+                    <Switch
+                        id={id}
+                      className="h-6 w-11"
+                        checked={planForm.features[key]}
+                      onCheckedChange={(checked) => setPlanForm({
+                        ...planForm, 
+                          features: { ...planForm.features, [key]: checked }
+                      })}
+                    />
+                      <Label htmlFor={id}>{label}</Label>
+                  </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-sm text-gray-700 mb-2">Support</h4>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {[
+                    { id: 'edit-prioritySupport', label: 'Priority Support', key: 'prioritySupport' }
+                  ].map(({ id, label, key }) => (
+                    <div className="flex items-center space-x-2" key={id}>
+                    <Switch
+                        id={id}
+                      className="h-6 w-11"
+                        checked={planForm.features[key]}
+                      onCheckedChange={(checked) => setPlanForm({
+                        ...planForm, 
+                          features: { ...planForm.features, [key]: checked }
+                      })}
+                    />
+                      <Label htmlFor={id}>{label}</Label>
+                  </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-sm text-gray-700 mb-2">Branding & Integrations</h4>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {[
+                    { id: 'edit-customDomain', label: 'Custom Domain', key: 'customDomain' },
+                    { id: 'edit-customBranding', label: 'Custom Branding', key: 'customBranding' },
+                    { id: 'edit-whiteLabel', label: 'White Label', key: 'whiteLabel' },
+                    { id: 'edit-apiAccess', label: 'API Access', key: 'apiAccess' },
+                    { id: 'edit-webhooks', label: 'Webhooks', key: 'webhooks' },
+                    { id: 'edit-advancedReporting', label: 'Advanced Reporting', key: 'advancedReporting' }
+                  ].map(({ id, label, key }) => (
+                    <div className="flex items-center space-x-2" key={id}>
+                    <Switch
+                        id={id}
+                      className="h-6 w-11"
+                        checked={planForm.features[key]}
+                      onCheckedChange={(checked) => setPlanForm({
+                        ...planForm, 
+                          features: { ...planForm.features, [key]: checked }
+                      })}
+                    />
+                      <Label htmlFor={id}>{label}</Label>
+                  </div>
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <Label htmlFor="edit-integrations">Supported Integrations (comma separated)</Label>
+                  <Textarea
+                    id="edit-integrations"
+                    rows={2}
+                    value={(planForm.features.integrations || []).join(', ')}
+                    onChange={(e) => setPlanForm({
+                      ...planForm,
+                      features: { ...planForm.features, integrations: e.target.value.split(',').map((item) => item.trim()).filter(Boolean) }
+                    })}
+                    placeholder="zapier, webhook, slack..."
+                  />
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="limits" className="space-y-4 pt-6">
+              <div>
+                <h4 className="font-semibold text-sm text-gray-700 mb-3">Core Resources</h4>
+                <div className="grid md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="edit-maxFunnels">Max Funnels</Label>
                   <Input
                     id="edit-maxFunnels"
                     type="number"
-                    value={planForm.features.maxFunnels}
+                      value={planForm.limits.maxFunnels}
                     onChange={(e) => setPlanForm({
                       ...planForm, 
-                      features: {...planForm.features, maxFunnels: parseInt(e.target.value) || 0}
+                        limits: { ...planForm.limits, maxFunnels: parseInt(e.target.value) || 0 }
                     })}
                   />
                 </div>
@@ -1174,10 +1916,10 @@ const SubscriptionPlans = () => {
                   <Input
                     id="edit-maxStaff"
                     type="number"
-                    value={planForm.features.maxStaff}
+                      value={planForm.limits.maxStaff}
                     onChange={(e) => setPlanForm({
                       ...planForm, 
-                      features: {...planForm.features, maxStaff: parseInt(e.target.value) || 0}
+                        limits: { ...planForm.limits, maxStaff: parseInt(e.target.value) || 0 }
                     })}
                   />
                 </div>
@@ -1186,108 +1928,73 @@ const SubscriptionPlans = () => {
                   <Input
                     id="edit-maxDevices"
                     type="number"
-                    value={planForm.features.maxDevices}
+                      value={planForm.limits.maxDevices}
                     onChange={(e) => setPlanForm({
                       ...planForm, 
-                      features: {...planForm.features, maxDevices: parseInt(e.target.value) || 0}
+                        limits: { ...planForm.limits, maxDevices: parseInt(e.target.value) || 0 }
                     })}
                   />
                 </div>
+                </div>
+              </div>
+
                 <div>
-                  <Label htmlFor="edit-storageGB">Storage (GB)</Label>
+                <h4 className="font-semibold text-sm text-gray-700 mb-3">Automation & Credits</h4>
+                <div className="grid md:grid-cols-4 gap-4">
+                  <div>
+                    <Label htmlFor="edit-automationRules">Automation Rules</Label>
                   <Input
-                    id="edit-storageGB"
+                      id="edit-automationRules"
                     type="number"
-                    value={planForm.features.storageGB}
+                      value={planForm.limits.automationRules}
                     onChange={(e) => setPlanForm({
                       ...planForm, 
-                      features: {...planForm.features, storageGB: parseInt(e.target.value) || 0}
+                        limits: { ...planForm.limits, automationRules: parseInt(e.target.value) || 0 }
                     })}
                   />
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h4 className="font-medium">Feature Toggles</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="edit-aiFeatures"
-                      className="h-6 w-11"
-                      checked={planForm.features.aiFeatures}
-                      onCheckedChange={(checked) => setPlanForm({
+                  <div>
+                    <Label htmlFor="edit-emailCredits">Email Credits</Label>
+                    <Input
+                      id="edit-emailCredits"
+                      type="number"
+                      value={planForm.limits.emailCredits}
+                      onChange={(e) => setPlanForm({
                         ...planForm, 
-                        features: {...planForm.features, aiFeatures: checked}
+                        limits: { ...planForm.limits, emailCredits: parseInt(e.target.value) || 0 }
                       })}
                     />
-                    <Label htmlFor="edit-aiFeatures">AI Features</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="edit-advancedAnalytics"
-                      className="h-6 w-11"
-                      checked={planForm.features.advancedAnalytics}
-                      onCheckedChange={(checked) => setPlanForm({
+                  <div>
+                    <Label htmlFor="edit-smsCredits">SMS Credits</Label>
+                    <Input
+                      id="edit-smsCredits"
+                      type="number"
+                      value={planForm.limits.smsCredits}
+                      onChange={(e) => setPlanForm({
                         ...planForm, 
-                        features: {...planForm.features, advancedAnalytics: checked}
+                        limits: { ...planForm.limits, smsCredits: parseInt(e.target.value) || 0 }
                       })}
                     />
-                    <Label htmlFor="edit-advancedAnalytics">Advanced Analytics</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="edit-prioritySupport"
-                      className="h-6 w-11"
-                      checked={planForm.features.prioritySupport}
-                      onCheckedChange={(checked) => setPlanForm({
+                  <div>
+                    <Label htmlFor="edit-storageGB">Storage (GB)</Label>
+                    <Input
+                      id="edit-storageGB"
+                      type="number"
+                      value={planForm.limits.storageGB}
+                      onChange={(e) => setPlanForm({
                         ...planForm, 
-                        features: {...planForm.features, prioritySupport: checked}
+                        limits: { ...planForm.limits, storageGB: parseInt(e.target.value) || 0 }
                       })}
                     />
-                    <Label htmlFor="edit-prioritySupport">Priority Support</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="edit-customDomain"
-                      className="h-6 w-11"
-                      checked={planForm.features.customDomain}
-                      onCheckedChange={(checked) => setPlanForm({
-                        ...planForm, 
-                        features: {...planForm.features, customDomain: checked}
-                      })}
-                    />
-                    <Label htmlFor="edit-customDomain">Custom Domain</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="edit-apiAccess"
-                      className="h-6 w-11"
-                      checked={planForm.features.apiAccess}
-                      onCheckedChange={(checked) => setPlanForm({
-                        ...planForm, 
-                        features: {...planForm.features, apiAccess: checked}
-                      })}
-                    />
-                    <Label htmlFor="edit-apiAccess">API Access</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="edit-whiteLabel"
-                      className="h-6 w-11"
-                      checked={planForm.features.whiteLabel}
-                      onCheckedChange={(checked) => setPlanForm({
-                        ...planForm, 
-                        features: {...planForm.features, whiteLabel: checked}
-                      })}
-                    />
-                    <Label htmlFor="edit-whiteLabel">White Label</Label>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="limits" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+
+              <div>
+                <h4 className="font-semibold text-sm text-gray-700 mb-3">Business Operations</h4>
+                <div className="grid md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="edit-maxLeads">Max Leads</Label>
                   <Input
@@ -1324,30 +2031,215 @@ const SubscriptionPlans = () => {
                     })}
                   />
                 </div>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-500">Use -1 for unlimited access.</p>
+            </TabsContent>
+            
+            <TabsContent value="courses" className="space-y-4 pt-6">
                 <div>
-                  <Label htmlFor="edit-maxWhatsAppMessages">Max WhatsApp Messages</Label>
+                <h4 className="font-semibold text-sm text-gray-700 mb-2">Included Courses</h4>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Select courses from the platform's library to include in this subscription plan. Coaches subscribed to this plan will gain access to these courses based on the permissions you set.
+                </p>
+                
+                <div className="flex items-center gap-2 mb-4">
                   <Input
-                    id="edit-maxWhatsAppMessages"
+                    placeholder="Search courses..."
+                    value={courseSearch}
+                    onChange={(e) => setCourseSearch(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={loadAvailableCourses} disabled={coursesLoading}>
+                    {coursesLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    {coursesLoading ? 'Loading...' : 'Load Courses'}
+                  </Button>
+                </div>
+
+                {courseLoadError && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{courseLoadError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {coursesLoading ? (
+                  <div className="flex justify-center items-center h-32">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : filteredCourses.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="mb-2">No courses found.</p>
+                    <p className="text-sm">Click "Load Courses" to fetch available courses from the platform.</p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[500px] w-full rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
+                    <div className="space-y-4">
+                      {/* Group courses by category */}
+                      {['customer_course', 'coach_course'].map((category) => {
+                        const categoryCourses = filteredCourses.filter((course) => 
+                          (course.category || 'customer_course') === category
+                        );
+                        
+                        if (categoryCourses.length === 0) return null;
+                        
+                        return (
+                          <div key={category} className="space-y-3">
+                            <h5 className="font-semibold text-sm text-gray-600 border-b pb-2">
+                              {category === 'customer_course' ? 'Customer Courses' : 'Coach Courses'} ({categoryCourses.length})
+                            </h5>
+                            <div className="grid grid-cols-1 gap-3">
+                              {categoryCourses.map((course) => {
+                                const bundle = getCourseBundle(course._id);
+                                const isCourseIncluded = !!bundle;
+                                
+                                return (
+                                  <Card
+                                    key={course._id}
+                                    className="p-4 border border-slate-200/80 bg-white shadow-sm rounded-xl transition hover:border-slate-300/80"
+                                  >
+                                    <div className="flex items-start gap-4">
+                                      <Checkbox
+                                        id={`edit-course-${course._id}`}
+                                        checked={isCourseIncluded}
+                                        onCheckedChange={(checked) => handleCourseBundleToggle(course, checked)}
+                                        className="mt-1"
+                                      />
+                                      {course.thumbnail && (
+                                        <img 
+                                          src={course.thumbnail} 
+                                          alt={course.title} 
+                                          className="w-20 h-20 object-cover rounded-md flex-shrink-0" 
+                                        />
+                                      )}
+                                      <div className="flex-1 min-w-0 space-y-1.5">
+                                        <Label htmlFor={`edit-course-${course._id}`} className="font-medium text-base cursor-pointer">
+                                          {course.title}
+                                        </Label>
+                                        <p className="text-sm text-slate-500 line-clamp-2">
+                                          {course.description || 'No description available'}
+                                        </p>
+                                        <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
+                                          <span className="flex items-center gap-1">
+                                            <span className="font-medium text-slate-600">Type:</span> {course.courseType?.replace(/_/g, ' ') || 'N/A'}
+                                          </span>
+                                          <span className="flex items-center gap-1">
+                                            <span className="font-medium text-slate-600">Price:</span> {course.currency || 'INR'} {course.price || 0}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    {isCourseIncluded && bundle && (
+                                      <div className="mt-4 ml-8 border-t border-slate-200 pt-4 space-y-4">
+                                        <div className="grid md:grid-cols-2 gap-4 text-sm">
+                                          <div className="flex items-center space-x-2">
+                                            <Switch
+                                              id={`edit-resell-${course._id}`}
+                                              checked={bundle.allowResell || false}
+                                              onCheckedChange={(checked) => handleCourseBundleChange(course._id, 'allowResell', checked)}
+                                            />
+                                            <Label htmlFor={`edit-resell-${course._id}`}>Allow Resell</Label>
+                                          </div>
+                                          <div className="flex items-center space-x-2">
+                                            <Switch
+                                              id={`edit-remix-${course._id}`}
+                                              checked={bundle.allowContentRemix || false}
+                                              onCheckedChange={(checked) => handleCourseBundleChange(course._id, 'allowContentRemix', checked)}
+                                            />
+                                            <Label htmlFor={`edit-remix-${course._id}`}>Allow Content Remix</Label>
+                                          </div>
+                                          <div className="flex items-center space-x-2">
+                                            <Switch
+                                              id={`edit-customPricing-${course._id}`}
+                                              checked={bundle.allowCustomPricing || false}
+                                              onCheckedChange={(checked) => handleCourseBundleChange(course._id, 'allowCustomPricing', checked)}
+                                            />
+                                            <Label htmlFor={`edit-customPricing-${course._id}`}>Allow Custom Pricing</Label>
+                                          </div>
+                                          <div className="flex items-center space-x-2">
+                                            <Switch
+                                              id={`edit-marketingKit-${course._id}`}
+                                              checked={bundle.marketingKitIncluded || false}
+                                              onCheckedChange={(checked) => handleCourseBundleChange(course._id, 'marketingKitIncluded', checked)}
+                                            />
+                                            <Label htmlFor={`edit-marketingKit-${course._id}`}>Include Marketing Kit</Label>
+                                          </div>
+                                        </div>
+                                        
+                                        {bundle.allowCustomPricing && (
+                                          <div className="grid md:grid-cols-3 gap-4 text-sm">
+                                            <div>
+                                              <Label htmlFor={`edit-suggestedPrice-${course._id}`}>Suggested Resell Price</Label>
+                                              <Input
+                                                id={`edit-suggestedPrice-${course._id}`}
                     type="number"
-                    value={planForm.limits.maxWhatsAppMessages}
-                    onChange={(e) => setPlanForm({
-                      ...planForm, 
-                      limits: {...planForm.limits, maxWhatsAppMessages: parseInt(e.target.value) || 0}
-                    })}
+                                                step="0.01"
+                                                value={bundle.suggestedResellPrice ?? ''}
+                                                onChange={(e) => handleCourseBundleChange(course._id, 'suggestedResellPrice', parseFloat(e.target.value) || 0)}
+                                                placeholder="0.00"
                   />
                 </div>
+                                            <div>
+                                              <Label htmlFor={`edit-minPrice-${course._id}`}>Minimum Price</Label>
+                                              <Input
+                                                id={`edit-minPrice-${course._id}`}
+                                                type="number"
+                                                step="0.01"
+                                                value={bundle.minimumResellPrice ?? ''}
+                                                onChange={(e) => handleCourseBundleChange(course._id, 'minimumResellPrice', parseFloat(e.target.value) || 0)}
+                                                placeholder="0.00"
+                                              />
+                                            </div>
+                                            <div>
+                                              <Label htmlFor={`edit-maxPrice-${course._id}`}>Maximum Price</Label>
+                                              <Input
+                                                id={`edit-maxPrice-${course._id}`}
+                                                type="number"
+                                                step="0.01"
+                                                value={bundle.maximumResellPrice ?? ''}
+                                                onChange={(e) => handleCourseBundleChange(course._id, 'maximumResellPrice', parseFloat(e.target.value) || 0)}
+                                                placeholder="0.00"
+                                              />
+                                            </div>
+                                          </div>
+                                        )}
+                                        
+                                        <div className="text-sm">
+                                          <Label htmlFor={`edit-deliveryNotes-${course._id}`}>Delivery Notes</Label>
+                                          <Textarea
+                                            id={`edit-deliveryNotes-${course._id}`}
+                                            rows={2}
+                                            value={bundle.deliveryNotes || ''}
+                                            onChange={(e) => handleCourseBundleChange(course._id, 'deliveryNotes', e.target.value)}
+                                            placeholder="Notes for coach on course delivery..."
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+                                  </Card>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                )}
               </div>
             </TabsContent>
             
-            <TabsContent value="advanced" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <TabsContent value="advanced" className="space-y-4 pt-6">
+              <div className="grid md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="edit-trialDays">Trial Days</Label>
                   <Input
                     id="edit-trialDays"
                     type="number"
                     value={planForm.trialDays}
-                    onChange={(e) => setPlanForm({...planForm, trialDays: parseInt(e.target.value) || 0})}
+                    onChange={(e) => setPlanForm({ ...planForm, trialDays: parseInt(e.target.value) || 0 })}
                   />
                 </div>
                 <div>
@@ -1357,7 +2249,7 @@ const SubscriptionPlans = () => {
                     type="number"
                     step="0.01"
                     value={planForm.setupFee}
-                    onChange={(e) => setPlanForm({...planForm, setupFee: parseFloat(e.target.value) || 0})}
+                    onChange={(e) => setPlanForm({ ...planForm, setupFee: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
                 <div>
@@ -1366,9 +2258,102 @@ const SubscriptionPlans = () => {
                     id="edit-sortOrder"
                     type="number"
                     value={planForm.sortOrder}
-                    onChange={(e) => setPlanForm({...planForm, sortOrder: parseInt(e.target.value) || 0})}
+                    onChange={(e) => setPlanForm({ ...planForm, sortOrder: parseInt(e.target.value) || 0 })}
                   />
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-annualDiscount">Annual Discount (%)</Label>
+                <Input
+                  id="edit-annualDiscount"
+                  type="number"
+                  step="0.1"
+                  value={planForm.pricing?.annualDiscount ?? 0}
+                  onChange={(e) => setPlanForm({
+                    ...planForm,
+                    pricing: { ...planForm.pricing, annualDiscount: parseFloat(e.target.value) || 0 }
+                  })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="edit-allowAddonPurchases"
+                    className="h-6 w-11"
+                    checked={planForm.addons.allowAddonPurchases}
+                    onCheckedChange={(checked) => setPlanForm({
+                      ...planForm,
+                      addons: { ...planForm.addons, allowAddonPurchases: checked }
+                    })}
+                  />
+                  <Label htmlFor="edit-allowAddonPurchases">Allow optional add-on purchases</Label>
+                </div>
+
+                {planForm.addons.allowAddonPurchases && (
+                  <div className="space-y-3">
+                    {(planForm.addons.availableAddons || []).map((addon, index) => (
+                      <div key={index} className="border rounded-md p-3 space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="font-medium">Addon #{index + 1}</div>
+                          <Button variant="ghost" size="icon" onClick={() => removeAddon(index)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div>
+                            <Label>Name</Label>
+                            <Input
+                              value={addon.name}
+                              onChange={(e) => updateAddonField(index, 'name', e.target.value)}
+                              placeholder="Addon name"
+                            />
+                          </div>
+                          <div>
+                            <Label>Price</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={addon.price}
+                              onChange={(e) => updateAddonField(index, 'price', parseFloat(e.target.value) || 0)}
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <div>
+                            <Label>Billing Cycle</Label>
+                            <Select
+                              value={addon.billingCycle || 'one-time'}
+                              onValueChange={(value) => updateAddonField(index, 'billingCycle', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="one-time">One-time</SelectItem>
+                                <SelectItem value="monthly">Monthly</SelectItem>
+                                <SelectItem value="quarterly">Quarterly</SelectItem>
+                                <SelectItem value="yearly">Yearly</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div>
+                          <Label>Description</Label>
+                          <Textarea
+                            rows={3}
+                            value={addon.description}
+                            onChange={(e) => updateAddonField(index, 'description', e.target.value)}
+                            placeholder="What does this addon include?"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <Button type="button" variant="outline" onClick={addNewAddon}>
+                      Add addon
+                    </Button>
+                  </div>
+                )}
               </div>
               
               <div className="space-y-2">
@@ -1377,24 +2362,25 @@ const SubscriptionPlans = () => {
                     id="edit-isPopular"
                     className="h-6 w-11"
                     checked={planForm.isPopular}
-                    onCheckedChange={(checked) => setPlanForm({...planForm, isPopular: checked})}
+                    onCheckedChange={(checked) => setPlanForm({ ...planForm, isPopular: checked })}
                   />
-                  <Label htmlFor="edit-isPopular">Mark as Popular</Label>
+                  <Label htmlFor="edit-isPopular">Mark as popular</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="edit-isActive"
                     className="h-6 w-11"
                     checked={planForm.isActive}
-                    onCheckedChange={(checked) => setPlanForm({...planForm, isActive: checked})}
+                    onCheckedChange={(checked) => setPlanForm({ ...planForm, isActive: checked })}
                   />
                   <Label htmlFor="edit-isActive">Active</Label>
                 </div>
               </div>
             </TabsContent>
           </Tabs>
+        </div>
           
-          <DialogFooter>
+        <DialogFooter className="px-6 py-4 border-t bg-white">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
@@ -1402,6 +2388,7 @@ const SubscriptionPlans = () => {
               Update Plan
             </Button>
           </DialogFooter>
+      </div>
         </DialogContent>
       </Dialog>
 
@@ -1490,6 +2477,147 @@ const SubscriptionPlans = () => {
           
           <DialogFooter>
             <Button onClick={() => setIsAnalyticsDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Course Selector Dialog */}
+      <Dialog open={isCourseSelectorOpen} onOpenChange={setIsCourseSelectorOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Select Admin Courses</DialogTitle>
+            <DialogDescription>
+              Choose which admin-created courses are bundled into this subscription plan. Selected courses will be available for resell and remix based on the access options above.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-center gap-2 mb-3">
+            <Input
+              placeholder="Search courses..."
+              value={courseSearch}
+              onChange={(e) => setCourseSearch(e.target.value)}
+            />
+            <Button type="button" variant="outline" size="sm" onClick={loadAvailableCourses} disabled={coursesLoading}>
+              Refresh
+            </Button>
+          </div>
+
+          {courseLoadError && (
+            <Alert variant="destructive" className="mb-3">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{courseLoadError}</AlertDescription>
+            </Alert>
+          )}
+
+          <ScrollArea className="h-[60vh] border rounded-md p-3">
+            {coursesLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : filteredCourses.length === 0 ? (
+              <div className="text-sm text-gray-500">No admin courses found. Adjust your filters or create courses first.</div>
+            ) : (
+              <div className="space-y-4">
+                {filteredCourses.map((course) => {
+                  const bundle = planForm.courseBundles?.find((b) => b.course === course._id);
+                  const isSelected = Boolean(bundle);
+                  return (
+                    <div key={course._id} className="border rounded-md p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-medium">{course.title}</div>
+                          {course.category && (
+                            <div className="text-xs text-gray-500">Category: {course.category}</div>
+                          )}
+                        </div>
+                        <Switch
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleCourseBundleToggle(course, checked)}
+                        />
+                      </div>
+                      {isSelected && (
+                        <div className="mt-3 ml-4 border-l pl-4 space-y-3">
+                          <div className="grid md:grid-cols-3 gap-4">
+                            <div>
+                              <Label htmlFor={`suggestedPrice-${course._id}`}>Suggested resell price</Label>
+                              <Input
+                                id={`suggestedPrice-${course._id}`}
+                                type="number"
+                                step="0.01"
+                                value={bundle.suggestedResellPrice ?? ''}
+                                onChange={(e) => updateCourseBundle(course._id, 'suggestedResellPrice', e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor={`minPrice-${course._id}`}>Minimum price</Label>
+                              <Input
+                                id={`minPrice-${course._id}`}
+                                type="number"
+                                step="0.01"
+                                value={bundle.minimumResellPrice ?? ''}
+                                onChange={(e) => updateCourseBundle(course._id, 'minimumResellPrice', e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor={`maxPrice-${course._id}`}>Maximum price</Label>
+                              <Input
+                                id={`maxPrice-${course._id}`}
+                                type="number"
+                                step="0.01"
+                                value={bundle.maximumResellPrice ?? ''}
+                                onChange={(e) => updateCourseBundle(course._id, 'maximumResellPrice', e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            {[
+                              { id: `allowResell-${course._id}`, label: 'Allow resell', key: 'allowResell' },
+                              { id: `allowContentRemix-${course._id}`, label: 'Allow remix', key: 'allowContentRemix' },
+                              { id: `allowCustomPricing-${course._id}`, label: 'Allow custom pricing', key: 'allowCustomPricing' },
+                              { id: `marketingKitIncluded-${course._id}`, label: 'Include marketing kit', key: 'marketingKitIncluded' }
+                            ].map(({ id, label, key }) => (
+                              <div className="flex items-center space-x-2" key={id}>
+                                <Switch
+                                  id={id}
+                                  className="h-6 w-11"
+                                  checked={bundle[key]}
+                                  onCheckedChange={(checked) => updateCourseBundle(course._id, key, checked)}
+                                />
+                                <Label htmlFor={id}>{label}</Label>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div>
+                              <Label>Marketing assets (one per line)</Label>
+                              <Textarea
+                                rows={3}
+                                value={(bundle.marketingAssets || []).join('\n')}
+                                onChange={(e) => updateCourseBundleArrayField(course._id, 'marketingAssets', e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label>Delivery notes</Label>
+                              <Textarea
+                                rows={3}
+                                value={bundle.deliveryNotes || ''}
+                                onChange={(e) => updateCourseBundle(course._id, 'deliveryNotes', e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCourseSelectorOpen(false)}>
               Close
             </Button>
           </DialogFooter>

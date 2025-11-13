@@ -76,6 +76,44 @@ const contentCourseSchema = new mongoose.Schema({
     type: String, // URL or file path
     default: null
   },
+  funnelsEyeExtras: {
+    headline: {
+      type: String,
+      default: ''
+    },
+    subheadline: {
+      type: String,
+      default: ''
+    },
+    transformationPromise: {
+      type: String,
+      default: ''
+    },
+    coachSupport: {
+      type: String,
+      default: ''
+    },
+    communityAccess: {
+      type: String,
+      default: ''
+    },
+    guarantee: {
+      type: String,
+      default: ''
+    },
+    successMetrics: {
+      type: [String],
+      default: []
+    },
+    bonusResources: {
+      type: [String],
+      default: []
+    },
+    platformTools: {
+      type: [String],
+      default: []
+    }
+  },
   // Workout Routine specific fields
   workoutSpecificFields: {
     difficulty: {

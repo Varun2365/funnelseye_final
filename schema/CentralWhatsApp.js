@@ -142,7 +142,6 @@ const centralWhatsAppSchema = new mongoose.Schema({
 });
 
 // Indexes
-centralWhatsAppSchema.index({ phoneNumberId: 1 });
 centralWhatsAppSchema.index({ isActive: 1 });
 centralWhatsAppSchema.index({ 'templates.templateId': 1 });
 centralWhatsAppSchema.index({ 'contacts.phoneNumber': 1 });

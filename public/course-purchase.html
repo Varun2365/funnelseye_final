@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Course - Udemy Style</title>
+    <title>FunnelsEye</title>
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <style>
         * {
@@ -41,7 +41,7 @@
         .logo {
             font-size: 24px;
             font-weight: 700;
-            color: #5624d0;
+            color: #1d4ed8;
             text-decoration: none;
         }
 
@@ -94,7 +94,7 @@
         }
 
         .course-breadcrumb a {
-            color: #5624d0;
+            color: #2563eb;
             text-decoration: none;
         }
 
@@ -151,7 +151,7 @@
         }
 
         .course-instructor {
-            color: #5624d0;
+            color: #2563eb;
             font-size: 14px;
             text-decoration: none;
         }
@@ -218,7 +218,7 @@
         .btn-enroll {
             width: 100%;
             padding: 14px;
-            background: #a435f0;
+            background: #2563eb;
             color: #fff;
             border: none;
             font-weight: 700;
@@ -229,7 +229,7 @@
         }
 
         .btn-enroll:hover {
-            background: #8710d8;
+            background: #1d4ed8;
         }
 
         .btn-enroll:disabled {
@@ -270,7 +270,7 @@
 
         .includes-list li:before {
             content: "✓";
-            color: #1c1d1f;
+            color: #1d4ed8;
             font-weight: 700;
             flex-shrink: 0;
         }
@@ -278,6 +278,190 @@
         /* Course Content */
         .course-content-section {
             margin-bottom: 48px;
+        }
+
+        /* FunnelsEye Sections */
+        .funnels-section {
+            background: #e8f3ff;
+             border: 1px solid #bfdbfe;
+            padding: 32px;
+            border-radius: 8px;
+            margin-top: 32px;
+        }
+
+        .funnels-hero {
+            margin-bottom: 24px;
+        }
+
+        /* Coach Presenter */
+        .coach-presenter {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            border: 1px solid #bfdbfe;
+            background: #eff6ff;
+            border-radius: 12px;
+            margin-top: 24px;
+            margin-bottom: 24px;
+        }
+
+        .coach-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: #dbeafe;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 20px;
+            color: #1d4ed8;
+            text-transform: uppercase;
+        }
+
+        .coach-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .coach-info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .coach-name-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .coach-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e3a8a;
+        }
+
+        .coach-verified {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #2563eb;
+            color: #fff;
+            font-size: 12px;
+        }
+
+        .coach-headline {
+            font-size: 14px;
+            color: #1e3a8a;
+        }
+
+        .coach-specs {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 0;
+            margin: 0;
+        }
+
+        .coach-specs li {
+            font-size: 12px;
+            color: #1d4ed8;
+            background: rgba(37, 99, 235, 0.1);
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
+
+        .funnels-hero h3 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1d4ed8;
+            margin-bottom: 12px;
+            line-height: 1.2;
+        }
+
+        .funnels-hero p {
+            font-size: 18px;
+            color: #1e40af;
+        }
+
+        .funnels-promise {
+            font-size: 18px;
+            color: #1c1d1f;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .funnels-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .funnels-card {
+            background: #fff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .funnels-card h4 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1d4ed8;
+        }
+
+        .funnels-card p {
+            font-size: 14px;
+            color: #4a4d50;
+            line-height: 1.5;
+        }
+
+        .funnels-list-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 24px;
+        }
+
+        .funnels-list-grid h4 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #1d4ed8;
+        }
+
+        .funnels-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .funnels-list li {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            font-size: 14px;
+            color: #4a4d50;
+            margin-bottom: 10px;
+            line-height: 1.45;
+        }
+
+        .funnels-list li:before {
+            content: "•";
+            color: #1d4ed8;
+            font-weight: 700;
         }
 
         .section-title {
@@ -323,7 +507,7 @@
 
         .objective-item:before {
             content: "✓";
-            color: #1c1d1f;
+            color: #1d4ed8;
             font-weight: 700;
             flex-shrink: 0;
         }
@@ -471,13 +655,13 @@
 
         .form-group input:focus {
             outline: none;
-            border-color: #5624d0;
+            border-color: #2563eb;
         }
 
         .btn-submit {
             width: 100%;
             padding: 14px;
-            background: #a435f0;
+            background: #2563eb;
             color: #fff;
             border: none;
             font-weight: 700;
@@ -487,7 +671,7 @@
         }
 
         .btn-submit:hover {
-            background: #8710d8;
+            background: #1d4ed8;
         }
 
         .modal-footer {
@@ -498,7 +682,7 @@
         }
 
         .modal-footer a {
-            color: #5624d0;
+            color: #2563eb;
             text-decoration: none;
             font-weight: 700;
         }
@@ -534,7 +718,7 @@
         .loading {
             text-align: center;
             padding: 20px;
-            color: #5624d0;
+            color: #1d4ed8;
             display: none;
         }
 
@@ -557,6 +741,20 @@
             .course-title {
                 font-size: 24px;
             }
+
+            .funnels-hero h3 {
+                font-size: 22px;
+            }
+
+            .funnels-section {
+                padding: 24px;
+            }
+
+            .coach-presenter {
+                flex-direction: column;
+                align-items: flex-start;
+                margin-bottom: 20px;
+            }
         }
     </style>
 </head>
@@ -564,7 +762,7 @@
     <!-- Header -->
     <header class="header">
         <div class="header-content">
-            <a href="/" class="logo">CourseHub</a>
+            <a href="/" class="logo">FunnelsEye</a>
             <div class="header-actions">
                 <button class="btn-login" id="loginBtn" onclick="handleLoginButtonClick()">Log in</button>
             </div>
@@ -575,10 +773,6 @@
         <!-- Course Hero Section -->
         <div class="course-hero">
             <div class="course-main">
-                <div class="course-breadcrumb">
-                    <a href="/">Home</a> > <a href="/courses">Courses</a> > <span id="breadcrumbTitle">Course</span>
-                </div>
-
                 <h1 class="course-title" id="courseTitle">Loading...</h1>
                 <p class="course-subtitle" id="courseSubtitle">Course Description</p>
 
@@ -590,6 +784,21 @@
                     </div>
                     <span class="course-stats" id="courseStats">0 students</span>
                     <a href="#" class="course-instructor">Instructor</a>
+                </div>
+
+                <div class="coach-presenter" id="coachPresenter" style="display: none;">
+                    <div class="coach-avatar" id="coachAvatarWrapper">
+                        <img id="coachAvatar" alt="Coach avatar" style="display: none;">
+                        <span id="coachAvatarInitials">FE</span>
+                    </div>
+                    <div class="coach-info">
+                        <div class="coach-name-row">
+                            <span class="coach-name" id="coachName">Coach</span>
+                            <span class="coach-verified" id="coachVerified">✓</span>
+                        </div>
+                        <p class="coach-headline" id="coachHeadline">Certified FunnelsEye Coach</p>
+                        <ul class="coach-specs" id="coachSpecs"></ul>
+                    </div>
                 </div>
 
                 <div class="course-image" id="courseImage">
@@ -604,6 +813,9 @@
                     <div class="success" id="successMessage"></div>
                     <div class="already-enrolled" id="alreadyEnrolled" style="display: none;">
                         ✅ You're already enrolled in this course!
+                    </div>
+                    <div class="loading" id="loading" style="display: none;">
+                        Processing your request...
                     </div>
 
                     <div class="course-price">
@@ -660,6 +872,50 @@
             <h2 class="section-title">Description</h2>
             <div class="course-description" id="courseDescription">
                 Loading course details...
+            </div>
+        </div>
+
+        <div class="funnels-section" id="funnelsSection" style="display: none;">
+            <div class="funnels-hero">
+                <h3 id="funnelsHeadline">Power your coaching business with FunnelsEye</h3>
+                <p id="funnelsSubheadline">Personalised funnels, AI-driven nurture, and data-backed growth loops in one experience.</p>
+            </div>
+            <p class="funnels-promise" id="funnelsPromise">
+                FunnelsEye courses combine best-in-class delivery with automation-ready systems, so you can scale without sacrificing client outcomes.
+            </p>
+            <div class="funnels-cards">
+                <div class="funnels-card">
+                    <h4>Coach Support</h4>
+                    <p id="funnelsSupport">Weekly office hours and milestone reviews to keep you accountable.</p>
+                </div>
+                <div class="funnels-card">
+                    <h4>Community</h4>
+                    <p id="funnelsCommunity">Join our private FunnelsEye builder circle for peer wins, templates, and ongoing inspiration.</p>
+                </div>
+                <div class="funnels-card">
+                    <h4>Guarantee</h4>
+                    <p id="funnelsGuarantee">Not seeing traction in 30 days? We’ll work with you 1:1 until you do.</p>
+                </div>
+            </div>
+            <div class="funnels-list-grid">
+                <div id="funnelsSuccessWrapper">
+                    <h4>Outcome Metrics Our Learners Achieve</h4>
+                    <ul class="funnels-list" id="funnelsSuccessMetrics">
+                        <li>Clients launch their first high-ticket funnel within 6 weeks.</li>
+                    </ul>
+                </div>
+                <div id="funnelsBonusWrapper">
+                    <h4>Bonus Resources Included</h4>
+                    <ul class="funnels-list" id="funnelsBonusResources">
+                        <li>Done-for-you funnel blueprint bundle</li>
+                    </ul>
+                </div>
+                <div id="funnelsToolsWrapper">
+                    <h4>FunnelsEye Platform Tools</h4>
+                    <ul class="funnels-list" id="funnelsPlatformTools">
+                        <li>Automation templates for leads, nurture, and upsells</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -726,6 +982,28 @@
         let purchaseId = null;
         let userToken = null;
 
+        function updateList(listId, items, wrapperId) {
+            const listElement = document.getElementById(listId);
+            const wrapperElement = wrapperId ? document.getElementById(wrapperId) : null;
+
+            if (!listElement) return;
+
+            listElement.innerHTML = '';
+
+            if (items && items.length) {
+                items.forEach((item) => {
+                    const li = document.createElement('li');
+                    li.textContent = item;
+                    listElement.appendChild(li);
+                });
+                if (wrapperElement) {
+                    wrapperElement.style.display = '';
+                }
+            } else if (wrapperElement) {
+                wrapperElement.style.display = 'none';
+            }
+        }
+
         // Check for existing login token
         function getAuthToken() {
             const cookies = document.cookie.split(';');
@@ -778,11 +1056,11 @@
 
                 // Update UI
                 document.getElementById('courseTitle').textContent = courseData.title;
-                document.getElementById('breadcrumbTitle').textContent = courseData.title;
                 document.getElementById('courseSubtitle').textContent = courseData.description ? courseData.description.substring(0, 100) + '...' : 'Learn something new today';
                 document.getElementById('courseDescription').textContent = courseData.description || 'No description available';
                 document.getElementById('coursePrice').textContent = courseData.price;
                 document.getElementById('courseCurrency').textContent = courseData.currency;
+                document.title = 'FunnelsEye';
 
                 // Set thumbnail
                 if (courseData.thumbnail) {
@@ -797,6 +1075,115 @@
                 const moduleCount = courseData.modules?.length || 0;
                 const contentCount = courseData.modules?.reduce((sum, m) => sum + (m.contents?.length || 0), 0) || 0;
                 document.getElementById('curriculumStats').textContent = `${moduleCount} ${courseData.courseType === 'meal_plan' ? 'days' : 'sections'} • ${contentCount} ${courseData.courseType === 'meal_plan' ? 'meals' : 'lectures'}`;
+
+                const includesList = document.getElementById('includesList');
+                if (includesList) {
+                    const moduleLabel = moduleCount > 0
+                        ? `${moduleCount} ${moduleCount === 1 ? 'module' : 'modules'} of guided curriculum`
+                        : 'Guided curriculum with FunnelsEye playbooks';
+
+                    const includes = [
+                        moduleLabel,
+                        'Lifetime access',
+                        'Mobile and desktop access',
+                        'Certificate of completion'
+                    ];
+
+                    const extras = courseData.funnelsEyeExtras || {};
+
+                    if (extras.coachSupport) {
+                        includes.push('Dedicated coach support & check-ins');
+                    }
+                    if (extras.communityAccess) {
+                        includes.push('Access to FunnelsEye private community');
+                    }
+                    if (extras.platformTools && extras.platformTools.length) {
+                        includes.push(`FunnelsEye tools: ${extras.platformTools[0]}`);
+                    }
+
+                    includesList.innerHTML = '';
+                    includes.forEach((item) => {
+                        const li = document.createElement('li');
+                        li.textContent = item;
+                        includesList.appendChild(li);
+                    });
+
+                    const coachProfile = result.data.coachProfile || {};
+                    const coachPresenterEl = document.getElementById('coachPresenter');
+                    if (coachPresenterEl) {
+                        coachPresenterEl.style.display = 'flex';
+
+                        const coachNameEl = document.getElementById('coachName');
+                        if (coachNameEl) {
+                            coachNameEl.textContent = coachProfile.name || 'FunnelsEye Official';
+                        }
+
+                        const coachHeadlineEl = document.getElementById('coachHeadline');
+                        if (coachHeadlineEl) {
+                            coachHeadlineEl.textContent = coachProfile.headline || 'Certified FunnelsEye Coach';
+                        }
+
+                        const coachVerifiedEl = document.getElementById('coachVerified');
+                        if (coachVerifiedEl) {
+                            coachVerifiedEl.style.display = coachProfile.isVerified === false ? 'none' : 'inline-flex';
+                        }
+
+                        updateList('coachSpecs', coachProfile.specs || []);
+
+                        const avatarImg = document.getElementById('coachAvatar');
+                        const avatarInitials = document.getElementById('coachAvatarInitials');
+                        if (avatarImg && avatarInitials) {
+                            if (coachProfile.avatar) {
+                                avatarImg.src = coachProfile.avatar;
+                                avatarImg.style.display = 'block';
+                                avatarInitials.style.display = 'none';
+                            } else {
+                                avatarImg.style.display = 'none';
+                                const initials = (coachProfile.name || 'FunnelsEye Official')
+                                    .split(' ')
+                                    .filter(Boolean)
+                                    .map(part => part.charAt(0))
+                                    .join('')
+                                    .substring(0, 2)
+                                    .toUpperCase() || 'FE';
+                                avatarInitials.textContent = initials;
+                                avatarInitials.style.display = 'block';
+                            }
+                        }
+                    }
+
+                    const funnelsSection = document.getElementById('funnelsSection');
+                    if (funnelsSection) {
+                        const hasExtrasContent = [
+                            extras.headline,
+                            extras.subheadline,
+                            extras.transformationPromise,
+                            extras.coachSupport,
+                            extras.communityAccess,
+                            extras.guarantee,
+                            extras.successMetrics && extras.successMetrics.length,
+                            extras.bonusResources && extras.bonusResources.length,
+                            extras.platformTools && extras.platformTools.length
+                        ].some(Boolean);
+
+                        if (hasExtrasContent) {
+                            funnelsSection.style.display = 'block';
+
+                            document.getElementById('funnelsHeadline').textContent = extras.headline || 'Power your coaching business with FunnelsEye';
+                            document.getElementById('funnelsSubheadline').textContent = extras.subheadline || 'Launch smarter funnels with AI-backed insights.';
+                            document.getElementById('funnelsPromise').textContent = extras.transformationPromise || 'FunnelsEye courses combine best-in-class delivery with automation-ready systems, so you can scale without sacrificing client outcomes.';
+                            document.getElementById('funnelsSupport').textContent = extras.coachSupport || 'Weekly office hours and milestone reviews to keep you accountable.';
+                            document.getElementById('funnelsCommunity').textContent = extras.communityAccess || 'Join our private FunnelsEye builder circle for peer wins, templates, and ongoing inspiration.';
+                            document.getElementById('funnelsGuarantee').textContent = extras.guarantee || 'Not seeing traction in 30 days? We’ll work with you 1:1 until you do.';
+
+                            updateList('funnelsSuccessMetrics', extras.successMetrics || [], 'funnelsSuccessWrapper');
+                            updateList('funnelsBonusResources', extras.bonusResources || [], 'funnelsBonusWrapper');
+                            updateList('funnelsPlatformTools', extras.platformTools || [], 'funnelsToolsWrapper');
+                        } else {
+                            funnelsSection.style.display = 'none';
+                        }
+                    }
+                }
 
                 // Populate curriculum
                 populateCurriculum(courseData.modules || [], courseData.courseType);
@@ -1085,7 +1472,7 @@
                         contact: customerPhone
                     },
                     theme: {
-                        color: '#a435f0'
+                        color: '#2563eb'
                     },
                     modal: {
                         ondismiss: function() {
@@ -1187,8 +1574,14 @@
         }
 
         function showLoading(show) {
-            document.getElementById('loading').style.display = show ? 'block' : 'none';
-            document.getElementById('enrollBtn').disabled = show;
+            const loadingEl = document.getElementById('loading');
+            if (loadingEl) {
+                loadingEl.style.display = show ? 'block' : 'none';
+            }
+            const enrollBtn = document.getElementById('enrollBtn');
+            if (enrollBtn) {
+                enrollBtn.disabled = show;
+            }
         }
 
         // Close modals on outside click

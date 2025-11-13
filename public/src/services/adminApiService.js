@@ -938,6 +938,12 @@ class AdminApiService {
         const queryString = new URLSearchParams(params).toString();
         return this.apiCall(`/central-messaging/v1/messages/conversation/${conversationId}${queryString ? `?${queryString}` : ''}`);
     }
+
+    async getAdminCourses(params = {}) {
+        console.log(`📚 [SubscriptionPlans] Loading admin course library`);
+        const queryString = new URLSearchParams(params).toString();
+        return this.apiCall(`/content/admin/courses${queryString ? `?${queryString}` : ''}`);
+    }
 }
 
 // Create singleton instance

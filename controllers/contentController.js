@@ -16,7 +16,7 @@ class ContentController {
   // Course Management
   async createCourse(req, res) {
     try {
-      const { title, description, courseType, price, currency, category, thumbnail, workoutSpecificFields, mealPlanSpecificFields, generalModuleFields } = req.body;
+      const { title, description, courseType, price, currency, category, thumbnail, workoutSpecificFields, mealPlanSpecificFields, generalModuleFields, funnelsEyeExtras } = req.body;
 
       if (!title || !courseType || price === undefined) {
         return res.status(400).json({
@@ -60,6 +60,32 @@ class ContentController {
       }
       if (courseType === 'general_module_course' && generalModuleFields) {
         courseData.generalModuleFields = generalModuleFields;
+      }
+
+      if (funnelsEyeExtras) {
+        const {
+          headline = '',
+          subheadline = '',
+          transformationPromise = '',
+          coachSupport = '',
+          communityAccess = '',
+          guarantee = '',
+          successMetrics = [],
+          bonusResources = [],
+          platformTools = []
+        } = funnelsEyeExtras;
+
+        courseData.funnelsEyeExtras = {
+          headline,
+          subheadline,
+          transformationPromise,
+          coachSupport,
+          communityAccess,
+          guarantee,
+          successMetrics: Array.isArray(successMetrics) ? successMetrics : [],
+          bonusResources: Array.isArray(bonusResources) ? bonusResources : [],
+          platformTools: Array.isArray(platformTools) ? platformTools : []
+        };
       }
 
       const course = new ContentCourse(courseData);
@@ -164,7 +190,7 @@ class ContentController {
   async updateCourse(req, res) {
     try {
       const { courseId } = req.params;
-      const { title, description, courseType, price, currency, category, thumbnail, status, workoutSpecificFields, mealPlanSpecificFields, generalModuleFields } = req.body;
+      const { title, description, courseType, price, currency, category, thumbnail, status, workoutSpecificFields, mealPlanSpecificFields, generalModuleFields, funnelsEyeExtras } = req.body;
 
       const course = await ContentCourse.findById(courseId);
       if (!course) {
@@ -192,6 +218,32 @@ class ContentController {
       }
       if (generalModuleFields && course.courseType === 'general_module_course') {
         course.generalModuleFields = { ...course.generalModuleFields, ...generalModuleFields };
+      }
+
+      if (funnelsEyeExtras) {
+        const {
+          headline,
+          subheadline,
+          transformationPromise,
+          coachSupport,
+          communityAccess,
+          guarantee,
+          successMetrics,
+          bonusResources,
+          platformTools
+        } = funnelsEyeExtras;
+
+        course.funnelsEyeExtras = {
+          headline: headline !== undefined ? headline : (course.funnelsEyeExtras?.headline || ''),
+          subheadline: subheadline !== undefined ? subheadline : (course.funnelsEyeExtras?.subheadline || ''),
+          transformationPromise: transformationPromise !== undefined ? transformationPromise : (course.funnelsEyeExtras?.transformationPromise || ''),
+          coachSupport: coachSupport !== undefined ? coachSupport : (course.funnelsEyeExtras?.coachSupport || ''),
+          communityAccess: communityAccess !== undefined ? communityAccess : (course.funnelsEyeExtras?.communityAccess || ''),
+          guarantee: guarantee !== undefined ? guarantee : (course.funnelsEyeExtras?.guarantee || ''),
+          successMetrics: Array.isArray(successMetrics) ? successMetrics : (course.funnelsEyeExtras?.successMetrics || []),
+          bonusResources: Array.isArray(bonusResources) ? bonusResources : (course.funnelsEyeExtras?.bonusResources || []),
+          platformTools: Array.isArray(platformTools) ? platformTools : (course.funnelsEyeExtras?.platformTools || [])
+        };
       }
       
       course.updatedAt = new Date();

@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const ContentCourse = require('../schema/contentSchemas').ContentCourse;
 const CustomerCoursePurchase = require('../schema/customerCoursePurchaseSchema');
 const logger = require('../utils/logger');
+const { Coach, User, AdminUser } = require('../schema');
 
 class CoursePurchaseController {
   constructor() {
@@ -127,6 +128,8 @@ class CoursePurchaseController {
         alreadyPurchased = !!purchase;
       }
 
+      const coachProfile = await this.buildCoursePresenterProfile(course);
+
       res.json({
         success: true,
         data: {
@@ -140,11 +143,23 @@ class CoursePurchaseController {
             thumbnail: course.thumbnail,
             category: course.courseType,
             modules: course.modules || [],
+          funnelsEyeExtras: course.funnelsEyeExtras || {
+            headline: '',
+            subheadline: '',
+            transformationPromise: '',
+            coachSupport: '',
+            communityAccess: '',
+            guarantee: '',
+            successMetrics: [],
+            bonusResources: [],
+            platformTools: []
+          },
             workoutSpecificFields: course.workoutSpecificFields,
             mealPlanSpecificFields: course.mealPlanSpecificFields
           },
           alreadyPurchased,
-          razorpayKeyId: process.env.RAZORPAY_KEY_ID
+          razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+          coachProfile
         }
       });
     } catch (error) {
@@ -155,6 +170,107 @@ class CoursePurchaseController {
         error: error.message
       });
     }
+  }
+  
+  async buildCoursePresenterProfile(course) {
+    const defaultProfile = {
+      name: 'FunnelsEye Official',
+      avatar: null,
+      headline: 'Official FunnelsEye Program',
+      specs: [
+        'Expert FunnelsEye curriculum',
+        'Backed by the FunnelsEye success team'
+      ],
+      isVerified: true,
+      isOfficial: true
+    };
+
+    if (!course || !course.createdBy) {
+      return defaultProfile;
+    }
+
+    const buildSpecsFromPortfolio = (portfolio = {}) => {
+      const specs = [];
+      const specializations = Array.isArray(portfolio.specializations)
+        ? portfolio.specializations
+            .map((item) => item && item.name)
+            .filter(Boolean)
+        : [];
+      if (specializations.length) {
+        specs.push(`Specializes in ${specializations.slice(0, 3).join(', ')}`);
+      }
+      if (portfolio.experienceYears) {
+        specs.push(`${portfolio.experienceYears}+ years experience`);
+      }
+      if (portfolio.totalProjectsCompleted) {
+        specs.push(`${portfolio.totalProjectsCompleted}+ clients served`);
+      }
+      return specs;
+    };
+
+    try {
+      const coachDoc = await Coach.findById(course.createdBy).lean();
+      if (coachDoc) {
+        const portfolio = coachDoc.portfolio || {};
+        const specs = buildSpecsFromPortfolio(portfolio);
+        if (!specs.length && (coachDoc.city || coachDoc.country)) {
+          const location = [coachDoc.city, coachDoc.country].filter(Boolean).join(', ');
+          if (location) {
+            specs.push(location);
+          }
+        }
+        return {
+          name: coachDoc.name || 'Accredited Coach',
+          avatar:
+            coachDoc.profilePictureUrl ||
+            (portfolio.profileImages && portfolio.profileImages[0] && portfolio.profileImages[0].url) ||
+            null,
+          headline: portfolio.headline || coachDoc.bio || 'Certified FunnelsEye Coach',
+          specs,
+          isVerified: coachDoc.isVerified !== undefined ? coachDoc.isVerified : true,
+          isOfficial: false
+        };
+      }
+
+      const userDoc = await User.findById(course.createdBy).lean();
+      if (userDoc) {
+        const specs = [];
+        if (userDoc.company) {
+          specs.push(userDoc.company);
+        }
+        if (userDoc.city || userDoc.country) {
+          specs.push([userDoc.city, userDoc.country].filter(Boolean).join(', '));
+        }
+        return {
+          name: userDoc.name || 'Certified Coach',
+          avatar: userDoc.profilePictureUrl || null,
+          headline: userDoc.bio || 'Trusted FunnelsEye Coach',
+          specs,
+          isVerified: userDoc.isVerified !== undefined ? userDoc.isVerified : true,
+          isOfficial: false
+        };
+      }
+
+      const adminDoc = await AdminUser.findById(course.createdBy).lean();
+      if (adminDoc) {
+        const specs = [
+          'Expert FunnelsEye curriculum',
+          'Premium automation playbooks'
+        ];
+        return {
+          name: 'FunnelsEye Official',
+          avatar: adminDoc.profile?.avatar || null,
+          headline: 'Official FunnelsEye Program',
+          specs,
+          isVerified: true,
+          isOfficial: true
+        };
+      }
+    } catch (error) {
+      logger.error('[CoursePurchaseController] Error building course presenter profile:', error);
+    }
+
+    return defaultProfile;
   }
 
   /**

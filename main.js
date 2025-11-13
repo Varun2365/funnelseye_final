@@ -463,6 +463,15 @@ app.get('/subscription', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'subscription.html'));
 });
 
+// Serve subscription plans page
+app.get('/subscription-plans', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'subscription-plans.html'));
+});
+
+app.get('/plans', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'subscription-plans.html'));
+});
+
 // Serve store pages
 app.get('/store/:planId', (req, res) => {
     const planId = req.params.planId;
