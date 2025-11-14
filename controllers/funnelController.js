@@ -114,6 +114,59 @@ const createFunnel = asyncHandler(async (req, res, next) => {
             return next(new ErrorResponse('Custom domain is not valid, not active, or not owned by you.', 400));
         }
     }
+    
+    // Ensure stages have required fields (html and basicInfo.title)
+    if (req.body.stages && Array.isArray(req.body.stages)) {
+        req.body.stages = req.body.stages.map((stage, index) => {
+            // Ensure html field exists (required)
+            if (!stage.html || stage.html.trim() === '') {
+                stage.html = `<h1>${stage.name || `Page ${index + 1}`}</h1><p>Content goes here.</p>`;
+            }
+            
+            // Ensure basicInfo exists with required title field
+            if (!stage.basicInfo) {
+                stage.basicInfo = {
+                    title: stage.name || `Page ${index + 1}`,
+                    description: '',
+                    favicon: null,
+                    keywords: '',
+                    socialTitle: '',
+                    socialImage: null,
+                    socialDescription: '',
+                    customHtmlHead: '',
+                    customHtmlBody: ''
+                };
+            } else if (!stage.basicInfo.title || stage.basicInfo.title.trim() === '') {
+                stage.basicInfo.title = stage.name || `Page ${index + 1}`;
+            }
+            
+            // Ensure other required fields have defaults
+            if (!stage.pageId) {
+                stage.pageId = `page-${Date.now()}-${index}`;
+            }
+            if (!stage.name) {
+                stage.name = `Page ${index + 1}`;
+            }
+            if (!stage.type) {
+                stage.type = 'LandingPage';
+            }
+            if (stage.css === undefined) {
+                stage.css = '';
+            }
+            if (stage.js === undefined) {
+                stage.js = '';
+            }
+            if (!Array.isArray(stage.assets)) {
+                stage.assets = [];
+            }
+            if (stage.isEnabled === undefined) {
+                stage.isEnabled = true;
+            }
+            
+            return stage;
+        });
+    }
+    
     const funnel = await Funnel.create(req.body); // `stages` array comes directly in `req.body`
     
     // Filter response data based on staff permissions

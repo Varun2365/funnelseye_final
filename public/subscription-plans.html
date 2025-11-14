@@ -1289,16 +1289,6 @@
                     </select>
                     <small class="form-hint">Select a sponsor coach (optional)</small>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="signupTeamRank">Team Rank Name (Optional)</label>
-                        <input type="text" id="signupTeamRank" placeholder="e.g., Team Alpha">
-                    </div>
-                    <div class="form-group">
-                        <label for="signupPresidentTeamRank">President Team Rank (Optional)</label>
-                        <input type="text" id="signupPresidentTeamRank" placeholder="e.g., President Team">
-                    </div>
-                </div>
                 <button type="submit" class="btn-submit" id="signupSubmitBtn">Create Account</button>
             </form>
             <div class="modal-footer">
@@ -1978,8 +1968,6 @@
             const coachId = document.getElementById('signupCoachId').value.trim();
             const currentLevel = document.getElementById('signupCurrentLevel').value;
             const sponsorId = document.getElementById('signupSponsorId').value;
-            const teamRankName = document.getElementById('signupTeamRank').value.trim();
-            const presidentTeamRankName = document.getElementById('signupPresidentTeamRank').value.trim();
 
             // Validation
             if (password !== confirmPassword) {
@@ -2018,9 +2006,7 @@
                     role: 'coach',
                     selfCoachId: coachId,
                     currentLevel: parseInt(currentLevel),
-                    ...(sponsorId ? { sponsorId } : {}),
-                    ...(teamRankName ? { teamRankName } : {}),
-                    ...(presidentTeamRankName ? { presidentTeamRankName } : {})
+                    ...(sponsorId ? { sponsorId } : {})
                 };
 
                 const response = await fetch('/api/auth/signup', {
