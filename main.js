@@ -296,6 +296,10 @@ app.use('/api/lead-scoring', leadScoringTrackingRoutes);
 app.use('/api/automation-rules', automationRuleRoutes);
 app.use('/api/workflow', workflowRoutes);
 
+// ===== ACTIVITIES =====
+const activityRoutes = require('./routes/activityRoutes');
+app.use('/api/activities', activityRoutes);
+
 // ===== COACH DASHBOARD & AUTOMATION =====
 app.use('/api/coach-dashboard', coachDashboardRoutes);
 // app.use('/api/coach-whatsapp', coachWhatsappRoutes);

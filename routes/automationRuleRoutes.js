@@ -3,7 +3,7 @@
 const express = require('express');
 const router = express.Router();
 // --- CORRECTED: The import name must match the controller's export ---
-const { createRule, getRules, getRuleById, updateRule, deleteRule, getEventsAndActions } = require('../controllers/automationRuleController'); 
+const { createRule, getRules, getRuleById, updateRule, deleteRule, getEventsAndActions, getBuilderResources } = require('../controllers/automationRuleController'); 
 
 // Using unified authentication middleware
 const { 
@@ -19,6 +19,9 @@ router.get('/events-actions', getEventsAndActions); // Get all available events 
 // Use router.use() to apply unified authentication and activity tracking middleware
 // to ALL subsequent routes in this file.
 router.use(unifiedCoachAuth(), updateLastActive, filterResourcesByPermission('automation'));
+
+// Get builder resources (staff, funnels, templates) - needs auth
+router.get('/builder-resources', requirePermission('automation:read'), getBuilderResources);
 
 // Route to create a new automation rule
 // This route is now protected, and it will update the user's lastActiveAt timestamp

@@ -11,18 +11,37 @@ const AutomationRule = require('../schema/AutomationRule');
  */
 exports.createRule = async (req, res) => {
     try {
-        const { name, coachId, triggerEvent, triggerCondition, actions } = req.body;
+        const { 
+            name, 
+            coachId, 
+            triggerEvent, 
+            triggerConditions, 
+            triggerConditionLogic,
+            actions, 
+            description,
+            isActive 
+        } = req.body;
 
-        if (!coachId) {
+        // Use coachId from request body or authenticated user
+        const ruleCoachId = coachId || req.coachId || req.user?.id;
+        
+        if (!ruleCoachId) {
             return res.status(400).json({ 
                 success: false,
                 message: 'coachId is required' 
             });
         }
 
+        if (!name || !triggerEvent || !actions || actions.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'name, triggerEvent, and at least one action are required'
+            });
+        }
+
         // Check subscription limits for automation rule creation
         const SubscriptionLimitsMiddleware = require('../middleware/subscriptionLimits');
-        const subscriptionData = await SubscriptionLimitsMiddleware.getCoachSubscription(coachId);
+        const subscriptionData = await SubscriptionLimitsMiddleware.getCoachSubscription(ruleCoachId);
         
         if (!subscriptionData) {
             return res.status(403).json({
@@ -37,7 +56,7 @@ exports.createRule = async (req, res) => {
         const maxAutomationRules = features.maxAutomationRules || features.automationRules || 10;
         
         if (maxAutomationRules !== -1) {
-            const currentRuleCount = await AutomationRule.countDocuments({ coachId });
+            const currentRuleCount = await AutomationRule.countDocuments({ coachId: ruleCoachId });
             
             if (currentRuleCount >= maxAutomationRules) {
                 const { sendLimitError } = require('../utils/subscriptionLimitErrors');
@@ -46,10 +65,26 @@ exports.createRule = async (req, res) => {
         }
 
         // Get the createdBy ID from the authenticated user
-        const createdBy = req.user.id;
+        const createdBy = req.user?.id || req.user?._id || ruleCoachId;
+        
+        // Sort actions by order
+        const sortedActions = actions.map((action, index) => ({
+            ...action,
+            order: action.order !== undefined ? action.order : index
+        })).sort((a, b) => a.order - b.order);
         
         // Create the new rule in MongoDB
-        const newRule = new AutomationRule({ name, coachId, triggerEvent, triggerCondition, actions, createdBy });
+        const newRule = new AutomationRule({ 
+            name, 
+            coachId: ruleCoachId, 
+            triggerEvent, 
+            triggerConditions: triggerConditions || [],
+            triggerConditionLogic: triggerConditionLogic || 'AND',
+            actions: sortedActions, 
+            description,
+            isActive: isActive !== undefined ? isActive : true,
+            createdBy 
+        });
         await newRule.save();
 
         console.log(`[AutomationRuleController] New automation rule created: "${newRule.name}" (ID: ${newRule._id}) by coach ${newRule.coachId}.`);
@@ -68,10 +103,24 @@ exports.createRule = async (req, res) => {
  */
 exports.getRules = async (req, res) => {
     try {
-        const rules = await AutomationRule.find({});
-        res.status(200).json(rules);
+        const coachId = req.coachId || req.user?.id || req.user?._id;
+        const query = coachId ? { coachId } : {};
+        
+        const rules = await AutomationRule.find(query)
+            .populate('createdBy', 'name email')
+            .sort({ createdAt: -1 });
+        
+        res.status(200).json({
+            success: true,
+            data: rules,
+            count: rules.length
+        });
     } catch (error) {
-        res.status(500).json({ message: 'Internal server error' });
+        console.error('Error getting automation rules:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Internal server error' 
+        });
     }
 };
 
@@ -295,6 +344,114 @@ exports.getEventsAndActions = async (req, res) => {
                 label: 'Card Expired',
                 category: 'Payment & Subscription',
                 description: 'Triggered when a payment card expires'
+            },
+            {
+                value: 'lead_updated',
+                label: 'Lead Updated',
+                category: 'Lead & Customer Lifecycle',
+                description: 'Triggered when any lead field is updated'
+            },
+            {
+                value: 'lead_tag_added',
+                label: 'Lead Tag Added',
+                category: 'Lead & Customer Lifecycle',
+                description: 'Triggered when a tag is added to a lead'
+            },
+            {
+                value: 'lead_tag_removed',
+                label: 'Lead Tag Removed',
+                category: 'Lead & Customer Lifecycle',
+                description: 'Triggered when a tag is removed from a lead'
+            },
+            {
+                value: 'funnel_page_viewed',
+                label: 'Funnel Page Viewed',
+                category: 'Funnel & Conversion',
+                description: 'Triggered when a lead views a funnel page'
+            },
+            {
+                value: 'appointment_no_show',
+                label: 'Appointment No Show',
+                category: 'Appointment & Calendar',
+                description: 'Triggered when a lead doesn\'t show up for an appointment'
+            },
+            {
+                value: 'email_opened',
+                label: 'Email Opened',
+                category: 'Communication',
+                description: 'Triggered when an email is opened'
+            },
+            {
+                value: 'email_clicked',
+                label: 'Email Clicked',
+                category: 'Communication',
+                description: 'Triggered when a link in an email is clicked'
+            },
+            {
+                value: 'email_bounced',
+                label: 'Email Bounced',
+                category: 'Communication',
+                description: 'Triggered when an email bounces'
+            },
+            {
+                value: 'whatsapp_message_received',
+                label: 'WhatsApp Message Received',
+                category: 'Communication',
+                description: 'Triggered when a WhatsApp message is received'
+            },
+            {
+                value: 'whatsapp_message_sent',
+                label: 'WhatsApp Message Sent',
+                category: 'Communication',
+                description: 'Triggered when a WhatsApp message is sent'
+            },
+            {
+                value: 'sms_received',
+                label: 'SMS Received',
+                category: 'Communication',
+                description: 'Triggered when an SMS is received'
+            },
+            {
+                value: 'sms_sent',
+                label: 'SMS Sent',
+                category: 'Communication',
+                description: 'Triggered when an SMS is sent'
+            },
+            {
+                value: 'task_assigned',
+                label: 'Task Assigned',
+                category: 'Task & System',
+                description: 'Triggered when a task is assigned to someone'
+            },
+            {
+                value: 'invoice_sent',
+                label: 'Invoice Sent',
+                category: 'Payment & Subscription',
+                description: 'Triggered when an invoice is sent'
+            },
+            {
+                value: 'invoice_overdue',
+                label: 'Invoice Overdue',
+                category: 'Payment & Subscription',
+                description: 'Triggered when an invoice becomes overdue'
+            },
+            {
+                value: 'subscription_renewed',
+                label: 'Subscription Renewed',
+                category: 'Payment & Subscription',
+                description: 'Triggered when a subscription is renewed'
+            },
+            {
+                value: 'subscription_expired',
+                label: 'Subscription Expired',
+                category: 'Payment & Subscription',
+                description: 'Triggered when a subscription expires'
+            },
+            {
+                value: 'refund_issued',
+                label: 'Refund Issued',
+                category: 'Payment & Subscription',
+                description: 'Triggered when a refund is issued'
             }
         ];
 
@@ -367,11 +524,18 @@ exports.getEventsAndActions = async (req, res) => {
                 configFields: ['message', 'templateId']
             },
             {
-                value: 'create_email_message',
-                label: 'Create Email Message',
+                value: 'send_email_message',
+                label: 'Send Email Message',
                 category: 'Communication Actions',
-                description: 'Create and send an email message',
-                configFields: ['subject', 'body', 'templateId']
+                description: 'Send an email message to a lead',
+                configFields: ['subject', 'body', 'templateId', 'to']
+            },
+            {
+                value: 'send_sms_message',
+                label: 'Send SMS Message',
+                category: 'Communication Actions',
+                description: 'Send an SMS message to a lead',
+                configFields: ['message', 'templateId', 'to']
             },
             {
                 value: 'send_internal_notification',
@@ -401,7 +565,35 @@ exports.getEventsAndActions = async (req, res) => {
                 label: 'Create Task',
                 category: 'Task & Workflow Actions',
                 description: 'Create a new task',
-                configFields: ['title', 'description', 'assignee', 'dueDate']
+                configFields: ['name', 'description', 'assignedTo', 'priority', 'stage', 'dueDate', 'estimatedHours', 'relatedLead']
+            },
+            {
+                value: 'create_multiple_tasks',
+                label: 'Create Multiple Tasks',
+                category: 'Task & Workflow Actions',
+                description: 'Create multiple tasks at once',
+                configFields: ['tasks', 'assignToStaff']
+            },
+            {
+                value: 'update_lead_status',
+                label: 'Update Lead Status',
+                category: 'Lead Data & Funnel Actions',
+                description: 'Update the status of a lead',
+                configFields: ['status']
+            },
+            {
+                value: 'assign_lead_to_staff',
+                label: 'Assign Lead to Staff',
+                category: 'Lead Data & Funnel Actions',
+                description: 'Assign a lead to a staff member',
+                configFields: ['staffId']
+            },
+            {
+                value: 'wait_delay',
+                label: 'Wait/Delay',
+                category: 'System Actions',
+                description: 'Wait for a specified amount of time before continuing',
+                configFields: ['delaySeconds', 'delayMinutes', 'delayHours', 'delayDays']
             },
             {
                 value: 'create_calendar_event',
@@ -483,6 +675,79 @@ exports.getEventsAndActions = async (req, res) => {
         res.status(500).json({ 
             success: false,
             message: 'Internal server error' 
+        });
+    }
+};
+
+/**
+ * @desc Get resources needed for automation rule builder (staff, funnels, templates)
+ * @route GET /api/automation-rules/builder-resources
+ * @access Private
+ */
+exports.getBuilderResources = async (req, res) => {
+    try {
+        const coachId = req.coachId || req.user?.id || req.user?._id;
+        
+        if (!coachId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Coach ID is required'
+            });
+        }
+
+        const Staff = require('../schema/Staff');
+        const Funnel = require('../schema/Funnel');
+        const MessageTemplate = require('../schema/MessageTemplate');
+        
+        // Fetch staff members
+        const staff = await Staff.find({ coachId, isActive: true })
+            .select('name email _id')
+            .limit(100);
+        
+        // Fetch funnels
+        const funnels = await Funnel.find({ coachId })
+            .select('name _id stages')
+            .limit(100);
+        
+        // Fetch message templates (WhatsApp and Email)
+        const messageTemplates = await MessageTemplate.find({ 
+            coachId,
+            isActive: true 
+        })
+            .select('name type category _id')
+            .limit(100);
+        
+        // Fetch existing automation rules (for trigger_another_automation action)
+        const automationRules = await AutomationRule.find({ coachId, isActive: true })
+            .select('name _id')
+            .limit(100);
+        
+        res.status(200).json({
+            success: true,
+            data: {
+                staff: staff.map(s => ({ id: s._id, name: s.name || s.email, email: s.email })),
+                funnels: funnels.map(f => ({ 
+                    id: f._id, 
+                    name: f.name,
+                    stages: f.stages?.map(s => ({ id: s.pageId || s._id, name: s.name })) || []
+                })),
+                messageTemplates: messageTemplates.map(t => ({
+                    id: t._id,
+                    name: t.name,
+                    type: t.type,
+                    category: t.category
+                })),
+                automationRules: automationRules.map(r => ({
+                    id: r._id,
+                    name: r.name
+                }))
+            }
+        });
+    } catch (error) {
+        console.error('Error getting builder resources:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
         });
     }
 };

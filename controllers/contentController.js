@@ -113,7 +113,19 @@ class ContentController {
       const { page = 1, limit = 20, courseType, category, status, search } = req.query;
       const skip = (page - 1) * limit;
 
-      let query = {};
+      // Only show courses created by admin (not by coaches)
+      // Admin courses have createdBy as ObjectId (admin._id), coach courses have createdBy as ObjectId (coach._id)
+      // We need to filter out courses where createdBy is a User (coach), not Admin
+      const AdminUser = require('../schema/AdminUser');
+      
+      // Get all admin IDs
+      const admins = await AdminUser.find({}).select('_id');
+      const adminIds = admins.map(a => a._id.toString());
+      
+      let query = {
+        createdBy: { $in: adminIds } // Only courses created by admins
+      };
+      
       if (courseType) query.courseType = courseType;
       if (category) query.category = category;
       if (status) query.status = status;

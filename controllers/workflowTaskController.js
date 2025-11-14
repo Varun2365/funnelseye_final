@@ -68,17 +68,37 @@ exports.getKanbanBoard = asyncHandler(async (req, res, next) => {
 // @access  Private (Coaches)
 exports.moveTask = asyncHandler(async (req, res, next) => {
     const { taskId } = req.params;
-    const { newStage } = req.body;
+    const { newStage, status } = req.body;
     const coachId = req.coachId;
 
-    if (!newStage) {
+    // Support both stage-based and status-based moves
+    if (!newStage && !status) {
         return res.status(400).json({
             success: false,
-            message: 'newStage is required'
+            message: 'newStage or status is required'
         });
     }
 
-    const task = await workflowTaskService.moveTask(taskId, newStage, coachId);
+    let task;
+    if (status) {
+        // Update status directly
+        task = await Task.findOneAndUpdate(
+            { _id: taskId, coachId },
+            { status, updatedAt: new Date() },
+            { new: true, runValidators: true }
+        ).populate('assignedTo', 'name email')
+         .populate('relatedLead', 'name email phone status');
+        
+        if (!task) {
+            return res.status(404).json({
+                success: false,
+                message: 'Task not found'
+            });
+        }
+    } else {
+        // Use stage-based move
+        task = await workflowTaskService.moveTask(taskId, newStage, coachId);
+    }
 
     res.status(200).json({
         success: true,
