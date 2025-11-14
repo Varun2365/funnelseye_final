@@ -5,6 +5,7 @@ const CoachStaffService = require('../services/coachStaffService');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const { SECTIONS } = require('../utils/sectionPermissions');
+const logger = require('../utils/logger');
 
 // No longer need to import separate stage content schemas
 // No longer need `stageModels` object
@@ -94,13 +95,21 @@ const createFunnel = asyncHandler(async (req, res, next) => {
         return next(new ErrorResponse('Forbidden: You can only create funnels for yourself.', 403));
     }
     
-    // Check subscription limits for funnel creation
+    // Check subscription limits for funnel creation - MUST happen before any funnel creation
     const SubscriptionLimitsMiddleware = require('../middleware/subscriptionLimits');
     const limitCheck = await SubscriptionLimitsMiddleware.checkFunnelLimit(coachId);
     
     if (!limitCheck.allowed) {
         const { sendLimitError } = require('../utils/subscriptionLimitErrors');
-        return sendLimitError(res, 'FUNNEL', limitCheck.reason, limitCheck.currentCount, limitCheck.maxLimit, limitCheck.upgradeRequired);
+        logger.warn(`[FunnelController] Funnel creation blocked for coach ${coachId}: ${limitCheck.reason}`);
+        return sendLimitError(
+            res, 
+            'FUNNEL', 
+            limitCheck.reason || 'Funnel limit reached', 
+            limitCheck.currentCount || 0, 
+            limitCheck.maxLimit || 0, 
+            limitCheck.upgradeRequired !== false
+        );
     }
     
     // Validate customDomain if provided

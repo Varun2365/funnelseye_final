@@ -44,34 +44,67 @@ class SubscriptionLimitsMiddleware {
         try {
             const subscriptionData = await this.getCoachSubscription(coachId);
             if (!subscriptionData) {
-                return { allowed: false, reason: 'No active subscription' };
+                logger.warn(`[SubscriptionLimits] No active subscription found for coach: ${coachId}`);
+                return { 
+                    allowed: false, 
+                    reason: 'No active subscription found. Please subscribe to a plan to create funnels.',
+                    currentCount: 0,
+                    maxLimit: 0,
+                    upgradeRequired: true
+                };
             }
             
-            const { features } = subscriptionData;
-            const maxFunnels = features.maxFunnels || 0;
+            const { features, plan } = subscriptionData;
+            
+            // Check if plan exists
+            if (!plan) {
+                logger.warn(`[SubscriptionLimits] Subscription found but plan is missing for coach: ${coachId}`);
+                return { 
+                    allowed: false, 
+                    reason: 'Subscription plan not found. Please contact support.',
+                    currentCount: 0,
+                    maxLimit: 0,
+                    upgradeRequired: true
+                };
+            }
+            
+            // Get maxFunnels from features (it's stored in features.maxFunnels)
+            const maxFunnels = features?.maxFunnels !== undefined ? features.maxFunnels : 0;
+            
+            logger.info(`[SubscriptionLimits] Checking funnel limit for coach ${coachId}: maxFunnels=${maxFunnels}`);
             
             if (maxFunnels === -1) {
                 // Unlimited
                 const currentFunnelCount = await Funnel.countDocuments({ coachId });
+                logger.info(`[SubscriptionLimits] Unlimited funnels allowed. Current count: ${currentFunnelCount}`);
                 return { allowed: true, currentCount: currentFunnelCount, maxLimit: -1 };
             }
             
             const currentFunnelCount = await Funnel.countDocuments({ coachId });
+            logger.info(`[SubscriptionLimits] Current funnels: ${currentFunnelCount}, Max allowed: ${maxFunnels}`);
             
             if (currentFunnelCount >= maxFunnels) {
+                logger.warn(`[SubscriptionLimits] Funnel limit reached for coach ${coachId}: ${currentFunnelCount}/${maxFunnels}`);
                 return {
                     allowed: false,
-                    reason: 'Funnel limit reached',
+                    reason: `Funnel limit reached. You have ${currentFunnelCount} of ${maxFunnels} funnels. Upgrade your plan to create more funnels.`,
                     currentCount: currentFunnelCount,
                     maxLimit: maxFunnels,
                     upgradeRequired: true
                 };
             }
             
+            logger.info(`[SubscriptionLimits] Funnel creation allowed. Current: ${currentFunnelCount}, Max: ${maxFunnels}`);
             return { allowed: true, currentCount: currentFunnelCount, maxLimit: maxFunnels };
         } catch (error) {
             logger.error('[SubscriptionLimits] Error checking funnel limit:', error);
-            return { allowed: false, reason: 'Error checking limits' };
+            return { 
+                allowed: false, 
+                reason: 'Error checking subscription limits. Please try again or contact support.',
+                currentCount: 0,
+                maxLimit: 0,
+                upgradeRequired: false
+            };
         }
     }
     
@@ -82,32 +115,64 @@ class SubscriptionLimitsMiddleware {
         try {
             const subscriptionData = await this.getCoachSubscription(coachId);
             if (!subscriptionData) {
-                return { allowed: false, reason: 'No active subscription' };
+                logger.warn(`[SubscriptionLimits] No active subscription found for coach: ${coachId}`);
+                return { 
+                    allowed: false, 
+                    reason: 'No active subscription found. Please subscribe to a plan to add staff.',
+                    currentCount: 0,
+                    maxLimit: 0,
+                    upgradeRequired: true
+                };
             }
             
-            const { features } = subscriptionData;
-            const maxStaff = features.maxStaff || 0;
+            const { features, plan } = subscriptionData;
+            
+            if (!plan) {
+                logger.warn(`[SubscriptionLimits] Subscription found but plan is missing for coach: ${coachId}`);
+                return { 
+                    allowed: false, 
+                    reason: 'Subscription plan not found. Please contact support.',
+                    currentCount: 0,
+                    maxLimit: 0,
+                    upgradeRequired: true
+                };
+            }
+            
+            const maxStaff = features?.maxStaff !== undefined ? features.maxStaff : 0;
+            
+            logger.info(`[SubscriptionLimits] Checking staff limit for coach ${coachId}: maxStaff=${maxStaff}`);
             
             if (maxStaff === -1) {
-                return { allowed: true }; // Unlimited
+                const currentStaffCount = await Staff.countDocuments({ coachId, isActive: true });
+                logger.info(`[SubscriptionLimits] Unlimited staff allowed. Current count: ${currentStaffCount}`);
+                return { allowed: true, currentCount: currentStaffCount, maxLimit: -1 };
             }
             
             const currentStaffCount = await Staff.countDocuments({ coachId, isActive: true });
+            logger.info(`[SubscriptionLimits] Current staff: ${currentStaffCount}, Max allowed: ${maxStaff}`);
             
             if (currentStaffCount >= maxStaff) {
+                logger.warn(`[SubscriptionLimits] Staff limit reached for coach ${coachId}: ${currentStaffCount}/${maxStaff}`);
                 return {
                     allowed: false,
-                    reason: 'Staff limit reached',
+                    reason: `Staff limit reached. You have ${currentStaffCount} of ${maxStaff} staff members. Upgrade your plan to add more staff.`,
                     currentCount: currentStaffCount,
                     maxLimit: maxStaff,
                     upgradeRequired: true
                 };
             }
             
+            logger.info(`[SubscriptionLimits] Staff creation allowed. Current: ${currentStaffCount}, Max: ${maxStaff}`);
             return { allowed: true, currentCount: currentStaffCount, maxLimit: maxStaff };
         } catch (error) {
             logger.error('[SubscriptionLimits] Error checking staff limit:', error);
-            return { allowed: false, reason: 'Error checking limits' };
+            return { 
+                allowed: false, 
+                reason: 'Error checking subscription limits. Please try again or contact support.',
+                currentCount: 0,
+                maxLimit: 0,
+                upgradeRequired: false
+            };
         }
     }
     

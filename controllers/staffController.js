@@ -30,13 +30,21 @@ exports.createStaff = async (req, res) => {
 			return res.status(400).json({ success: false, message: 'coachId is required for admin.' });
 		}
 
-		// Check subscription limits for staff creation
+		// Check subscription limits for staff creation - MUST happen before any staff creation
 		const SubscriptionLimitsMiddleware = require('../middleware/subscriptionLimits');
 		const limitCheck = await SubscriptionLimitsMiddleware.checkStaffLimit(coachId);
 		
 		if (!limitCheck.allowed) {
 			const { sendLimitError } = require('../utils/subscriptionLimitErrors');
-			return sendLimitError(res, 'STAFF', limitCheck.reason, limitCheck.currentCount, limitCheck.maxLimit, limitCheck.upgradeRequired);
+			console.warn(`[StaffController] Staff creation blocked for coach ${coachId}: ${limitCheck.reason}`);
+			return sendLimitError(
+				res, 
+				'STAFF', 
+				limitCheck.reason || 'Staff limit reached', 
+				limitCheck.currentCount || 0, 
+				limitCheck.maxLimit || 0, 
+				limitCheck.upgradeRequired !== false
+			);
 		}
 
 		// Validate permissions if provided
