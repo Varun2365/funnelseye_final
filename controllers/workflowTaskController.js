@@ -14,6 +14,7 @@ exports.createTask = asyncHandler(async (req, res, next) => {
         description,
         dueDate,
         relatedLead,
+        assignedTo,
         priority = 'MEDIUM',
         stage = 'LEAD_GENERATION',
         estimatedHours = 1,
@@ -21,18 +22,49 @@ exports.createTask = asyncHandler(async (req, res, next) => {
     } = req.body;
     const coachId = req.coachId;
 
-    if (!name || !dueDate || !relatedLead) {
+    // Validate required fields
+    if (!name || !dueDate) {
         return res.status(400).json({
             success: false,
-            message: 'name, dueDate, and relatedLead are required'
+            message: 'name and dueDate are required'
         });
     }
 
+    // Validate and set assignedTo (default to coach if not provided)
+    let finalAssignedTo = assignedTo;
+    if (!finalAssignedTo || finalAssignedTo === '') {
+        finalAssignedTo = coachId;
+    }
+
+    // Validate relatedLead - if not provided or empty, try to find a fallback
+    // The schema requires it, so we'll use the most recent lead as a fallback
+    let finalRelatedLead = relatedLead;
+    if (!finalRelatedLead || finalRelatedLead === '' || finalRelatedLead === null) {
+        // Try to find the most recent lead for this coach as a fallback
+        const recentLead = await Lead.findOne({ coachId })
+            .sort({ createdAt: -1 })
+            .select('_id name email');
+        
+        if (recentLead) {
+            finalRelatedLead = recentLead._id;
+            console.log(`[WorkflowTaskController] No relatedLead provided, using most recent lead: ${recentLead.name || recentLead.email || recentLead._id}`);
+        } else {
+            // If no leads exist, return a helpful error message
+            return res.status(400).json({
+                success: false,
+                message: 'No leads found. Please create a lead first, or select an existing lead when creating the task.',
+                error: 'NO_LEADS_AVAILABLE',
+                suggestion: 'You can create a lead from the Leads section, or use the task creation form to select a lead.'
+            });
+        }
+    }
+
     const taskData = {
-        name,
-        description,
-        dueDate,
-        relatedLead,
+        name: name.trim(),
+        description: description || '',
+        dueDate: new Date(dueDate),
+        relatedLead: finalRelatedLead,
+        assignedTo: finalAssignedTo,
         coachId,
         priority,
         stage,

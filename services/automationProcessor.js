@@ -114,8 +114,31 @@ const executeAutomationAction = async (action, eventData) => {
                         return;
                     }
 
-                    // Parse template variables
+                    // Parse template variables with comprehensive data
                     const messageContent = parseTemplateString(action.config.message, {
+                        // Lead data
+                        lead: {
+                            name: eventData.lead?.name || eventData.name || eventData.leadData?.name,
+                            firstName: eventData.lead?.firstName || eventData.leadData?.firstName,
+                            lastName: eventData.lead?.lastName || eventData.leadData?.lastName,
+                            email: eventData.lead?.email || eventData.email || eventData.leadData?.email,
+                            phone: eventData.lead?.phone || eventData.phone || eventData.leadData?.phone,
+                            status: eventData.lead?.status || eventData.leadData?.status,
+                            temperature: eventData.lead?.temperature || eventData.leadData?.temperature,
+                            source: eventData.lead?.source || eventData.leadData?.source,
+                            score: eventData.lead?.score || eventData.leadData?.score
+                        },
+                        // Coach data
+                        coach: {
+                            name: eventData.coach?.name || eventData.coachData?.name,
+                            email: eventData.coach?.email || eventData.coachData?.email
+                        },
+                        // Staff data
+                        assignedStaff: {
+                            name: eventData.assignedStaff?.name || eventData.assignedStaffData?.name,
+                            email: eventData.assignedStaff?.email || eventData.assignedStaffData?.email
+                        },
+                        // Legacy support
                         name: eventData.name || eventData.leadData?.name,
                         email: eventData.email || eventData.leadData?.email,
                         phone: eventData.phone || eventData.leadData?.phone,
@@ -341,6 +364,52 @@ const executeAutomationAction = async (action, eventData) => {
                 }
                 break;
             
+            case 'add_note_to_lead':
+                console.log(`[AutomationProcessor] Adding note to lead`);
+                try {
+                    const leadId = eventData.leadId || eventData.lead?._id;
+                    if (!leadId || !action.config.note) {
+                        console.warn(`[AutomationProcessor] add_note_to_lead: Missing leadId or note`);
+                        return;
+                    }
+                    
+                    // Parse template variables in note
+                    const noteContent = parseTemplateString(action.config.note, {
+                        lead: {
+                            name: eventData.lead?.name || eventData.name || eventData.leadData?.name,
+                            firstName: eventData.lead?.firstName || eventData.leadData?.firstName,
+                            lastName: eventData.lead?.lastName || eventData.leadData?.lastName,
+                            email: eventData.lead?.email || eventData.email || eventData.leadData?.email,
+                            phone: eventData.lead?.phone || eventData.phone || eventData.leadData?.phone,
+                            status: eventData.lead?.status || eventData.leadData?.status
+                        },
+                        coach: {
+                            name: eventData.coach?.name || eventData.coachData?.name,
+                            email: eventData.coach?.email || eventData.coachData?.email
+                        }
+                    });
+                    
+                    const lead = await Lead.findById(leadId);
+                    if (lead) {
+                        // Lead schema has notes as a String field, so we'll append to it
+                        const existingNotes = lead.notes || '';
+                        const noteType = action.config.noteType || 'general';
+                        const timestamp = new Date().toISOString();
+                        const newNote = `[${noteType.toUpperCase()}] ${timestamp}: ${noteContent}`;
+                        
+                        // Append new note with separator
+                        lead.notes = existingNotes 
+                            ? `${existingNotes}\n\n${newNote}`
+                            : newNote;
+                        
+                        await lead.save();
+                        console.log(`[AutomationProcessor] Note added to lead ${leadId}`);
+                    }
+                } catch (error) {
+                    console.error(`[AutomationProcessor] Error adding note to lead:`, error);
+                }
+                break;
+            
             case 'update_lead_status':
                 console.log(`[AutomationProcessor] Updating lead status to: ${action.config.status}`);
                 try {
@@ -376,18 +445,28 @@ const executeAutomationAction = async (action, eventData) => {
                         }
                     }
                     
-                    // Parse template variables
-                    emailSubject = parseTemplateString(emailSubject, {
+                    // Parse template variables with comprehensive data
+                    const templateData = {
+                        lead: {
+                            name: eventData.lead?.name || eventData.name || eventData.leadData?.name,
+                            firstName: eventData.lead?.firstName || eventData.leadData?.firstName,
+                            lastName: eventData.lead?.lastName || eventData.leadData?.lastName,
+                            email: eventData.lead?.email || eventData.email || eventData.leadData?.email,
+                            phone: eventData.lead?.phone || eventData.phone || eventData.leadData?.phone,
+                            status: eventData.lead?.status || eventData.leadData?.status
+                        },
+                        coach: {
+                            name: eventData.coach?.name || eventData.coachData?.name,
+                            email: eventData.coach?.email || eventData.coachData?.email
+                        },
+                        // Legacy support
                         leadName: eventData.lead?.name || eventData.name,
                         leadEmail: eventData.lead?.email || eventData.email,
                         coachName: eventData.coach?.name
-                    });
+                    };
                     
-                    emailBody = parseTemplateString(emailBody, {
-                        leadName: eventData.lead?.name || eventData.name,
-                        leadEmail: eventData.lead?.email || eventData.email,
-                        coachName: eventData.coach?.name
-                    });
+                    emailSubject = parseTemplateString(emailSubject, templateData);
+                    emailBody = parseTemplateString(emailBody, templateData);
                     
                     const toEmail = action.config.to || eventData.lead?.email || eventData.email;
                     
@@ -417,12 +496,27 @@ const executeAutomationAction = async (action, eventData) => {
                         }
                     }
                     
-                    // Parse template variables
-                    smsMessage = parseTemplateString(smsMessage, {
+                    // Parse template variables with comprehensive data
+                    const smsTemplateData = {
+                        lead: {
+                            name: eventData.lead?.name || eventData.name || eventData.leadData?.name,
+                            firstName: eventData.lead?.firstName || eventData.leadData?.firstName,
+                            lastName: eventData.lead?.lastName || eventData.leadData?.lastName,
+                            email: eventData.lead?.email || eventData.email || eventData.leadData?.email,
+                            phone: eventData.lead?.phone || eventData.phone || eventData.leadData?.phone,
+                            status: eventData.lead?.status || eventData.leadData?.status
+                        },
+                        coach: {
+                            name: eventData.coach?.name || eventData.coachData?.name,
+                            email: eventData.coach?.email || eventData.coachData?.email
+                        },
+                        // Legacy support
                         leadName: eventData.lead?.name || eventData.name,
                         leadPhone: eventData.lead?.phone || eventData.phone,
                         coachName: eventData.coach?.name
-                    });
+                    };
+                    
+                    smsMessage = parseTemplateString(smsMessage, smsTemplateData);
                     
                     const toPhone = action.config.to || eventData.lead?.phone || eventData.phone;
                     
