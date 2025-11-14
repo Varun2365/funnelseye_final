@@ -18,6 +18,7 @@ const {
   // Coach methods
   getMyCourses,
   getMyCourseById,
+  getAvailableCourses,
   createMyCourse,
   updateMyCourse,
   createMyModule,
@@ -332,6 +333,25 @@ router.get('/coach/courses/:courseId',
   protect,
   authorizeCoach('coach'),
   getMyCourseById
+);
+
+// @route   GET /api/content/coach/available-courses
+// @desc    Get available courses from subscription plan courseBundles
+// @access  Private (Coach)
+// 
+// Query Parameters:
+// - page: Page number (default: 1)
+// - limit: Items per page (default: 100)
+// - courseType: Filter by type
+// - category: Filter by category
+// - search: Search in title and description
+// 
+// Returns courses from active subscription plan's courseBundles with permissions
+// Falls back to all published customer courses if no subscription
+router.get('/coach/available-courses',
+  protect,
+  authorizeCoach('coach'),
+  getAvailableCourses
 );
 
 // @route   POST /api/content/coach/courses

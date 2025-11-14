@@ -7,6 +7,7 @@ const { scheduleFutureEvent } = require('./automationSchedulerService');
 const appointmentAssignmentService = require('./appointmentAssignmentService');
 const zoomMeetingService = require('./zoomMeetingService');
 const appointmentReminderService = require('./appointmentReminderService');
+const SubscriptionLimitsMiddleware = require('../middleware/subscriptionLimits');
 
 // Helper function to get the day of the week (0 for Sunday, 6 for Saturday)
 const getDayOfWeek = (date) => new Date(date).getUTCDay();
@@ -119,6 +120,12 @@ const bookAppointment = async (coachId, leadId, startTime, duration, notes, time
     // If slot has limited capacity, check if there's room
     if (requestedSlot.available <= 0) {
         throw new Error('The requested time slot is fully booked.');
+    }
+
+    // Check subscription limits for appointment creation - MUST happen before any appointment creation
+    const limitCheck = await SubscriptionLimitsMiddleware.checkAppointmentLimit(coachId);
+    if (!limitCheck.allowed) {
+        throw new Error(limitCheck.reason || 'Appointment limit reached');
     }
 
     // Create a new appointment in the database

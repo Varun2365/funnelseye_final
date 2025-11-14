@@ -456,13 +456,22 @@ exports.createCampaign = asyncHandler(async (req, res) => {
         });
     }
 
-    // Check subscription limits for campaign creation
+    // Check subscription limits for campaign creation - MUST happen before any campaign creation
     const SubscriptionLimitsMiddleware = require('../middleware/subscriptionLimits');
     const limitCheck = await SubscriptionLimitsMiddleware.checkCampaignLimit(coachId);
     
     if (!limitCheck.allowed) {
         const { sendLimitError } = require('../utils/subscriptionLimitErrors');
-        return sendLimitError(res, 'CAMPAIGN', limitCheck.reason, limitCheck.currentCount, limitCheck.maxLimit, limitCheck.upgradeRequired);
+        const logger = require('../utils/logger');
+        logger.warn(`[MarketingV1Controller] Campaign creation blocked for coach ${coachId}: ${limitCheck.reason}`);
+        return sendLimitError(
+            res, 
+            'CAMPAIGN', 
+            limitCheck.reason || 'Campaign limit reached', 
+            limitCheck.currentCount || 0, 
+            limitCheck.maxLimit || 0, 
+            limitCheck.upgradeRequired !== false
+        );
     }
 
     const campaign = await marketingV1Service.createCampaign(coachId, {

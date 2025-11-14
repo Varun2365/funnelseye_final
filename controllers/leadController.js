@@ -238,13 +238,22 @@ const createLead = async (req, res) => {
             });
         }
 
-        // Check subscription limits for lead creation
+        // Check subscription limits for lead creation - MUST happen before any lead creation
         const SubscriptionLimitsMiddleware = require('../middleware/subscriptionLimits');
         const limitCheck = await SubscriptionLimitsMiddleware.checkLeadLimit(coachId);
         
         if (!limitCheck.allowed) {
             const { sendLimitError } = require('../utils/subscriptionLimitErrors');
-            return sendLimitError(res, 'LEAD', limitCheck.reason, limitCheck.currentCount, limitCheck.maxLimit, limitCheck.upgradeRequired);
+            const logger = require('../utils/logger');
+            logger.warn(`[LeadController] Lead creation blocked for coach ${coachId}: ${limitCheck.reason}`);
+            return sendLimitError(
+                res, 
+                'LEAD', 
+                limitCheck.reason || 'Lead limit reached', 
+                limitCheck.currentCount || 0, 
+                limitCheck.maxLimit || 0, 
+                limitCheck.upgradeRequired !== false
+            );
         }
 
         const funnel = await Funnel.findOne({ _id: funnelId, coachId });

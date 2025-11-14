@@ -6,6 +6,8 @@ const {
   CustomerProgress,
   CoachCourseAccess
 } = require('../schema/contentSchemas');
+const SubscriptionPlan = require('../schema/SubscriptionPlan');
+const CoachSubscription = require('../schema/CoachSubscription');
 
 class ContentController {
   // ===== ADMIN METHODS =====
@@ -590,7 +592,7 @@ class ContentController {
       const { page = 1, limit = 20, courseType, category, search } = req.query;
       const skip = (page - 1) * limit;
 
-      // Get courses accessible to this coach
+      // Get courses accessible to this coach (via access records)
       const accessRecords = await CoachCourseAccess.find({
         coachId,
         status: 'active'
@@ -598,17 +600,26 @@ class ContentController {
 
       const accessibleCourseIds = accessRecords.map(record => record.courseId.toString());
 
+      // Build query: courses created by coach OR courses with access
       let query = {
-        _id: { $in: accessibleCourseIds },
-        status: 'published'
+        $or: [
+          { createdBy: coachId }, // Courses created by this coach
+          { _id: { $in: accessibleCourseIds } } // Courses with access
+        ]
       };
 
+      // Don't filter by status for coach's own courses, but filter for accessed courses
+      // We'll handle this in the aggregation or fetch separately
       if (courseType) query.courseType = courseType;
       if (category) query.category = category;
       if (search) {
-        query.$or = [
-          { title: { $regex: search, $options: 'i' } },
-          { description: { $regex: search, $options: 'i' } }
+        query.$and = [
+          {
+            $or: [
+              { title: { $regex: search, $options: 'i' } },
+              { description: { $regex: search, $options: 'i' } }
+            ]
+          }
         ];
       }
 
@@ -619,12 +630,22 @@ class ContentController {
         .populate('createdBy', 'firstName lastName email')
         .populate('modules');
 
+      // Filter: show all coach's own courses (any status), but only published for accessed courses
+      const filteredCourses = courses.filter(course => {
+        const isOwner = course.createdBy?._id?.toString() === coachId.toString() || 
+                       course.createdBy?.toString() === coachId.toString();
+        if (isOwner) {
+          return true; // Show all courses created by coach
+        }
+        return course.status === 'published'; // Only published for accessed courses
+      });
+
       const total = await ContentCourse.countDocuments(query);
 
       res.json({
         success: true,
         data: {
-          courses,
+          courses: filteredCourses,
           pagination: {
             current: parseInt(page),
             pages: Math.ceil(total / limit),
@@ -647,20 +668,7 @@ class ContentController {
       const coachId = req.user._id;
       const { courseId } = req.params;
 
-      // Check if coach has access
-      const access = await CoachCourseAccess.findOne({
-        coachId,
-        courseId,
-        status: 'active'
-      });
-
-      if (!access) {
-        return res.status(403).json({
-          success: false,
-          message: 'You do not have access to this course'
-        });
-      }
-
+      // Get the course first
       const course = await ContentCourse.findById(courseId)
         .populate('createdBy', 'firstName lastName email')
         .populate({
@@ -678,21 +686,243 @@ class ContentController {
         });
       }
 
-      res.json({
-        success: true,
-        data: {
-          course,
-          access: {
-            canModify: access.canModify,
-            canSell: access.canSell
+      // Check if coach created this course
+      const isOwner = course.createdBy?._id?.toString() === coachId.toString() || 
+                     course.createdBy?.toString() === coachId.toString();
+
+      if (isOwner) {
+        // Coach owns the course, full access
+        return res.json({
+          success: true,
+          data: {
+            course,
+            access: {
+              canModify: true,
+              canSell: true
+            }
           }
+        });
+      }
+
+      // Check if coach has access via CoachCourseAccess
+      const access = await CoachCourseAccess.findOne({
+        coachId,
+        courseId,
+        status: 'active'
+      });
+
+      if (access) {
+        return res.json({
+          success: true,
+          data: {
+            course,
+            access: {
+              canModify: access.canModify,
+              canSell: access.canSell
+            }
+          }
+        });
+      }
+
+      // Check if course is in subscription plan courseBundles
+      const subscription = await CoachSubscription.findOne({
+        coachId,
+        status: { $in: ['active', 'trial'] }
+      }).populate({
+        path: 'planId',
+        populate: {
+          path: 'courseBundles.course',
+          model: 'ContentCourse'
         }
+      });
+
+      if (subscription && subscription.planId && subscription.planId.courseBundles) {
+        const bundle = subscription.planId.courseBundles.find(b => {
+          const bundleCourseId = b.course?._id || b.course;
+          return bundleCourseId?.toString() === courseId.toString();
+        });
+
+        if (bundle) {
+          // Course is in subscription bundle, return with bundle permissions
+          return res.json({
+            success: true,
+            data: {
+              course,
+              access: {
+                canModify: bundle.allowContentRemix || false,
+                canSell: bundle.allowResell !== false,
+                canRemix: bundle.allowContentRemix !== false,
+                canCustomPricing: bundle.allowCustomPricing !== false
+              },
+              bundlePermissions: bundle
+            }
+          });
+        }
+      }
+
+      // No access found
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this course'
       });
     } catch (error) {
       console.error('Error fetching course:', error);
       res.status(500).json({
         success: false,
         message: 'Error fetching course',
+        error: error.message
+      });
+    }
+  }
+
+  // Get available courses from subscription plan courseBundles
+  async getAvailableCourses(req, res) {
+    try {
+      const coachId = req.user._id;
+      const { page = 1, limit = 100, courseType, category, search } = req.query;
+      
+      // Get coach's active subscription with populated courseBundles
+      const subscription = await CoachSubscription.findOne({
+        coachId,
+        status: { $in: ['active', 'trial'] }
+      }).populate({
+        path: 'planId',
+        populate: {
+          path: 'courseBundles.course',
+          model: 'ContentCourse'
+        }
+      });
+
+      let availableCourses = [];
+      let coursesWithPermissions = [];
+
+      if (subscription && subscription.planId && subscription.planId.courseBundles) {
+        const bundles = subscription.planId.courseBundles || [];
+        
+        // Extract course IDs from bundles (handle both populated and non-populated)
+        const courseIds = bundles
+          .map(bundle => {
+            if (bundle.course) {
+              // Handle populated course object
+              if (bundle.course._id) {
+                return bundle.course._id;
+              }
+              // Handle ObjectId reference
+              return bundle.course;
+            }
+            return null;
+          })
+          .filter(id => id);
+
+        if (courseIds.length > 0) {
+          // Build query for courses
+          let query = {
+            _id: { $in: courseIds },
+            status: 'published'
+          };
+
+          if (courseType) query.courseType = courseType;
+          if (category) query.category = category;
+          if (search) {
+            query.$or = [
+              { title: { $regex: search, $options: 'i' } },
+              { description: { $regex: search, $options: 'i' } }
+            ];
+          }
+
+          // Fetch courses with all necessary data
+          availableCourses = await ContentCourse.find(query)
+            .populate('createdBy', 'firstName lastName email')
+            .populate({
+              path: 'modules',
+              populate: {
+                path: 'contents',
+                model: 'ContentItem'
+              }
+            })
+            .sort({ createdAt: -1 });
+
+          // Map courses with bundle permissions
+          coursesWithPermissions = availableCourses.map(course => {
+            const bundle = bundles.find(b => {
+              const bundleCourseId = b.course?._id || b.course;
+              const courseId = course._id;
+              return bundleCourseId?.toString() === courseId?.toString();
+            });
+
+            return {
+              ...course.toObject(),
+              bundlePermissions: bundle || null,
+              canResell: bundle?.allowResell !== false,
+              canRemix: bundle?.allowContentRemix !== false,
+              canCustomPricing: bundle?.allowCustomPricing !== false,
+              suggestedPrice: bundle?.suggestedResellPrice || course.price || 0,
+              minimumPrice: bundle?.minimumResellPrice,
+              maximumPrice: bundle?.maximumResellPrice,
+              marketingKitIncluded: bundle?.marketingKitIncluded || false
+            };
+          });
+        }
+      }
+
+      // If no courses from subscription, get all published customer courses as fallback
+      if (coursesWithPermissions.length === 0) {
+        let query = {
+          category: 'customer_course',
+          status: 'published'
+        };
+
+        if (courseType) query.courseType = courseType;
+        if (search) {
+          query.$or = [
+            { title: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } }
+          ];
+        }
+
+        availableCourses = await ContentCourse.find(query)
+          .populate('createdBy', 'firstName lastName email')
+          .populate('modules')
+          .sort({ createdAt: -1 })
+          .limit(parseInt(limit));
+
+        coursesWithPermissions = availableCourses.map(course => ({
+          ...course.toObject(),
+          bundlePermissions: null,
+          canResell: true, // Default to true if no bundle
+          canRemix: true, // Default to true if no bundle
+          canCustomPricing: true, // Default to true if no bundle
+          suggestedPrice: course.price || 0,
+          minimumPrice: null,
+          maximumPrice: null,
+          marketingKitIncluded: false
+        }));
+      }
+
+      // Apply pagination
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      const paginatedCourses = coursesWithPermissions.slice(skip, skip + parseInt(limit));
+
+      res.json({
+        success: true,
+        data: {
+          courses: paginatedCourses,
+          pagination: {
+            current: parseInt(page),
+            pages: Math.ceil(coursesWithPermissions.length / parseInt(limit)),
+            total: coursesWithPermissions.length
+          },
+          subscription: subscription ? {
+            planId: subscription.planId._id || subscription.planId,
+            planName: subscription.planId?.name
+          } : null
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching available courses:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching available courses',
         error: error.message
       });
     }
@@ -1244,6 +1474,7 @@ module.exports = {
   // Coach methods
   getMyCourses: (req, res) => controller.getMyCourses(req, res),
   getMyCourseById: (req, res) => controller.getMyCourseById(req, res),
+  getAvailableCourses: (req, res) => controller.getAvailableCourses(req, res),
   createMyCourse: (req, res) => controller.createMyCourse(req, res),
   updateMyCourse: (req, res) => controller.updateMyCourse(req, res),
   // Coach module/content management with permission checks
