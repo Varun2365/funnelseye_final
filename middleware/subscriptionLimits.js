@@ -38,7 +38,7 @@ class SubscriptionLimitsMiddleware {
     }
     
     /**
-     * Check funnel limit - UNLIMITED
+     * Check funnel limit
      */
     static async checkFunnelLimit(coachId) {
         try {
@@ -47,9 +47,28 @@ class SubscriptionLimitsMiddleware {
                 return { allowed: false, reason: 'No active subscription' };
             }
             
-            // Always allow unlimited funnels
+            const { features } = subscriptionData;
+            const maxFunnels = features.maxFunnels || 0;
+            
+            if (maxFunnels === -1) {
+                // Unlimited
+                const currentFunnelCount = await Funnel.countDocuments({ coachId });
+                return { allowed: true, currentCount: currentFunnelCount, maxLimit: -1 };
+            }
+            
             const currentFunnelCount = await Funnel.countDocuments({ coachId });
-            return { allowed: true, currentCount: currentFunnelCount, maxLimit: -1 };
+            
+            if (currentFunnelCount >= maxFunnels) {
+                return {
+                    allowed: false,
+                    reason: 'Funnel limit reached',
+                    currentCount: currentFunnelCount,
+                    maxLimit: maxFunnels,
+                    upgradeRequired: true
+                };
+            }
+            
+            return { allowed: true, currentCount: currentFunnelCount, maxLimit: maxFunnels };
         } catch (error) {
             logger.error('[SubscriptionLimits] Error checking funnel limit:', error);
             return { allowed: false, reason: 'Error checking limits' };

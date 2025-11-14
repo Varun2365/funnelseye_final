@@ -34,7 +34,7 @@ exports.createRule = async (req, res) => {
         }
 
         const { features } = subscriptionData;
-        const maxAutomationRules = features.automationRules || 10;
+        const maxAutomationRules = features.maxAutomationRules || features.automationRules || 10;
         
         if (maxAutomationRules !== -1) {
             const currentRuleCount = await AutomationRule.countDocuments({ coachId });

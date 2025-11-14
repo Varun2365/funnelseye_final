@@ -2,6 +2,10 @@ const mongoose = require('mongoose');
 const SubscriptionPlan = require('../schema/SubscriptionPlan');
 const CoachSubscription = require('../schema/CoachSubscription');
 const User = require('../schema/User');
+const Funnel = require('../schema/Funnel');
+const Staff = require('../schema/Staff');
+const AutomationRule = require('../schema/AutomationRule');
+const Lead = require('../schema/Lead');
 const logger = require('../utils/logger');
 
 class SubscriptionController {
@@ -919,9 +923,26 @@ class SubscriptionController {
                 });
             }
             
+            // Get actual usage statistics
+            const [funnelCount, staffCount, automationRuleCount, leadCount] = await Promise.all([
+                Funnel.countDocuments({ coachId }),
+                Staff.countDocuments({ coachId, isActive: true }),
+                AutomationRule.countDocuments({ coachId }),
+                Lead.countDocuments({ coachId })
+            ]);
+            
+            // Add usage statistics to subscription data
+            const subscriptionData = subscription.toObject();
+            subscriptionData.usage = {
+                funnels: funnelCount,
+                staff: staffCount,
+                automationRules: automationRuleCount,
+                leads: leadCount
+            };
+            
             res.json({
                 success: true,
-                data: subscription
+                data: subscriptionData
             });
             
         } catch (error) {
