@@ -176,45 +176,54 @@
 
         .plan-card {
             background: #ffffff;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 24px;
+            border: 1px solid #dfe3ea;
+            border-radius: 2px;
             padding: 0;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.25s ease;
             position: relative;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-            min-height: 680px;
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+            min-height: 620px;
+        }
+
+        .plan-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(135deg, #e2e8f0, #f1f5f9);
         }
 
         .plan-card:hover {
-            border-color: #2563eb;
-            box-shadow: 0 24px 48px rgba(37, 99, 235, 0.15);
-            transform: translateY(-8px);
+            border-color: #1d4ed8;
+            box-shadow: 0 32px 70px rgba(15, 23, 42, 0.16);
+            transform: translateY(-6px);
         }
 
         .plan-card.popular {
-            border: 2px solid #2563eb;
-            background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
-            box-shadow: 0 24px 48px rgba(37, 99, 235, 0.2);
-            transform: scale(1.02);
+            border-color: #1d4ed8;
+            background: linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%);
+            box-shadow: 0 32px 70px rgba(37, 99, 235, 0.18);
         }
 
-        .plan-card.popular:hover {
-            transform: scale(1.02) translateY(-8px);
+        .plan-card.popular::before {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
         }
 
         .plan-header {
-            padding: 32px 32px 24px;
-            background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%);
-            border-bottom: 1px solid #e2e8f0;
+            padding: 36px 32px 28px;
+            background: #ffffff;
+            border-bottom: 1px solid #edf2f7;
             position: relative;
         }
 
         .plan-card.popular .plan-header {
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            border-bottom-color: #bfdbfe;
+            background: #f3f6ff;
+            border-bottom-color: #dbeafe;
         }
 
         .plan-badge {
@@ -248,11 +257,12 @@
         }
 
         .plan-name {
-            font-size: 1.75rem;
+            font-size: 2.1rem;
             font-weight: 800;
-            margin-bottom: 12px;
+            margin-bottom: 18px;
             color: #0f172a;
-            letter-spacing: -0.3px;
+            letter-spacing: -0.5px;
+            line-height: 1.15;
         }
 
         .plan-description {
@@ -263,9 +273,9 @@
         }
 
         .plan-price-section {
-            padding: 32px;
-            background: white;
-            border-bottom: 1px solid #e2e8f0;
+            padding: 28px 32px;
+            background: #fcfdff;
+            border-bottom: 1px solid #edf2f7;
         }
 
         .plan-price-wrapper {
@@ -301,6 +311,7 @@
             display: flex;
             flex-direction: column;
             min-height: 300px;
+            background: #ffffff;
         }
 
         .features-title {
@@ -381,7 +392,7 @@
         .plan-footer {
             padding: 24px 32px 32px;
             background: #f8fafc;
-            border-top: 1px solid #e2e8f0;
+            border-top: 1px solid #edf2f7;
         }
 
         .plan-card.popular .plan-footer {
@@ -390,31 +401,26 @@
 
         .btn-select {
             width: 100%;
-            padding: 16px 24px;
+            padding: 14px 20px;
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
             color: white;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             font-size: 1rem;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
-            letter-spacing: 0.3px;
+            transition: all 0.2s ease;
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.35);
+            letter-spacing: 0.2px;
         }
 
         .btn-select:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+            transform: translateY(-1px);
+            box-shadow: 0 18px 32px rgba(37, 99, 235, 0.45);
         }
 
         .plan-card.popular .btn-select {
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
-        }
-
-        .plan-card.popular .btn-select:hover {
-            box-shadow: 0 10px 28px rgba(37, 99, 235, 0.5);
+            box-shadow: 0 16px 32px rgba(37, 99, 235, 0.45);
         }
 
         .btn-select:disabled {
@@ -769,45 +775,61 @@
         /* Compact Plan Cards */
         .plan-card-compact {
             background: #ffffff;
-            border: 2px solid #e2e8f0;
-            border-radius: 20px;
+            border: 1px solid #dfe3ea;
+            border-radius: 2px;
             padding: 0;
-            transition: all 0.3s ease;
+            transition: all 0.25s ease;
             position: relative;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.07);
             min-height: 320px;
             overflow: hidden;
         }
 
+        .plan-card-compact::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 24px;
+            right: 24px;
+            height: 3px;
+            border-radius: 999px;
+            background: #e4e7ec;
+            z-index: 2;
+        }
+
         .plan-card-compact:hover {
-            border-color: #2563eb;
-            box-shadow: 0 12px 32px rgba(37, 99, 235, 0.15);
-            transform: translateY(-6px);
+            border-color: #1d4ed8;
+            box-shadow: 0 28px 60px rgba(15, 23, 42, 0.12);
+            transform: translateY(-4px);
         }
 
         .plan-card-compact.popular {
-            border: 3px solid #2563eb;
-            background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
-            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.2);
+            border-color: #1d4ed8;
+            background: linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%);
+            box-shadow: 0 30px 65px rgba(37, 99, 235, 0.2);
         }
 
         .plan-card-compact.popular::before {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
+
+        .plan-card-compact.popular::after {
             content: 'Most Popular';
             position: absolute;
-            top: 16px;
+            top: 14px;
             left: 50%;
             transform: translateX(-50%);
-            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
             color: white;
-            padding: 6px 20px;
-            border-radius: 20px;
-            font-size: 0.75rem;
+            padding: 4px 16px;
+            border-radius: 999px;
+            font-size: 0.7rem;
             font-weight: 700;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
-            letter-spacing: 0.8px;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            box-shadow: 0 10px 25px rgba(30, 64, 175, 0.35);
             z-index: 3;
         }
 
@@ -847,8 +869,8 @@
             justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 18px;
+            border-bottom: 1px solid #edf2f7;
         }
 
         .plan-compact-info {
@@ -858,12 +880,12 @@
         }
 
         .plan-compact-name {
-            font-size: 1.75rem;
+            font-size: 2rem;
             font-weight: 800;
             color: #0f172a;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             letter-spacing: -0.5px;
-            line-height: 1.3;
+            line-height: 1.2;
             word-wrap: break-word;
         }
 
@@ -883,14 +905,14 @@
         }
 
         .specialty-badge {
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            color: #1e40af;
-            padding: 5px 12px;
-            border-radius: 14px;
-            font-size: 0.75rem;
+            background: #eef2ff;
+            color: #312e81;
+            padding: 4px 10px;
+            border-radius: 10px;
+            font-size: 0.72rem;
             font-weight: 700;
-            border: 1px solid #bfdbfe;
-            box-shadow: 0 2px 4px rgba(30, 64, 175, 0.1);
+            border: 1px solid #c7d2fe;
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.18);
             white-space: nowrap;
         }
 
@@ -934,8 +956,8 @@
             flex-direction: column;
             gap: 10px;
             padding: 20px 24px 24px 24px;
-            border-top: 2px solid #f1f5f9;
-            background: #fafbfc;
+            border-top: 1px solid #edf2f7;
+            background: #f9fafb;
         }
 
         .btn-compact {
@@ -1136,7 +1158,7 @@
         <div class="header-content">
             <a href="/" class="logo">FunnelsEye</a>
             <div class="header-actions">
-                <button class="btn-login" id="loginBtn" onclick="handleLoginButtonClick()">Log in</button>
+                <button class="btn-login" id="loginBtn" onclick="handleLoginButtonClick()">Sign up</button>
             </div>
         </div>
     </header>
@@ -1228,6 +1250,16 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
+                        <label for="signupPhone">Phone Number <span class="required">*</span></label>
+                        <input type="tel" id="signupPhone" required placeholder="e.g., +91 9876543210" pattern="[+]?[0-9\s-]{10,15}">
+                        <small class="form-hint">Required for payment processing</small>
+                    </div>
+                    <div class="form-group">
+                        <!-- Empty space for alignment -->
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
                         <label for="signupPassword">Password <span class="required">*</span></label>
                         <input type="password" id="signupPassword" required minlength="6">
                     </div>
@@ -1245,21 +1277,9 @@
                     <div class="form-group">
                         <label for="signupCurrentLevel">Hierarchy Level <span class="required">*</span></label>
                         <select id="signupCurrentLevel" required>
-                            <option value="">Select Level</option>
-                            <option value="1">Level 1</option>
-                            <option value="2">Level 2</option>
-                            <option value="3">Level 3</option>
-                            <option value="4">Level 4</option>
-                            <option value="5">Level 5</option>
-                            <option value="6">Level 6</option>
-                            <option value="7">Level 7</option>
-                            <option value="8">Level 8</option>
-                            <option value="9">Level 9</option>
-                            <option value="10">Level 10</option>
-                            <option value="11">Level 11</option>
-                            <option value="12">Level 12</option>
+                            <option value="">Loading levels...</option>
                         </select>
-                        <small class="form-hint">Select your hierarchy level (1-12)</small>
+                        <small class="form-hint">Select your assigned hierarchy level</small>
                     </div>
                 </div>
                 <div class="form-group">
@@ -1344,8 +1364,21 @@
         let comparePlans = [];
         let signupEmail = null;
         let signupUserId = null;
+        let signupPhone = null;
+        let userEmail = null;
+        let userPhone = null;
         let availableSponsors = [];
+        let hierarchyLevels = [];
         let currentSubscription = null;
+
+        // Default hierarchy levels (Level 1 to 5)
+        const defaultHierarchyLevels = [
+            { level: 1, name: 'Level 1' },
+            { level: 2, name: 'Level 2' },
+            { level: 3, name: 'Level 3' },
+            { level: 4, name: 'Level 4' },
+            { level: 5, name: 'Level 5' }
+        ];
 
         // Check for existing login token (stored in localStorage)
         function getAuthToken() {
@@ -1381,8 +1414,8 @@
                     window.location.reload();
                 };
             } else {
-                loginBtn.textContent = 'Log in';
-                loginBtn.onclick = showLoginModal;
+                loginBtn.textContent = 'Sign up';
+                loginBtn.onclick = showSignupModal;
             }
         }
 
@@ -1392,7 +1425,7 @@
                 removeAuthToken();
                 window.location.reload();
             } else {
-                showLoginModal();
+                showSignupModal();
             }
         }
 
@@ -1720,7 +1753,7 @@
 
             if (!isLoggedIn()) {
                 selectedPlanId = planId;
-                showLoginModal();
+                showSignupModal();
                 return;
             }
 
@@ -1774,6 +1807,11 @@
                     return;
                 }
 
+                // Get email and phone for prefill
+                // Priority: signupEmail/signupPhone (just signed up) > userEmail/userPhone (stored) > localStorage
+                const prefillEmail = signupEmail || userEmail || localStorage.getItem('user_email') || '';
+                const prefillPhone = signupPhone || userPhone || localStorage.getItem('user_phone') || '';
+
                 // Initialize Razorpay checkout
                 const options = {
                     key: orderData.key,
@@ -1782,6 +1820,10 @@
                     name: 'FunnelsEye',
                     description: `Subscription: ${plan.name}`,
                     order_id: orderData.orderId,
+                    prefill: {
+                        email: prefillEmail,
+                        contact: prefillPhone
+                    },
                     handler: async function(response) {
                         await verifyPayment(response, plan._id);
                     },
@@ -1871,6 +1913,17 @@
 
                 if (result.success) {
                     setAuthToken(result.token);
+                    
+                    // Store user email and phone if available
+                    if (result.user && result.user.email) {
+                        userEmail = result.user.email;
+                        localStorage.setItem('user_email', result.user.email);
+                    }
+                    if (result.user && result.user.phone) {
+                        userPhone = result.user.phone;
+                        localStorage.setItem('user_phone', result.user.phone);
+                    }
+                    
                     hideLoginModal();
                     updateLoginButton();
                     
@@ -1897,6 +1950,351 @@
             }
         }
 
+        // Handle signup
+        async function handleSignup(event) {
+            event.preventDefault();
+            const submitBtn = document.getElementById('signupSubmitBtn');
+            const errorEl = document.getElementById('signupError');
+            
+            // Set loading state
+            const originalBtnText = submitBtn ? submitBtn.textContent : 'Create Account';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Sending OTP...';
+                submitBtn.style.opacity = '0.7';
+                submitBtn.style.cursor = 'not-allowed';
+            }
+            
+            if (errorEl) {
+                errorEl.textContent = '';
+                errorEl.style.display = 'none';
+            }
+
+            const name = document.getElementById('signupName').value.trim();
+            const email = document.getElementById('signupEmail').value.trim();
+            const phone = document.getElementById('signupPhone').value.trim();
+            const password = document.getElementById('signupPassword').value;
+            const confirmPassword = document.getElementById('signupConfirmPassword').value;
+            const coachId = document.getElementById('signupCoachId').value.trim();
+            const currentLevel = document.getElementById('signupCurrentLevel').value;
+            const sponsorId = document.getElementById('signupSponsorId').value;
+            const teamRankName = document.getElementById('signupTeamRank').value.trim();
+            const presidentTeamRankName = document.getElementById('signupPresidentTeamRank').value.trim();
+
+            // Validation
+            if (password !== confirmPassword) {
+                if (errorEl) {
+                    errorEl.textContent = 'Passwords do not match';
+                    errorEl.style.display = 'block';
+                }
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalBtnText;
+                    submitBtn.style.opacity = '1';
+                    submitBtn.style.cursor = 'pointer';
+                }
+                return;
+            }
+
+            if (!name || !email || !phone || !password || !coachId || !currentLevel) {
+                if (errorEl) {
+                    errorEl.textContent = 'Please fill in all required fields';
+                    errorEl.style.display = 'block';
+                }
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalBtnText;
+                    submitBtn.style.opacity = '1';
+                    submitBtn.style.cursor = 'pointer';
+                }
+                return;
+            }
+
+            try {
+                const payload = {
+                    name,
+                    email,
+                    password,
+                    role: 'coach',
+                    selfCoachId: coachId,
+                    currentLevel: parseInt(currentLevel),
+                    ...(sponsorId ? { sponsorId } : {}),
+                    ...(teamRankName ? { teamRankName } : {}),
+                    ...(presidentTeamRankName ? { presidentTeamRankName } : {})
+                };
+
+                const response = await fetch('/api/auth/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    signupEmail = email;
+                    signupPhone = phone;
+                    signupUserId = result.userId;
+                    // Store for payment prefill
+                    userEmail = email;
+                    userPhone = phone;
+                    if (submitBtn) {
+                        submitBtn.textContent = 'OTP Sent! Opening verification...';
+                    }
+                    // Small delay to show success message
+                    setTimeout(() => {
+                        hideSignupModal();
+                        showOtpModal();
+                    }, 500);
+                } else {
+                    if (errorEl) {
+                        errorEl.textContent = result.message || 'Signup failed. Please try again.';
+                        errorEl.style.display = 'block';
+                    }
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = originalBtnText;
+                        submitBtn.style.opacity = '1';
+                        submitBtn.style.cursor = 'pointer';
+                    }
+                }
+            } catch (error) {
+                console.error('Signup error:', error);
+                if (errorEl) {
+                    errorEl.textContent = 'An error occurred during signup. Please try again.';
+                    errorEl.style.display = 'block';
+                }
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalBtnText;
+                    submitBtn.style.opacity = '1';
+                    submitBtn.style.cursor = 'pointer';
+                }
+            }
+        }
+
+        // Handle OTP verification
+        async function handleOtpVerification(event) {
+            event.preventDefault();
+            const submitBtn = document.getElementById('otpSubmitBtn');
+            const errorEl = document.getElementById('otpError');
+            
+            // Set loading state
+            const originalBtnText = submitBtn ? submitBtn.textContent : 'Verify OTP';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Verifying...';
+                submitBtn.style.opacity = '0.7';
+                submitBtn.style.cursor = 'not-allowed';
+            }
+            
+            if (errorEl) {
+                errorEl.textContent = '';
+                errorEl.style.display = 'none';
+            }
+
+            const otp = document.getElementById('otpCode').value.trim();
+
+            if (!otp || otp.length !== 6) {
+                if (errorEl) {
+                    errorEl.textContent = 'Please enter a valid 6-digit OTP';
+                    errorEl.style.display = 'block';
+                }
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalBtnText;
+                    submitBtn.style.opacity = '1';
+                    submitBtn.style.cursor = 'pointer';
+                }
+                return;
+            }
+
+            if (!signupEmail) {
+                if (errorEl) {
+                    errorEl.textContent = 'Email not found. Please start the signup process again.';
+                    errorEl.style.display = 'block';
+                }
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalBtnText;
+                    submitBtn.style.opacity = '1';
+                    submitBtn.style.cursor = 'pointer';
+                }
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/verify-otp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email: signupEmail, otp })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    if (submitBtn) {
+                        submitBtn.textContent = 'Verified! Redirecting...';
+                    }
+                    setAuthToken(result.token);
+                    
+                    // Store email and phone in localStorage for payment prefill
+                    if (signupEmail) {
+                        userEmail = signupEmail;
+                        localStorage.setItem('user_email', signupEmail);
+                    }
+                    if (signupPhone) {
+                        userPhone = signupPhone;
+                        localStorage.setItem('user_phone', signupPhone);
+                    }
+                    
+                    hideOtpModal();
+                    updateLoginButton();
+                    
+                    // Load current subscription status
+                    await loadCurrentSubscription();
+                    
+                    // If a plan was selected before signup, proceed with subscription
+                    if (selectedPlanId) {
+                        const plan = plans.find(p => p._id === selectedPlanId);
+                        if (plan) {
+                            await createSubscriptionOrder(plan);
+                        }
+                        selectedPlanId = null;
+                    } else {
+                        // Show success message
+                        showSuccess('Account created successfully! You can now select a plan.');
+                    }
+                } else {
+                    if (errorEl) {
+                        errorEl.textContent = result.message || 'Invalid OTP. Please try again.';
+                        errorEl.style.display = 'block';
+                    }
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = originalBtnText;
+                        submitBtn.style.opacity = '1';
+                        submitBtn.style.cursor = 'pointer';
+                    }
+                }
+            } catch (error) {
+                console.error('OTP verification error:', error);
+                if (errorEl) {
+                    errorEl.textContent = 'An error occurred during OTP verification. Please try again.';
+                    errorEl.style.display = 'block';
+                }
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalBtnText;
+                    submitBtn.style.opacity = '1';
+                    submitBtn.style.cursor = 'pointer';
+                }
+            }
+        }
+
+        // Resend OTP
+        async function resendOtp() {
+            if (!signupEmail) {
+                alert('Email not found. Please start the signup process again.');
+                return;
+            }
+
+            const resendLink = document.getElementById('resendOtpLink');
+            const originalLinkText = resendLink ? resendLink.textContent : 'Resend OTP';
+            
+            // Set loading state
+            if (resendLink) {
+                resendLink.style.pointerEvents = 'none';
+                resendLink.style.opacity = '0.6';
+                resendLink.textContent = 'Sending OTP...';
+            }
+
+            const errorEl = document.getElementById('otpError');
+            if (errorEl) {
+                errorEl.textContent = '';
+                errorEl.style.display = 'none';
+            }
+
+            try {
+                const response = await fetch('/api/auth/resend-otp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email: signupEmail })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    if (resendLink) {
+                        resendLink.textContent = 'OTP Sent!';
+                        setTimeout(() => {
+                            resendLink.textContent = originalLinkText;
+                            resendLink.style.pointerEvents = 'auto';
+                            resendLink.style.opacity = '1';
+                        }, 2000);
+                    }
+                    showSuccess('OTP has been resent to your email address.');
+                } else {
+                    if (errorEl) {
+                        errorEl.textContent = result.message || 'Failed to resend OTP. Please try again.';
+                        errorEl.style.display = 'block';
+                    }
+                    if (resendLink) {
+                        resendLink.textContent = originalLinkText;
+                        resendLink.style.pointerEvents = 'auto';
+                        resendLink.style.opacity = '1';
+                    }
+                }
+            } catch (error) {
+                console.error('Resend OTP error:', error);
+                if (errorEl) {
+                    errorEl.textContent = 'An error occurred. Please try again.';
+                    errorEl.style.display = 'block';
+                }
+                if (resendLink) {
+                    resendLink.textContent = originalLinkText;
+                    resendLink.style.pointerEvents = 'auto';
+                    resendLink.style.opacity = '1';
+                }
+            }
+        }
+
+        // Show OTP modal
+        function showOtpModal() {
+            const otpModal = document.getElementById('otpModal');
+            if (otpModal) {
+                const otpEmailSpan = document.getElementById('otpEmail');
+                if (otpEmailSpan && signupEmail) {
+                    otpEmailSpan.textContent = signupEmail;
+                }
+                otpModal.style.display = 'flex';
+                const errorEl = document.getElementById('otpError');
+                if (errorEl) {
+                    errorEl.textContent = '';
+                    errorEl.style.display = 'none';
+                }
+                // Clear OTP input
+                const otpInput = document.getElementById('otpCode');
+                if (otpInput) {
+                    otpInput.value = '';
+                }
+            }
+        }
+
+        // Hide OTP modal
+        function hideOtpModal() {
+            const otpModal = document.getElementById('otpModal');
+            if (otpModal) {
+                otpModal.style.display = 'none';
+            }
+        }
+
         // Modal functions
         function showLoginModal() {
             document.getElementById('loginModal').style.display = 'flex';
@@ -1905,6 +2303,27 @@
 
         function hideLoginModal() {
             document.getElementById('loginModal').style.display = 'none';
+        }
+
+        function showSignupModal() {
+            const signupModal = document.getElementById('signupModal');
+            if (signupModal) {
+                signupModal.style.display = 'flex';
+                const errorEl = document.getElementById('signupError');
+                if (errorEl) {
+                    errorEl.textContent = '';
+                    errorEl.style.display = 'none';
+                }
+                // Immediately show dummy levels 1-5
+                populateHierarchyLevelOptions(defaultHierarchyLevels);
+            }
+        }
+
+        function hideSignupModal() {
+            const signupModal = document.getElementById('signupModal');
+            if (signupModal) {
+                signupModal.style.display = 'none';
+            }
         }
 
         function showLoginError(message) {
@@ -1940,10 +2359,101 @@
             }
         }
 
+        function populateHierarchyLevelOptions(levels = []) {
+            const levelSelect = document.getElementById('signupCurrentLevel');
+            if (!levelSelect) return;
+            levelSelect.innerHTML = '<option value="">Select Hierarchy Level</option>';
+            levels.forEach(level => {
+                const option = document.createElement('option');
+                const value = level.level || level._id || level.id || level.name;
+                option.value = value;
+                option.textContent = level.name || `Level ${level.level || value}`;
+                levelSelect.appendChild(option);
+            });
+        }
+
+        function populateSponsorOptions(sponsors = []) {
+            const sponsorSelect = document.getElementById('signupSponsorId');
+            if (!sponsorSelect) return;
+            sponsorSelect.innerHTML = '<option value="">No Sponsor</option>';
+            sponsors.forEach(sponsor => {
+                if (!sponsor || !sponsor._id) return;
+                const option = document.createElement('option');
+                option.value = sponsor._id;
+                const coachId = sponsor.selfCoachId ? ` • ${sponsor.selfCoachId}` : '';
+                const levelLabel = sponsor.currentLevel ? ` • Level ${sponsor.currentLevel}` : '';
+                option.textContent = `${sponsor.name || sponsor.email || 'Coach'}${coachId}${levelLabel}`;
+                sponsorSelect.appendChild(option);
+            });
+        }
+
+        async function loadSignupMetadata() {
+            // Show dummy levels immediately
+            populateHierarchyLevelOptions(defaultHierarchyLevels);
+            
+            try {
+                // Create a timeout promise (5 seconds)
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('Timeout after 5 seconds')), 5000);
+                });
+
+                // Race between API calls and timeout
+                const apiCallsPromise = Promise.all([
+                    fetch('/api/auth/available-sponsors'),
+                    fetch('/api/auth/coach-ranks')
+                ]).then(async ([sponsorsRes, levelsRes]) => {
+                    // Process sponsors
+                    if (sponsorsRes.ok) {
+                        const sponsorsData = await sponsorsRes.json();
+                        availableSponsors = sponsorsData?.data?.digitalSponsors || [];
+                        populateSponsorOptions(availableSponsors);
+                    } else {
+                        populateSponsorOptions([]);
+                    }
+
+                    // Process hierarchy levels
+                    if (levelsRes.ok) {
+                        const levelsData = await levelsRes.json();
+                        const apiLevels = Array.isArray(levelsData?.data) && levelsData.data.length > 0
+                            ? levelsData.data
+                            : null;
+                        // Only update if we got valid data from API
+                        if (apiLevels && apiLevels.length > 0) {
+                            hierarchyLevels = apiLevels;
+                            populateHierarchyLevelOptions(hierarchyLevels);
+                        }
+                    }
+                    return { sponsorsRes, levelsRes };
+                });
+
+                await Promise.race([
+                    apiCallsPromise,
+                    timeoutPromise
+                ]);
+            } catch (error) {
+                console.error('Error loading signup metadata (timeout or error):', error);
+                // On timeout or error, keep showing dummy levels (already populated)
+                hierarchyLevels = defaultHierarchyLevels;
+                populateSponsorOptions([]);
+            }
+        }
+
         // Close modals on outside click
         document.getElementById('loginModal').addEventListener('click', (e) => {
             if (e.target.id === 'loginModal') {
                 hideLoginModal();
+            }
+        });
+
+        document.getElementById('signupModal').addEventListener('click', (e) => {
+            if (e.target.id === 'signupModal') {
+                hideSignupModal();
+            }
+        });
+
+        document.getElementById('otpModal').addEventListener('click', (e) => {
+            if (e.target.id === 'otpModal') {
+                hideOtpModal();
             }
         });
 
@@ -2132,8 +2642,13 @@
 
         // Initialize
         updateLoginButton();
+        // Load user email and phone from localStorage if available
+        userEmail = localStorage.getItem('user_email') || null;
+        userPhone = localStorage.getItem('user_phone') || null;
+        
         loadPlans();
         loadCurrentSubscription(); // Load subscription status if user is logged in
+        loadSignupMetadata();
     </script>
 </body>
 </html>
