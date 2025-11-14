@@ -203,16 +203,45 @@ async function createNewTask(config, eventPayload) {
     const leadData = eventPayload.relatedDoc;
     const { coachId } = leadData;
     
-    // Support both field naming conventions
-    const taskName = config.taskName || config.title;
-    const taskDescription = config.taskDescription || config.description;
+    // Support multiple field naming conventions
+    let taskName = config.taskName || config.title || config.name;
+    let taskDescription = config.taskDescription || config.description;
     let dueDate = config.dueDate;
     
     if (!leadData || !coachId) { 
         throw new Error('Lead or coach data not found.'); 
     }
     
-    if (!taskName) {
+    // Parse template variables in task name and description
+    const { parseTemplateString } = require('../utils/templateParser');
+    const templateData = {
+        lead: {
+            name: leadData.name,
+            firstName: leadData.firstName,
+            lastName: leadData.lastName,
+            email: leadData.email,
+            phone: leadData.phone,
+            status: leadData.status
+        },
+        coach: {
+            name: eventPayload.coach?.name,
+            email: eventPayload.coach?.email
+        },
+        // Legacy support
+        leadName: leadData.name,
+        leadEmail: leadData.email,
+        coachName: eventPayload.coach?.name
+    };
+    
+    // Parse template variables
+    if (taskName) {
+        taskName = parseTemplateString(taskName, templateData);
+    }
+    if (taskDescription) {
+        taskDescription = parseTemplateString(taskDescription, templateData);
+    }
+    
+    if (!taskName || taskName.trim() === '') {
         throw new Error('Task name is required.');
     }
     
@@ -229,22 +258,48 @@ async function createNewTask(config, eventPayload) {
         }
     }
     
-    // Use intelligent task assignment instead of direct assignment to coach
-    const workflowTaskService = require('./workflowTaskService');
-    const assignedTo = await workflowTaskService.intelligentTaskAssignment(coachId, {
-        name: taskName,
-        description: taskDescription,
-        relatedLead: leadData._id,
-        dueDate: dueDate
-    });
+    // Handle dueDate offset if provided (in days)
+    if (!dueDate && config.dueDateOffset) {
+        const offsetDays = parseInt(config.dueDateOffset) || 7;
+        dueDate = new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000);
+    }
+    
+    // If no dueDate is set, default to 7 days from now
+    if (!dueDate) {
+        dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    }
+    
+    // Handle assignedTo - use config.assignedTo if provided, otherwise use intelligent assignment
+    let assignedTo = null;
+    if (config.assignedTo && config.assignedTo.trim() !== '') {
+        // Use the provided staff ID
+        assignedTo = config.assignedTo;
+    } else {
+        // Use intelligent task assignment
+        const workflowTaskService = require('./workflowTaskService');
+        assignedTo = await workflowTaskService.intelligentTaskAssignment(coachId, {
+            name: taskName,
+            description: taskDescription,
+            relatedLead: leadData._id,
+            dueDate: dueDate
+        });
+    }
+    
+    // If still no assignment, default to coach
+    if (!assignedTo) {
+        assignedTo = coachId;
+    }
 
     const task = await Task.create({
         name: taskName,
-        description: taskDescription,
+        description: taskDescription || '',
         assignedTo: assignedTo,
         relatedLead: leadData._id,
         dueDate: dueDate,
-        coachId: coachId
+        coachId: coachId,
+        priority: config.priority || 'MEDIUM',
+        stage: config.stage || 'LEAD_GENERATION',
+        estimatedHours: config.estimatedHours || 1
     });
     
     console.log(`[ActionExecutor] Task created successfully: ${task.name} for coach ${coachId}`);
@@ -467,10 +522,18 @@ async function updateLeadField(config, eventPayload) {
 async function updateLeadScore(config, eventPayload) {
     // Corrected to use relatedDoc
     const leadId = eventPayload.relatedDoc._id;
-    const { scoreIncrement } = config;
+    // Support both 'score' (absolute value) and 'scoreIncrement' (relative change)
+    const { scoreIncrement, score } = config;
     if (!leadId) { throw new Error('Lead ID not found.'); }
-    if (typeof scoreIncrement !== 'number') { throw new Error('Invalid scoreIncrement.'); }
-    await Lead.findByIdAndUpdate(leadId, { $inc: { score: scoreIncrement } });
+    
+    // If 'score' is provided, set it directly; otherwise use 'scoreIncrement' to increment
+    if (typeof score === 'number') {
+        await Lead.findByIdAndUpdate(leadId, { $set: { score: score } });
+    } else if (typeof scoreIncrement === 'number') {
+        await Lead.findByIdAndUpdate(leadId, { $inc: { score: scoreIncrement } });
+    } else {
+        throw new Error('Invalid score or scoreIncrement. Must be a number.');
+    }
 }
 
 async function aiRescoreLead(config, eventPayload) {
