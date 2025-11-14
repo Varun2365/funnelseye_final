@@ -151,12 +151,16 @@ exports.getTasks = asyncHandler(async (req, res, next) => {
         assignedTo, 
         dueDate,
         page = 1, 
-        limit = 10,
+        limit = 100, // Increased default limit for dashboard
         sortBy = 'dueDate',
         sortOrder = 'asc'
     } = req.query;
 
     const filter = { coachId };
+    
+    // Log for debugging
+    console.log(`[WorkflowTaskController] getTasks - Coach ID: ${coachId}`);
+    console.log(`[WorkflowTaskController] getTasks - Filter:`, filter);
     
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
@@ -183,6 +187,9 @@ exports.getTasks = asyncHandler(async (req, res, next) => {
         .limit(parseInt(limit));
 
     const total = await Task.countDocuments(filter);
+    
+    // Log for debugging
+    console.log(`[WorkflowTaskController] getTasks - Found ${tasks.length} tasks (Total: ${total})`);
 
     res.status(200).json({
         success: true,

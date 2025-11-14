@@ -299,10 +299,19 @@ async function createNewTask(config, eventPayload) {
         coachId: coachId,
         priority: config.priority || 'MEDIUM',
         stage: config.stage || 'LEAD_GENERATION',
-        estimatedHours: config.estimatedHours || 1
+        estimatedHours: config.estimatedHours || 1,
+        status: 'Pending'
     });
     
-    console.log(`[ActionExecutor] Task created successfully: ${task.name} for coach ${coachId}`);
+    console.log(`[ActionExecutor] ✅ Task created successfully!`);
+    console.log(`[ActionExecutor] Task ID: ${task._id}`);
+    console.log(`[ActionExecutor] Task Name: ${task.name}`);
+    console.log(`[ActionExecutor] Coach ID: ${coachId}`);
+    console.log(`[ActionExecutor] Assigned To: ${assignedTo}`);
+    console.log(`[ActionExecutor] Related Lead: ${leadData._id}`);
+    console.log(`[ActionExecutor] Status: ${task.status}`);
+    console.log(`[ActionExecutor] Due Date: ${task.dueDate}`);
+    
     return task;
 }
 
@@ -993,7 +1002,14 @@ async function executeAutomationAction(payload) {
                 break;
             case 'create_new_task':
             case 'create_task':
-                await createNewTask(config, eventPayload);
+                try {
+                    const task = await createNewTask(config, eventPayload);
+                    console.log(`[ActionExecutor] ✅ Task creation completed successfully. Task ID: ${task?._id}`);
+                } catch (error) {
+                    console.error(`[ActionExecutor] ❌ Failed to execute action "create_task": ${error.message}`);
+                    console.error(`[ActionExecutor] Error stack:`, error.stack);
+                    throw error; // Re-throw to be caught by the outer try-catch
+                }
                 break;
             case 'send_internal_notification':
                 await sendInternalNotification(config, eventPayload);

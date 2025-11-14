@@ -201,10 +201,14 @@ class WorkflowTaskService {
      */
     async getKanbanBoard(coachId) {
         try {
+            console.log(`[WorkflowTaskService] getKanbanBoard - Coach ID: ${coachId}`);
+            
             const tasks = await Task.find({ coachId })
                 .populate('assignedTo', 'name email')
                 .populate('relatedLead', 'name email phone status')
                 .sort('dueDate');
+
+            console.log(`[WorkflowTaskService] getKanbanBoard - Found ${tasks.length} tasks for coach ${coachId}`);
 
             const boardData = {};
 
